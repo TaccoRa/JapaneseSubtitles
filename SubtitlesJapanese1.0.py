@@ -1,16 +1,18 @@
 import os
-import srt
-import bisect
 import re
 import sys
 import time
-import tkinter as tk
 import json
-import pyautogui
-from tkinter import filedialog, font as tkFont
+import bisect
 from typing import List, Optional
+
+import srt
+import pyautogui
 from pynput.mouse import Button, Listener
 from pynput.keyboard import Key, Listener as KeyboardListener
+
+import tkinter as tk
+from tkinter import filedialog, font as tkFont
 
 #Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 #Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Restricted
@@ -680,11 +682,6 @@ class SubtitlePlayer:
                 self.hide_subtitles_temporarily
             )
 
-        if self.playing and self.subtitle_timeout_job is None:
-            self.subtitle_timeout_job = self.root.after(
-                config['SUBTITLE_TIMEOUT_MS'],
-                self.hide_subtitles_temporarily)
-
     def hide_subtitles_temporarily(self):
         if not self.playing:
             self.subtitle_timeout_job = None
@@ -731,23 +728,24 @@ class SubtitlePlayer:
 
     def on_episode_change(self) -> None:
         try:
-            ep = int(self.episode_var.get().strip())
+            episode = int(self.episode_var.get().strip())
         except ValueError:
             return
 
-        m = re.search(r'S(\d+)', self.srt_path, re.IGNORECASE)
-        season = int(m.group(1)) if m else 1
+        match = re.search(r'S(\d+)', self.srt_path, re.IGNORECASE)
+        season = int(match.group(1)) if match else 1
 
-        fn = self._find_srt_for(season, ep)
-        if not fn:
-            print(f"No .srt found for S{season}E{ep}")
+        subtitle_file = self._find_srt_for(season, episode)
+        if not subtitle_file:
+            print(f"No .srt found for S{season}E{episode}")
             return
 
-        full_path = os.path.join(self.srt_dir, fn)
+        full_path = os.path.join(self.srt_dir, subtitle_file)
         if full_path == self.srt_path:
             return
 
-        self._load_new_srt(fn, season, ep)
+        self._load_new_srt(subtitle_file, season, episode)
+
 
 
     def simulate_video_click(self):
