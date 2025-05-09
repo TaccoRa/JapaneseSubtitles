@@ -10,6 +10,7 @@ import srt
 import pyautogui
 from pynput.mouse import Button, Listener
 from pynput.keyboard import Key, Listener as KeyboardListener
+import chardet
 
 import tkinter as tk
 from tkinter import filedialog, font as tkFont
@@ -18,6 +19,17 @@ from tkinter import filedialog, font as tkFont
 #Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Restricted
 # keep this for later information: to download subtitles:
 # https://kitsunekko.net/dirlist.php?dir=subtitles/japanese/One_Piece/&sort=date&order=asc
+
+
+
+# class SubtitlePlayer:
+# class SubtitleController:
+# class SubtitleRenderer:
+# class SubtitleManager:
+# class ControlUI:
+# class SubtitleOverlayUI:
+# class InteractionManager:
+# class CopyPopup:
 
 def load_config(config_path: str) -> dict:
     with open(config_path, 'r', encoding='utf-8') as f:
@@ -145,9 +157,14 @@ class SubtitlePlayer:
         window.destroy()
         return file
 
-    def load_subtitles(self, srt_path: str) -> List[srt.Subtitle]:
-        with open(srt_path, 'r', encoding='utf-8') as f:
-            srt_content = f.read()
+
+    def load_subtitles(self, srt_path):
+        with open(srt_path, 'rb') as f:
+            raw_data = f.read()
+        detected = chardet.detect(raw_data)
+        encoding = detected['encoding']
+
+        srt_content = raw_data.decode(encoding)
         return list(srt.parse(srt_content))
     
     def _find_srt_for(self, season: int, episode: int) -> Optional[str]:

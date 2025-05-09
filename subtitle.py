@@ -1,0 +1,3 @@
+class SubtitleManager:
+
+class SubtitleRenderer:
