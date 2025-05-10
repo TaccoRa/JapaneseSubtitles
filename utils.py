@@ -1,3 +1,0 @@
-draw_outlined_text
-parse_time_value
-constants
