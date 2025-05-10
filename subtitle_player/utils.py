@@ -1,18 +1,7 @@
-def format_time(seconds: float) -> str:
-    minutes, secs = divmod(int(seconds), 60)
-    return f"{minutes:02d}:{secs:02d}"
+import tkinter as tk
+from tkinter import font as tkFont
 
-def reformat_time_entry(self, entry: tk.Entry) -> None:
-    seconds_val = self.parse_time_value(entry.get())
-    minutes, seconds = divmod(int(seconds_val), 60)
-    formatted = f"{minutes:02d}:{seconds:02d}"
-    entry.delete(0, tk.END)
-    entry.insert(0, formatted)
-
-def format_skip_entry(self) -> None:
-    self.reformat_time_entry(self.skip_entry)
-
-def parse_time_value(self, text: str) -> float:
+def parse_time_value(text: str, default_skip: float) -> float:
     text = text.strip()
     if ":" in text:
         parts = text.split(":")
@@ -22,14 +11,24 @@ def parse_time_value(self, text: str) -> float:
                 seconds = int(parts[1])
                 return minutes * 60 + seconds
             except ValueError:
-                return self.default_skip
+                return default_skip
         else:
-            return self.default_skip
+            return default_skip
     else:
         if text.isdigit():
             return float(text) if len(text) <= 2 else int(text[:-2]) * 60 + int(text[-2:])
         try:
             return float(text)
         except ValueError:
-            return self.default_skip
+            return default_skip
             
+def reformat_time_entry(entry: tk.Entry, parse_func) -> None:
+    text = entry.get()
+    secs = parse_func(text)
+    minutes, seconds = divmod(int(secs), 60)
+    formatted = f"{minutes:02d}:{seconds:02d}"
+    entry.delete(0, tk.END)
+    entry.insert(0, formatted)
+
+def format_skip_entry(skip_entry: tk.Entry, parse_func) -> None:
+    reformat_time_entry(skip_entry, parse_func)

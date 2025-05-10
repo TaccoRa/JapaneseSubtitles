@@ -1,9 +1,8 @@
 import pyautogui
 
-from ui.subtitle_overlay import SubtitleOverlayUI
-from ui.control_ui import ControlUI
 from config_manager import ConfigManager
-from pynput.mouse import Button, Listener
+from ui.control_ui import ControlUI
+from ui.subtitle_overlay import SubtitleOverlayUI
 
 
 class MouseManager:
@@ -12,12 +11,18 @@ class MouseManager:
         self.overlay = overlay_ui
         self.control = control_ui
         self.config = config
+
         self.control_window_x = self.config.get('CONTROL_WINDOW_X')
         self.control_window_y = self.config.get('CONTROL_WINDOW_Y')
-    
-    def on_global_click(self, x, y, button, pressed) -> None:
-        if button == Button.x2 and pressed:
-            self.on_subtitle_click(None)        
+
+        self.mouse_over_controls = False
+        self.mouse_over_subtitles = False
+        
+        self.root = control_ui.root
+        self.control_window = control_ui.control_window
+        self.hide_controls_job = None
+        self.hide_delay = self.config.get("PHONEMODE_CONTROL_HIDE_DELAY_MS")
+        self.use_phone_mode = control_ui.use_phone_mode
 
     def set_mouse_over(self, area: str, flag: bool) -> None:
         if area == "controls":
@@ -31,15 +36,20 @@ class MouseManager:
                 self.hide_controls_job = None
             self.control_window.lift()
         else:
-            is_phone_mode = self.use_phone_mode.get() if hasattr(self, 'use_phone_mode') else False
-            if not is_phone_mode:
+            if self.use_phone_mode.get():
                 if self.hide_controls_job is None:
-                    self.hide_controls_job = self.root.after(self.hide_delay, self.lower_controls)
-    
+                    self.hide_controls_job = self.root.after(
+                        self.hide_delay,
+                        self.lower_controls)
+                    
+    def lower_controls(self) -> None:
+        self.control_window.lower()
+        self.hide_controls_job = None
+
     def simulate_video_click(self):
         original_pos = pyautogui.position()
         target_x = self.control_window_x + 50  #110
         target_y = self.control_window_y - 50 #1000
         pyautogui.click(target_x, target_y)
         self.control_window.attributes("-topmost", True)
-        pyautogui.moveTo(original_pos.x, original_pos.y)
+        pyautogui.moveTo(original_pos)
