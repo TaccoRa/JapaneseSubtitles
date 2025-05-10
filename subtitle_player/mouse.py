@@ -1,14 +1,20 @@
 import pyautogui
+
+from ui.subtitle_overlay import SubtitleOverlayUI
+from ui.control_ui import ControlUI
 from config_manager import ConfigManager
 from pynput.mouse import Button, Listener
 
 
 class MouseManager:
 
-    def __init__(self, config: ConfigManager) -> None:
+    def __init__(self, overlay_ui: SubtitleOverlayUI, control_ui: ControlUI, config: ConfigManager):
+        self.overlay = overlay_ui
+        self.control = control_ui
         self.config = config
         self.control_window_x = self.config.get('CONTROL_WINDOW_X')
         self.control_window_y = self.config.get('CONTROL_WINDOW_Y')
+    
     def on_global_click(self, x, y, button, pressed) -> None:
         if button == Button.x2 and pressed:
             self.on_subtitle_click(None)        
@@ -29,6 +35,7 @@ class MouseManager:
             if not is_phone_mode:
                 if self.hide_controls_job is None:
                     self.hide_controls_job = self.root.after(self.hide_delay, self.lower_controls)
+    
     def simulate_video_click(self):
         original_pos = pyautogui.position()
         target_x = self.control_window_x + 50  #110
