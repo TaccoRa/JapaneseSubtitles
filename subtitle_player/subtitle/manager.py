@@ -20,7 +20,10 @@ class SubtitleManager:
         self.srt_path = srt_path or self.prompt_srt_file()
         if not self.srt_path:
             raise FileNotFoundError("No .srt file selected or provided")
-        
+
+        m = re.search(r'S(\d+)', os.path.basename(self.srt_path), re.IGNORECASE)
+        self.current_season = int(m.group(1)) if m else 1
+
         self.srt_dir = os.path.dirname(self.srt_path)
         self._srt_file_list = [
             f for f in os.listdir(self.srt_dir)
@@ -75,7 +78,8 @@ class SubtitleManager:
         new_fn = self._find_srt_for(season, episode)
         if not new_fn:
             raise FileNotFoundError(f"No .srt found for S{season}E{episode}")
-
+        
+        self.current_season = season
         new_path = os.path.join(self.srt_dir, new_fn)
         self.srt_path = new_path
         self.subtitles = self.load_subtitles(new_path)

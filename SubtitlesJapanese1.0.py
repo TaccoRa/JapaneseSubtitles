@@ -65,7 +65,6 @@ class SubtitlePlayer:
 
     def __init__(self) -> None:
         srt_path_debug = config['DEBUGGING']
-        print(srt_path_debug)
         self.srt_path = config['DEBUG_SRT_FILE'] if srt_path_debug else self.prompt_srt_file()
         if not self.srt_path: sys.exit(0)
 
@@ -91,8 +90,8 @@ class SubtitlePlayer:
         self.current_time: float = config['DEFAULT_START_TIME']
         self.user_offset: float = 0.0
         self.last_update: float = time.time()
-        self.hide_delay: int = config['CONTROL_HIDE_DELAY_MS']
-        self.disappear_timer: int = config['CONTROL_DISAPPEAR_DELAY_MS']
+        self.hide_delay: int = config['MOUSE_CONTROL_HIDE_DELAY_MS']
+        self.disappear_timer: int = config['PHONEMODE_CONTROL_HIDE_DELAY_MS']
         self.last_subtitle_text: str = ""
         self.subtitle_timeout_job: Optional[str] = None
         self.hide_controls_job: Optional[str] = None
@@ -264,7 +263,7 @@ class SubtitlePlayer:
         episode_frame.grid(row=1, column=1, padx=5, pady=0, sticky="w")
         # Episode entry inside the frame
         self.episode_var = tk.StringVar()
-        match = re.search(r'E(\d+)', self.srt_path) # type: ignore
+        match = re.search(r'E(\d+)', self.srt_path)
         self.episode_var.set(match.group(1) if match else "1")
         self.episode_entry = tk.Entry(episode_frame, textvariable=self.episode_var, font=("Arial", 12), width=4)
         self.episode_entry.pack(side="left")
@@ -283,7 +282,7 @@ class SubtitlePlayer:
         self.setto_entry.grid(row=1, column=3, padx=5, pady=5, sticky="w")
         self.setto_entry.bind("<Return>", lambda e: self.set_to_time())
         
-        # # Time slider.
+        # Time slider.
         self.slider = tk.Scale(
             settings_frame,
             from_=0,

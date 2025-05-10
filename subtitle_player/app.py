@@ -17,19 +17,25 @@ class SubtitlePlayerApp:
 
         self.root = tk.Tk()
         self.root.title("Subtitle Player Settings")
+        self.root.geometry("330x130")
+        self.root.minsize(340, 130)
 
         initial_srt = self.config.get("DEBUG_SRT_FILE")
-        self.manager = SubtitleManager(initial_srt)
+        self.manager = SubtitleManager(initial_srt, self.config)
+
+        subtitle_font = tkFont.Font(
+            family=self.config.get("SUBTITLE_FONT"),
+            size=self.config.get("SUBTITLE_FONT_SIZE"),
+            weight="bold"
+        )
+        line_height = subtitle_font.metrics("linespace")
 
         self.overlay_ui = SubtitleOverlayUI(
             root=self.root,
             config=self.config,
-            font=tkFont.Font(
-                family=self.config.get("SUBTITLE_FONT"),
-                size=self.config.get("SUBTITLE_FONT_SIZE"),
-                weight="bold"
-            ),
-            line_height=None  # SubtitleOverlayUI can compute this after setting its font
+            font=subtitle_font,
+            line_height=line_height,
+            cleaned_subs=self.manager.cleaned_subtitles
         )
 
         self.renderer = SubtitleRenderer(
@@ -39,7 +45,7 @@ class SubtitlePlayerApp:
             line_height=self.overlay_ui.line_height
         )
 
-        self.control_ui = ControlUI(root=self.root, config=self.config)
+        self.control_ui = ControlUI(root=self.root,config=self.config,total_duration=self.manager.get_total_duration())
         self.popup = CopyPopup(root=self.root, config=self.config)
         
         self.controller = SubtitleController(

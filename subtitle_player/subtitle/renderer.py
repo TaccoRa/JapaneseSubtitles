@@ -46,6 +46,8 @@ class SubtitleRenderer:
                 if dx or dy:
                     canvas.create_text(x + dx, y + dy, text=text, fill=outline, font=font, anchor=anchor)
         canvas.create_text(x, y, text=text, fill=fill, font=font, anchor=anchor)
-
-
-
+    @staticmethod
+    def _format_time(seconds: float) -> str:
+        minutes, secs = divmod(int(seconds), 60)
+        return f"{minutes:02d}:{secs:02d}"
+    
