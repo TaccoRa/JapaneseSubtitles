@@ -1,6 +1,6 @@
 import tkinter as tk
-from config_manager import ConfigManager
-from utils import reformat_time_entry
+from Model.config_manager import ConfigManager
+from utils import reformat_time_entry, make_draggable
 
 class ControlUI:
     def __init__(self, root: tk.Tk, config: ConfigManager, total_duration: float):
@@ -35,6 +35,8 @@ class ControlUI:
         self._on_ep_inc     = lambda: None
         self._on_ep_dec     = lambda: None
         self._on_set_to     = lambda text: None
+        self._on_time_entry_return = lambda event: None
+        self._on_time_entry_clear  = lambda event: None
 
         self._build_settings_frame()
         self._build_control_window()
@@ -130,36 +132,55 @@ class ControlUI:
     def _build_control_window(self):
         w = self.win_w if self.use_phone_mode.get() else 180
         h = self.win_h if self.use_phone_mode.get() else 40
-        cw = tk.Toplevel(self.root)
-        cw.overrideredirect(True)
-        cw.geometry(f"{w}x{h}+{self.win_x}+{self.win_y+(40-h)}")
-        main = tk.Frame(cw, bg="black")
-        main.pack(fill="both", expand=True)
-        main.columnconfigure((0,2), weight=1)
-        main.columnconfigure(1, weight=2)
-        main.rowconfigure((0,1), weight=1)
+        self.control_window = tk.Toplevel(self.root)
+        self.control_window.overrideredirect(True)
+        ############################### width x height + X+(Y+40-height)
+        self.control_window.geometry(f"{w}x{h}+{self.win_x}+{self.win_y+(40-h)}")
 
-        tk.Button(main, text="<< Skip", command=lambda: self._on_back())\
-          .grid(row=0, column=0, rowspan=2, sticky="nsew")
-        tk.Button(main, text="Skip >>", command=lambda: self._on_forward())\
-          .grid(row=0, column=2, rowspan=2, sticky="nsew")
+        main_frame = tk.Frame(self.control_window, bg="black")
+        main_frame.pack(fill="both", expand=True)
+        main_frame.columnconfigure((0,2), weight=1)
+        main_frame.columnconfigure(1, weight=2)
+        main_frame.rowconfigure((0,1), weight=1)
 
-        tk.Button(main, text="Play", command=lambda: self._on_play_pause())\
-          .grid(row=1, column=1, sticky="nsew")
-        tk.Entry(
-            main,
-            textvariable=self.play_time_var,
-            font=("Arial",14,"bold"),
-            bg="black", fg="white", width=6,
-            justify="center", relief="flat", state="readonly"
-        ).grid(row=0, column=1, sticky="nsew")
+        self.back_button = tk.Button(main_frame, text="<< Skip", font=("Arial", 12, "bold"),
+                                      command=self.go_back, width=6, height=2, bg="#3582B5", activebackground="#42A1E0", relief="flat")
+        self.back_button.grid(row=0, column=0, rowspan=2, sticky="nsew")
+        self.back_button.bind("<ButtonPress>",command=lambda: self._on_back())
 
-        self.control_window = cw
+        self.forward_button = tk.Button(main_frame, text="Skip >>", font=("Arial", 12, "bold"),
+                                        command=self.go_forward, width=6, height=2, bg="#3582B5", activebackground="#42A1E0", relief="flat")
+        self.forward_button.grid(row=0, column=2, rowspan=2, sticky="nsew")
+        self.forward_button.bind("<ButtonPress>",command=lambda: self._on_forward())
+
+
+
+        self.play_time_entry = tk.Entry(main_frame, textvariable=self.play_time_var,
+                                        font=("Arial", 14, "bold"),
+                                        bg="black", fg="white", width=6, justify="center")
+        self.play_time_entry.grid(row=0, column=1, sticky="nsew")
+        self.play_time_entry.bind("<Return>", self._on_time_entry_return)
+        self.play_time_entry.bind("<Button-1>", self._on_time_entry_clear)
+
+
+        self.play_pause_button = tk.Button(main_frame, text="Play", font=("Arial", 12),
+                                           command=self.toggle_play, height=1, relief="flat")
+        self.play_pause_button.grid(row=1, column=1, sticky="nsew")
+        self.play_pause_button.bind("<ButtonPress>", command=lambda: self._on_play_pause())
+
+
+        self.control_drag_handle = tk.Frame(self.control_window, bg="gray", width=10, height=10)
+        self.control_drag_handle.place(x=0, y=0)
+        self.control_drag_handle.lift()
+        self.make_draggable(self.control_drag_handle, self.control_window)
+
+
+
 
 
     # ——— PUBLIC binders ——————————————————————————————————————
-    def bind_back(self,     cb): self._on_back       = cb
-    def bind_forward(self,  cb): self._on_forward    = cb
+    def bind_back(self,      cb): self._on_back       = cb
+    def bind_forward(self,   cb): self._on_forward    = cb
     def bind_play_pause(self,cb): self._on_play_pause = cb
     def bind_slider(self,   on_chg, on_pr, on_rl):
         self._on_slider_change = on_chg
@@ -169,9 +190,13 @@ class ControlUI:
         self._on_ep_change = on_ent
         self._on_ep_inc    = on_inc
         self._on_ep_dec    = on_dec
-        self.episode_entry.bind("<Return>", lambda e: self._on_ep_change())
     def bind_set_to_time(self, cb):
         self._on_set_to = cb
+    def bind_time_entry_return(self, cb):
+        self._on_time_entry_return = cb
+
+    def bind_time_entry_clear(self, cb):
+        self._on_time_entry_clear = cb
 
 
     # ——— PHONE MODE UI ADJUSTMENT ————————————————————————————

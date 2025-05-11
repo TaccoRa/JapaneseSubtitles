@@ -4,8 +4,8 @@ import tkinter as tk
 from pynput.mouse import Button, Listener as MouseListener
 from pynput.keyboard import Key, Listener as KeyboardListener
 
-from config_manager import ConfigManager
-from subtitle.manager import SubtitleManager
+from Model.config_manager import ConfigManager
+from Model.subtitle_manager import SubtitleManager
 from subtitle.renderer import SubtitleRenderer
 from ui.control_ui import ControlUI
 from ui.subtitle_overlay import SubtitleOverlayUI
@@ -53,6 +53,8 @@ class SubtitleController:
             on_dec    = self.decline_episode
         )
         self.control.bind_set_to_time(self.on_set_to_time)
+        control_ui.bind_time_entry_return(self.handle_time_entry_return)
+        control_ui.bind_time_entry_clear(self.handle_clear_time_entry)
 
         self.user_hidden = False
         self.subtitle_timeout_job = None
@@ -92,6 +94,30 @@ class SubtitleController:
         self.set_current_time(secs)
         self.control.setto_entry.delete(0, tk.END)
 
+    def handle_time_entry_return(self, event):
+        self.commit_time_entry_change()
+        self.time_editing = False
+        self.force_update_entry()
+
+    def handle_clear_time_entry(self, event):
+        self.time_editing = True
+        event.widget.delete(0, tk.END)
+
+    def commit_time_entry_change(self):
+        content = self.control.play_time_var.get().strip()
+        if content == "":
+            self.force_update_entry()
+            return
+        try:
+            new_time = parse_time_value(content, default_skip=self.manager.default_skip)
+            self.set_current_time(new_time)
+        except ValueError:
+            pass
+        self.force_update_entry()
+
+    def force_update_entry(self, event=None):
+        formatted = SubtitleRenderer._format_time(self.current_time)
+        self.control.play_time_var.set(formatted)
     # ——— Episode switching ———————————————————————————————————
     def on_episode_change(self):
         ep = int(self.control.episode_var.get() or 1)

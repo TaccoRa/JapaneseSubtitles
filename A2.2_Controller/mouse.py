@@ -1,6 +1,6 @@
 import pyautogui
 
-from config_manager import ConfigManager
+from Model.config_manager import ConfigManager
 from ui.control_ui import ControlUI
 from ui.subtitle_overlay import SubtitleOverlayUI
 
