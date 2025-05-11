@@ -1,6 +1,6 @@
 import tkinter as tk
-from Model.config_manager import ConfigManager
-from utils import reformat_time_entry, make_draggable
+from model.config_manager import ConfigManager
+from utils import reformat_time_entry, parse_time_value, make_draggable
 
 class ControlUI:
     def __init__(self, root: tk.Tk, config: ConfigManager, total_duration: float):
@@ -24,7 +24,8 @@ class ControlUI:
         self.use_phone_mode = tk.BooleanVar(value=False)
         self.episode_inc_btn = None
         self.episode_dec_btn = None
-
+        
+        self.subtitle_handle: tk.Toplevel | None = None
         self._on_back       = lambda: None
         self._on_forward    = lambda: None
         self._on_play_pause = lambda: None
@@ -60,7 +61,7 @@ class ControlUI:
             .grid(row=0, column=2, padx=5, pady=5, sticky="e")
         self.skip_entry = tk.Entry(options_frame, textvariable=self.skip_var, font=("Arial",12), width=7)
         self.skip_entry.grid(row=0, column=3, padx=5, pady=5, sticky="w")
-        self.skip_entry.bind("<FocusOut>", lambda e: self.reformat_time_entry())
+        self.skip_entry.bind("<FocusOut>", lambda e: reformat_time_entry(self.skip_entry,lambda txt: parse_time_value(txt, self.skip_default)))
 
         # Phone-mode toggle and episode entry.
         phone_episode_frame = tk.Frame(options_frame, bg="#f0f0f0")
@@ -97,7 +98,7 @@ class ControlUI:
         # Set to
         tk.Label(options_frame, text="Set to:", font=("Arial", 12), bg="#f0f0f0")\
             .grid(row=1, column=2, padx=5, pady=0, sticky="e")
-        self.setto_entry = tk.Entry(options_frame, font=("Arial", 12), width=7)
+        self.setto_entry = tk.Entry(options_frame,textvariable=self.setto_var, font=("Arial", 12), width=7)
         self.setto_entry.grid(row=1, column=3, padx=5, pady=5, sticky="w")
         self.setto_entry.bind("<Return>", lambda e: self._on_set_to(self.setto_var.get()))
 
@@ -144,16 +145,14 @@ class ControlUI:
         main_frame.rowconfigure((0,1), weight=1)
 
         self.back_button = tk.Button(main_frame, text="<< Skip", font=("Arial", 12, "bold"),
-                                      command=self.go_back, width=6, height=2, bg="#3582B5", activebackground="#42A1E0", relief="flat")
+                                      width=6, height=2, bg="#3582B5", activebackground="#42A1E0", relief="flat")
         self.back_button.grid(row=0, column=0, rowspan=2, sticky="nsew")
-        self.back_button.bind("<ButtonPress>",command=lambda: self._on_back())
+        self.back_button.bind("<ButtonPress>", lambda event: self._on_back())
 
         self.forward_button = tk.Button(main_frame, text="Skip >>", font=("Arial", 12, "bold"),
-                                        command=self.go_forward, width=6, height=2, bg="#3582B5", activebackground="#42A1E0", relief="flat")
+                                        width=6, height=2, bg="#3582B5", activebackground="#42A1E0", relief="flat")
         self.forward_button.grid(row=0, column=2, rowspan=2, sticky="nsew")
-        self.forward_button.bind("<ButtonPress>",command=lambda: self._on_forward())
-
-
+        self.forward_button.bind("<ButtonPress>", lambda event: self._on_forward())
 
         self.play_time_entry = tk.Entry(main_frame, textvariable=self.play_time_var,
                                         font=("Arial", 14, "bold"),
@@ -163,16 +162,15 @@ class ControlUI:
         self.play_time_entry.bind("<Button-1>", self._on_time_entry_clear)
 
 
-        self.play_pause_button = tk.Button(main_frame, text="Play", font=("Arial", 12),
-                                           command=self.toggle_play, height=1, relief="flat")
+        self.play_pause_button = tk.Button(main_frame, text="Play", bg="green",
+                                            activebackground="green", font=("Arial", 12), height=1, relief="flat")
         self.play_pause_button.grid(row=1, column=1, sticky="nsew")
-        self.play_pause_button.bind("<ButtonPress>", command=lambda: self._on_play_pause())
-
+        self.play_pause_button.bind("<ButtonPress>", lambda event: self._on_play_pause())
 
         self.control_drag_handle = tk.Frame(self.control_window, bg="gray", width=10, height=10)
         self.control_drag_handle.place(x=0, y=0)
         self.control_drag_handle.lift()
-        self.make_draggable(self.control_drag_handle, self.control_window)
+        make_draggable(self.control_drag_handle, self.control_window)
 
 
 
@@ -200,21 +198,29 @@ class ControlUI:
 
 
     # ——— PHONE MODE UI ADJUSTMENT ————————————————————————————
+    def set_subtitle_handle(self, subtitle_handle):
+        self.subtitle_handle = subtitle_handle
+
     def _toggle_phone_mode(self):
         self.use_phone_mode.set(not self.use_phone_mode.get())
-        # reposition control window:
-        w = self.win_w if self.use_phone_mode.get() else 180
-        h = self.win_h if self.use_phone_mode.get() else 40
-        self.control_window.geometry(f"{w}x{h}+{self.win_x}+{self.win_y+(40-h)}")
-
-
-    def _position_control_window(self):
         is_phone = self.use_phone_mode.get()
-        w = self.win_w if is_phone else 180
-        h = self.win_h if is_phone else 40
-        x = self.win_x
-        y = self.win_y + (40 - h)
-        self.control_window.geometry(f"{w}x{h}+{x}+{y}")
+        self.control_window.attributes("-topmost", True)
+
+        if hasattr(self, 'control_window') and self.control_window.winfo_exists():
+            new_width = 180 if not is_phone else self.win_w
+            new_height = 40 if not is_phone else self.win_h
+            pos_x = self.win_x
+            base_y = self.win_y
+            offset = 40 - new_height
+            pos_y = base_y + offset if new_height != 40 else base_y
+            self.control_window.geometry(f"{new_width}x{new_height}+{pos_x}+{pos_y}")
+
+        self.mode_toggle_button.configure(bg="green" if is_phone else "SystemButtonFace")
+        self.control_window.attributes("-topmost", True)
+
+        if hasattr(self, 'subtitle_handle') and self.subtitle_handle.winfo_exists():
+            self.subtitle_handle.attributes("-alpha", 0.05 if is_phone else 0.0)
+
 
     # ——— HELPERS ————————————————————————————————————————————
     @staticmethod

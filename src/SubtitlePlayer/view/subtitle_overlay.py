@@ -2,18 +2,19 @@ import tkinter as tk
 from tkinter import font as tkFont
 from typing import List, Optional
 
-from Model.config_manager import ConfigManager
+from model.config_manager import ConfigManager
 from utils import make_draggable
 
 class SubtitleOverlayUI:
 
-    def __init__(self, root: tk.Tk, config: ConfigManager, font: tkFont.Font, line_height: int,cleaned_subs: Optional[List[str]] = None) -> None:
+    def __init__(self, root: tk.Tk, config: ConfigManager, font: tkFont.Font, line_height: int,cleaned_subs: Optional[List[str]] = None, control_ui=None) -> None:
         self.root = root
         self.config = config
         self.font = font
         self.line_height = line_height
         self.cleaned_subs = cleaned_subs or []
 
+        self.control_ui = control_ui
         self.sub_window: tk.Toplevel = None
         self.handle_win: tk.Toplevel = None
         self.subtitle_canvas: tk.Canvas = None
@@ -36,6 +37,7 @@ class SubtitleOverlayUI:
         self.sub_window.attributes("-topmost", True)
         self.sub_window.attributes("-transparentcolor", "grey")
         self.sub_window.geometry(f"{self.max_width}x{init_height}+{pos_x}+{pos_y}")
+        self.sub_window.update_idletasks()
         self.bottom_anchor = pos_y + init_height
 
         self.border_frame = tk.Frame(self.sub_window, bg="grey")
@@ -49,14 +51,17 @@ class SubtitleOverlayUI:
 
         # drag handle
         drag_w, drag_h = 60, init_height
-        self.handle_win = tk.Toplevel(self.root)
-        self.handle_win.overrideredirect(True)
-        self.handle_win.attributes("-topmost", True)
-        self.handle_win.attributes("-alpha", 0.0)
-        self.handle_win.geometry(f"{drag_w}x{drag_h}+{pos_x}+{pos_y}")
+        self.subtitle_handle = tk.Toplevel(self.root)
+        if self.control_ui is not None:
+            self.control_ui.set_subtitle_handle(self.subtitle_handle)
+        self.subtitle_handle.overrideredirect(True)
+        self.subtitle_handle.attributes("-topmost", True)
+        self.subtitle_handle.attributes("-alpha", 0.0)
+        self.subtitle_handle.geometry(f"{drag_w}x{drag_h}+{pos_x}+{pos_y}")
+        make_draggable(self.subtitle_handle, self.sub_window, sync_windows=[self.subtitle_handle],on_drag=lambda bottom: setattr(self, "bottom_anchor", bottom))
+        make_draggable(self.sub_window, self.sub_window, sync_windows=[self.subtitle_handle],on_drag=lambda bottom: setattr(self, "bottom_anchor", bottom))
 
-        self.make_draggable(self.handle_win, self.sub_window, sync_windows=[self.handle_win])
-        self.make_draggable(self.sub_window, self.sub_window)
+
 
 
     def compute_max_width(self, cleaned_subs: List[str]) -> int:

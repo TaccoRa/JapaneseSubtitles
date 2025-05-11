@@ -4,13 +4,13 @@ import tkinter as tk
 from pynput.mouse import Button, Listener as MouseListener
 from pynput.keyboard import Key, Listener as KeyboardListener
 
-from Model.config_manager import ConfigManager
-from Model.subtitle_manager import SubtitleManager
-from subtitle.renderer import SubtitleRenderer
-from ui.control_ui import ControlUI
-from ui.subtitle_overlay import SubtitleOverlayUI
+from model.config_manager import ConfigManager
+from model.subtitle_manager import SubtitleManager
+from model.renderer import SubtitleRenderer
+from view.control_ui import ControlUI
+from view.subtitle_overlay import SubtitleOverlayUI
 from utils import parse_time_value
-from popup import CopyPopup
+from view.popup import CopyPopup
 
 class SubtitleController:
 
@@ -32,7 +32,7 @@ class SubtitleController:
         self.playing      = False
         self.last_update  = time.time()
         self.update_interval_ms = config.get("UPDATE_INTERVAL_MS")
-
+        self.control_window_ms = config.get("PHONEMODE_CONTROL_HIDE_DELAY_MS")
         ov = self.overlay
         ov.sub_window.bind("<Enter>", lambda e: self._on_sub_hover(True))
         ov.sub_window.bind("<Leave>", lambda e: self._on_sub_hover(False))
@@ -144,12 +144,22 @@ class SubtitleController:
     # ——— Playback controls ———————————————————————————————————
     def toggle_play(self):
         self.playing = not self.playing
-        label = "Stop" if self.playing else "Play"
-        self.control.play_btn.config(text=label)
-        self.last_update = time.time()
-        # schedule the next update loop if starting
         if self.playing:
+            self.control.play_pause_button.config(text="Stop", bg="red", font = "bold", activebackground="red")
+            self.last_update = time.time()
             self.schedule_update()
+        else:
+            self.control.play_pause_button.config(text="Play", bg="green", font = "bold", activebackground="green")
+            if self.subtitle_timeout_job is not None:
+                self.overlay.root.after_cancel(self.subtitle_timeout_job)
+                self.subtitle_timeout_job = None
+            if self.user_hidden and self.last_subtitle_text:
+                    self.user_hidden = False
+                    self.renderer.render(text=self.last_subtitle_text,
+                        max_width=self.overlay.max_width,
+                        bottom_anchor=self.overlay.bottom_anchor,
+                        sub_window=self.overlay.sub_window
+                    )
 
     def go_forward(self):
         skip = self.manager.get_skip_value()
@@ -256,6 +266,6 @@ class SubtitleController:
             if getattr(self, "_hide_job", None):
                 self.overlay.root.after_cancel(self._hide_job)
             self._hide_job = self.overlay.root.after(
-                self.config.get("CONTROL_DISAPPEAR_DELAY_MS"),
-                self.control.control_window.lower
+                self.control_window_ms,
+                lambda: self.control.control_window.lower()
             )
