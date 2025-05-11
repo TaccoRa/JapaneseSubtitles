@@ -2,24 +2,23 @@ import os
 import tkinter as tk
 from tkinter import font as tkFont
 
-from Model.config_manager import ConfigManager
-from Model.subtitle_manager import SubtitleManager
-from Model.renderer import SubtitleRenderer
-from View.control_ui import ControlUI
-from View.subtitle_overlay import SubtitleOverlayUI
-from Controller.controller import SubtitleController
-from Controller.mouse import MouseManager
-from View.popup import CopyPopup
+from model.config_manager import ConfigManager
+from model.subtitle_manager import SubtitleManager
+from model.renderer import SubtitleRenderer
+from view.control_ui import ControlUI
+from view.subtitle_overlay import SubtitleOverlayUI
+from controller.controller import SubtitleController
+from controller.mouse_manager import MouseManager
+from view.popup import CopyPopup
 
 class SubtitlePlayerApp:
     def __init__(self):
-        self.config = ConfigManager("config.json")
-
         self.root = tk.Tk()
         self.root.title("Subtitle Player Settings")
-        self.root.geometry("330x130")
+        self.root.geometry("340x130")
         self.root.minsize(340, 130)
 
+        self.config = ConfigManager("config.json")
         initial_srt = self.config.get("DEBUG_SRT_FILE")
         self.manager = SubtitleManager(initial_srt, self.config)
 
@@ -27,14 +26,16 @@ class SubtitlePlayerApp:
             family=self.config.get("SUBTITLE_FONT"),
             size=self.config.get("SUBTITLE_FONT_SIZE"),
             weight="bold")
-        
         line_height = subtitle_font.metrics("linespace")
+        
+        self.control_ui = ControlUI(root=self.root,config=self.config,total_duration=self.manager.get_total_duration())
         self.overlay_ui = SubtitleOverlayUI(
             root=self.root,
             config=self.config,
             font=subtitle_font,
             line_height=line_height,
-            cleaned_subs=self.manager.cleaned_subtitles)
+            cleaned_subs=self.manager.cleaned_subtitles,
+            control_ui=self.control_ui)
 
         self.renderer = SubtitleRenderer(
             canvas=self.overlay_ui.subtitle_canvas,
@@ -42,7 +43,7 @@ class SubtitlePlayerApp:
             color=self.config.get("SUBTITLE_COLOR"),
             line_height=self.overlay_ui.line_height)
 
-        self.control_ui = ControlUI(root=self.root,config=self.config,total_duration=self.manager.get_total_duration())
+
         self.popup = CopyPopup(root=self.root, config=self.config)
         
         self.controller = SubtitleController(

@@ -1,8 +1,8 @@
 import pyautogui
 
-from Model.config_manager import ConfigManager
-from ui.control_ui import ControlUI
-from ui.subtitle_overlay import SubtitleOverlayUI
+from model.config_manager import ConfigManager
+from view.control_ui import ControlUI
+from view.subtitle_overlay import SubtitleOverlayUI
 
 
 class MouseManager:

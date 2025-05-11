@@ -1,6 +1,6 @@
 import tkinter as tk
 
-def make_draggable(self, drag_handle: tk.Widget, target: tk.Toplevel, sync_windows: list[tk.Toplevel] = None) -> None:
+def make_draggable(drag_handle: tk.Widget, target: tk.Toplevel, sync_windows: list[tk.Toplevel] = None, on_drag=None) -> None:
     def start_drag(event):
         drag_handle._drag_start_x = event.x_root
         drag_handle._drag_start_y = event.y_root
@@ -18,10 +18,12 @@ def make_draggable(self, drag_handle: tk.Widget, target: tk.Toplevel, sync_windo
         drag_handle._drag_start_x = event.x_root
         drag_handle._drag_start_y = event.y_root
 
-        if target == self.sub_window:
-            self.bottom_anchor = new_y + target.winfo_height()
+        if on_drag:
+            on_drag(new_y + target.winfo_height())
+            
     drag_handle.bind("<ButtonPress-1>", start_drag)
     drag_handle.bind("<B1-Motion>", do_drag)
+
 
 def parse_time_value(text: str, default_skip: float) -> float:
     text = text.strip()

@@ -334,7 +334,7 @@ class SubtitlePlayer:
         self.handle_win.geometry(f"{drag_w}x{drag_h}+{pos_x}+{pos_y}")
         self.make_draggable(self.handle_win, self.sub_window, sync_windows=[self.handle_win]) # type: ignore
 
-        self.make_draggable(self.sub_window, self.sub_window) # type: ignore
+        self.make_draggable(self.sub_window, self.sub_window, sync_windows=[self.subtitle_handle])
 
 
     ############# CONTROL Window ###############
