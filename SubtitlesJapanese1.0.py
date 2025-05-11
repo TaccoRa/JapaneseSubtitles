@@ -369,6 +369,8 @@ class SubtitlePlayer:
                                         command=self.go_forward, width=6, height=2, bg="#3582B5", activebackground="#42A1E0", relief="flat")
         self.forward_button.grid(row=0, column=2, rowspan=2, sticky="nsew")
 
+
+
         formatted = self.format_time(config['DEFAULT_START_TIME'])
         self.play_time_var = tk.StringVar(value=formatted)
         self.play_time_entry = tk.Entry(main_frame, textvariable=self.play_time_var,
@@ -380,6 +382,9 @@ class SubtitlePlayer:
         self.play_time_entry.bind("<Return>", self.on_time_entry_return)
         # self.play_time_entry.bind("<FocusOut>", self.on_time_entry_focus_out)
         self.play_time_entry.bind("<Button-1>", self.clear_time_entry)
+
+
+
 
         self.play_pause_button = tk.Button(main_frame, text="Play", font=("Arial", 12),
                                            command=self.toggle_play, height=1, relief="flat")
@@ -418,14 +423,15 @@ class SubtitlePlayer:
     def on_time_entry_focus_in(self, event) -> None:
         self.time_editing = True
         self.play_time_entry.delete(0, tk.END)
-    def on_time_entry_return(self, event) -> None:
-        self.commit_time_entry_change()
-        self.time_editing = False
-        self.force_update_entry()
     def on_time_entry_focus_out(self, event) -> None:
         if self.time_editing:
             self.play_time_var.set(self.format_time(self.current_time))
             self.time_editing = False
+
+    def on_time_entry_return(self, event) -> None:
+        self.commit_time_entry_change()
+        self.time_editing = False
+        self.force_update_entry()
     def clear_time_entry(self, event) ->None:
         self.time_editing = True
         event.widget.delete(0, tk.END)
@@ -443,6 +449,10 @@ class SubtitlePlayer:
 
     def force_update_entry(self, event=None) -> None:
         self.play_time_var.set(self.format_time(self.current_time))
+
+
+
+        
     def set_to_time(self) -> None:
         new_time = self.parse_time_value(self.setto_entry.get())
         self.set_current_time(new_time)

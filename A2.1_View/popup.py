@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import font as tkFont
-from config_manager import ConfigManager
+from Model.config_manager import ConfigManager
 
 class CopyPopup:
     
