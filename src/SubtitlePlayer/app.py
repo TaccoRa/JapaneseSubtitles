@@ -13,25 +13,24 @@ from view.popup import CopyPopup
 
 class SubtitlePlayerApp:
     def __init__(self):
+        config = ConfigManager("config.json")
+
+        self.manager = SubtitleManager(config)
+
         self.root = tk.Tk()
         self.root.title("Subtitle Player Settings")
         self.root.geometry("340x130")
         self.root.minsize(340, 130)
 
-        self.config = ConfigManager("config.json")
-        initial_srt = self.config.get("DEBUG_SRT_FILE")
-        self.manager = SubtitleManager(initial_srt, self.config)
-
-        subtitle_font = tkFont.Font(
-            family=self.config.get("SUBTITLE_FONT"),
-            size=self.config.get("SUBTITLE_FONT_SIZE"),
+        
+        subtitle_font = tkFont.Font(family=config.get("SUBTITLE_FONT"),size=config.get("SUBTITLE_FONT_SIZE"),
             weight="bold")
         line_height = subtitle_font.metrics("linespace")
         
-        self.control_ui = ControlUI(root=self.root,config=self.config,total_duration=self.manager.get_total_duration())
+        self.control_ui = ControlUI(root=self.root,config=config,total_duration=self.manager.get_total_duration())
         self.overlay_ui = SubtitleOverlayUI(
             root=self.root,
-            config=self.config,
+            config=config,
             font=subtitle_font,
             line_height=line_height,
             cleaned_subs=self.manager.cleaned_subtitles,
@@ -40,11 +39,11 @@ class SubtitlePlayerApp:
         self.renderer = SubtitleRenderer(
             canvas=self.overlay_ui.subtitle_canvas,
             font=self.overlay_ui.font,
-            color=self.config.get("SUBTITLE_COLOR"),
+            color=config.get("SUBTITLE_COLOR"),
             line_height=self.overlay_ui.line_height)
 
 
-        self.popup = CopyPopup(root=self.root, config=self.config)
+        self.popup = CopyPopup(root=self.root, config=config)
         
         self.controller = SubtitleController(
             manager=self.manager,
@@ -52,14 +51,14 @@ class SubtitlePlayerApp:
             control_ui=self.control_ui,
             overlay_ui=self.overlay_ui,
             popup=self.popup,
-            config=self.config)
+            config=config)
 
         self.mouse = MouseManager(
             overlay_ui=self.overlay_ui,
             control_ui=self.control_ui,
-            config=self.config)
+            config=config)
 
-        self.root.after(self.config.get("UPDATE_INTERVAL_MS"), self.controller.update_loop)
+        self.root.after(config.get("UPDATE_INTERVAL_MS"), self.controller.update_loop)
 
     def run(self):
         self.root.mainloop()

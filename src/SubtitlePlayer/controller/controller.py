@@ -118,11 +118,12 @@ class SubtitleController:
     def force_update_entry(self, event=None):
         formatted = SubtitleRenderer._format_time(self.current_time)
         self.control.play_time_var.set(formatted)
+        
     # ——— Episode switching ———————————————————————————————————
     def on_episode_change(self):
         ep = int(self.control.episode_var.get() or 1)
         season = self.manager.current_season  # assume manager tracks last season
-        self.manager.switch_to(season, ep)
+        self.manager.set_episode(season, ep)
         # reset playback state
         self.current_time = self.config.get("DEFAULT_START_TIME")
         self.control.slider.set(self.current_time)

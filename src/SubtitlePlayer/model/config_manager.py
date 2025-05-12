@@ -22,12 +22,3 @@ class ConfigManager:
     def _save(self):
         with open(self.path, "w") as f:
             json.dump(self.config, f, indent=4)
-
-    # def load_subtitles(self, srt_path):
-    #     with open(srt_path, 'rb') as f:
-    #         raw_data = f.read()
-    #     detected = chardet.detect(raw_data)
-    #     encoding = detected['encoding']
-
-    #     srt_content = raw_data.decode(encoding)
-    #     return list(srt.parse(srt_content))
