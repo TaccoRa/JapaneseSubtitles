@@ -56,6 +56,7 @@ class SubtitleController:
         control_ui.bind_time_entry_return(self.handle_time_entry_return)
         control_ui.bind_time_entry_clear(self.handle_clear_time_entry)
 
+        self.control.bind_open_srt(self.handle_open_srt)
         self.user_hidden = False
         self.subtitle_timeout_job = None
 
@@ -122,14 +123,25 @@ class SubtitleController:
     # ——— Episode switching ———————————————————————————————————
     def on_episode_change(self):
         ep = int(self.control.episode_var.get() or 1)
-        season = self.manager.current_season  # assume manager tracks last season
+        season = self.manager.current_season
         self.manager.set_episode(season, ep)
-        # reset playback state
+        
         self.current_time = self.config.get("DEFAULT_START_TIME")
         self.control.slider.set(self.current_time)
         self.control.slider.config(to=self.manager.get_total_duration())
         self.update_time_displays()
         self.update_subtitle_display()
+        self.control.episode_var.set(str(self.manager.current_episode))
+        
+    def handle_open_srt(self):
+        new_path = self.manager.prompt_srt_file()
+        if new_path:
+            self.current_time = self.config.get("DEFAULT_START_TIME")
+            self.control.slider.set(self.current_time)
+            self.control.slider.config(to=self.manager.get_total_duration())
+            self.update_time_displays()
+            self.update_subtitle_display()
+            self.control.episode_var.set(str(self.manager.current_episode))
 
     def increment_episode(self):
         val = int(self.control.episode_var.get() or 1) + 1

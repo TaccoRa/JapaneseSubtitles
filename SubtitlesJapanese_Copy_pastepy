@@ -157,3 +157,20 @@ class SubtitlePlayer:
             self.control_window.geometry(f"{new_width}x{new_height}+{pos_x}+{pos_y}")
         if hasattr(self, 'handle_win') and self.handle_win.winfo_exists():
             self.handle_win.attributes("-alpha", 0.05 if is_phone_mode else 0.0)
+
+
+
+    def update_srt_file_in_config(self, new_season: int, new_episode: int) -> None:
+        cfg_path = self.config.path
+        with open(cfg_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        old = data.get("LAST_SRT_FILE", "")
+        def repl(m):
+            s_str = m.group(1).zfill(len(m.group(1)))
+            e_str = str(new_episode).zfill(len(m.group(2)))
+            return f"S{s_str}E{e_str}"
+
+        data["LAST_SRT_FILE"] = re.sub(r'S(\d+)E(\d+)', repl, old, count=1)
+        with open(cfg_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)

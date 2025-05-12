@@ -3,12 +3,13 @@ from model.config_manager import ConfigManager
 from utils import reformat_time_entry, parse_time_value, make_draggable
 
 class ControlUI:
-    def __init__(self, root: tk.Tk, config: ConfigManager, total_duration: float):
+    def __init__(self, root: tk.Tk, config: ConfigManager, total_duration: float, initial_episode=None):
         self.root = root
         self.config = config
         self.total_duration = total_duration
 
         self.ratio = config.get('RATIO')
+        self.extra_offset= config.get('EXTRA_OFFSET')
         self.default_start = config.get('DEFAULT_START_TIME')
         self.skip_default = config.get('DEFAULT_SKIP')
         self.win_x = config.get('CONTROL_WINDOW_X')
@@ -16,9 +17,9 @@ class ControlUI:
         self.win_w = config.get('CONTROL_WINDOW_WIDTH')
         self.win_h = config.get('CONTROL_WINDOW_HEIGHT')
         
-        self.offset_var = tk.StringVar(value="0.0")
+        self.offset_var = tk.StringVar(value=self.extra_offset)
         self.skip_var   = tk.StringVar(value=str(self.skip_default))
-        self.episode_var= tk.StringVar(value="614")
+        self.episode_var = tk.StringVar(value=str(initial_episode))
         self.setto_var = tk.StringVar(value="")
         self.play_time_var = tk.StringVar(value=self._format_time(self.default_start))
         self.use_phone_mode = tk.BooleanVar(value=False)
@@ -42,17 +43,28 @@ class ControlUI:
         self._build_settings_frame()
         self._build_control_window()
 
-    # ——— SETTINGS FRAME - ————————————————————————————
+    # ——— SETTINGS FRAME ————————————————————————————
     def _build_settings_frame(self):
         settings_frame = tk.LabelFrame(self.root)
         settings_frame.pack(fill="both", expand=True, padx=5, pady=5)
 
+        # Frame for all except slider
         options_frame = tk.Frame(settings_frame, bg="#f0f0f0")
         options_frame.grid(row=0, column=0, sticky="nw")
+        
+        # rame for phone-mode toggle and offset
+        phone_offset_frame = tk.Frame(options_frame, bg="#f0f0f0")
+        phone_offset_frame.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+
+        self.mode_toggle_button = tk.Button(
+            phone_offset_frame, text="📞", width=2, height=1,
+            relief="raised", command=self._toggle_phone_mode
+        )
+        self.mode_toggle_button.pack(side="left", padx=(0,6))
 
         # Offset entry.
-        tk.Label(options_frame, text="Offset (sec):", font=("Arial",12), bg="#f0f0f0")\
-            .grid(row=0, column=0, padx=5, pady=5, sticky="e")
+        tk.Label(phone_offset_frame, text="Offset (sec):", font=("Arial",12), bg="#f0f0f0")\
+            .pack(side="left")
         tk.Entry(options_frame, textvariable=self.offset_var,font=("Arial",12), width=7)\
             .grid(row=0, column=1, padx=5, pady=5, sticky="w")
         
@@ -63,36 +75,32 @@ class ControlUI:
         self.skip_entry.grid(row=0, column=3, padx=5, pady=5, sticky="w")
         self.skip_entry.bind("<FocusOut>", lambda e: reformat_time_entry(self.skip_entry,lambda txt: parse_time_value(txt, self.skip_default)))
 
-        # Phone-mode toggle and episode entry.
-        phone_episode_frame = tk.Frame(options_frame, bg="#f0f0f0")
-        phone_episode_frame.grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        # Frame for SRT button and episode
+        srt_episode_frame = tk.Frame(options_frame, bg="#f0f0f0")
+        srt_episode_frame.grid(row=1, column=0, padx=5, pady=5, sticky="w")
 
-        self.mode_toggle_button = tk.Button(
-            phone_episode_frame, text="📞", width=1, height=1,
-            relief="raised", command=self._toggle_phone_mode
-        )
-        self.mode_toggle_button.pack(side="left", padx=(0,6))
-
-        tk.Label(phone_episode_frame, text="Episode:",font=("Arial", 12), bg="#f0f0f0")\
+        self.srt_button = tk.Button(
+            srt_episode_frame, text="SRT", width=2, height=1,
+            relief="raised", command=lambda: self._on_open_srt())
+        self.srt_button.pack(side="left", padx=(0,6))
+        tk.Label(srt_episode_frame, text="Episode:",font=("Arial", 12), bg="#f0f0f0")\
             .pack(side="left")
         
+        # Frame for Episode entry and plus/minus buttons
         episode_frame = tk.Frame(options_frame, bg="#f0f0f0")
         episode_frame.grid(row=1, column=1, padx=5, pady=0, sticky="w")
-
         # Episode entry
         self.episode_entry = tk.Entry(episode_frame,textvariable=self.episode_var,font=("Arial",12), width=4)
         self.episode_entry.pack(side="left")
         self.episode_entry.bind("<Return>",lambda e: self._on_ep_change())
-
         #Plus and minus buttons
         self.episode_inc_btn = tk.Button(
-            episode_frame, text="+", font=("Arial",8,"bold"),width=1, height=1,
-            command=lambda: self._on_ep_inc())
+                episode_frame, text="+", font=("Arial",8,"bold"),width=1, height=1,
+                command=lambda: self._on_ep_inc())
         self.episode_inc_btn.pack(side="left")
-
         self.episode_dec_btn = tk.Button(
-            episode_frame, text="-", font=("Arial",8,"bold"),width=1, height=1,
-            command=lambda: self._on_ep_dec())
+                episode_frame, text="-", font=("Arial",8,"bold"),width=1, height=1,
+                command=lambda: self._on_ep_dec())
         self.episode_dec_btn.pack(side="left")
 
         # Set to
@@ -195,7 +203,8 @@ class ControlUI:
 
     def bind_time_entry_clear(self, cb):
         self._on_time_entry_clear = cb
-
+    def bind_open_srt(self, cb):
+        self._on_open_srt = cb
 
     # ——— PHONE MODE UI ADJUSTMENT ————————————————————————————
     def set_subtitle_handle(self, subtitle_handle):

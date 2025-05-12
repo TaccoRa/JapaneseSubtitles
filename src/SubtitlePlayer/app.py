@@ -1,4 +1,3 @@
-import os
 import tkinter as tk
 from tkinter import font as tkFont
 
@@ -19,15 +18,20 @@ class SubtitlePlayerApp:
 
         self.root = tk.Tk()
         self.root.title("Subtitle Player Settings")
-        self.root.geometry("340x130")
-        self.root.minsize(340, 130)
+        self.root.geometry("370x130")
+        self.root.minsize(370, 130)
 
         
         subtitle_font = tkFont.Font(family=config.get("SUBTITLE_FONT"),size=config.get("SUBTITLE_FONT_SIZE"),
             weight="bold")
         line_height = subtitle_font.metrics("linespace")
         
-        self.control_ui = ControlUI(root=self.root,config=config,total_duration=self.manager.get_total_duration())
+        self.control_ui = ControlUI(
+            root=self.root,
+            config=config,
+            total_duration=self.manager.get_total_duration(),
+            initial_episode=self.manager.current_episode)
+        
         self.overlay_ui = SubtitleOverlayUI(
             root=self.root,
             config=config,
