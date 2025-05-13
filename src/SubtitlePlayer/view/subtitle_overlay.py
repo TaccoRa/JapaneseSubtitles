@@ -7,20 +7,20 @@ from utils import make_draggable
 
 class SubtitleOverlayUI:
 
-    def __init__(self, root: tk.Tk, config: ConfigManager, font: tkFont.Font, line_height: int,cleaned_subs: Optional[List[str]] = None, control_ui=None) -> None:
+    def __init__(self, root: tk.Tk, config: ConfigManager,cleaned_subs: Optional[List[str]] = None, control_ui=None) -> None:
         self.root = root
         self.config = config
-        self.font = font
-        self.line_height = line_height
+        self.font = tkFont.Font(family=config.get("SUBTITLE_FONT"),size=config.get("SUBTITLE_FONT_SIZE"),weight="bold")
+        self.line_height = self.font.metrics("linespace")
         self.cleaned_subs = cleaned_subs or []
 
         self.control_ui = control_ui
         self.sub_window: tk.Toplevel = None
         self.handle_win: tk.Toplevel = None
+        self.subtitle_handle = None
         self.subtitle_canvas: tk.Canvas = None
         self.max_width: int = 0
         self.bottom_anchor: int = 0
-
         self.build_overlay()
 
     def build_overlay(self) -> None:
@@ -48,21 +48,28 @@ class SubtitleOverlayUI:
             highlightthickness=0
         )
         self.subtitle_canvas.pack(fill="both", expand=True)
+        make_draggable(self.sub_window, self.sub_window,on_drag=lambda bottom: setattr(self, "bottom_anchor", bottom))
 
-        # drag handle
-        drag_w, drag_h = 60, init_height
+    def show_handle(self):
+        if self.subtitle_handle is not None:
+            return  # Already exists
+        drag_w, drag_h = 60, self.line_height * 2
+        sw = self.root.winfo_screenwidth()
+        sh = self.root.winfo_screenheight()
+        pos_x = (sw - self.max_width) // 2
+        pos_y = sh - drag_h - 215
         self.subtitle_handle = tk.Toplevel(self.root)
-        if self.control_ui is not None:
-            self.control_ui.set_subtitle_handle(self.subtitle_handle)
         self.subtitle_handle.overrideredirect(True)
         self.subtitle_handle.attributes("-topmost", True)
-        self.subtitle_handle.attributes("-alpha", 0.0)
+        self.subtitle_handle.attributes("-alpha", 0.05)
         self.subtitle_handle.geometry(f"{drag_w}x{drag_h}+{pos_x}+{pos_y}")
         make_draggable(self.subtitle_handle, self.sub_window, sync_windows=[self.subtitle_handle],on_drag=lambda bottom: setattr(self, "bottom_anchor", bottom))
         make_draggable(self.sub_window, self.sub_window, sync_windows=[self.subtitle_handle],on_drag=lambda bottom: setattr(self, "bottom_anchor", bottom))
 
-
-
+    def hide_handle(self):
+        if self.subtitle_handle is not None:
+            self.subtitle_handle.destroy()
+            self.subtitle_handle = None
 
     def compute_max_width(self, cleaned_subs: List[str]) -> int:
         return max(

@@ -12,20 +12,18 @@ from view.popup import CopyPopup
 
 class SubtitlePlayerApp:
     def __init__(self):
-        config = ConfigManager("config.json")
 
+        # Initialize config and subtitle manager
+        config = ConfigManager("config.json")
         self.manager = SubtitleManager(config)
 
+        # App window
         self.root = tk.Tk()
         self.root.title("Subtitle Player Settings")
         self.root.geometry("370x130")
         self.root.minsize(370, 130)
-
         
-        subtitle_font = tkFont.Font(family=config.get("SUBTITLE_FONT"),size=config.get("SUBTITLE_FONT_SIZE"),
-            weight="bold")
-        line_height = subtitle_font.metrics("linespace")
-        
+        # UI
         self.control_ui = ControlUI(
             root=self.root,
             config=config,
@@ -35,10 +33,10 @@ class SubtitlePlayerApp:
         self.overlay_ui = SubtitleOverlayUI(
             root=self.root,
             config=config,
-            font=subtitle_font,
-            line_height=line_height,
             cleaned_subs=self.manager.cleaned_subtitles,
             control_ui=self.control_ui)
+
+        self.popup = CopyPopup(root=self.root, config=config)
 
         self.renderer = SubtitleRenderer(
             canvas=self.overlay_ui.subtitle_canvas,
@@ -46,9 +44,7 @@ class SubtitlePlayerApp:
             color=config.get("SUBTITLE_COLOR"),
             line_height=self.overlay_ui.line_height)
 
-
-        self.popup = CopyPopup(root=self.root, config=config)
-        
+        # Controller
         self.controller = SubtitleController(
             manager=self.manager,
             renderer=self.renderer,
