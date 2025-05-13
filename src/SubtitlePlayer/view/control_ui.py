@@ -8,37 +8,46 @@ class ControlUI:
         self.config = config
         self.total_duration = total_duration
 
-        self.ratio = config.get('RATIO')
+
         self.extra_offset= config.get('EXTRA_OFFSET')
-        self.default_start = config.get('DEFAULT_START_TIME')
         self.skip_default = config.get('DEFAULT_SKIP')
+        self.default_start = config.get('DEFAULT_START_TIME')
+        self.ratio = config.get('RATIO')
+
         self.win_x = config.get('CONTROL_WINDOW_X')
         self.win_y = config.get('CONTROL_WINDOW_Y')
         self.win_w = config.get('CONTROL_WINDOW_WIDTH')
         self.win_h = config.get('CONTROL_WINDOW_HEIGHT')
-        
+
+
         self.offset_var = tk.StringVar(value=self.extra_offset)
         self.skip_var   = tk.StringVar(value=str(self.skip_default))
         self.episode_var = tk.StringVar(value=str(initial_episode))
         self.setto_var = tk.StringVar(value="")
-        self.play_time_var = tk.StringVar(value=self._format_time(self.default_start))
         self.use_phone_mode = tk.BooleanVar(value=False)
-        self.episode_inc_btn = None
-        self.episode_dec_btn = None
-        
-        self.subtitle_handle: tk.Toplevel | None = None
-        self._on_back       = lambda: None
-        self._on_forward    = lambda: None
-        self._on_play_pause = lambda: None
-        self._on_slider_change = lambda v: None
-        self._on_slider_press  = lambda e: None
-        self._on_slider_release  = lambda e: None
+    
+        self.play_time_var = tk.StringVar(value=self._format_time(self.default_start))
+
         self._on_ep_change  = lambda: None
         self._on_ep_inc     = lambda: None
         self._on_ep_dec     = lambda: None
+        self._on_slider_change = lambda v: None
+        self._on_slider_press  = lambda e: None
+        self._on_slider_release  = lambda e: None
         self._on_set_to     = lambda text: None
+        self._on_open_srt   = lambda: None
+
+        self._on_back       = lambda: None
+        self._on_forward    = lambda: None
+        self._on_play_pause = lambda: None
         self._on_time_entry_return = lambda event: None
         self._on_time_entry_clear  = lambda event: None
+
+        self.episode_inc_btn = None
+        self.episode_dec_btn = None
+        self.mode_toggle_button = None
+        self.play_pause_button = None
+        self.slider = None
 
         self._build_settings_frame()
         self._build_control_window()
@@ -185,31 +194,33 @@ class ControlUI:
 
 
     # ——— PUBLIC binders ——————————————————————————————————————
-    def bind_back(self,      cb): self._on_back       = cb
-    def bind_forward(self,   cb): self._on_forward    = cb
-    def bind_play_pause(self,cb): self._on_play_pause = cb
-    def bind_slider(self,   on_chg, on_pr, on_rl):
-        self._on_slider_change = on_chg
-        self._on_slider_press  = on_pr
-        self._on_slider_release  = on_rl
+    # Settings window
     def bind_episode_change(self, on_ent, on_inc, on_dec):
         self._on_ep_change = on_ent
         self._on_ep_inc    = on_inc
         self._on_ep_dec    = on_dec
+    def bind_slider(self,   on_chg, on_pr, on_rl):
+        self._on_slider_change = on_chg
+        self._on_slider_press  = on_pr
+        self._on_slider_release  = on_rl
     def bind_set_to_time(self, cb):
         self._on_set_to = cb
-    def bind_time_entry_return(self, cb):
-        self._on_time_entry_return = cb
-
-    def bind_time_entry_clear(self, cb):
-        self._on_time_entry_clear = cb
     def bind_open_srt(self, cb):
         self._on_open_srt = cb
+    def bind_phone_mode_toggle(self, cb):
+        self._on_phone_mode_toggle = cb
+
+    # Control window
+    def bind_back(self,      cb): self._on_back       = cb
+    def bind_forward(self,   cb): self._on_forward    = cb
+    def bind_play_pause(self,cb): self._on_play_pause = cb
+    def bind_time_entry_return(self, cb):
+        self._on_time_entry_return = cb
+    def bind_time_entry_clear(self, cb):
+        self._on_time_entry_clear = cb
+
 
     # ——— PHONE MODE UI ADJUSTMENT ————————————————————————————
-    def set_subtitle_handle(self, subtitle_handle):
-        self.subtitle_handle = subtitle_handle
-
     def _toggle_phone_mode(self):
         self.use_phone_mode.set(not self.use_phone_mode.get())
         is_phone = self.use_phone_mode.get()
@@ -227,9 +238,8 @@ class ControlUI:
         self.mode_toggle_button.configure(bg="green" if is_phone else "SystemButtonFace")
         self.control_window.attributes("-topmost", True)
 
-        if hasattr(self, 'subtitle_handle') and self.subtitle_handle.winfo_exists():
-            self.subtitle_handle.attributes("-alpha", 0.05 if is_phone else 0.0)
-
+        if hasattr(self, "_on_phone_mode_toggle"):
+            self._on_phone_mode_toggle(is_phone)
 
     # ——— HELPERS ————————————————————————————————————————————
     @staticmethod

@@ -14,10 +14,13 @@ class SubtitleManager:
 
     CLEAN_PATTERN_1 = re.compile(r'\{\\an\d+\}')
     CLEAN_PATTERN_2 = re.compile(r'[（(].*?[）)]')
-    
+    SEASON_PATTERN = r'S(\d+)'
+    EPISODE_PATTERN = r'E(\d+)'
+
     def __init__(self, config: ConfigManager) -> None:
         self.config = config
 
+        # initialize srt_file
         if config.get("DEBUGGING"):
               self.srt_file = config.get("DEBUGGING_SRT_FILE")
         else: self.srt_file = config.get("LAST_SRT_FILE")
@@ -28,24 +31,17 @@ class SubtitleManager:
         self.current_season = self._extract_number(r'S(\d+)', filename)
         self.current_episode = self._extract_number(r'E(\d+)', filename)
 
-        self.subtitles = self.load_subtitles(self.srt_file)
+        self.subtitles = self._load_subtitles(self.srt_file)
         self.cleaned_subtitles = [self._clean_text(s.content) for s in self.subtitles]
         self.start_times = [s.start.total_seconds() for s in self.subtitles]
 
         self.srt_dir = os.path.dirname(self.srt_file)
         self._srt_file_list = [f for f in os.listdir(self.srt_dir) if f.lower().endswith('.srt')]
 
-#—————— Only used in subtitle_manager.py ————————————————————————————
+
     def _extract_number(self, pattern, filename, default=1):
         match = re.search(pattern, filename, re.IGNORECASE)
         return int(match.group(1)) if match else default
-
-    def load_subtitles(self, srt_path: str) -> List[srt.Subtitle]:
-        with open(srt_path, 'rb') as f:
-            raw = f.read()
-        detected = chardet.detect(raw)
-        text = raw.decode(detected['encoding'] or 'utf-8', errors='replace')
-        return list(srt.parse(text))
 
     def _clean_text(self, text: str) -> str:
         cleaned = self.CLEAN_PATTERN_1.sub('', text)
@@ -53,7 +49,13 @@ class SubtitleManager:
         cleaned = cleaned.replace('&lrm;', '').replace('\u200e', '').strip()
         return cleaned
 
-#—————— Used in other ————————————————————————————
+    def _load_subtitles(self, srt_path: str) -> List[srt.Subtitle]:
+        with open(srt_path, 'rb') as f:
+            raw = f.read()
+        detected = chardet.detect(raw)
+        text = raw.decode(detected['encoding'] or 'utf-8', errors='replace')
+        return list(srt.parse(text))
+    
     def get_skip_value(self) -> float:
         return float(self.config.get('DEFAULT_SKIP'))
 
@@ -74,18 +76,24 @@ class SubtitleManager:
                     new_file = file
                     break
         if not new_file:
-            raise FileNotFoundError(f"No .srt found for S{season}E{episode}")
-        
+            print(f"No .srt found for S{season}E{episode}")
+            return
+        season_found = self._extract_number(self.SEASON_PATTERN, new_file, default=None)
+        episode_found = self._extract_number(self.EPISODE_PATTERN, new_file, default=None)
+        if season_found is None or episode_found is None:
+            print("Selected file does not contain season or episode info. Skipping episode logic.")
+            return
+            
         self.current_season = season
         self.current_episode = episode
 
         new_path = os.path.join(self.srt_dir, new_file)
         self.srt_path = new_path
-
-        self.subtitles = self.load_subtitles(new_path)
+        self.config.set("LAST_SRT_FILE", new_path)
+        self.subtitles = self._load_subtitles(new_path)
         self.cleaned_subtitles = [self._clean_text(s.content) for s in self.subtitles]
         self.start_times = [s.start.total_seconds() for s in self.subtitles]
-        self.config.set("LAST_SRT_FILE", new_path)
+
 
     def prompt_srt_file(self) -> Optional[str]:
         window = tk.Tk()
@@ -94,11 +102,21 @@ class SubtitleManager:
         path = filedialog.askopenfilename(
             parent=window,
             title="Select SRT File",
+            initialdir=self.srt_dir,
             filetypes=[("SubRip files", "*.srt"), ("All Files", "*.*")]
         )
         window.destroy()
-        self.current_episode = self._extract_number(r'E(\d+)', os.path.basename(path))
-        self.current_season = self._extract_number(r'S(\d+)', os.path.basename(path))
+        if not path:
+            return None
+        if not path.lower().endswith('.srt'):
+            raise ValueError("Selected file is not a .srt file")
+        episode = self._extract_number(self.EPISODE_PATTERN, os.path.basename(path), default=None)
+        season = self._extract_number(self.SEASON_PATTERN, os.path.basename(path), default=None)
+        if episode is None or season is None:
+            print("Selected file does not contain season or episode info. Skipping episode logic.")
+            return None
+        self.current_episode = episode
+        self.current_season = season
         self.srt_file = path
         self.srt_dir = os.path.dirname(self.srt_file)
         self._srt_file_list = [f for f in os.listdir(self.srt_dir) if f.lower().endswith('.srt')]

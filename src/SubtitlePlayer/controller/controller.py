@@ -56,6 +56,7 @@ class SubtitleController:
         control_ui.bind_time_entry_return(self.handle_time_entry_return)
         control_ui.bind_time_entry_clear(self.handle_clear_time_entry)
 
+        self.control.bind_phone_mode_toggle(self.on_phone_mode_toggle)
         self.control.bind_open_srt(self.handle_open_srt)
         self.user_hidden = False
         self.subtitle_timeout_job = None
@@ -91,7 +92,7 @@ class SubtitleController:
 
     # ——— Time handling ———————————————————————————————————
     def on_set_to_time(self, text: str):
-        secs = parse_time_value(text, default_skip=self.manager.default_skip)
+        secs = parse_time_value(text, default_skip = self.manager.get_skip_value)
         self.set_current_time(secs)
         self.control.setto_entry.delete(0, tk.END)
 
@@ -144,14 +145,28 @@ class SubtitleController:
             self.control.episode_var.set(str(self.manager.current_episode))
 
     def increment_episode(self):
-        val = int(self.control.episode_var.get() or 1) + 1
-        self.control.episode_var.set(str(val))
-        self.on_episode_change()
+        current = int(self.control.episode_var.get() or 1)
+        next_ep = current + 1
+        season = self.manager.current_season
+        try:
+            self.manager.set_episode(season, next_ep)
+            self.control.episode_var.set(str(self.manager.current_episode))
+            self.on_episode_change()
+        except FileNotFoundError:
+            self.control.episode_var.set(str(self.manager.current_episode))
+            raise FileNotFoundError(f"No .srt found for S{season}E{next_ep}")
 
     def decline_episode(self):
-        val = max(1, int(self.control.episode_var.get() or 1) - 1)
-        self.control.episode_var.set(str(val))
-        self.on_episode_change()
+        current = int(self.control.episode_var.get() or 1)
+        next_ep = current - 1
+        season = self.manager.current_season
+        try:
+            self.manager.set_episode(season, next_ep)
+            self.control.episode_var.set(str(self.manager.current_episode))
+            self.on_episode_change()
+        except FileNotFoundError:
+            self.control.episode_var.set(str(self.manager.current_episode))
+            raise FileNotFoundError(f"No .srt found for S{season}E{next_ep}")
 
 
     # ——— Playback controls ———————————————————————————————————
@@ -282,3 +297,10 @@ class SubtitleController:
                 self.control_window_ms,
                 lambda: self.control.control_window.lower()
             )
+
+
+    def on_phone_mode_toggle(self, is_phone):
+        if is_phone:
+            self.overlay.show_handle()
+        else:
+            self.overlay.hide_handle()
