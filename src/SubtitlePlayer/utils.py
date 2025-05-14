@@ -53,6 +53,3 @@ def reformat_time_entry(entry: tk.Entry, parse_func) -> None:
     formatted = f"{minutes:02d}:{seconds:02d}"
     entry.delete(0, tk.END)
     entry.insert(0, formatted)
-
-def format_skip_entry(skip_entry: tk.Entry, parse_func) -> None:
-    reformat_time_entry(skip_entry, parse_func)
