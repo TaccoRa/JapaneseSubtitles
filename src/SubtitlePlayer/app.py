@@ -20,9 +20,9 @@ class SubtitlePlayerApp:
         # App window
         self.root = tk.Tk()
         self.root.title("Subtitle Player Settings")
-        self.root.geometry("370x130")
-        self.root.minsize(370, 130)
-        
+        self.root.geometry("340x128")
+        self.root.minsize(340, 128)
+
         # UI
         self.control_ui = ControlUI(
             root=self.root,

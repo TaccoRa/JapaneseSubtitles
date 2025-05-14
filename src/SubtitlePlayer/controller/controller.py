@@ -87,7 +87,7 @@ class SubtitleController:
             self.alt_pressed = False
 
     def on_alt_x(self, event=None):
-        self.control_window.attributes("-topmost", True)
+        self.control.control_window.attributes("-topmost", True)
 
 
     # ——— Time handling ———————————————————————————————————
@@ -196,15 +196,14 @@ class SubtitleController:
         skip = self.manager.get_skip_value()
         self.set_current_time(self.current_time - skip)
 
+    def on_slider_change(self, value):
+        if getattr(self, "slider_dragging", False):
+            self.set_current_time(float(value))
     def on_slider_press(self, event):
         self.slider_dragging = True
     def on_slider_release(self, event):
         self.slider_dragging = False
         self.set_current_time(self.control.slider.get())
-
-    def on_slider_change(self, value):
-        if getattr(self, "slider_dragging", False):
-            self.set_current_time(float(value))
 
     def set_current_time(self, t: float):
         dur = self.manager.get_total_duration()
@@ -219,6 +218,7 @@ class SubtitleController:
         text = SubtitleRenderer._format_time(self.current_time)
         relx = self.config.get("RATIO") + (1 - 2*self.config.get("RATIO")) * (self.current_time / self.manager.get_total_duration())
         self.control.play_time_var.set(text)
+        self.control.time_overlay.config(text=text) 
         self.control.time_overlay.place(in_=self.control.slider, relx=relx, rely=0.2)
 
 
