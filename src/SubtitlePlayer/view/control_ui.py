@@ -62,50 +62,51 @@ class ControlUI:
 
         # Frame for all except slider
         options_frame = tk.Frame(settings_frame, bg="#f0f0f0")
-        options_frame.grid(row=0, column=0, sticky="nw")
+        options_frame.grid(row=0, column=0, sticky="news", pady=0)
         
         # rame for phone-mode toggle and offset
         phone_offset_frame = tk.Frame(options_frame, bg="#f0f0f0")
-        phone_offset_frame.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        phone_offset_frame.grid(row=0, column=0, padx=(5,0), pady=5, sticky="we")
 
         self.mode_toggle_button = tk.Button(
             phone_offset_frame, text="📞", width=2, height=1,
             relief="raised", command=self._toggle_phone_mode
         )
-        self.mode_toggle_button.pack(side="left", padx=(0,6))
+        self.mode_toggle_button.pack(side="left", padx=(0,5))
 
         # Offset entry.
         tk.Label(phone_offset_frame, text="Offset (sec):", font=("Arial",12), bg="#f0f0f0")\
-            .pack(side="left")
+            .pack(side="right")
         tk.Entry(options_frame, textvariable=self.offset_var,font=("Arial",12), width=7)\
-            .grid(row=0, column=1, padx=5, pady=5, sticky="w")
+            .grid(row=0, column=1, padx=(0,5) , pady=5, sticky="we")
         
         # Skip entry.
         tk.Label(options_frame, text="Skip:", font=("Arial",12), bg="#f0f0f0")\
-            .grid(row=0, column=2, padx=5, pady=5, sticky="e")
+            .grid(row=0, column=2, padx=0, pady=5, sticky="e")
         self.skip_entry = tk.Entry(options_frame, textvariable=self.skip_var, font=("Arial",12), width=7)
-        self.skip_entry.grid(row=0, column=3, padx=5, pady=5, sticky="w")
+        self.skip_entry.grid(row=0, column=3, padx=(0,5), pady=5, sticky="ew")
         self.skip_entry.bind("<FocusOut>", lambda e: (reformat_time_entry(self.skip_entry,lambda txt: parse_time_value(txt, self.skip_default)), self.root.focus()))
         self.skip_entry.bind("<Return>", lambda e: (reformat_time_entry(self.skip_entry,lambda txt: parse_time_value(txt, self.skip_default)), self.root.focus()))
 
         # Frame for SRT button and episode
         srt_episode_frame = tk.Frame(options_frame, bg="#f0f0f0")
-        srt_episode_frame.grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        srt_episode_frame.grid(row=1, column=0, padx=(5,0), pady=(5,0), sticky="we")
 
         self.srt_button = tk.Button(
             srt_episode_frame, text="SRT", width=2, height=1,
             relief="raised", command=lambda: self._on_open_srt())
-        self.srt_button.pack(side="left", padx=(0,6))
+        self.srt_button.pack(side="left")
         tk.Label(srt_episode_frame, text="Episode:",font=("Arial", 12), bg="#f0f0f0")\
-            .pack(side="left")
+            .pack(side="right")
         
         # Frame for Episode entry and plus/minus buttons
         episode_frame = tk.Frame(options_frame, bg="#f0f0f0")
-        episode_frame.grid(row=1, column=1, padx=5, pady=0, sticky="w")
+        episode_frame.grid(row=1, column=1, padx=(0,5), pady=(5,0), sticky="ew")
         # Episode entry
         self.episode_entry = tk.Entry(episode_frame,textvariable=self.episode_var,font=("Arial",12), width=4)
         self.episode_entry.pack(side="left")
-        self.episode_entry.bind("<Return>",lambda e: self._on_ep_change())
+        self.episode_entry.bind("<FocusOut>",lambda e: (self._on_ep_change(), self.root.focus()))
+        self.episode_entry.bind("<Return>",lambda e: (self._on_ep_change(), self.root.focus()))
         #Plus and minus buttons
         self.episode_inc_btn = tk.Button(
                 episode_frame, text="+", font=("Arial",8,"bold"),width=1, height=1,
@@ -118,9 +119,9 @@ class ControlUI:
 
         # Set to
         tk.Label(options_frame, text="Set to:", font=("Arial", 12), bg="#f0f0f0")\
-            .grid(row=1, column=2, padx=5, pady=0, sticky="e")
+            .grid(row=1, column=2, padx=0, pady=(5,0), sticky="e") ##################
         self.setto_entry = tk.Entry(options_frame,textvariable=self.setto_var, font=("Arial", 12), width=7)
-        self.setto_entry.grid(row=1, column=3, padx=5, pady=5, sticky="w")
+        self.setto_entry.grid(row=1, column=3, padx=(0,5), pady=(5,0), sticky="we")
         self.setto_entry.bind("<Return>", lambda e: self._on_set_to(self.setto_var.get()))
 
         # Slider
@@ -128,14 +129,14 @@ class ControlUI:
             settings_frame,
             from_=0, to=self.total_duration,
             orient="horizontal",
-            length=int(self.total_duration//4.6),
+            #length=int(self.total_duration//4.6),
             resolution=0.1,
             showvalue=1,
             bg="#f0f0f0",
             command=lambda v: self._on_slider_change(v)
         )
 
-        self.slider.grid(row=2, column=0, padx=0, pady=(0,5), sticky="ew")
+        self.slider.grid(row=2, column=0, padx=0, pady=0, sticky="ew")
         self.slider.bind("<ButtonPress-1>", lambda e: self._on_slider_press(e))
         self.slider.bind("<ButtonRelease-1>", lambda e: self._on_slider_release(e))
         self.slider.set(self.default_start)
@@ -148,6 +149,8 @@ class ControlUI:
         )
         relx = self.ratio + (1 - 2*self.ratio)*(self.default_start/self.total_duration)
         self.time_overlay.place(in_=self.slider, relx=relx, rely=0.2, anchor="center")
+        # self.root.update_idletasks()
+        # print("Geometry:", self.root.winfo_geometry())
 
 
     # ——— CONTROL WINDOW ——————————————————————————————————————
