@@ -56,7 +56,7 @@ class SubtitleController:
         control_ui.bind_time_entry_return(self.handle_time_entry_return)
         control_ui.bind_time_entry_clear(self.handle_clear_time_entry)
 
-        self.control.bind_phone_mode_toggle(self.on_phone_mode_toggle)
+        self.control.bind_show_subtitle_handle(self.show_subtitle_handle)
         self.control.bind_open_srt(self.handle_open_srt)
         self.user_hidden = False
         self.subtitle_timeout_job = None
@@ -290,7 +290,7 @@ class SubtitleController:
         
     def schedule_hide_controls(self):
         # only in phone mode do we auto‐hide
-        if self.control.use_phone_mode.get():
+        if self.control.phone_mode.get():
             if getattr(self, "_hide_job", None):
                 self.overlay.root.after_cancel(self._hide_job)
             self._hide_job = self.overlay.root.after(
@@ -298,8 +298,7 @@ class SubtitleController:
                 lambda: self.control.control_window.lower()
             )
 
-
-    def on_phone_mode_toggle(self, is_phone):
+    def show_subtitle_handle(self, is_phone):
         if is_phone:
             self.overlay.show_handle()
         else:

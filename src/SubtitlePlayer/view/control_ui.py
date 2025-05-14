@@ -1,3 +1,4 @@
+import re
 import tkinter as tk
 from model.config_manager import ConfigManager
 from utils import reformat_time_entry, parse_time_value, make_draggable
@@ -18,13 +19,15 @@ class ControlUI:
         self.win_y = config.get('CONTROL_WINDOW_Y')
         self.win_w = config.get('CONTROL_WINDOW_WIDTH')
         self.win_h = config.get('CONTROL_WINDOW_HEIGHT')
+        self.win_w_phone = config.get('CONTROL_WINDOW_PHONE_MODE_WIDTH')
+        self.win_h_phone = config.get('CONTROL_WINDOW_PHONE_MODE_HEIGHT')
 
 
         self.offset_var = tk.StringVar(value=self.extra_offset)
         self.skip_var   = tk.StringVar(value=str(self.skip_default))
         self.episode_var = tk.StringVar(value=str(initial_episode))
         self.setto_var = tk.StringVar(value="")
-        self.use_phone_mode = tk.BooleanVar(value=False)
+        self.phone_mode = tk.BooleanVar(value=False)
     
         self.play_time_var = tk.StringVar(value=self._format_time(self.default_start))
 
@@ -82,7 +85,8 @@ class ControlUI:
             .grid(row=0, column=2, padx=5, pady=5, sticky="e")
         self.skip_entry = tk.Entry(options_frame, textvariable=self.skip_var, font=("Arial",12), width=7)
         self.skip_entry.grid(row=0, column=3, padx=5, pady=5, sticky="w")
-        self.skip_entry.bind("<FocusOut>", lambda e: reformat_time_entry(self.skip_entry,lambda txt: parse_time_value(txt, self.skip_default)))
+        self.skip_entry.bind("<FocusOut>", lambda e: (reformat_time_entry(self.skip_entry,lambda txt: parse_time_value(txt, self.skip_default)), self.root.focus()))
+        self.skip_entry.bind("<Return>", lambda e: (reformat_time_entry(self.skip_entry,lambda txt: parse_time_value(txt, self.skip_default)), self.root.focus()))
 
         # Frame for SRT button and episode
         srt_episode_frame = tk.Frame(options_frame, bg="#f0f0f0")
@@ -148,12 +152,12 @@ class ControlUI:
 
     # ——— CONTROL WINDOW ——————————————————————————————————————
     def _build_control_window(self):
-        w = self.win_w if self.use_phone_mode.get() else 180
-        h = self.win_h if self.use_phone_mode.get() else 40
+        w = self.win_w_phone if self.phone_mode.get() else self.win_w
+        h = self.win_h_phone if self.phone_mode.get() else self.win_h
         self.control_window = tk.Toplevel(self.root)
         self.control_window.overrideredirect(True)
-        ############################### width x height + X+(Y+40-height)
-        self.control_window.geometry(f"{w}x{h}+{self.win_x}+{self.win_y+(40-h)}")
+        self.control_window.attributes("-topmost", True)
+        self.control_window.geometry(f"{w}x{h}+{self.win_x}+{self.win_y}")
 
         main_frame = tk.Frame(self.control_window, bg="black")
         main_frame.pack(fill="both", expand=True)
@@ -207,8 +211,8 @@ class ControlUI:
         self._on_set_to = cb
     def bind_open_srt(self, cb):
         self._on_open_srt = cb
-    def bind_phone_mode_toggle(self, cb):
-        self._on_phone_mode_toggle = cb
+    def bind_show_subtitle_handle(self, cb):
+        self._on_show_handle = cb
 
     # Control window
     def bind_back(self,      cb): self._on_back       = cb
@@ -222,24 +226,23 @@ class ControlUI:
 
     # ——— PHONE MODE UI ADJUSTMENT ————————————————————————————
     def _toggle_phone_mode(self):
-        self.use_phone_mode.set(not self.use_phone_mode.get())
-        is_phone = self.use_phone_mode.get()
+        phone_mode = not self.phone_mode.get()
+        self.phone_mode.set(phone_mode)
+
+        new_width = self.win_w_phone if phone_mode else self.win_w
+        new_height = self.win_h_phone if phone_mode else self.win_h
+
+        height_diff = abs(self.win_h_phone - self.win_h)
+        x = self.control_window.winfo_x()
+        if phone_mode:
+            y = self.control_window.winfo_y() - height_diff
+        else:
+            y = self.control_window.winfo_y() + height_diff
+        self.control_window.geometry(f"{new_width}x{new_height}+{x}+{y}")
+        self.control_window.update_idletasks()
+        self.mode_toggle_button.configure(bg="green" if phone_mode else "SystemButtonFace")
         self.control_window.attributes("-topmost", True)
-
-        if hasattr(self, 'control_window') and self.control_window.winfo_exists():
-            new_width = 180 if not is_phone else self.win_w
-            new_height = 40 if not is_phone else self.win_h
-            pos_x = self.win_x
-            base_y = self.win_y
-            offset = 40 - new_height
-            pos_y = base_y + offset if new_height != 40 else base_y
-            self.control_window.geometry(f"{new_width}x{new_height}+{pos_x}+{pos_y}")
-
-        self.mode_toggle_button.configure(bg="green" if is_phone else "SystemButtonFace")
-        self.control_window.attributes("-topmost", True)
-
-        if hasattr(self, "_on_phone_mode_toggle"):
-            self._on_phone_mode_toggle(is_phone)
+        self._on_show_handle(phone_mode)
 
     # ——— HELPERS ————————————————————————————————————————————
     @staticmethod

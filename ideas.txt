@@ -6,7 +6,7 @@ Show Kanji written above
 When changing episode maybe play button buggy
 When using a film change the episode entry or something and change length of slider
 Adjust slider depending on srt file
-
+Add button in control window which shows settings window
 Problems:
 Only appearing control window when focus is on the subtitle window
 Set of settings window not working

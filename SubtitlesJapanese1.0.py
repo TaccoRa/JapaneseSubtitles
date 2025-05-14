@@ -235,7 +235,7 @@ class SubtitlePlayer:
         self.skip_entry = tk.Entry(options_frame, font=("Arial", 12), width=7)
         self.skip_entry.insert(0, str(config['DEFAULT_SKIP']))
         self.skip_entry.grid(row=0, column=3, padx=5, pady=5, sticky="w")
-        self.skip_entry.bind("<FocusOut>", lambda e: self.format_skip_entry())
+        self.skip_entry.bind("<FocusOut>", lambda e: self.reformat_time_entry(self.skip_entry))
 
         phone_episode_frame = tk.Frame(options_frame, bg="#f0f0f0")
         phone_episode_frame.grid(row=1, column=0, padx=5, pady=5, sticky="w")
@@ -334,7 +334,7 @@ class SubtitlePlayer:
         self.handle_win.geometry(f"{drag_w}x{drag_h}+{pos_x}+{pos_y}")
         self.make_draggable(self.handle_win, self.sub_window, sync_windows=[self.handle_win]) # type: ignore
 
-        self.make_draggable(self.sub_window, self.sub_window, sync_windows=[self.subtitle_handle])
+        self.make_draggable(self.sub_window, self.sub_window, sync_windows=[self.handle_win])
 
 
     ############# CONTROL Window ###############
@@ -344,8 +344,8 @@ class SubtitlePlayer:
         self.control_window.overrideredirect(True)
 
         is_phone_mode = self.use_phone_mode.get() if hasattr(self, 'use_phone_mode') else False
-        cw = 180 if not is_phone_mode else config.get('CONTROL_WINDOW_WIDTH')
-        ch = 40 if not is_phone_mode else config.get('CONTROL_WINDOW_HEIGHT')
+        cw = config.get('CONTROL_WINDOW_WIDTH') if not is_phone_mode else config.get('CONTROL_WINDOW_PHONE_MODE_WIDTH')
+        ch = config.get('CONTROL_WINDOW_HEIGHT') if not is_phone_mode else config.get('CONTROL_WINDOW_PHONE_MODE_HEIGHT')
 
         sh = self.root.winfo_screenheight()
         pos_x = config['CONTROL_WINDOW_X']  #110
@@ -410,13 +410,15 @@ class SubtitlePlayer:
         self.mode_toggle_button.configure(bg="green" if is_phone_mode else "SystemButtonFace")
         self.control_window.attributes("-topmost", True)
         if hasattr(self, 'control_window') and self.control_window.winfo_exists():
-            new_width = 180 if not is_phone_mode else config.get('CONTROL_WINDOW_WIDTH')
-            new_height = 40 if not is_phone_mode else config.get('CONTROL_WINDOW_HEIGHT')
+            new_width = config.get('CONTROL_WINDOW_WIDTH') if not is_phone_mode else config.get('CONTROL_WINDOW_PHONE_MODE_WIDTH')
+            new_height = config.get('CONTROL_WINDOW_HEIGHT') if not is_phone_mode else config.get('CONTROL_WINDOW_PHONE_MODE_HEIGHT')
+
             pos_x = config['CONTROL_WINDOW_X']
             base_y = config['CONTROL_WINDOW_Y']
-            offset = 40 - new_height
-            pos_y = base_y + offset if new_height != 40 else base_y
+            offset = config.get('CONTROL_WINDOW_HEIGHT')  - new_height
+            pos_y = base_y + offset if new_height != config.get('CONTROL_WINDOW_HEIGHT') else base_y
             self.control_window.geometry(f"{new_width}x{new_height}+{pos_x}+{pos_y}")
+
         if hasattr(self, 'handle_win') and self.handle_win.winfo_exists():
             self.handle_win.attributes("-alpha", 0.05 if is_phone_mode else 0.0)
 
@@ -745,9 +747,6 @@ class SubtitlePlayer:
         formatted = f"{minutes:02d}:{seconds:02d}"
         entry.delete(0, tk.END)
         entry.insert(0, formatted)
-
-    def format_skip_entry(self) -> None:
-        self.reformat_time_entry(self.skip_entry)
 
     def get_skip_value(self) -> float:
         return self.parse_time_value(self.skip_entry.get())
