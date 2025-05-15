@@ -56,6 +56,8 @@ class SubtitleController:
         self.control.bind_set_to_time(self.on_set_to_time)
         control_ui.bind_time_entry_return(self.control_time_entry_return)
         control_ui.bind_time_entry_clear(self.control_clear_time_entry)
+        control_ui.bind_setting_clear_offset_entry(self.setting_clear_offset_entry)
+        control_ui.bind_setting_clear_skip_entry(self.setting_clear_skip_entry)
 
         self.control.bind_show_subtitle_handle(self.show_subtitle_handle)
         self.control.bind_open_srt(self.handle_open_srt)
@@ -97,10 +99,6 @@ class SubtitleController:
         self.set_current_time(secs)
         self.control.setto_entry.delete(0, tk.END)
 
-    def control_clear_time_entry(self, event):
-        self.time_editing = True
-        event.widget.delete(0, tk.END)
-
     def control_time_entry_return(self, event):
         self.time_editing = False
         content = self.control.play_time_var.get().strip()
@@ -113,6 +111,16 @@ class SubtitleController:
         except ValueError:
             pass
         self.force_update_entry()
+
+    def control_clear_time_entry(self, event):
+        self.time_editing = True
+        event.widget.delete(0, tk.END)
+
+    def setting_clear_offset_entry(self, event):
+        self.control.offset_entry.delete(0, tk.END)
+
+    def setting_clear_skip_entry(self, event):
+        self.control.skip_entry.delete(0, tk.END)
 
     def force_update_entry(self, event=None):
         formatted = SubtitleRenderer._format_time(self.current_time)
@@ -170,11 +178,11 @@ class SubtitleController:
     def toggle_play(self):
         self.playing = not self.playing
         if self.playing:
-            self.control.play_pause_button.config(text="Stop", bg="red", font = "bold", activebackground="red")
+            self.control.play_pause_btn.config(text="Stop", bg="red", font = "bold", activebackground="red")
             self.last_update = time.time()
             self.schedule_update()
         else:
-            self.control.play_pause_button.config(text="Play", bg="green", font = "bold", activebackground="green")
+            self.control.play_pause_btn.config(text="Play", bg="green", font = "bold", activebackground="green")
             if self.subtitle_timeout_job is not None:
                 self.overlay.root.after_cancel(self.subtitle_timeout_job)
                 self.subtitle_timeout_job = None
@@ -221,21 +229,30 @@ class SubtitleController:
 
 
     def update_subtitle_display(self):
-        offset = float(self.control.offset_var.get() or 0.0) + self.config.get("EXTRA_OFFSET")
+        offset = parse_time_value(self.control.offset_var.get(), default_skip=0.0) + self.config.get("EXTRA_OFFSET")
         eff = self.current_time - offset
         idx = bisect.bisect_right(self.manager.start_times, eff) - 1
-        text = self.manager.cleaned_subtitles[idx] if idx >= 0 else ""
-        self.renderer.render(
-            text=text,
-            max_width=self.overlay.max_width,
-            bottom_anchor=self.overlay.bottom_anchor,
-            sub_window=self.overlay.sub_window
-        )
+        new_text = self.manager.cleaned_subtitles[idx] if idx >= 0 else ""
+        if new_text == self.last_subtitle_text and self.user_hidden:
+            return
+        if new_text != self.last_subtitle_text:
+            if self.subtitle_timeout_job is not None:
+                self.overlay.root.after_cancel(self.subtitle_timeout_job)
+                self.subtitle_timeout_job = None
+            self.last_subtitle_text = new_text
+            self.user_hidden = False
+            self.renderer.render(
+                text=new_text,
+                max_width=self.overlay.max_width,
+                bottom_anchor=self.overlay.bottom_anchor,
+                sub_window=self.overlay.sub_window
+            )
+
         if self.playing and not self.subtitle_timeout_job:
             self.subtitle_timeout_job = self.overlay.root.after(
-            self.config.get("SUBTITLE_TIMEOUT_MS"),
-            self.hide_subtitles_temporarily
-            )
+                self.config.get("SUBTITLE_TIMEOUT_MS"),
+                self.hide_subtitles_temporarily
+                )
 
     def hide_subtitles_temporarily(self):
         if not self.playing:

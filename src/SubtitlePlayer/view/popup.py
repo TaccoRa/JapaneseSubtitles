@@ -9,7 +9,7 @@ class CopyPopup:
         self.config = config
         self.copy_popup: tk.Toplevel | None = None
 
-    def open_copy_popup(self, event: tk.Event) -> None:
+    def open_copy_popup(self, subtitle_text = None) -> None:
         if self.copy_popup:
             try:
                 self.copy_popup.after_cancel(self.copy_popup.close_timer)
@@ -36,13 +36,13 @@ class CopyPopup:
         text_widget.config(state="disabled")
         text_widget.place(x=0, y=0, width=req_width, height=req_height)
         popup.geometry(f"{req_width}x{req_height}+0+0")
-    
+
         def close_popup():
             popup.destroy()
             self.copy_popup = None
-
+            
         popup.close_timer = popup.after(self.config.get("CLOSE_TIMER"), close_popup)
-
+    
         def on_enter(_):
             try:
                 popup.after_cancel(popup.close_timer)
