@@ -155,41 +155,41 @@ class ControlUI:
 
     # ——— CONTROL WINDOW ——————————————————————————————————————
     def _build_control_window(self):
-        w = self.win_w_phone if self.phone_mode.get() else self.win_w
-        h = self.win_h_phone if self.phone_mode.get() else self.win_h
         self.control_window = tk.Toplevel(self.root)
         self.control_window.overrideredirect(True)
         self.control_window.attributes("-topmost", True)
+        w = self.win_w_phone if self.phone_mode.get() else self.win_w
+        h = self.win_h_phone if self.phone_mode.get() else self.win_h
         self.control_window.geometry(f"{w}x{h}+{self.win_x}+{self.win_y}")
 
         main_frame = tk.Frame(self.control_window, bg="black")
         main_frame.pack(fill="both", expand=True)
-        main_frame.columnconfigure((0,2), weight=1)
-        main_frame.columnconfigure(1, weight=2)
-        main_frame.rowconfigure((0,1), weight=1)
+        main_frame.columnconfigure((0,1,2), weight=1, minsize=60)
+        main_frame.rowconfigure((0,1), weight=1, minsize=20)
 
         self.back_button = tk.Button(main_frame, text="<< Skip", font=("Arial", 12, "bold"),
                                       width=6, height=2, bg="#3582B5", activebackground="#42A1E0", relief="flat")
         self.back_button.grid(row=0, column=0, rowspan=2, sticky="nsew")
-        self.back_button.bind("<ButtonPress>", lambda event: self._on_back())
+        self.back_button.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_back()))
 
         self.forward_button = tk.Button(main_frame, text="Skip >>", font=("Arial", 12, "bold"),
                                         width=6, height=2, bg="#3582B5", activebackground="#42A1E0", relief="flat")
         self.forward_button.grid(row=0, column=2, rowspan=2, sticky="nsew")
-        self.forward_button.bind("<ButtonPress>", lambda event: self._on_forward())
+        self.forward_button.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_forward()))
 
         self.play_time_entry = tk.Entry(main_frame, textvariable=self.play_time_var,
-                                        font=("Arial", 14, "bold"),
+                                        font=("Arial", 14, "bold"), bd=0,
                                         bg="black", fg="white", width=6, justify="center")
-        self.play_time_entry.grid(row=0, column=1, sticky="nsew")
-        self.play_time_entry.bind("<Return>", self._on_time_entry_return)
-        self.play_time_entry.bind("<Button-1>", self._on_time_entry_clear)
+        self.play_time_entry.grid(row=0, column=1, sticky="nsew", ipady=5)
+        self.play_time_entry.bind("<Return>", lambda ev:   self._on_time_entry_return(ev))
+        self.play_time_entry.bind("<FocusOut>", lambda ev: self._on_time_entry_return(ev))
+        self.play_time_entry.bind("<Button-1>", lambda ev: self._on_time_entry_clear(ev))
 
 
         self.play_pause_button = tk.Button(main_frame, text="Play", bg="green",
-                                            activebackground="green", font=("Arial", 12), height=1, relief="flat")
-        self.play_pause_button.grid(row=1, column=1, sticky="nsew")
-        self.play_pause_button.bind("<ButtonPress>", lambda event: self._on_play_pause())
+                                            activebackground="green", font=("Arial", 12, "bold"), height=1, relief="flat")
+        self.play_pause_button.grid(row=1, column=1,pady=0, sticky="nsew")
+        self.play_pause_button.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_play_pause()))
 
         self.control_drag_handle = tk.Frame(self.control_window, bg="gray", width=10, height=10)
         self.control_drag_handle.place(x=0, y=0)
@@ -239,13 +239,27 @@ class ControlUI:
         x = self.control_window.winfo_x()
         if phone_mode:
             y = self.control_window.winfo_y() - height_diff
+            self.control_drag_handle.config(width=40, height=40)
+            self.play_time_entry.config(font=("Arial", 30, "bold"))
+            self.play_pause_button.config(font=("Arial", 18, "bold"))
+            self.back_button.config(font=("Arial", 18, "bold"))
+            self.forward_button.config(font=("Arial", 18, "bold"))
         else:
             y = self.control_window.winfo_y() + height_diff
+            self.control_drag_handle.config(width=10, height=10)
+            self.play_time_entry.config(font=("Arial", 14, "bold"))
+            self.play_pause_button.config(font=("Arial", 12, "bold"))
+            self.back_button.config(font=("Arial", 12, "bold"))
+            self.forward_button.config(font=("Arial", 12, "bold"))
+
+
         self.control_window.geometry(f"{new_width}x{new_height}+{x}+{y}")
         self.control_window.update_idletasks()
         self.mode_toggle_button.configure(bg="green" if phone_mode else "SystemButtonFace")
         self.control_window.attributes("-topmost", True)
+
         self._on_show_handle(phone_mode)
+       
 
     # ——— HELPERS ————————————————————————————————————————————
     @staticmethod

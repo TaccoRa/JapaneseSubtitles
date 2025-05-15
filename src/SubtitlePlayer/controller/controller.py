@@ -38,6 +38,7 @@ class SubtitleController:
         ov.sub_window.bind("<Leave>", lambda e: self._on_sub_hover(False))
         self.last_subtitle_text = ""
         ov.subtitle_canvas.bind("<Button-3>", lambda e: self.popup.open_copy_popup(self.last_subtitle_text))
+        self.time_editing = False
 
         self.control.bind_back(self.go_back)
         self.control.bind_forward(self.go_forward)
@@ -53,8 +54,8 @@ class SubtitleController:
             on_dec    = self.decline_episode
         )
         self.control.bind_set_to_time(self.on_set_to_time)
-        control_ui.bind_time_entry_return(self.handle_time_entry_return)
-        control_ui.bind_time_entry_clear(self.handle_clear_time_entry)
+        control_ui.bind_time_entry_return(self.control_time_entry_return)
+        control_ui.bind_time_entry_clear(self.control_clear_time_entry)
 
         self.control.bind_show_subtitle_handle(self.show_subtitle_handle)
         self.control.bind_open_srt(self.handle_open_srt)
@@ -96,22 +97,18 @@ class SubtitleController:
         self.set_current_time(secs)
         self.control.setto_entry.delete(0, tk.END)
 
-    def handle_time_entry_return(self, event):
-        self.commit_time_entry_change()
-        self.time_editing = False
-        self.force_update_entry()
-
-    def handle_clear_time_entry(self, event):
+    def control_clear_time_entry(self, event):
         self.time_editing = True
         event.widget.delete(0, tk.END)
 
-    def commit_time_entry_change(self):
+    def control_time_entry_return(self, event):
+        self.time_editing = False
         content = self.control.play_time_var.get().strip()
         if content == "":
             self.force_update_entry()
             return
         try:
-            new_time = parse_time_value(content, default_skip=self.manager.default_skip)
+            new_time = parse_time_value(content, default_skip=self.manager.get_skip_value())
             self.set_current_time(new_time)
         except ValueError:
             pass
@@ -217,9 +214,10 @@ class SubtitleController:
     def update_time_displays(self):
         text = SubtitleRenderer._format_time(self.current_time)
         relx = self.config.get("RATIO") + (1 - 2*self.config.get("RATIO")) * (self.current_time / self.manager.get_total_duration())
-        self.control.play_time_var.set(text)
         self.control.time_overlay.config(text=text) 
         self.control.time_overlay.place(in_=self.control.slider, relx=relx, rely=0.2)
+        if not self.time_editing:
+            self.control.play_time_var.set(text)
 
 
     def update_subtitle_display(self):
@@ -237,7 +235,7 @@ class SubtitleController:
             self.subtitle_timeout_job = self.overlay.root.after(
             self.config.get("SUBTITLE_TIMEOUT_MS"),
             self.hide_subtitles_temporarily
-        )
+            )
 
     def hide_subtitles_temporarily(self):
         if not self.playing:
