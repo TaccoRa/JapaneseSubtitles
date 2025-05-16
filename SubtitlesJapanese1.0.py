@@ -10,6 +10,7 @@ import srt
 import pyautogui
 from pynput.mouse import Button, Listener
 from pynput.keyboard import Key, Listener as KeyboardListener
+import chardet
 
 import tkinter as tk
 from tkinter import filedialog, font as tkFont
@@ -18,6 +19,17 @@ from tkinter import filedialog, font as tkFont
 #Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Restricted
 # keep this for later information: to download subtitles:
 # https://kitsunekko.net/dirlist.php?dir=subtitles/japanese/One_Piece/&sort=date&order=asc
+
+
+
+# class SubtitlePlayer:
+# class SubtitleController:
+# class SubtitleRenderer:
+# class SubtitleManager:
+# class ControlUI:
+# class SubtitleOverlayUI:
+# class InteractionManager:
+# class CopyPopup:
 
 def load_config(config_path: str) -> dict:
     with open(config_path, 'r', encoding='utf-8') as f:
@@ -53,7 +65,6 @@ class SubtitlePlayer:
 
     def __init__(self) -> None:
         srt_path_debug = config['DEBUGGING']
-        print(srt_path_debug)
         self.srt_path = config['DEBUG_SRT_FILE'] if srt_path_debug else self.prompt_srt_file()
         if not self.srt_path: sys.exit(0)
 
@@ -79,8 +90,8 @@ class SubtitlePlayer:
         self.current_time: float = config['DEFAULT_START_TIME']
         self.user_offset: float = 0.0
         self.last_update: float = time.time()
-        self.hide_delay: int = config['CONTROL_HIDE_DELAY_MS']
-        self.disappear_timer: int = config['CONTROL_DISAPPEAR_DELAY_MS']
+        self.hide_delay: int = config['MOUSE_CONTROL_HIDE_DELAY_MS']
+        self.disappear_timer: int = config['PHONEMODE_CONTROL_HIDE_DELAY_MS']
         self.last_subtitle_text: str = ""
         self.subtitle_timeout_job: Optional[str] = None
         self.hide_controls_job: Optional[str] = None
@@ -145,9 +156,14 @@ class SubtitlePlayer:
         window.destroy()
         return file
 
-    def load_subtitles(self, srt_path: str) -> List[srt.Subtitle]:
-        with open(srt_path, 'r', encoding='utf-8') as f:
-            srt_content = f.read()
+
+    def load_subtitles(self, srt_path):
+        with open(srt_path, 'rb') as f:
+            raw_data = f.read()
+        detected = chardet.detect(raw_data)
+        encoding = detected['encoding']
+
+        srt_content = raw_data.decode(encoding)
         return list(srt.parse(srt_content))
     
     def _find_srt_for(self, season: int, episode: int) -> Optional[str]:
@@ -219,7 +235,7 @@ class SubtitlePlayer:
         self.skip_entry = tk.Entry(options_frame, font=("Arial", 12), width=7)
         self.skip_entry.insert(0, str(config['DEFAULT_SKIP']))
         self.skip_entry.grid(row=0, column=3, padx=5, pady=5, sticky="w")
-        self.skip_entry.bind("<FocusOut>", lambda e: self.format_skip_entry())
+        self.skip_entry.bind("<FocusOut>", lambda e: self.reformat_time_entry(self.skip_entry))
 
         phone_episode_frame = tk.Frame(options_frame, bg="#f0f0f0")
         phone_episode_frame.grid(row=1, column=0, padx=5, pady=5, sticky="w")
@@ -247,7 +263,7 @@ class SubtitlePlayer:
         episode_frame.grid(row=1, column=1, padx=5, pady=0, sticky="w")
         # Episode entry inside the frame
         self.episode_var = tk.StringVar()
-        match = re.search(r'E(\d+)', self.srt_path) # type: ignore
+        match = re.search(r'E(\d+)', self.srt_path)
         self.episode_var.set(match.group(1) if match else "1")
         self.episode_entry = tk.Entry(episode_frame, textvariable=self.episode_var, font=("Arial", 12), width=4)
         self.episode_entry.pack(side="left")
@@ -266,7 +282,7 @@ class SubtitlePlayer:
         self.setto_entry.grid(row=1, column=3, padx=5, pady=5, sticky="w")
         self.setto_entry.bind("<Return>", lambda e: self.set_to_time())
         
-        # # Time slider.
+        # Time slider.
         self.slider = tk.Scale(
             settings_frame,
             from_=0,
@@ -318,7 +334,7 @@ class SubtitlePlayer:
         self.handle_win.geometry(f"{drag_w}x{drag_h}+{pos_x}+{pos_y}")
         self.make_draggable(self.handle_win, self.sub_window, sync_windows=[self.handle_win]) # type: ignore
 
-        self.make_draggable(self.sub_window, self.sub_window) # type: ignore
+        self.make_draggable(self.sub_window, self.sub_window, sync_windows=[self.handle_win])
 
 
     ############# CONTROL Window ###############
@@ -328,8 +344,8 @@ class SubtitlePlayer:
         self.control_window.overrideredirect(True)
 
         is_phone_mode = self.use_phone_mode.get() if hasattr(self, 'use_phone_mode') else False
-        cw = 180 if not is_phone_mode else config.get('CONTROL_WINDOW_WIDTH')
-        ch = 40 if not is_phone_mode else config.get('CONTROL_WINDOW_HEIGHT')
+        cw = config.get('CONTROL_WINDOW_WIDTH') if not is_phone_mode else config.get('CONTROL_WINDOW_PHONE_MODE_WIDTH')
+        ch = config.get('CONTROL_WINDOW_HEIGHT') if not is_phone_mode else config.get('CONTROL_WINDOW_PHONE_MODE_HEIGHT')
 
         sh = self.root.winfo_screenheight()
         pos_x = config['CONTROL_WINDOW_X']  #110
@@ -353,6 +369,8 @@ class SubtitlePlayer:
                                         command=self.go_forward, width=6, height=2, bg="#3582B5", activebackground="#42A1E0", relief="flat")
         self.forward_button.grid(row=0, column=2, rowspan=2, sticky="nsew")
 
+
+
         formatted = self.format_time(config['DEFAULT_START_TIME'])
         self.play_time_var = tk.StringVar(value=formatted)
         self.play_time_entry = tk.Entry(main_frame, textvariable=self.play_time_var,
@@ -364,6 +382,9 @@ class SubtitlePlayer:
         self.play_time_entry.bind("<Return>", self.on_time_entry_return)
         # self.play_time_entry.bind("<FocusOut>", self.on_time_entry_focus_out)
         self.play_time_entry.bind("<Button-1>", self.clear_time_entry)
+
+
+
 
         self.play_pause_button = tk.Button(main_frame, text="Play", font=("Arial", 12),
                                            command=self.toggle_play, height=1, relief="flat")
@@ -389,27 +410,30 @@ class SubtitlePlayer:
         self.mode_toggle_button.configure(bg="green" if is_phone_mode else "SystemButtonFace")
         self.control_window.attributes("-topmost", True)
         if hasattr(self, 'control_window') and self.control_window.winfo_exists():
-            new_width = 180 if not is_phone_mode else config.get('CONTROL_WINDOW_WIDTH')
-            new_height = 40 if not is_phone_mode else config.get('CONTROL_WINDOW_HEIGHT')
+            new_width = config.get('CONTROL_WINDOW_WIDTH') if not is_phone_mode else config.get('CONTROL_WINDOW_PHONE_MODE_WIDTH')
+            new_height = config.get('CONTROL_WINDOW_HEIGHT') if not is_phone_mode else config.get('CONTROL_WINDOW_PHONE_MODE_HEIGHT')
+
             pos_x = config['CONTROL_WINDOW_X']
             base_y = config['CONTROL_WINDOW_Y']
-            offset = 40 - new_height
-            pos_y = base_y + offset if new_height != 40 else base_y
+            offset = config.get('CONTROL_WINDOW_HEIGHT')  - new_height
+            pos_y = base_y + offset if new_height != config.get('CONTROL_WINDOW_HEIGHT') else base_y
             self.control_window.geometry(f"{new_width}x{new_height}+{pos_x}+{pos_y}")
+
         if hasattr(self, 'handle_win') and self.handle_win.winfo_exists():
             self.handle_win.attributes("-alpha", 0.05 if is_phone_mode else 0.0)
 
     def on_time_entry_focus_in(self, event) -> None:
         self.time_editing = True
         self.play_time_entry.delete(0, tk.END)
-    def on_time_entry_return(self, event) -> None:
-        self.commit_time_entry_change()
-        self.time_editing = False
-        self.force_update_entry()
     def on_time_entry_focus_out(self, event) -> None:
         if self.time_editing:
             self.play_time_var.set(self.format_time(self.current_time))
             self.time_editing = False
+
+    def on_time_entry_return(self, event) -> None:
+        self.commit_time_entry_change()
+        self.time_editing = False
+        self.force_update_entry()
     def clear_time_entry(self, event) ->None:
         self.time_editing = True
         event.widget.delete(0, tk.END)
@@ -427,6 +451,10 @@ class SubtitlePlayer:
 
     def force_update_entry(self, event=None) -> None:
         self.play_time_var.set(self.format_time(self.current_time))
+
+
+
+        
     def set_to_time(self) -> None:
         new_time = self.parse_time_value(self.setto_entry.get())
         self.set_current_time(new_time)
@@ -719,9 +747,6 @@ class SubtitlePlayer:
         formatted = f"{minutes:02d}:{seconds:02d}"
         entry.delete(0, tk.END)
         entry.insert(0, formatted)
-
-    def format_skip_entry(self) -> None:
-        self.reformat_time_entry(self.skip_entry)
 
     def get_skip_value(self) -> float:
         return self.parse_time_value(self.skip_entry.get())

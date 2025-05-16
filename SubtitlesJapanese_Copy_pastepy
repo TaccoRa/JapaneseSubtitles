@@ -1,0 +1,176 @@
+import os
+import re
+import sys
+import time
+import json
+import bisect
+from typing import List, Optional
+
+import srt
+import pyautogui
+from pynput.mouse import Button, Listener
+from pynput.keyboard import Key, Listener as KeyboardListener
+import chardet
+
+import tkinter as tk
+from tkinter import filedialog, font as tkFont
+
+
+class SubtitlePlayer:
+
+    def __init__(self) -> None:
+
+
+        self.srt_dir = os.path.dirname(self.srt_path)
+        self._srt_file_list = [
+            f for f in os.listdir(self.srt_dir)
+            if f.lower().endswith('.srt')]
+        self.subtitles: List[srt.Subtitle] = self.load_subtitles(self.srt_path)
+        self.cleaned_subtitles = [self._clean_text(sub.content) for sub in self.subtitles]
+        self.total_duration: float = self.get_total_duration()
+        self.start_times: List[float] = [sub.start.total_seconds() for sub in self.subtitles]
+        self.subtitle_color = config['SUBTITLE_COLOR']
+
+        self.root = tk.Tk()
+        self.root.title("Subtitle Player Settings")
+        self.root.geometry("330x130")
+        self.root.minsize(340, 130)
+        self.root.configure(bg="#f0f0f0")
+        self.subtitle_font = tkFont.Font(family=config['SUBTITLE_FONT'], size=config['SUBTITLE_FONT_SIZE'], weight="bold")
+        self.line_height = self.subtitle_font.metrics("linespace")
+        self.max_width = self.measure_max_subtitle_width()
+
+        self.current_time: float = config['DEFAULT_START_TIME']
+        self.user_offset: float = 0.0
+        self.last_update: float = time.time()
+        self.hide_delay: int = config['CONTROL_HIDE_DELAY_MS']
+        self.disappear_timer: int = config['CONTROL_DISAPPEAR_DELAY_MS']
+        self.last_subtitle_text: str = ""
+        self.subtitle_timeout_job: Optional[str] = None
+        self.hide_controls_job: Optional[str] = None
+        self.control_hide_timer_job: Optional[str] = None
+        self.alt_reset_done: bool = False
+        self.user_hidden: bool = False
+        self.slider_dragging: bool = False
+        self.user_hidden: bool = False
+        self.mouse_over_controls: bool = False
+        self.mouse_over_subtitles: bool = False
+        self.playing: bool = False
+        self.time_editing: bool = False
+        self.video_click: bool = config['VIDEO_CLICK']
+        self.use_phone_mode = tk.BooleanVar(value=False)
+        self.init_settings_window()
+        self.init_subtitle_window()
+        self.init_control_window()
+        self.bind_mouse_events()
+        self.update_phone_mode_ui()
+        self.control_window.attributes("-topmost", True)
+        self.play_pause_button.config(text="Play", bg="green", font = "bold", activebackground="green")
+
+
+
+        # self.root.after(0, self.toggle_play)
+        self.root.after(config['UPDATE_INTERVAL_MS'], self.update_loop)
+
+
+
+
+
+
+
+    def toggle_phone_mode(self):
+        self.use_phone_mode.set(not self.use_phone_mode.get())
+        self.update_phone_mode_ui()
+
+    def set_to_time(self) -> None:
+        new_time = self.parse_time_value(self.setto_entry.get())
+        self.set_current_time(new_time)
+        self.setto_entry.delete(0, tk.END)
+        self.root.focus_set()
+
+    def lower_controls(self) -> None:
+        self.control_window.lower()
+        self.hide_controls_job = None
+
+
+    def on_slider_press(self, event: tk.Event) -> None:
+        self.slider_dragging = True
+        self.force_update_entry()
+
+    def on_slider_release(self, event: tk.Event) -> None:
+        self.slider_dragging = False
+        self.set_current_time(float(self.slider.get()))
+
+    def on_slider_change(self, value: str) -> None:
+        if self.slider_dragging:
+            self.set_current_time(float(value))
+
+    def update_time_displays(self) -> None:
+        formatted = self.format_time(self.current_time)
+        relx = self.ratio + (1 - 2 * self.ratio) * (self.current_time / self.total_duration)
+        self.time_overlay.config(text=formatted)
+        self.time_overlay.place(in_=self.slider, relx=relx, rely=0.2)
+        if not self.time_editing:
+            self.play_time_var.set(formatted)
+
+    def on_time_entry_focus_in(self, event) -> None:
+        self.time_editing = True
+        self.play_time_entry.delete(0, tk.END)
+    def on_time_entry_return(self, event) -> None:
+        self.commit_time_entry_change()
+        self.time_editing = False
+        self.force_update_entry()
+    def on_time_entry_focus_out(self, event) -> None:
+        if self.time_editing:
+            self.play_time_var.set(self.format_time(self.current_time))
+            self.time_editing = False
+    def clear_time_entry(self, event) ->None:
+        self.time_editing = True
+        event.widget.delete(0, tk.END)
+    def commit_time_entry_change(self) -> None:
+        content = self.play_time_var.get().strip()
+        if content == "":
+            self.play_time_var.set(self.format_time(self.current_time))
+            return
+        try:
+            new_time = self.parse_time_value(content)
+            self.set_current_time(new_time)
+        except Exception:
+            pass
+        self.play_time_var.set(self.format_time(self.current_time))
+
+    def force_update_entry(self, event=None) -> None:
+        self.play_time_var.set(self.format_time(self.current_time))
+
+
+    def update_phone_mode_ui(self):
+        is_phone_mode = self.use_phone_mode.get()
+        self.mode_toggle_button.configure(bg="green" if is_phone_mode else "SystemButtonFace")
+        self.control_window.attributes("-topmost", True)
+        if hasattr(self, 'control_window') and self.control_window.winfo_exists():
+            new_width = 180 if not is_phone_mode else self.control_w_width
+            new_height = 40 if not is_phone_mode else self.control_w_height
+            pos_x = self.control_w_x
+            base_y = self.control_w_y
+            offset = 40 - new_height
+            pos_y = base_y + offset if new_height != 40 else base_y
+            self.control_window.geometry(f"{new_width}x{new_height}+{pos_x}+{pos_y}")
+        if hasattr(self, 'handle_win') and self.handle_win.winfo_exists():
+            self.handle_win.attributes("-alpha", 0.05 if is_phone_mode else 0.0)
+
+
+
+    def update_srt_file_in_config(self, new_season: int, new_episode: int) -> None:
+        cfg_path = self.config.path
+        with open(cfg_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        old = data.get("LAST_SRT_FILE", "")
+        def repl(m):
+            s_str = m.group(1).zfill(len(m.group(1)))
+            e_str = str(new_episode).zfill(len(m.group(2)))
+            return f"S{s_str}E{e_str}"
+
+        data["LAST_SRT_FILE"] = re.sub(r'S(\d+)E(\d+)', repl, old, count=1)
+        with open(cfg_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
