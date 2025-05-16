@@ -24,6 +24,9 @@ class ControlUI:
         self.play_pause_btn = None
         self.slider = None
 
+        self._last_offset_value = None
+        self._last_skip_value = None
+
         self._build_settings_frame()
         self._build_control_window()
 
@@ -71,8 +74,8 @@ class ControlUI:
             .pack(side="right")
         self.offset_entry = tk.Entry(options_frame, textvariable=self.offset_var,font=("Arial",12), width=7)
         self.offset_entry.grid(row=0, column=1, padx=(0,5) , pady=5, sticky="we")
-        self.offset_entry.bind("<FocusOut>", lambda e: (reformat_time_entry(self.offset_entry, lambda txt: parse_time_value(txt, self.offset_default), as_seconds=True), self.root.focus()))
-        self.offset_entry.bind("<Return>",   lambda e: (reformat_time_entry(self.offset_entry, lambda txt: parse_time_value(txt, self.offset_default), as_seconds=True), self.root.focus()))
+        self.offset_entry.bind("<FocusOut>", self._on_offset_focus_out)
+        self.offset_entry.bind("<Return>", self._on_offset_focus_out)
         self.offset_entry.bind("<Button-1>", lambda e : self._on_setting_clear_offset_entry(e))
 
         
@@ -81,9 +84,9 @@ class ControlUI:
             .grid(row=0, column=2, padx=0, pady=5, sticky="e")
         self.skip_entry = tk.Entry(options_frame, textvariable=self.skip_var, font=("Arial",12), width=7)
         self.skip_entry.grid(row=0, column=3, padx=(0,5), pady=5, sticky="ew")
-        self.skip_entry.bind("<FocusOut>",   lambda e: (reformat_time_entry(self.skip_entry,   lambda txt: parse_time_value(txt, self.skip_default), as_seconds=True), self.root.focus()))
-        self.skip_entry.bind("<Return>",     lambda e: (reformat_time_entry(self.skip_entry,   lambda txt: parse_time_value(txt, self.skip_default), as_seconds=True), self.root.focus()))        
-        self.skip_entry.bind("<Button-1>",   lambda e: self._on_setting_clear_skip_entry(e))
+        self.skip_entry.bind("<FocusOut>", self._on_skip_focus_out)
+        self.skip_entry.bind("<Return>", self._on_skip_focus_out)        
+        self.skip_entry.bind("<Button-1>", lambda e: self._on_setting_clear_skip_entry(e))
 
         # Row 1
         # Frame for SRT button and episode
@@ -254,3 +257,41 @@ class ControlUI:
     def _format_time(seconds: float) -> str:
         m, s = divmod(int(seconds), 60)
         return f"{m:02d}:{s:02d}"
+
+    def _on_setting_clear_offset_entry(self, event):
+        self._last_offset_value = self.offset_entry.get()
+        self.offset_entry.delete(0, tk.END)
+
+    def _on_setting_clear_skip_entry(self, event):
+        self._last_skip_value = self.skip_entry.get()
+        self.skip_entry.delete(0, tk.END)
+
+    def _on_offset_focus_out(self, event):
+        val = self.offset_entry.get()
+        try:
+            parsed = parse_time_value(val, default_skip=None)
+            if val.strip() == "" or parsed is None:
+                self.offset_entry.delete(0, tk.END)
+                self.offset_entry.insert(0, self._last_offset_value)
+            else:
+                self._last_offset_value = f"{parsed:.1f} s"
+                self.offset_entry.delete(0, tk.END)
+                self.offset_entry.insert(0, self._last_offset_value)
+        except Exception:
+            self.offset_entry.delete(0, tk.END)
+            self.offset_entry.insert(0, self._last_offset_value)
+
+    def _on_skip_focus_out(self, event):
+        val = self.skip_entry.get()
+        try:
+            parsed = parse_time_value(val, default_skip=None)
+            if val.strip() == "" or parsed is None:
+                self.skip_entry.delete(0, tk.END)
+                self.skip_entry.insert(0, self._last_skip_value)
+            else:
+                self._last_skip_value = f"{parsed:.1f} s"
+                self.skip_entry.delete(0, tk.END)
+                self.skip_entry.insert(0, self._last_skip_value)
+        except Exception:
+            self.skip_entry.delete(0, tk.END)
+            self.skip_entry.insert(0, self._last_skip_value)

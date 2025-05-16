@@ -26,9 +26,9 @@ def make_draggable(drag_handle: tk.Widget, target: tk.Toplevel, sync_windows: li
 
 
 def parse_time_value(text: str, default_skip: float) -> float:
-    text = str(text).strip()
+    text = str(text).strip().replace(",", ".")
     if text.endswith("s"):
-        text = text[:-2]
+        text = text[:-1].strip()
     if ":" in text:
         parts = text.split(":")
         if len(parts) == 2:
