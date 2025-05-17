@@ -1,15 +1,15 @@
 import pyautogui
 
 from model.config_manager import ConfigManager
-from view.control_ui import ControlUI
+from view.settings_ui import SettingsUI
 from view.subtitle_overlay import SubtitleOverlayUI
 
 
 class MouseManager:
 
-    def __init__(self, overlay_ui: SubtitleOverlayUI, control_ui: ControlUI, config: ConfigManager):
+    def __init__(self, overlay_ui: SubtitleOverlayUI, settings_ui: SettingsUI, config: ConfigManager):
         self.overlay = overlay_ui
-        self.control = control_ui
+        self.settings = settings_ui
         self.config = config
 
         self.control_window_x = self.config.get('CONTROL_WINDOW_X')
@@ -18,11 +18,11 @@ class MouseManager:
         self.mouse_over_controls = False
         self.mouse_over_subtitles = False
         
-        self.root = control_ui.root
-        self.control_window = control_ui.control_window
+        self.root = settings_ui.root
+        self.control_window = settings_ui.control_window
         self.hide_controls_job = None
         self.hide_delay = self.config.get("PHONEMODE_CONTROL_HIDE_DELAY_MS")
-        self.use_phone_mode = control_ui.phone_mode
+        self.use_phone_mode = settings_ui.phone_mode
 
     def set_mouse_over(self, area: str, flag: bool) -> None:
         if area == "controls":
