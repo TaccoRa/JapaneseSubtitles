@@ -1,6 +1,6 @@
 import tkinter as tk
 from model.config_manager import ConfigManager
-from utils import reformat_time_entry, parse_time_value, make_draggable
+from utils import parse_time_value, make_draggable
 
 class ControlUI:
     def __init__(self, root: tk.Tk, config: ConfigManager, total_duration: float, initial_episode=None):
@@ -29,6 +29,8 @@ class ControlUI:
 
         self._build_settings_frame()
         self._build_control_window()
+        self._last_offset_value = self.offset_var.get()
+        self._last_skip_value = self.skip_var.get()
 
     def _load_config(self):
         get = self.config.get
@@ -43,21 +45,35 @@ class ControlUI:
 
         self.offset_var = tk.StringVar(value=f"{float(self.offset_default):.1f} s")
         self.skip_var   = tk.StringVar(value=f"{float(self.skip_default):.1f} s")
-        self.episode_var = tk.StringVar(value=str(self.initial_episode))
+
+        if self.initial_episode is None:
+            episode_display = "Movie"
+        else:
+            episode_display = str(self.initial_episode)
+        self.episode_var = tk.StringVar(value=episode_display)
         self.setto_var = tk.StringVar(value="")
         self.phone_mode = tk.BooleanVar(value=False)
     
         self.play_time_var = tk.StringVar(value=self._format_time(self.default_start))
 
+
     # ——— SETTINGS FRAME ————————————————————————————
     def _build_settings_frame(self):
-        settings_frame = tk.LabelFrame(self.root)
-        settings_frame.pack(fill="both", expand=True, padx=5, pady=5)
+        self.settings_frame = tk.LabelFrame(self.root)
+        self.settings_frame.pack(fill="both", expand=True, padx=5, pady=5)
+        self.settings_frame.grid_rowconfigure(1, weight=1)
+        self.settings_frame.grid_columnconfigure(0, weight=1)
 
         # Frame for all except slider
-        options_frame = tk.Frame(settings_frame, bg="#f0f0f0")
-        options_frame.grid(row=0, column=0, sticky="news", pady=0)
-        
+        options_frame = tk.Frame(self.settings_frame)
+        options_frame.grid(row=0, column=0, sticky="news", pady=0, padx=0)
+        options_frame.grid_rowconfigure(0, weight=1)
+        options_frame.grid_rowconfigure(1, weight=1)
+        options_frame.grid_columnconfigure(0, weight=1)
+        options_frame.grid_columnconfigure(1, weight=1)
+        options_frame.grid_columnconfigure(2, weight=1)
+        options_frame.grid_columnconfigure(3, weight=1)
+       
         # Row 0
         # rame for phone-mode toggle and offset
         phone_offset_frame = tk.Frame(options_frame, bg="#f0f0f0")
@@ -80,7 +96,7 @@ class ControlUI:
 
         
         # Skip entry.
-        tk.Label(options_frame, text="Skip (sec):", font=("Arial",12), bg="#f0f0f0")\
+        tk.Label(options_frame, text="Skip:", font=("Arial",12), bg="#f0f0f0")\
             .grid(row=0, column=2, padx=0, pady=5, sticky="e")
         self.skip_entry = tk.Entry(options_frame, textvariable=self.skip_var, font=("Arial",12), width=7)
         self.skip_entry.grid(row=0, column=3, padx=(0,5), pady=5, sticky="ew")
@@ -96,27 +112,28 @@ class ControlUI:
         self.srt_button = tk.Button(
             srt_episode_frame, text="SRT", width=2, height=1,
             relief="raised", command=lambda: self._on_open_srt())
-        self.srt_button.pack(side="left")
+        self.srt_button.pack(side="left", padx=(0,5))
         tk.Label(srt_episode_frame, text="Episode:",font=("Arial", 12), bg="#f0f0f0")\
             .pack(side="right")
         
         # Frame for Episode entry and plus/minus buttons
         episode_frame = tk.Frame(options_frame, bg="#f0f0f0")
         episode_frame.grid(row=1, column=1, padx=(0,5), pady=(5,0), sticky="ew")
+        episode_frame.grid_columnconfigure(0, weight=1)
+        episode_frame.grid_columnconfigure((1,2), weight=0)
+
         # Episode entry
-        self.episode_entry = tk.Entry(episode_frame,textvariable=self.episode_var,font=("Arial",12), width=4)
-        self.episode_entry.pack(side="left")
-        self.episode_entry.bind("<FocusOut>",lambda e: (self._on_ep_change(), self.root.focus()))
-        self.episode_entry.bind("<Return>",lambda e: (self._on_ep_change(), self.root.focus()))
-        #Plus and minus buttons
-        self.episode_inc_btn = tk.Button(
-                episode_frame, text="-", font=("Arial",8,"bold"),width=1, height=1,
-                command=lambda: self._on_ep_dec())
-        self.episode_inc_btn.pack(side="left")
-        self.episode_dec_btn = tk.Button(
-                episode_frame, text="+", font=("Arial",8,"bold"),width=1, height=1,
-                command=lambda: self._on_ep_inc())
-        self.episode_dec_btn.pack(side="left")
+        self.episode_entry = tk.Entry(episode_frame, textvariable=self.episode_var, font=("Arial", 12), width=4)
+        self.episode_entry.grid(row=0, column=0, sticky="ew")
+        self.episode_entry.bind("<FocusOut>", lambda e: (self._on_ep_change(), self.root.focus()))
+        self.episode_entry.bind("<Return>", lambda e: (self._on_ep_change(), self.root.focus()))
+        
+        self.episode_inc_btn = tk.Button(episode_frame, text="-", font=("Arial", 8, "bold"), width=1, height=1,
+                                         command=lambda: self._on_ep_dec())
+        self.episode_inc_btn.grid(row=0, column=1, sticky="e")
+        self.episode_dec_btn = tk.Button(episode_frame, text="+", font=("Arial", 8, "bold"), width=1, height=1,
+                                         command=lambda: self._on_ep_inc())
+        self.episode_dec_btn.grid(row=0, column=2, sticky="e")
 
         # Set to
         tk.Label(options_frame, text="Set to:", font=("Arial", 12), bg="#f0f0f0")\
@@ -125,32 +142,45 @@ class ControlUI:
         self.setto_entry.grid(row=1, column=3, padx=(0,5), pady=(5,0), sticky="we")
         self.setto_entry.bind("<Return>", lambda e: self._on_set_to(self.setto_var.get()))
 
+        self.slider_frame = tk.Frame(self.settings_frame)
+        self.slider_frame.grid(row=1, column=0, sticky="ew", padx=(0,0), pady=(0,0))
+        self.slider_frame.grid_columnconfigure(0, weight=1)
+        self.slider_frame.grid_rowconfigure((0,1), weight=1)
+
+        # Time overlay for slider
+        self.time_overlay_frame = tk.Frame(self.slider_frame,height = 20)
+        self.time_overlay_frame.grid(row=0, column=0, sticky="ew")
+        self.time_overlay_frame.grid_columnconfigure(0, weight=1)
+
+        self.time_overlay = tk.Canvas(self.time_overlay_frame, height=18, highlightthickness=0)
+        self.time_overlay.grid(row=0, column=0, sticky="ew") 
+
+        self.time_overlay_text = self.time_overlay.create_text(
+            0, 0,
+            text=self.play_time_var.get(),
+            font=("Arial", 10)
+        )
+
         # Slider
         self.slider  = tk.Scale(
-            settings_frame,
+            self.slider_frame,
             from_=0, to=self.total_duration,
             orient="horizontal",
             #length=int(self.total_duration//4.6),
             resolution=0.1,
-            showvalue=1,
-            bg="#f0f0f0",
+            showvalue=False,
+            sliderlength=32,
             command=lambda v: self._on_slider_change(v)
         )
-
-        self.slider.grid(row=2, column=0, padx=0, pady=0, sticky="ew")
+        self.slider.grid(row=1, column=0, sticky="ew", padx=0, pady=0)
         self.slider.bind("<ButtonPress-1>", lambda e: self._on_slider_press(e))
         self.slider.bind("<ButtonRelease-1>", lambda e: self._on_slider_release(e))
-        self.slider.set(self.default_start)
-
-        # Time overlay
-        self.time_overlay = tk.Label(settings_frame,
-            text=self.play_time_var.get(),
-            font=("Arial",9),
-            bg="#f0f0f0"
-        )
-        relx = self.ratio + (1 - 2*self.ratio)*(self.default_start/self.total_duration)
-        self.time_overlay.place(in_=self.slider, relx=relx, rely=0.2, anchor="center")
-
+        self.slider.bind("<Configure>", lambda e: self.update_time_overlay_position())
+        self.slider.set(float(self.default_start))
+        self.update_time_overlay_position()
+        
+        # self.root.update_idletasks()
+        # print(self.root.geometry())
 
     # ——— CONTROL WINDOW ——————————————————————————————————————
     def _build_control_window(self):
@@ -259,11 +289,15 @@ class ControlUI:
         return f"{m:02d}:{s:02d}"
 
     def _on_setting_clear_offset_entry(self, event):
-        self._last_offset_value = self.offset_entry.get()
+        val = self.offset_entry.get()
+        if val.strip():
+            self._last_offset_value = val
         self.offset_entry.delete(0, tk.END)
-
+    
     def _on_setting_clear_skip_entry(self, event):
-        self._last_skip_value = self.skip_entry.get()
+        val = self.skip_entry.get()
+        if val.strip():
+            self._last_skip_value = val
         self.skip_entry.delete(0, tk.END)
 
     def _on_offset_focus_out(self, event):
@@ -272,14 +306,16 @@ class ControlUI:
             parsed = parse_time_value(val, default_skip=None)
             if val.strip() == "" or parsed is None:
                 self.offset_entry.delete(0, tk.END)
-                self.offset_entry.insert(0, self._last_offset_value)
+                value = self._last_offset_value if self._last_offset_value is not None else ""
+                self.offset_entry.insert(0, str(value))
             else:
                 self._last_offset_value = f"{parsed:.1f} s"
                 self.offset_entry.delete(0, tk.END)
                 self.offset_entry.insert(0, self._last_offset_value)
         except Exception:
             self.offset_entry.delete(0, tk.END)
-            self.offset_entry.insert(0, self._last_offset_value)
+            value = self._last_offset_value if self._last_offset_value is not None else ""
+            self.offset_entry.insert(0, str(value))
 
     def _on_skip_focus_out(self, event):
         val = self.skip_entry.get()
@@ -287,11 +323,29 @@ class ControlUI:
             parsed = parse_time_value(val, default_skip=None)
             if val.strip() == "" or parsed is None:
                 self.skip_entry.delete(0, tk.END)
-                self.skip_entry.insert(0, self._last_skip_value)
+                value = self._last_skip_value if self._last_skip_value is not None else ""
+                self.skip_entry.insert(0, str(value))
             else:
                 self._last_skip_value = f"{parsed:.1f} s"
                 self.skip_entry.delete(0, tk.END)
                 self.skip_entry.insert(0, self._last_skip_value)
         except Exception:
             self.skip_entry.delete(0, tk.END)
-            self.skip_entry.insert(0, self._last_skip_value)
+            value = self._last_skip_value if self._last_skip_value is not None else ""
+            self.skip_entry.insert(0, str(value))
+
+    def update_time_overlay_position(self):
+        self.root.update_idletasks()
+        root_width = self.root.winfo_width()
+        diff = root_width - 320
+        min_x = 1+19
+        max_x = 268 + diff + 19
+        min_val = float(self.slider.cget('from'))
+        max_val = float(self.slider.cget('to'))
+        value = float(self.slider.get())
+        rel = (value - min_val) / (max_val - min_val) if max_val != min_val else 0.0
+        x = int(min_x + rel * (max_x - min_x))
+        self.time_overlay.move(self.time_overlay_text, x, 9+3)
+        # # update the displayed text too
+        self.time_overlay.coords(self.time_overlay_text, x, 9+3)
+        self.time_overlay.itemconfig(self.time_overlay_text, text=self.play_time_var.get())

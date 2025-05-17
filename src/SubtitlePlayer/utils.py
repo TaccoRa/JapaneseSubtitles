@@ -27,6 +27,8 @@ def make_draggable(drag_handle: tk.Widget, target: tk.Toplevel, sync_windows: li
 
 def parse_time_value(text: str, default_skip: float) -> float:
     text = str(text).strip().replace(",", ".")
+    if not text:
+        return None
     if text.endswith("s"):
         text = text[:-1].strip()
     if ":" in text:
@@ -34,7 +36,11 @@ def parse_time_value(text: str, default_skip: float) -> float:
         if len(parts) == 2:
             try:
                 minutes = int(parts[0])
-                seconds = int(parts[1])
+                sec_str = parts[1]
+                if len(sec_str) == 1:
+                    seconds = int(sec_str) * 10
+                else:
+                    seconds = int(sec_str)
                 return minutes * 60 + seconds
             except ValueError:
                 return default_skip

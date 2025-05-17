@@ -1,3 +1,4 @@
+import os
 import time
 import bisect
 import tkinter as tk
@@ -78,12 +79,13 @@ class SubtitleController:
         if key in (Key.alt_l, Key.alt_r):
             self.alt_pressed = True
         elif self.alt_pressed:
-            if getattr(key, "char", "").lower() == "x":
-                self.on_alt_x()
-            elif key.char.lower() == "c":
-                self.increment_episode()
-            elif key.char.lower() == "y":
-                self.decline_episode()
+            if hasattr(key, "char") and key.char:
+                if key.char.lower() == "x":
+                    self.on_alt_x()
+                elif key.char.lower() == "c":
+                    self.increment_episode()
+                elif key.char.lower() == "y":
+                    self.decline_episode()
 
     def _on_key_release(self, key):
         if key in (Key.alt_l, Key.alt_r):
@@ -95,7 +97,9 @@ class SubtitleController:
 
     # ——— Time handling ———————————————————————————————————
     def on_set_to_time(self, text: str):
-        secs = parse_time_value(text, default_skip = self.manager.get_skip_value)
+        secs = parse_time_value(text, default_skip=self.manager.get_skip_value())
+        if secs is None:
+            return
         self.set_current_time(secs)
         self.control.setto_entry.delete(0, tk.END)
 
@@ -127,52 +131,71 @@ class SubtitleController:
         self.control.play_time_var.set(formatted)
         
     # ——— Episode switching ———————————————————————————————————
-    def on_episode_change(self):
-        ep = int(self.control.episode_var.get() or 1)
-        season = self.manager.current_season
-        self.manager.set_episode(season, ep)
-        
-        self.current_time = self.config.get("DEFAULT_START_TIME")
-        self.control.slider.set(self.current_time)
-        self.control.slider.config(to=self.manager.get_total_duration())
-        self.update_time_displays()
-        self.update_subtitle_display()
-        self.control.episode_var.set(str(self.manager.current_episode))
-        
     def handle_open_srt(self):
         new_path = self.manager.prompt_srt_file()
         if new_path:
-            self.current_time = self.config.get("DEFAULT_START_TIME")
-            self.control.slider.set(self.current_time)
-            self.control.slider.config(to=self.manager.get_total_duration())
-            self.update_time_displays()
-            self.update_subtitle_display()
-            self.control.episode_var.set(str(self.manager.current_episode))
+            self.load_srt_file(new_path)
+            self._after_episode_change()
 
+    def load_srt_file(self, path: str) -> None:
+        self.manager.srt_file = path
+        filename = os.path.basename(path)
+        self.manager.current_season = self.manager._extract_number(self.manager.SEASON_PATTERN, filename, default=None)
+        self.manager.current_episode = self.manager._extract_number(self.manager.EPISODE_PATTERN, filename, default=None)
+        self.manager.subtitles = self.manager._load_subtitles(path)
+        self.manager.cleaned_subtitles = [self.manager._clean_text(s.content) for s in self.manager.subtitles]
+        self.manager.start_times = [s.start.total_seconds() for s in self.manager.subtitles]
+        self.manager.srt_dir = os.path.dirname(path)
+        self.manager._srt_file_list = [f for f in os.listdir(self.manager.srt_dir) if f.lower().endswith('.srt')]
+
+    def on_episode_change(self):
+        if self.manager.current_episode is None or self.control.episode_var.get() == "Movie":
+            self.control.episode_var.set("Movie")
+            return
+        ep = int(self.control.episode_var.get() or 1)
+        season = self.manager.current_season
+        self.manager.set_episode(season, ep)
+        self._after_episode_change()
+        
     def increment_episode(self):
+        if self.manager.current_episode is None or self.control.episode_var.get() == "Movie":
+            self.control.episode_var.set("Movie")
+            return
         current = int(self.control.episode_var.get() or 1)
         next_ep = current + 1
         season = self.manager.current_season
         try:
             self.manager.set_episode(season, next_ep)
-            self.control.episode_var.set(str(self.manager.current_episode))
-            self.on_episode_change()
+            self._after_episode_change()
         except FileNotFoundError:
             self.control.episode_var.set(str(self.manager.current_episode))
             raise FileNotFoundError(f"No .srt found for S{season}E{next_ep}")
 
     def decline_episode(self):
+        if self.manager.current_episode is None or self.control.episode_var.get() == "Movie":
+            self.control.episode_var.set("Movie")
+            return
         current = int(self.control.episode_var.get() or 1)
         next_ep = current - 1
         season = self.manager.current_season
         try:
             self.manager.set_episode(season, next_ep)
-            self.control.episode_var.set(str(self.manager.current_episode))
-            self.on_episode_change()
+            self._after_episode_change()
         except FileNotFoundError:
             self.control.episode_var.set(str(self.manager.current_episode))
             raise FileNotFoundError(f"No .srt found for S{season}E{next_ep}")
-
+        
+    def _after_episode_change(self):
+        self.current_time = self.config.get("DEFAULT_START_TIME")
+        self.control.slider.set(self.current_time)
+        self.control.slider.config(to=self.manager.get_total_duration())
+        self.update_time_displays()
+        self.update_subtitle_display()
+        self.control.update_time_overlay_position()
+        if self.manager.current_episode is None:
+            self.control.episode_var.set("Movie")
+        else:
+            self.control.episode_var.set(str(self.manager.current_episode))
 
     # ——— Playback controls ———————————————————————————————————
     def toggle_play(self):
@@ -204,6 +227,7 @@ class SubtitleController:
     def on_slider_change(self, value):
         if getattr(self, "slider_dragging", False):
             self.set_current_time(float(value))
+
     def on_slider_press(self, event):
         self.slider_dragging = True
     def on_slider_release(self, event):
@@ -211,21 +235,23 @@ class SubtitleController:
         self.set_current_time(self.control.slider.get())
 
     def set_current_time(self, t: float):
-        dur = self.manager.get_total_duration()
+        if t is None:
+            return
+        dur = self.manager.get_total_duration()  # <-- call the method!
         self.current_time = max(0.0, min(t, dur))
         self.control.slider.set(self.current_time)
         self.update_time_displays()
         self.update_subtitle_display()
+        self.control.update_time_overlay_position()
 
 
     # ——— Subtitle display ———————————————————————————————————
     def update_time_displays(self):
-        text = SubtitleRenderer._format_time(self.current_time)
-        relx = self.config.get("RATIO") + (1 - 2*self.config.get("RATIO")) * (self.current_time / self.manager.get_total_duration())
-        self.control.time_overlay.config(text=text) 
-        self.control.time_overlay.place(in_=self.control.slider, relx=relx, rely=0.2)
+        value = SubtitleRenderer._format_time(self.current_time)
+        self.control.time_overlay.itemconfig(self.control.time_overlay_text, text=value)
+        # self.control.time_overlay.config(text=value) 
         if not self.time_editing:
-            self.control.play_time_var.set(text)
+            self.control.play_time_var.set(value)
 
 
     def update_subtitle_display(self):
