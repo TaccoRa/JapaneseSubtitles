@@ -18,6 +18,7 @@ class ConfigManager:
     def set(self, key, value):
         self.config[key] = value
         self._save()
+        
     def _save(self):
         with open(self.path, "w", encoding="utf-8") as f:
             json.dump(self.config, f, indent=4, ensure_ascii=False)

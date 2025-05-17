@@ -25,14 +25,14 @@ def make_draggable(drag_handle: tk.Widget, target: tk.Toplevel, sync_windows: li
     drag_handle.bind("<B1-Motion>", do_drag)
 
 
-def parse_time_value(text: str, default_skip: float) -> float:
-    text = str(text).strip().replace(",", ".")
-    if not text:
+def parse_time_value(time: str, default_skip: float) -> float:
+    time = str(time).strip().replace(",", ".")
+    if not time:
         return None
-    if text.endswith("s"):
-        text = text[:-1].strip()
-    if ":" in text:
-        parts = text.split(":")
+    if time.endswith("s"):
+        time = time[:-1].strip()
+    if ":" in time:
+        parts = time.split(":")
         if len(parts) == 2:
             try:
                 minutes = int(parts[0])
@@ -47,10 +47,10 @@ def parse_time_value(text: str, default_skip: float) -> float:
         else:
             return default_skip
     else:
-        if text.isdigit():
-            return float(text) if len(text) <= 2 else int(text[:-2]) * 60 + int(text[-2:])
+        if time.isdigit():
+            return float(time) if len(time) <= 2 else int(time[:-2]) * 60 + int(time[-2:])
         try:
-            return float(text)
+            return float(time)
         except ValueError:
             return default_skip
             

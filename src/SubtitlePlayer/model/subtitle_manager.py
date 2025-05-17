@@ -20,44 +20,70 @@ class SubtitleManager:
     def __init__(self, config: ConfigManager) -> None:
         self.config = config
 
-        # initialize srt_file
         if config.get("DEBUGGING"):
               self.srt_file = config.get("DEBUGGING_SRT_FILE")
         else: self.srt_file = config.get("LAST_SRT_FILE")
         if not self.srt_file:
-            raise FileNotFoundError("No .srt file selected or provided")
-        
+            self.prompt_srt_file()
+            
         filename = os.path.basename(self.srt_file)
-        self.current_season = self._extract_number(r'S(\d+)', filename)
-        self.current_episode = self._extract_number(r'E(\d+)', filename)
+        self.srt_dir = os.path.dirname(self.srt_file)
+        self._srt_file_list = [f for f in os.listdir(self.srt_dir) if f.lower().endswith('.srt')]
+
+        self.current_season = self._extract_number(self.SEASON_PATTERN, filename)
+        self.current_episode = self._extract_number(self.EPISODE_PATTERN, filename)
 
         self.subtitles = self._load_subtitles(self.srt_file)
         self.cleaned_subtitles = [self._clean_text(s.content) for s in self.subtitles]
         self.start_times = [s.start.total_seconds() for s in self.subtitles]
 
+    def prompt_srt_file(self) -> Optional[str]:
+        window = tk.Tk()
+        window.withdraw()
+        window.attributes("-topmost", True)
+        path = filedialog.askopenfilename(
+            parent=window,
+            title="Select SRT File",
+            initialdir=self.srt_dir,
+            filetypes=[("SubRip files", "*.srt"), ("All Files", "*.*")]
+        )
+        window.destroy()
+        if not path:
+            return None
+        if not path.lower().endswith('.srt'):
+            raise ValueError("Selected file is not a .srt file")
+        self.srt_file = path
         self.srt_dir = os.path.dirname(self.srt_file)
         self._srt_file_list = [f for f in os.listdir(self.srt_dir) if f.lower().endswith('.srt')]
-
+        self.config.set("LAST_SRT_FILE", path)
+        # Check for episoide or movie
+        season = self._extract_number(self.SEASON_PATTERN, os.path.basename(path), default=None)
+        episode = self._extract_number(self.EPISODE_PATTERN, os.path.basename(path), default=None)
+        if episode is None or season is None:
+            print("Selected file does not contain season or episode info. Treating as movie.")
+            self.current_episode = None
+            self.current_season = None
+        else:
+            self.current_episode = episode
+            self.current_season = season
+        return path
 
     def _extract_number(self, pattern, filename, default=None):
         match = re.search(pattern, filename, re.IGNORECASE)
         return int(match.group(1)) if match else default
-
-    def _clean_text(self, text: str) -> str:
-        cleaned = self.CLEAN_PATTERN_1.sub('', text)
-        cleaned = self.CLEAN_PATTERN_2.sub('', cleaned)
-        cleaned = cleaned.replace('&lrm;', '').replace('\u200e', '').strip()
-        return cleaned
-
+    
     def _load_subtitles(self, srt_path: str) -> List[srt.Subtitle]:
         with open(srt_path, 'rb') as f:
             raw = f.read()
         detected = chardet.detect(raw)
         text = raw.decode(detected['encoding'] or 'utf-8', errors='replace')
         return list(srt.parse(text))
-    
-    def get_skip_value(self) -> float:
-        return float(self.config.get('DEFAULT_SKIP'))
+
+    def _clean_text(self, text: str) -> str:
+        cleaned = self.CLEAN_PATTERN_1.sub('', text)
+        cleaned = self.CLEAN_PATTERN_2.sub('', cleaned)
+        cleaned = cleaned.replace('&lrm;', '').replace('\u200e', '').strip()
+        return cleaned
 
     def get_total_duration(self) -> float:
         return max(sub.end.total_seconds() for sub in self.subtitles)
@@ -94,33 +120,3 @@ class SubtitleManager:
         self.cleaned_subtitles = [self._clean_text(s.content) for s in self.subtitles]
         self.start_times = [s.start.total_seconds() for s in self.subtitles]
 
-
-    def prompt_srt_file(self) -> Optional[str]:
-        window = tk.Tk()
-        window.withdraw()
-        window.attributes("-topmost", True)
-        path = filedialog.askopenfilename(
-            parent=window,
-            title="Select SRT File",
-            initialdir=self.srt_dir,
-            filetypes=[("SubRip files", "*.srt"), ("All Files", "*.*")]
-        )
-        window.destroy()
-        if not path:
-            return None
-        if not path.lower().endswith('.srt'):
-            raise ValueError("Selected file is not a .srt file")
-        episode = self._extract_number(self.EPISODE_PATTERN, os.path.basename(path), default=None)
-        season = self._extract_number(self.SEASON_PATTERN, os.path.basename(path), default=None)
-        if episode is None or season is None:
-            print("Selected file does not contain season or episode info. Treating as movie.")
-            self.current_episode = None
-            self.current_season = None
-        else:
-            self.current_episode = episode
-            self.current_season = season
-        self.srt_file = path
-        self.srt_dir = os.path.dirname(self.srt_file)
-        self._srt_file_list = [f for f in os.listdir(self.srt_dir) if f.lower().endswith('.srt')]
-        self.config.set("LAST_SRT_FILE", path)
-        return path

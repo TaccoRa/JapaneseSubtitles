@@ -7,14 +7,13 @@ from utils import make_draggable
 
 class SubtitleOverlayUI:
 
-    def __init__(self, root: tk.Tk, config: ConfigManager,cleaned_subs: Optional[List[str]] = None, control_ui=None) -> None:
+    def __init__(self, root: tk.Tk, config: ConfigManager,cleaned_subs: Optional[List[str]] = None) -> None:
         self.root = root
         self.config = config
         self.font = tkFont.Font(family=config.get("SUBTITLE_FONT"),size=config.get("SUBTITLE_FONT_SIZE"),weight="bold")
         self.line_height = self.font.metrics("linespace")
         self.cleaned_subs = cleaned_subs or []
 
-        self.control_ui = control_ui
         self.sub_window: tk.Toplevel = None
         self.handle_win: tk.Toplevel = None
         self.subtitle_handle = None

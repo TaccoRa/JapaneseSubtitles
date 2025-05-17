@@ -4,7 +4,7 @@ from tkinter import font as tkFont
 from model.config_manager import ConfigManager
 from model.subtitle_manager import SubtitleManager
 from model.renderer import SubtitleRenderer
-from view.control_ui import ControlUI
+from view.settings_ui import SettingsUI
 from view.subtitle_overlay import SubtitleOverlayUI
 from controller.controller import SubtitleController
 from controller.mouse_manager import MouseManager
@@ -24,7 +24,7 @@ class SubtitlePlayerApp:
         self.root.minsize(320, 123)
 
         # UI
-        self.control_ui = ControlUI(
+        self.settings_ui = SettingsUI(
             root=self.root,
             config=config,
             total_duration=self.manager.get_total_duration(),
@@ -33,8 +33,7 @@ class SubtitlePlayerApp:
         self.overlay_ui = SubtitleOverlayUI(
             root=self.root,
             config=config,
-            cleaned_subs=self.manager.cleaned_subtitles,
-            control_ui=self.control_ui)
+            cleaned_subs=self.manager.cleaned_subtitles)
 
         self.popup = CopyPopup(root=self.root, config=config)
 
@@ -48,14 +47,14 @@ class SubtitlePlayerApp:
         self.controller = SubtitleController(
             manager=self.manager,
             renderer=self.renderer,
-            control_ui=self.control_ui,
+            settings_ui=self.settings_ui,
             overlay_ui=self.overlay_ui,
             popup=self.popup,
             config=config)
 
         self.mouse = MouseManager(
             overlay_ui=self.overlay_ui,
-            control_ui=self.control_ui,
+            settings_ui=self.settings_ui,
             config=config)
 
         self.root.after(config.get("UPDATE_INTERVAL_MS"), self.controller.update_loop)

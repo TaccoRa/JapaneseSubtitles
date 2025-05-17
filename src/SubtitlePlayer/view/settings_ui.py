@@ -2,7 +2,7 @@ import tkinter as tk
 from model.config_manager import ConfigManager
 from utils import parse_time_value, make_draggable
 
-class ControlUI:
+class SettingsUI:
     def __init__(self, root: tk.Tk, config: ConfigManager, total_duration: float, initial_episode=None):
         self.root = root
         self.config = config
@@ -123,7 +123,7 @@ class ControlUI:
         episode_frame.grid_columnconfigure((1,2), weight=0)
 
         # Episode entry
-        self.episode_entry = tk.Entry(episode_frame, textvariable=self.episode_var, font=("Arial", 12), width=4)
+        self.episode_entry = tk.Entry(episode_frame, textvariable=self.episode_var, font=("Arial", 12), width=7)
         self.episode_entry.grid(row=0, column=0, sticky="ew")
         self.episode_entry.bind("<FocusOut>", lambda e: (self._on_ep_change(), self.root.focus()))
         self.episode_entry.bind("<Return>", lambda e: (self._on_ep_change(), self.root.focus()))
@@ -191,6 +191,11 @@ class ControlUI:
         h = self.win_h_phone if self.phone_mode.get() else self.win_h
         self.control_window.geometry(f"{w}x{h}+{self.win_x}+{self.win_y}")
 
+        self.control_drag_handle = tk.Frame(self.control_window, bg="gray", width=10, height=10)
+        self.control_drag_handle.place(x=0, y=0)
+        self.control_drag_handle.lift()
+        make_draggable(self.control_drag_handle, self.control_window)
+
         main_frame = tk.Frame(self.control_window, bg="black")
         main_frame.pack(fill="both", expand=True)
         main_frame.columnconfigure((0,1,2), weight=1, minsize=60)
@@ -198,31 +203,28 @@ class ControlUI:
 
         self.back_button = tk.Button(main_frame, text="<< Skip", font=("Arial", 12, "bold"),
                                       width=6, height=2, bg="#3582B5", activebackground="#42A1E0", relief="flat")
-        self.back_button.grid(row=0, column=0, rowspan=2, sticky="nsew")
-        self.back_button.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_back()))
-
-        self.forward_button = tk.Button(main_frame, text="Skip >>", font=("Arial", 12, "bold"),
-                                        width=6, height=2, bg="#3582B5", activebackground="#42A1E0", relief="flat")
-        self.forward_button.grid(row=0, column=2, rowspan=2, sticky="nsew")
-        self.forward_button.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_forward()))
 
         self.play_time_entry = tk.Entry(main_frame, textvariable=self.play_time_var,
                                         font=("Arial", 14, "bold"), bd=0,
                                         bg="black", fg="white", width=6, justify="center")
-        self.play_time_entry.grid(row=0, column=1, sticky="nsew", ipady=5)
-        self.play_time_entry.bind("<Return>", lambda ev:   self._on_time_entry_return(ev))
-        self.play_time_entry.bind("<FocusOut>", lambda ev: self._on_time_entry_return(ev))
-        self.play_time_entry.bind("<Button-1>", lambda ev: self._on_time_entry_clear(ev))
 
         self.play_pause_btn = tk.Button(main_frame, text="Play", bg="green",
                                             activebackground="green", font=("Arial", 12, "bold"), height=1, relief="flat")
-        self.play_pause_btn.grid(row=1, column=1,pady=0, sticky="nsew")
-        self.play_pause_btn.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_play_pause()))
+        
+        self.forward_button = tk.Button(main_frame, text="Skip >>", font=("Arial", 12, "bold"),
+                                        width=6, height=2, bg="#3582B5", activebackground="#42A1E0", relief="flat")
 
-        self.control_drag_handle = tk.Frame(self.control_window, bg="gray", width=10, height=10)
-        self.control_drag_handle.place(x=0, y=0)
-        self.control_drag_handle.lift()
-        make_draggable(self.control_drag_handle, self.control_window)
+        self.back_button.grid(row=0, column=0, rowspan=2, sticky="nsew")
+        self.play_pause_btn.grid(row=1, column=1,pady=0, sticky="nsew")
+        self.play_time_entry.grid(row=0, column=1, sticky="nsew", ipady=5)
+        self.forward_button.grid(row=0, column=2, rowspan=2, sticky="nsew")
+
+        self.forward_button.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_forward()))
+        self.back_button.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_back()))
+        self.play_pause_btn.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_play_pause()))
+        self.play_time_entry.bind("<Return>", lambda ev:   self._on_time_entry_return(ev))
+        self.play_time_entry.bind("<FocusOut>", lambda ev: self._on_time_entry_return(ev))
+        self.play_time_entry.bind("<Button-1>", lambda ev: self._on_time_entry_clear(ev))
 
     # ——— PUBLIC binders ——————————————————————————————————————
     # Settings window
