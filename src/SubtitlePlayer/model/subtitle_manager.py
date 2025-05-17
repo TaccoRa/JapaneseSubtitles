@@ -39,7 +39,7 @@ class SubtitleManager:
         self._srt_file_list = [f for f in os.listdir(self.srt_dir) if f.lower().endswith('.srt')]
 
 
-    def _extract_number(self, pattern, filename, default=1):
+    def _extract_number(self, pattern, filename, default=None):
         match = re.search(pattern, filename, re.IGNORECASE)
         return int(match.group(1)) if match else default
 
@@ -113,10 +113,12 @@ class SubtitleManager:
         episode = self._extract_number(self.EPISODE_PATTERN, os.path.basename(path), default=None)
         season = self._extract_number(self.SEASON_PATTERN, os.path.basename(path), default=None)
         if episode is None or season is None:
-            print("Selected file does not contain season or episode info. Skipping episode logic.")
-            return None
-        self.current_episode = episode
-        self.current_season = season
+            print("Selected file does not contain season or episode info. Treating as movie.")
+            self.current_episode = None
+            self.current_season = None
+        else:
+            self.current_episode = episode
+            self.current_season = season
         self.srt_file = path
         self.srt_dir = os.path.dirname(self.srt_file)
         self._srt_file_list = [f for f in os.listdir(self.srt_dir) if f.lower().endswith('.srt')]
