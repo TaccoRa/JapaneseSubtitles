@@ -26,23 +26,30 @@ class SubtitlePlayerApp:
         # UI (View)       
         self.popup = CopyPopup(root=self.root, config=config)
 
+        self.sub_overlay_ui = SubtitleOverlayUI(
+            root=self.root,
+            config=config,
+            cleaned_subs=self.manager.cleaned_subtitles)
+        
         self.settings_ui = SettingsUI(
             root=self.root,
             config=config,
             total_duration=self.manager.get_total_duration(),
             initial_episode=self.manager.current_episode)
-        
-        self.sub_overlay_ui = SubtitleOverlayUI(
-            root=self.root,
-            config=config,
-            cleaned_subs=self.manager.cleaned_subtitles)
 
-        # Model
         self.renderer = SubtitleRenderer(
             canvas=self.sub_overlay_ui.subtitle_canvas,
             font=self.sub_overlay_ui.font,
             color=config.get("SUBTITLE_COLOR"),
-            line_height=self.sub_overlay_ui.line_height)
+            line_height=self.sub_overlay_ui.line_height
+        )
+
+        # # Model
+        # self.renderer = SubtitleRenderer(
+        #     canvas=self.sub_overlay_ui.subtitle_canvas,
+        #     font=self.sub_overlay_ui.font,
+        #     color=config.get("SUBTITLE_COLOR"),
+        #     line_height=self.sub_overlay_ui.line_height)
 
         # Controller
         self.controller = SubtitleController(
