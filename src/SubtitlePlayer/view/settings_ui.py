@@ -6,17 +6,12 @@ class SettingsUI:
     def __init__(self, root: tk.Tk, config: ConfigManager, total_duration: float, initial_episode=None):
         self.root = root
         self.config = config
-        self.initial_episode = initial_episode
         self.total_duration = total_duration
-        self._load_config()
+        self.initial_episode = initial_episode
 
-        for name in ("ep_change", "ep_inc", "ep_dec",
-                     "slider_change", "slider_press", "slider_release",
-                     "set_to", "open_srt", "show_handle",
-                     #Control window:
-                     "back", "forward", "play_pause",
-                     "time_entry_return", "time_entry_clear"):
-            setattr(self, f"_on_{name}", lambda *a, **k: None)
+        self._init_defaults()
+        self._init_vars()
+        self._init_callbacks()
 
         self.episode_inc_btn = None
         self.episode_dec_btn = None
@@ -24,38 +19,45 @@ class SettingsUI:
         self.play_pause_btn = None
         self.slider = None
 
-        self._last_offset_value = None
-        self._last_skip_value = None
-
-        self._build_settings_frame()
-        self._build_control_window()
         self._last_offset_value = self.offset_var.get()
         self._last_skip_value = self.skip_var.get()
 
-    def _load_config(self):
+        self._build_settings_frame()
+        self._build_control_window()
+
+    def _init_defaults(self):
         get = self.config.get
         self.offset_default = get('EXTRA_OFFSET')
-        self.skip_default =   get('DEFAULT_SKIP')
-        self.default_start =  get('DEFAULT_START_TIME')
-        self.ratio =          get('RATIO')
- 
-        self.win_x, self.win_y = get('CONTROL_WINDOW_X'),     get('CONTROL_WINDOW_Y')
-        self.win_w, self.win_h = get('CONTROL_WINDOW_WIDTH'), get('CONTROL_WINDOW_HEIGHT')
-        self.win_w_phone, self.win_h_phone = get('CONTROL_WINDOW_PHONE_MODE_WIDTH'), get('CONTROL_WINDOW_PHONE_MODE_HEIGHT')
+        self.skip_default = get('DEFAULT_SKIP')
+        self.default_start = get('DEFAULT_START_TIME')
+        self.ratio = get('RATIO')
 
+        self.win_x = get('CONTROL_WINDOW_X')
+        self.win_y = get('CONTROL_WINDOW_Y')
+        self.win_w = get('CONTROL_WINDOW_WIDTH')
+        self.win_h = get('CONTROL_WINDOW_HEIGHT')
+        self.win_w_phone = get('CONTROL_WINDOW_PHONE_MODE_WIDTH')
+        self.win_h_phone = get('CONTROL_WINDOW_PHONE_MODE_HEIGHT')
+
+    def _init_vars(self):
         self.offset_var = tk.StringVar(value=f"{float(self.offset_default):.1f} s")
-        self.skip_var   = tk.StringVar(value=f"{float(self.skip_default):.1f} s")
-
-        if self.initial_episode is None:
-            episode_display = "Movie"
-        else:
-            episode_display = str(self.initial_episode)
-        self.episode_var = tk.StringVar(value=episode_display)
+        self.skip_var = tk.StringVar(value=f"{float(self.skip_default):.1f} s")
+        self.episode_var = tk.StringVar(value="Movie" if self.initial_episode is None else str(self.initial_episode))
         self.setto_var = tk.StringVar(value="")
         self.phone_mode = tk.BooleanVar(value=False)
-    
         self.play_time_var = tk.StringVar(value=format_time(self.default_start))
 
+    def _noop(self, *args, **kwargs):
+        pass
+
+    def _init_callbacks(self):
+        for name in ("ep_change", "ep_inc", "ep_dec",
+                     "slider_change", "slider_press", "slider_release",
+                     "set_to", "open_srt", "show_handle",
+                     #Control window:
+                     "back", "forward", "play_pause",
+                     "time_entry_return", "time_entry_clear"):
+            setattr(self, f"_on_{name}", self._noop)
 
     # ——— SETTINGS FRAME ————————————————————————————
     def _build_settings_frame(self):
@@ -128,12 +130,12 @@ class SettingsUI:
         self.episode_entry.bind("<FocusOut>", lambda e: (self._on_ep_change(), self.root.focus()))
         self.episode_entry.bind("<Return>", lambda e: (self._on_ep_change(), self.root.focus()))
         
-        self.episode_inc_btn = tk.Button(episode_frame, text="-", font=("Arial", 8, "bold"), width=1, height=1,
+        self.episode_dec_btn = tk.Button(episode_frame, text="-", font=("Arial", 8, "bold"), width=1, height=1,
                                          command=lambda: self._on_ep_dec())
-        self.episode_inc_btn.grid(row=0, column=1, sticky="e")
-        self.episode_dec_btn = tk.Button(episode_frame, text="+", font=("Arial", 8, "bold"), width=1, height=1,
+        self.episode_dec_btn.grid(row=0, column=1, sticky="e")
+        self.episode_inc_btn = tk.Button(episode_frame, text="+", font=("Arial", 8, "bold"), width=1, height=1,
                                          command=lambda: self._on_ep_inc())
-        self.episode_dec_btn.grid(row=0, column=2, sticky="e")
+        self.episode_inc_btn.grid(row=0, column=2, sticky="e")
 
         # Set to
         tk.Label(options_frame, text="Set to:", font=("Arial", 12), bg="#f0f0f0")\
@@ -249,6 +251,22 @@ class SettingsUI:
     def bind_setting_clear_offset_entry(self, cb): self._on_setting_clear_offset_entry = cb
     def bind_setting_clear_skip_entry(self, cb): self._on_setting_clear_skip_entry = cb
 
+    def update_time_overlay_position(self):
+        self.root.update_idletasks()
+        root_width = self.root.winfo_width()
+        diff = root_width - 320
+        min_x = 1+19
+        max_x = 268 + diff + 19
+        min_val = float(self.slider.cget('from'))
+        max_val = float(self.slider.cget('to'))
+        value = float(self.slider.get())
+        rel = (value - min_val) / (max_val - min_val) if max_val != min_val else 0.0
+        x = int(min_x + rel * (max_x - min_x))
+        self.time_overlay.move(self.time_overlay_text, x, 9+3)
+        # # update the displayed text too
+        self.time_overlay.coords(self.time_overlay_text, x, 9+3)
+        self.time_overlay.itemconfig(self.time_overlay_text, text=self.play_time_var.get())
+
     # ——— PHONE MODE UI ADJUSTMENT ————————————————————————————
     def _toggle_phone_mode(self):
         phone_mode = not self.phone_mode.get()
@@ -285,8 +303,6 @@ class SettingsUI:
 
 
     # ——— HELPERS ————————————————————————————————————————————
-
-
     def _on_setting_clear_offset_entry(self, event):
         val = self.offset_entry.get()
         if val.strip():
@@ -332,19 +348,3 @@ class SettingsUI:
             self.skip_entry.delete(0, tk.END)
             value = self._last_skip_value if self._last_skip_value is not None else ""
             self.skip_entry.insert(0, str(value))
-
-    def update_time_overlay_position(self):
-        self.root.update_idletasks()
-        root_width = self.root.winfo_width()
-        diff = root_width - 320
-        min_x = 1+19
-        max_x = 268 + diff + 19
-        min_val = float(self.slider.cget('from'))
-        max_val = float(self.slider.cget('to'))
-        value = float(self.slider.get())
-        rel = (value - min_val) / (max_val - min_val) if max_val != min_val else 0.0
-        x = int(min_x + rel * (max_x - min_x))
-        self.time_overlay.move(self.time_overlay_text, x, 9+3)
-        # # update the displayed text too
-        self.time_overlay.coords(self.time_overlay_text, x, 9+3)
-        self.time_overlay.itemconfig(self.time_overlay_text, text=self.play_time_var.get())
