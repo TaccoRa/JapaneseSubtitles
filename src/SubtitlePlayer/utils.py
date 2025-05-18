@@ -60,7 +60,11 @@ def reformat_time_entry(entry: tk.Entry, parse_func, as_seconds=False) -> None:
     if as_seconds:
         formatted = f"{secs:.1f} s"
     else:
-        minutes, seconds = divmod(int(secs), 60)
-        formatted = f"{minutes:02d}:{seconds:02d}"
+        formatted = format_time(secs)
     entry.delete(0, tk.END)
     entry.insert(0, formatted)
+
+@staticmethod
+def format_time(seconds: float) -> str:
+    m, s = divmod(int(seconds), 60)
+    return f"{m:02d}:{s:02d}"

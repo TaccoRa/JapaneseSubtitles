@@ -23,37 +23,38 @@ class SubtitlePlayerApp:
         self.root.geometry("320x123")
         self.root.minsize(320, 123)
 
-        # UI
+        # UI (View)       
+        self.popup = CopyPopup(root=self.root, config=config)
+
         self.settings_ui = SettingsUI(
             root=self.root,
             config=config,
             total_duration=self.manager.get_total_duration(),
             initial_episode=self.manager.current_episode)
         
-        self.overlay_ui = SubtitleOverlayUI(
+        self.sub_overlay_ui = SubtitleOverlayUI(
             root=self.root,
             config=config,
             cleaned_subs=self.manager.cleaned_subtitles)
 
-        self.popup = CopyPopup(root=self.root, config=config)
-
+        # Model
         self.renderer = SubtitleRenderer(
-            canvas=self.overlay_ui.subtitle_canvas,
-            font=self.overlay_ui.font,
+            canvas=self.sub_overlay_ui.subtitle_canvas,
+            font=self.sub_overlay_ui.font,
             color=config.get("SUBTITLE_COLOR"),
-            line_height=self.overlay_ui.line_height)
+            line_height=self.sub_overlay_ui.line_height)
 
         # Controller
         self.controller = SubtitleController(
             manager=self.manager,
             renderer=self.renderer,
             settings_ui=self.settings_ui,
-            overlay_ui=self.overlay_ui,
+            overlay_ui=self.sub_overlay_ui,
             popup=self.popup,
             config=config)
 
         self.mouse = MouseManager(
-            overlay_ui=self.overlay_ui,
+            overlay_ui=self.sub_overlay_ui,
             settings_ui=self.settings_ui,
             config=config)
 

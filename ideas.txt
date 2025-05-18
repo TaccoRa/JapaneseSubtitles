@@ -14,3 +14,4 @@ when movie (when not japanese characters) the width of subtitle window is wrong
 
 Problems:
 Only appearing control window when focus is on the subtitle window
+if the offset is set to big or negative and so on the slider is not adjusted to this
