@@ -1,6 +1,6 @@
 import tkinter as tk
 from model.config_manager import ConfigManager
-from utils import parse_time_value, make_draggable
+from utils import parse_time_value, make_draggable, format_time
 
 class SettingsUI:
     def __init__(self, root: tk.Tk, config: ConfigManager, total_duration: float, initial_episode=None):
@@ -54,7 +54,7 @@ class SettingsUI:
         self.setto_var = tk.StringVar(value="")
         self.phone_mode = tk.BooleanVar(value=False)
     
-        self.play_time_var = tk.StringVar(value=self._format_time(self.default_start))
+        self.play_time_var = tk.StringVar(value=format_time(self.default_start))
 
 
     # ——— SETTINGS FRAME ————————————————————————————
@@ -285,10 +285,7 @@ class SettingsUI:
 
 
     # ——— HELPERS ————————————————————————————————————————————
-    @staticmethod
-    def _format_time(seconds: float) -> str:
-        m, s = divmod(int(seconds), 60)
-        return f"{m:02d}:{s:02d}"
+
 
     def _on_setting_clear_offset_entry(self, event):
         val = self.offset_entry.get()
