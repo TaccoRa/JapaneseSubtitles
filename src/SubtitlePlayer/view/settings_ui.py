@@ -1,6 +1,6 @@
-import tkinter as tk
+from PyQt5 import QtCore, QtWidgets, QtGui
 from model.config_manager import ConfigManager
-from utils import parse_time_value, make_draggable, format_time
+from utils import parse_time_value, format_time
 
 class SettingsUI:
     def __init__(self, root: tk.Tk, config: ConfigManager, total_duration: float, initial_episode=None):

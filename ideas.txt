@@ -1,16 +1,12 @@
 If no .srt found dont reset to default slider position and so on
-Remember last position of windows over next run
+Remember last position of windows over to next run
 Change windows size in config (during run time?)
-Remember last episode not debugging
 Wrong episode when turning off?
 Show Kanji written above
-When changing episode maybe play button buggy(fixed?)
-When using a film change the episode entry or something and change length of slider
-Adjust slider depending on srt file
 Add button in control window which shows settings window
 When longer than 1 h resize control window and episode entry and change time entry
 when movie (when not japanese characters) the width of subtitle window is wrong
-
+Change subtitle width to fit current subtitle
 
 Problems:
 Only appearing control window when focus is on the subtitle window
