@@ -193,11 +193,6 @@ class SettingsUI:
         h = self.win_h_phone if self.phone_mode.get() else self.win_h
         self.control_window.geometry(f"{w}x{h}+{self.win_x}+{self.win_y}")
 
-        self.control_drag_handle = tk.Frame(self.control_window, bg="gray", width=10, height=10)
-        self.control_drag_handle.place(x=0, y=0)
-        self.control_drag_handle.lift()
-        make_draggable(self.control_drag_handle, self.control_window)
-
         main_frame = tk.Frame(self.control_window, bg="black")
         main_frame.pack(fill="both", expand=True)
         main_frame.columnconfigure((0,1,2), weight=1, minsize=60)
@@ -227,6 +222,12 @@ class SettingsUI:
         self.play_time_entry.bind("<Return>", lambda ev:   self._on_time_entry_return(ev))
         self.play_time_entry.bind("<FocusOut>", lambda ev: self._on_time_entry_return(ev))
         self.play_time_entry.bind("<Button-1>", lambda ev: self._on_time_entry_clear(ev))
+
+        self.control_drag_handle = tk.Frame(self.control_window, bg="gray", width=10, height=10)
+        self.control_drag_handle.place(x=0, y=0)
+        self.control_drag_handle.lift()
+        make_draggable(self.control_drag_handle, self.control_window)
+
 
     # ——— PUBLIC binders ——————————————————————————————————————
     # Settings window

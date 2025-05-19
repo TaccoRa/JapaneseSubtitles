@@ -7,14 +7,16 @@ from utils import make_draggable
 
 class SubtitleOverlayUI:
 
-    def __init__(self, root: tk.Tk, config: ConfigManager,cleaned_subs: Optional[List[str]] = None) -> None:
+    def __init__(self, root: tk.Tk, config: ConfigManager,cleaned_subs: Optional[List[str]] = None, control_ui=None) -> None:
         self.root = root
         self.config = config
         self.font = tkFont.Font(family=config.get("SUBTITLE_FONT"),size=config.get("SUBTITLE_FONT_SIZE"),weight="bold")
         self.line_height = self.font.metrics("linespace")
         self.cleaned_subs = cleaned_subs or []
 
+        self.control_ui = control_ui
         self.sub_window: tk.Toplevel = None
+        self.handle_win: tk.Toplevel = None
         self.subtitle_handle = None
         self.subtitle_canvas: tk.Canvas = None
         self.max_width: int = 0
@@ -31,10 +33,8 @@ class SubtitleOverlayUI:
 
         # main subtitle window
         self.sub_window = tk.Toplevel(self.root)
-        # self.sub_window.withdraw() # was too fix white flash in the beginning (just configure grey)
         self.sub_window.overrideredirect(True)
         self.sub_window.attributes("-topmost", True)
-        self.sub_window.configure(bg="grey")
         self.sub_window.attributes("-transparentcolor", "grey")
         self.sub_window.geometry(f"{self.max_width}x{init_height}+{pos_x}+{pos_y}")
         self.sub_window.update_idletasks()
@@ -49,8 +49,6 @@ class SubtitleOverlayUI:
         )
         self.subtitle_canvas.pack(fill="both", expand=True)
         make_draggable(self.sub_window, self.sub_window,on_drag=lambda bottom: setattr(self, "bottom_anchor", bottom))
-        # self.sub_window.update_idletasks() # was too fix white flash in the beginning (just configure grey)
-        # self.sub_window.deiconify()
 
     def show_handle(self):
         if self.subtitle_handle is not None:
