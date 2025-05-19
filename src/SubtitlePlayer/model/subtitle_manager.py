@@ -5,7 +5,8 @@ from typing import List, Optional
 
 import srt
 import chardet
-from PyQt5.QtWidgets import QFileDialog, QWidget
+import tkinter as tk
+from tkinter import filedialog
 
 from model.config_manager import ConfigManager
 
@@ -16,9 +17,8 @@ class SubtitleManager:
     SEASON_PATTERN = r'S(\d+)'
     EPISODE_PATTERN = r'E(\d+)'
 
-    def __init__(self, config: ConfigManager, parent_widget: Optional[QWidget] = None) -> None:
+    def __init__(self, config: ConfigManager) -> None:
         self.config = config
-        self.parent = parent_widget
 
         if config.get("DEBUGGING"):
               self.srt_file = config.get("DEBUGGING_SRT_FILE")
@@ -39,34 +39,34 @@ class SubtitleManager:
         self._load_and_process(self.srt_file)
 
     def prompt_srt_file(self) -> Optional[str]:
-        dialog = QFileDialog(self.parent)
-        dialog.setWindowTitle("Select SRT File")
-        dialog.setNameFilters(["SubRip files (*.srt)", "All Files (*)"])
-        if self.srt_dir:
-            dialog.setDirectory(self.srt_dir)
-        if dialog.exec_():
-            path = dialog.selectedFiles()[0]
-        else:
+        window = tk.Tk()
+        window.withdraw()
+        window.attributes("-topmost", True)
+        path = filedialog.askopenfilename(
+            parent=window,
+            title="Select SRT File",
+            initialdir=self.srt_dir,
+            filetypes=[("SubRip files", "*.srt"), ("All Files", "*.*")]
+        )
+        window.destroy()
+        if not path:
             return None
-
         if not path.lower().endswith('.srt'):
             raise ValueError("Selected file is not a .srt file")
-
         self.srt_file = path
-        self.srt_dir = os.path.dirname(path)
+        self.srt_dir = os.path.dirname(self.srt_file)
         self._srt_file_list = [f for f in os.listdir(self.srt_dir) if f.lower().endswith('.srt')]
         self.config.set("LAST_SRT_FILE", path)
-
-        season = self._extract_number(self.SEASON_PATTERN, os.path.basename(path))
-        episode = self._extract_number(self.EPISODE_PATTERN, os.path.basename(path))
-        if season is None or episode is None:
-            self.current_season = None
+        # Check for episoide or movie
+        season = self._extract_number(self.SEASON_PATTERN, os.path.basename(path), default=None)
+        episode = self._extract_number(self.EPISODE_PATTERN, os.path.basename(path), default=None)
+        if episode is None or season is None:
+            print("Selected file does not contain season or episode info. Treating as movie.")
             self.current_episode = None
+            self.current_season = None
         else:
-            self.current_season = season
             self.current_episode = episode
-
-        self._load_and_process(path)
+            self.current_season = season
         return path
 
     def load_srt_file(self, path: str) -> None:
