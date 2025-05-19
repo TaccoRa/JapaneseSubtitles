@@ -40,12 +40,12 @@ class SubtitlePlayerApp:
         # Model
         self.renderer = SubtitleRenderer(
             canvas=self.sub_overlay_ui.subtitle_canvas,
-            font_path=config.get("SUBTITLE_FONT"),
-            font_size=config.get("SUBTITLE_FONT_SIZE"),
+            font=self.sub_overlay_ui.font,
+            # font_size=config.get("SUBTITLE_FONT_SIZE"),
             color=config.get("SUBTITLE_COLOR"),
-            line_height=self.sub_overlay_ui.line_height,
-            glow_radius=config.get("GLOW_RADIUS"),
-            glow_alpha=config.get("GLOW_ALPHA")
+            line_height=self.sub_overlay_ui.line_height#,
+            # glow_radius=config.get("GLOW_RADIUS"),
+            # glow_alpha=config.get("GLOW_ALPHA")
             )
 
 
