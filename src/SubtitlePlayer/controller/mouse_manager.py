@@ -21,7 +21,7 @@ class MouseManager:
         self.root = settings_ui.root
         self.control_window = settings_ui.control_window
         self.hide_controls_job = None
-        self.hide_delay = self.config.get("PHONEMODE_CONTROL_HIDE_DELAY_MS")
+        self.hide_delay = self.config.get("PHONEMODE_WINDOWS_HIDE_DELAY_MS")
         self.use_phone_mode = settings_ui.phone_mode
 
     def set_mouse_over(self, area: str, flag: bool) -> None:

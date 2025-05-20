@@ -90,8 +90,8 @@ class SubtitlePlayer:
         self.current_time: float = config['DEFAULT_START_TIME']
         self.user_offset: float = 0.0
         self.last_update: float = time.time()
-        self.hide_delay: int = config['MOUSE_CONTROL_HIDE_DELAY_MS']
-        self.disappear_timer: int = config['PHONEMODE_CONTROL_HIDE_DELAY_MS']
+        self.hide_delay: int = config['WINDOWS_HIDE_DELAY_MS']
+        self.disappear_timer: int = config['PHONEMODE_WINDOWS_HIDE_DELAY_MS']
         self.last_subtitle_text: str = ""
         self.subtitle_timeout_job: Optional[str] = None
         self.hide_controls_job: Optional[str] = None
