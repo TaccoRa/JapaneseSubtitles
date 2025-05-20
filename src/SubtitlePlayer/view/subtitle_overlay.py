@@ -48,7 +48,23 @@ class SubtitleOverlayUI:
             highlightthickness=0
         )
         self.subtitle_canvas.pack(fill="both", expand=True)
+        # self.sub_window.bind("<Motion>", self._on_motion)
         make_draggable(self.sub_window, self.sub_window,on_drag=lambda bottom: setattr(self, "bottom_anchor", bottom))
+        self.sub_window.bind("<Enter>", lambda ev: self.on_sub_window_enter(ev))
+        self.sub_window.bind("<Leave>", lambda ev: self.on_sub_window_leave(ev))
+
+    # def _on_motion(self, event):
+    #     x, y = event.x_root, event.y_root
+    #     wx, wy = self.sub_window.winfo_rootx(), self.sub_window.winfo_rooty()
+    #     w, h = self.sub_window.winfo_width(), self.sub_window.winfo_height()
+    #     if not (wx <= x <= wx + w and wy <= y <= wy + h):
+    #         self.on_sub_window_leave(event)
+
+
+
+    # Subtitle overlay
+    def bind_sub_window_enter(self, cb): self.on_sub_window_enter = cb
+    def bind_sub_window_leave(self, cb): self.on_sub_window_leave = cb
 
     def show_handle(self):
         if self.subtitle_handle is not None:

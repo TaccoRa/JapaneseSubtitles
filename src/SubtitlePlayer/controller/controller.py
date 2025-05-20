@@ -2,6 +2,7 @@ import time
 import tkinter as tk
 from pynput.mouse import Button, Listener as MouseListener
 from pynput.keyboard import Key, Listener as KeyboardListener
+import pyautogui
 
 from model.config_manager import ConfigManager
 from model.subtitle_manager import SubtitleManager
@@ -27,14 +28,16 @@ class SubtitleController:
         self.popup   = popup
         self.config  = config
         
-        self.default_start_time = config.get("DEFAULT_START_TIME")
+        self.default_start_time = self.config.get("DEFAULT_START_TIME")
         self.current_time = self.default_start_time
-        self.default_skip = config.get("DEFAULT_SKIP")
+        self.default_skip = self.config.get("DEFAULT_SKIP")
         self.extra_offset = self.config.get("EXTRA_OFFSET")
-        self.phone_hide_control_window_ms = config.get("PHONEMODE_CONTROL_HIDE_DELAY_MS")   # hides control window after # ms in phone mode
+        self.phone_windows_hide_control_ms = self.config.get("PHONEMODE_WINDOWS_HIDE_DELAY_MS")   # hides control window after # ms in phone mode
+        self.windows_hide_control_ms = self.config.get("WINDOWS_HIDE_DELAY_MS")   # hides control window after # ms in phone mode
         self.hide_subtitles_ms = self.config.get("SUBTITLE_TIMEOUT_MS")                     # clears subtitle canvas after # ms
-        self.update_interval_ms = config.get("UPDATE_INTERVAL_MS")                        # updates the time display every # ms
-        
+        self.update_interval_ms = self.config.get("UPDATE_INTERVAL_MS")                        # updates the time display every # ms
+        self.video_click = self.config.get("VIDEO_CLICK")
+
         self.playing      = False
         self.time_editing = False
         self.user_hidden = False
@@ -59,15 +62,15 @@ class SubtitleController:
         self.settings.bind_set_to_time               (self.on_set_to_time)
         self.settings.bind_time_entry_return         (self.control_time_entry_return)
         self.settings.bind_time_entry_clear          (self.control_clear_time_entry)
+        self.settings.bind_control_window_leave      (self.control_window_leave)
         self.settings.bind_setting_clear_offset_entry(self.setting_clear_offset_entry)
         self.settings.bind_setting_clear_skip_entry  (self.setting_clear_skip_entry)
         self.settings.bind_show_subtitle_handle      (self.show_subtitle_handle)
         # self.settings.slider.config(to=self.manager.get_total_duration())
 
         self.overlay.subtitle_canvas.bind("<Button-3>", lambda e: self.popup.open_copy_popup(self.last_subtitle_text))
-        self.overlay.sub_window.bind("<Enter>", lambda e: self._on_sub_hover(True))
-        self.overlay.sub_window.bind("<Leave>", lambda e: self._on_sub_hover(False))
-
+        self.overlay.bind_sub_window_enter(self.sub_window_enter)
+        self.overlay.bind_sub_window_leave(self.sub_window_leave)      
 
         MouseListener(on_click=self.on_global_click).start()
         KeyboardListener(on_press=self._on_key_press, on_release=self._on_key_release).start()
@@ -76,6 +79,45 @@ class SubtitleController:
         self.update_time_displays()
         self.update_subtitle_display()
 
+    def sub_window_enter(self, event):
+        self.overlay.sub_window.attributes("-transparentcolor", "")
+        if getattr(self, "_sub_hide_job", None):
+            self.overlay.sub_window.after_cancel(self._sub_hide_job)
+            self._sub_hide_job = None
+        if getattr(self, "_hide_job", None):
+            self.settings.control_window.after_cancel(self._hide_job)
+            self._hide_job = None
+        self.user_hidden = False
+        self.settings.control_window.attributes("-topmost", True)
+        self.overlay.sub_window.attributes("-topmost", True)
+        self.update_subtitle_display()
+
+    def sub_window_leave(self, event):
+        self.overlay.sub_window.attributes("-transparentcolor", "grey")
+
+        delay = (self.settings.phone_mode.get()
+                and self.phone_windows_hide_control_ms
+                or self.windows_hide_control_ms)
+
+        if getattr(self, "_hide_job", None):
+            self.settings.control_window.after_cancel(self._hide_job)
+
+        self._hide_job = self.settings.control_window.after(
+            delay,
+            self.settings.control_window.lower)
+
+    def control_window_leave(self, event):
+        delay = (self.settings.phone_mode.get()
+                and self.phone_windows_hide_control_ms
+                or self.windows_hide_control_ms)
+
+        if getattr(self, "_hide_job", None):
+            self.settings.control_window.after_cancel(self._hide_job)
+
+        self._hide_job = self.settings.control_window.after(
+            delay,
+            self.settings.control_window.lower)
+        
     def update_subtitle_display(self):
         offset = parse_time_value(self.settings.offset_var.get(), default_skip=self.default_skip) + self.extra_offset
         new_text = self.manager.get_subtitle_at(self.current_time, offset)
@@ -252,17 +294,27 @@ class SubtitleController:
                     self.renderer.render(text=self.last_subtitle_text,
                         max_width=self.overlay.max_width,
                         bottom_anchor=self.overlay.bottom_anchor,
-                        sub_window=self.overlay.sub_window
-                    )
+                        sub_window=self.overlay.sub_window)
+        if self.video_click: self.simulate_video_click()
+        self.update_time_displays()
+        self.schedule_hide_controls()
 
     def go_forward(self):
         skip = parse_time_value(self.settings.skip_entry.get(), default_skip=self.default_skip)
         self.set_current_time(self.current_time + skip)
+        self.schedule_hide_controls()
     def go_back(self):
         skip = parse_time_value(self.settings.skip_entry.get(), default_skip=self.default_skip)
         self.set_current_time(self.current_time - skip)
+        self.schedule_hide_controls()
 
-
+    def simulate_video_click(self):
+        original_pos = pyautogui.position()
+        target_x = self.config.get["CONTROL_WINDOW_X"] + 50  #110
+        target_y = self.config.get["CONTROL_WINDOW_Y"] - 50 #1000
+        pyautogui.click(target_x, target_y)
+        self.settings.control_window.attributes("-topmost", True)
+        pyautogui.moveTo(original_pos.x, original_pos.y)
 
 
     def on_slider_change(self, value):
@@ -308,16 +360,16 @@ class SubtitleController:
 
 
     # ——— Subtitle hover & click handlers ———————————————————————
-    def _on_sub_hover(self, inside: bool):
-        # called on enter/leave subtitle area
-        if inside:
-            # show controls
-            self.settings.control_window.lift()
-            self.overlay.sub_window.attributes("-transparentcolor", "")
-        else:
-            # maybe hide controls after a delay
-            self.overlay.sub_window.attributes("-transparentcolor", "grey")
-            self.schedule_hide_controls()
+    # def _on_sub_hover(self, inside: bool):
+    #     # called on enter/leave subtitle area
+    #     if inside:
+    #         # show controls
+    #         self.settings.control_window.lift()
+    #         self.overlay.sub_window.attributes("-transparentcolor", "")
+    #     else:
+    #         # maybe hide controls after a delay
+    #         self.overlay.sub_window.attributes("-transparentcolor", "grey")
+    #         self.schedule_hide_controls()
 
     def _on_subtitle_click(self, event):
         # toggle subtitle visibility
@@ -330,7 +382,7 @@ class SubtitleController:
             if getattr(self, "_hide_job", None):
                 self.overlay.root.after_cancel(self._hide_job)
             self._hide_job = self.overlay.root.after(
-                self.phone_hide_control_window_ms,
+                self.phone_windows_hide_control_ms,
                 lambda: self.settings.control_window.lower()
             )
 
