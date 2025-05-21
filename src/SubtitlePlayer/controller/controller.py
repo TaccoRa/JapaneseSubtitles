@@ -139,20 +139,30 @@ class SubtitleController:
     def update_subtitle_display(self):
         offset = parse_time_value(self.settings.offset_var.get(), default_skip=self.default_skip) + self.extra_offset
         new_text = self.manager.get_subtitle_at(self.current_time, offset)
-        if new_text == self.last_subtitle_text and self.subtitle_deleted:
+
+        # split into at most two lines, drop empty
+        lines = [l for l in new_text.splitlines() if l.strip()]
+
+        if not lines:
+            top_segments = []
+            bottom_segments = []
+        elif len(lines) == 1:
+            top_segments = []
+            bottom_segments = self.manager.parse_ruby_segments(lines[0])
+        else:
+            top_segments = self.manager.parse_ruby_segments(lines[0])
+            bottom_segments = self.manager.parse_ruby_segments(lines[1])
+
+        joined = ''.join(base for base, _ in (top_segments + bottom_segments))
+        if joined == self.last_subtitle_text and self.subtitle_deleted:
             return
-        if new_text != self.last_subtitle_text:
-            if self.subtitle_timeout_job is not None:
+        if joined != self.last_subtitle_text:
+            if self.subtitle_timeout_job:
                 self.overlay.root.after_cancel(self.subtitle_timeout_job)
                 self.subtitle_timeout_job = None
-            self.last_subtitle_text = new_text
+            self.last_subtitle_text = joined
             self.subtitle_deleted = False
-            self.renderer.render(
-                text=new_text,
-                max_width=self.overlay.max_width,
-                bottom_anchor=self.overlay.bottom_anchor,
-                sub_window=self.overlay.sub_window
-            )
+            self.renderer.render_subtitle(top_segments, bottom_segments, self.overlay.max_width, self.overlay.bottom_anchor, self.overlay.sub_window)
 
         if self.playing and not self.subtitle_timeout_job:
             self.subtitle_timeout_job = self.overlay.root.after(

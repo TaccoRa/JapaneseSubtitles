@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import font as tkFont
 from typing import List, Optional
+import regex
+import re
 
 from model.config_manager import ConfigManager
 from utils import make_draggable
@@ -90,8 +92,10 @@ class SubtitleOverlayUI:
             self.subtitle_handle = None
 
     def compute_max_width(self, cleaned_subs: List[str]) -> int:
-        return max(
-            self.font.measure(line)
-            for text in cleaned_subs
-            for line in text.splitlines()
-        )
+        max_width = 0
+        for text in cleaned_subs:
+            base_text = regex.sub(r'\p{Han}+\([^)]+\)', lambda m: regex.match(r'(\p{Han}+)', m.group()).group(), text)
+            for line in base_text.splitlines():
+                width = self.font.measure(line)
+                max_width = max(max_width, width)
+        return max_width
