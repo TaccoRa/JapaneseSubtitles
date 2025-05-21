@@ -2,6 +2,7 @@ import re
 import os
 import bisect
 from typing import List, Optional
+import regex
 
 import srt
 import chardet
@@ -13,7 +14,6 @@ from model.config_manager import ConfigManager
 class SubtitleManager:
 
     CLEAN_PATTERN_1 = re.compile(r'\{\\an\d+\}')
-    CLEAN_PATTERN_2 = re.compile(r'[（(].*?[）)]')
     SEASON_PATTERN = r'S(\d+)'
     EPISODE_PATTERN = r'E(\d+)'
 
@@ -134,10 +134,31 @@ class SubtitleManager:
     def _load_and_process(self, path: str) -> None:
         self.subtitles = self._load_subtitles(path)
         self.cleaned_subtitles = [self._clean_text(s.content) for s in self.subtitles]
+        self.ruby_segments = [
+            self.parse_ruby_segments(line)
+            for line in self.cleaned_subtitles
+        ]
         self.start_times = [s.start.total_seconds() for s in self.subtitles]
 
     def _clean_text(self, text: str) -> str:
         cleaned = self.CLEAN_PATTERN_1.sub('', text)
-        cleaned = self.CLEAN_PATTERN_2.sub('', cleaned)
-        cleaned = cleaned.replace('&lrm;', '').replace('\u200e', '').strip()
-        return cleaned
+        cleaned = regex.sub(r'(\p{Han}+)\(([^)]+)\)', r'\1«\2»', cleaned)
+        cleaned = regex.sub(r'[（(].*?[）)]', '', cleaned)
+        cleaned = cleaned.replace('«', '(').replace('»', ')')
+        return cleaned.replace('&lrm;','').replace('\u200e','').strip()
+         
+    def parse_ruby_segments(self, text: str) -> List[tuple[str, Optional[str]]]:
+        segments: List[tuple[str, Optional[str]]] = []
+        pat = regex.compile(r'(\p{Han}+)\(([^)]+)\)')
+        last = 0
+        for m in pat.finditer(text):
+            # plain text before the match
+            plain = text[last:m.start()].strip()
+            if plain:
+                segments.append((plain, None))
+            segments.append((m.group(1), m.group(2)))
+            last = m.end()
+        tail = text[last:].strip()
+        if tail:
+            segments.append((tail, None))
+        return segments

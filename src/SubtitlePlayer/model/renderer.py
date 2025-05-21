@@ -7,36 +7,104 @@ class SubtitleRenderer:
         self.font = font
         self.color = color
         self.line_height = line_height
+        self.max_ruby_h = int(self.font.metrics('linespace') * 0.6)
+        self.max_total_height = self.max_ruby_h * 2 + self.line_height * 2
 
-    def render(self, text: str, max_width: int, bottom_anchor: int, sub_window: tk.Toplevel) -> None:
+    def render_subtitle(self, top_segments, bottom_segments, max_width: int,bottom_anchor: int, sub_window: tk.Toplevel) -> None:
+        # measure max ruby height across both lines
+        for segs in (top_segments, bottom_segments):
+            for base, ruby in segs:
+                if ruby:
+                    rf = tkFont.Font(
+                        family=self.font.actual('family'),
+                        size=int(self.font.actual('size')*0.6),
+                        weight="bold"
+                    )
+                    
+        # total: ruby_above + line1 + line2 + ruby_below
+        total_height = self.max_total_height
+
+        # resize canvas
         self.canvas.delete("all")
-        if not text: return
-
-        lines = text.splitlines() or [""]
-        if len(lines) == 1: lines.insert(0, "")
-
-        total_height = self.line_height * len(lines)
         self.canvas.config(width=max_width, height=total_height)
 
-        y = 0
-        for line in lines:
-            self.draw_outlined_text(
-                canvas=self.canvas,
-                x=max_width // 2,
-                y=y + (self.line_height // 2),
-                text=line,
-                font=self.font,
-                fill=self.color,
-                outline="black",
-                thickness=3,
-                anchor="center"
-            )
-            y += self.line_height
+        # Y positions
+        y_ruby_top = self.max_ruby_h // 2
+        y_base1   = self.max_ruby_h + self.line_height//2
+        y_base2   = self.max_ruby_h + self.line_height + self.line_height//2
+        y_ruby_bot = self.max_ruby_h + self.line_height*2 + self.max_ruby_h//2
 
+        top_width = sum(self.font.measure(b) for b,_ in top_segments)
+        bottom_width = sum(self.font.measure(b) for b,_ in bottom_segments)
+
+        # starting X positions
+        x_top = (max_width - top_width) / 2
+        x_bot = (max_width - bottom_width) / 2
+
+        # draw top line, if present
+        cur_x = x_top
+        if top_segments:
+            for base, ruby in top_segments:
+                w = self.font.measure(base)
+                center = cur_x + w/2
+                if ruby:
+                    rf = tkFont.Font(
+                        family=self.font.actual('family'),
+                        size=int(self.font.actual('size')*0.6),
+                        weight="bold"
+                    )
+                    self.draw_outlined_text(
+                        self.canvas,
+                        center, y_ruby_top,
+                        ruby, rf,
+                        fill=self.color,
+                        outline="black",
+                        thickness=2
+                    )
+                self.draw_outlined_text(
+                    self.canvas,
+                    center, y_base1,
+                    base, self.font,
+                    fill=self.color, outline="black", thickness=3
+                )
+                cur_x += w
+
+        # draw bottom line
+        cur_x = x_bot
+        for base, ruby in bottom_segments:
+            w = self.font.measure(base)
+            center = cur_x + w/2
+            if ruby:
+                rf = tkFont.Font(
+                    family=self.font.actual('family'),
+                    size=int(self.font.actual('size')*0.6),
+                    weight="bold"
+                )
+                self.draw_outlined_text(
+                    self.canvas,
+                    center, y_ruby_bot,
+                    ruby, rf,
+                    fill=self.color,
+                    outline="black",
+                    thickness=2
+                )
+
+            self.draw_outlined_text(
+                self.canvas,
+                center, y_base2,
+                base, self.font,
+                fill=self.color, outline="black", thickness=3
+            )
+            cur_x += w
+
+        # reposition window
+        # reposition window so that the second‐line baseline (y_base2) stays fixed on screen
         current_x = sub_window.winfo_x()
-        new_y = bottom_anchor - total_height
+        # canvas above line2 is (max_ruby_h +  self.line_height*2)
+        new_y = bottom_anchor - (self.max_ruby_h + self.line_height*2)
+        # print(max_width, max_ruby_h)
         sub_window.geometry(f"{max_width}x{total_height}+{current_x}+{new_y}")
-    
+
     @staticmethod
     def draw_outlined_text(canvas: tk.Canvas, x: int, y: int, text: str,
                            font: tkFont.Font, fill: str, outline: str, thickness: int,
@@ -46,98 +114,90 @@ class SubtitleRenderer:
                 if dx or dy:
                     canvas.create_text(x + dx, y + dy, text=text, fill=outline, font=font, anchor=anchor)
         canvas.create_text(x, y, text=text, fill=fill, font=font, anchor=anchor)
+
     @staticmethod
     def _format_time(seconds: float) -> str:
         minutes, secs = divmod(int(seconds), 60)
         return f"{minutes:02d}:{secs:02d}"
     
-
-import tkinter as tk
-from tkinter import font as tkFont
-
-class SubtitleRenderer:
-    def __init__(self, canvas: tk.Canvas, font: tkFont.Font, color: str, line_height: int) -> None:
-        self.canvas = canvas
-        self.font = font
-        self.color = color
-        self.line_height = line_height
-        self._text_ids = []
-
-    def render(self, text: str, max_width: int, bottom_anchor: int, sub_window: tk.Toplevel) -> None:
-        if not text or max_width <= 0:
-            return
-        
-        self.canvas.delete("all")
-
-        lines = (text or "").splitlines()
-        if len(lines) == 1: lines.insert(0, "")
-
-        total_height = self.line_height * len(lines)
-        self.canvas.config(width=max_width, height=total_height)
-        thickness = 3
-        for i, line in enumerate(lines):
-            y = i * self.line_height + self.line_height // 2
-            # draw outline first
-            offsets = [(-thickness, 0), (thickness, 0), (0, -thickness), (0, thickness),
-                       (-thickness, -thickness), (-thickness, thickness), (thickness, -thickness), (thickness, thickness)]
-            for dx, dy in offsets:
-                self.canvas.create_text(
-                    max_width // 2 + dx,
-                    y + dy,
-                    text=line,
-                    fill="black",
-                    font=self.font,
-                    anchor="center"
-                )
-            # draw main text
-            self.canvas.create_text(
-                max_width // 2,
-                y,
-                text=line,
-                fill=self.color,
-                font=self.font,
-                anchor="center"
-            )
-
-        # Reposition window based on new height
-        x = sub_window.winfo_x()
-        new_y = bottom_anchor - total_height
-        sub_window.geometry(f"{max_width}x{total_height}+{x}+{new_y}")
-        sub_window.update_idletasks()
-
-    def _layout_window(self,
-                       sub_window: tk.Toplevel,
-                       width: int,
-                       height: int,
-                       bottom_anchor: int) -> None:
-        x = sub_window.winfo_x()
-        y = bottom_anchor - height
-        sub_window.geometry(f"{width}x{height}+{x}+{y}")
-        sub_window.update_idletasks()
-
-    def _draw_outlined_text(self, x: int, y: int, text: str) -> int:
-        # Draw outline in 8 directions only
-        thickness = 2
-        offsets = [(-thickness, 0),(thickness, 0),
-                   (0, -thickness),(0, thickness),
-                   (-thickness, -thickness),(-thickness, thickness),
-                   (thickness, -thickness),(thickness, thickness)]
-
-        for dx, dy in offsets:
-            self.canvas.create_text(x + dx, y + dy,
-                                     text=text,
-                                     fill="black",
-                                     font=self.font,
-                                     anchor="center")
-        return self.canvas.create_text(x, y,
-                                       text=text,
-                                       fill=self.color,
-                                       font=self.font,
-                                       anchor="center")
     
-    def _update_outlined_text(self, text_id: int, text: str, x: int, y: int) -> None:
-        self.canvas.itemconfig(text_id, text=text, fill=self.color, font=self.font)
-        self.canvas.coords(text_id, x, y)
+    
+# import tkinter as tk
+# from tkinter import font as tkFont
+
+# class SubtitleRenderer:
+#     def __init__(self, canvas: tk.Canvas, font: tkFont.Font, color: str, line_height: int) -> None:
+#         self.canvas = canvas
+#         self.font = font
+#         self.color = color
+#         self.line_height = line_height
+#         self._text_ids = []
+
+#     def render(self, segments: list[tuple[str, str]], max_width: int, bottom_anchor: int, sub_window: tk.Toplevel) -> None:
+#         self.canvas.delete("all")
+#         if not segments or max_width <= 0:
+#             return
+        
+#         lines = (text or "").splitlines()
+#         if len(lines) == 1: lines.insert(0, "")
+
+#         total_height = self.line_height * len(lines)
+#         self.canvas.config(width=max_width, height=total_height)
+#         thickness = 3
+#         for i, line in enumerate(lines):
+#             y = i * self.line_height + self.line_height // 2
+#             # draw outline first
+#             offsets = [(-thickness, 0), (thickness, 0), (0, -thickness), (0, thickness),
+#                        (-thickness, -thickness), (-thickness, thickness), (thickness, -thickness), (thickness, thickness)]
+#             for dx, dy in offsets:
+#                 self.canvas.create_text(
+#                     max_width // 2 + dx,
+#                     y + dy,
+#                     text=line,
+#                     fill="black",
+#                     font=self.font,
+#                     anchor="center"
+#                 )
+#             # draw main text
+#             self.canvas.create_text(
+#                 max_width // 2,
+#                 y,
+#                 text=line,
+#                 fill=self.color,
+#                 font=self.font,
+#                 anchor="center"
+#             )
+
+#         # Reposition window based on new height
+#         x = sub_window.winfo_x()
+#         new_y = bottom_anchor - total_height
+#         sub_window.geometry(f"{max_width}x{total_height}+{x}+{new_y}")
+#         sub_window.update_idletasks()
+
+
+#     def _draw_outlined_text(self, x: int, y: int, text: str) -> int:
+#         # Draw outline in 8 directions only
+#         thickness = 2
+#         offsets = [(-thickness, 0),(thickness, 0),
+#                    (0, -thickness),(0, thickness),
+#                    (-thickness, -thickness),(-thickness, thickness),
+#                    (thickness, -thickness),(thickness, thickness)]
+
+#         for dx, dy in offsets:
+#             self.canvas.create_text(x + dx, y + dy,
+#                                      text=text,
+#                                      fill="black",
+#                                      font=self.font,
+#                                      anchor="center")
+#         return self.canvas.create_text(x, y,
+#                                        text=text,
+#                                        fill=self.color,
+#                                        font=self.font,
+#                                        anchor="center")
+    
+#     def _update_outlined_text(self, text_id: int, text: str, x: int, y: int) -> None:
+#         self.canvas.itemconfig(text_id, text=text, fill=self.color, font=self.font)
+#         self.canvas.coords(text_id, x, y)
 
 
 
