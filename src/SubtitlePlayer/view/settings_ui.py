@@ -216,19 +216,28 @@ class SettingsUI:
         self.play_time_entry.grid(row=0, column=1, sticky="nsew", ipady=5)
         self.forward_button.grid(row=0, column=2, rowspan=2, sticky="nsew")
 
-        self.forward_button.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_forward()))
-        self.back_button.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_back()))
-        self.play_pause_btn.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_play_pause()))
-        self.play_time_entry.bind("<Return>", lambda ev:   self._on_time_entry_return(ev))
-        self.play_time_entry.bind("<FocusOut>", lambda ev: self._on_time_entry_return(ev))
-        self.play_time_entry.bind("<Button-1>", lambda ev: self._on_time_entry_clear(ev))
-        self.control_window.bind("<Leave>", lambda ev: self._on_control_window_leave(ev))
+        self.handle_settings_frame = tk.Frame(self.control_window, width=20, height=10)
+        self.handle_settings_frame.place(x=0, y=0)
+        self.settings_btn = tk.Button(self.handle_settings_frame,
+                                      relief="raised", bg= "grey")
 
-        self.control_drag_handle = tk.Frame(self.control_window, bg="gray", width=10, height=10)
+        self.settings_btn.place(x=10, y=0, width=10, height=10)
+        self.control_drag_handle = tk.Frame(self.handle_settings_frame, bg="gray", width=10, height=10)
         self.control_drag_handle.place(x=0, y=0)
         self.control_drag_handle.lift()
         make_draggable(self.control_drag_handle, self.control_window)
 
+        self.forward_button.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_forward()))
+        self.back_button.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_back()))
+        self.play_pause_btn.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_play_pause()))
+        self.settings_btn.bind("<ButtonPress>", lambda event:  self._on_settings(event))
+        self.play_time_entry.bind("<Return>", lambda ev:   self._on_time_entry_return(ev))
+        self.play_time_entry.bind("<FocusOut>", lambda ev: self._on_time_entry_return(ev))
+        self.play_time_entry.bind("<Button-1>", lambda ev: self._on_time_entry_clear(ev))
+
+        self.control_window.bind("<Enter>", lambda ev: self._on_control_window_enter(ev))
+        self.control_window.bind("<Leave>", lambda ev: self._on_control_window_leave(ev))
+        
 
     # ——— PUBLIC binders ——————————————————————————————————————
     # Settings window
@@ -250,6 +259,8 @@ class SettingsUI:
     def bind_play_pause(self,cb): self._on_play_pause = cb
     def bind_time_entry_return(self, cb): self._on_time_entry_return = cb
     def bind_time_entry_clear(self, cb): self._on_time_entry_clear = cb
+    def bind_on_settings(self, cb): self._on_settings = cb
+    def bind_control_window_enter(self, cb): self._on_control_window_enter = cb
     def bind_control_window_leave(self, cb): self._on_control_window_leave = cb
     def bind_setting_clear_offset_entry(self, cb): self._on_setting_clear_offset_entry = cb
     def bind_setting_clear_skip_entry(self, cb): self._on_setting_clear_skip_entry = cb

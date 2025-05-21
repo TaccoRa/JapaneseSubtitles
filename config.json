@@ -1,7 +1,7 @@
 {
-    "DEBUGGING_SRT_FILE": "D:/tobi/projects/JapaneseSubtitles/subs/onepiece/ワンピース.S22E622.WEBRip.Netflix.ja[cc].srt",
+    "DEBUGGING_SRT_FILE": "C:/Tobi/JapaneseSubtitles/subs/onepiece\\ワンピース.S22E611.WEBRip.Netflix.ja[cc].srt",
     "DEBUGGING": false,
-    "LAST_SRT_FILE": "D:/tobi/projects/JapaneseSubtitles/subs/onepiece\\ワンピース.S22E611.WEBRip.Netflix.ja[cc].srt",
+    "LAST_SRT_FILE": "C:/Tobi/JapaneseSubtitles/subs/onepiece\\ワンピース.S22E611.WEBRip.Netflix.ja[cc].srt",
     "DEFAULT_START_TIME": 120.0,
     "EXTRA_OFFSET": 13.7,
     "DEFAULT_SKIP": 1.0,
@@ -21,8 +21,8 @@
     "VIDEO_CLICK": false,
     "SUBTITLE_TIMEOUT_MS": 7000,
     "POPUP_CLOSE_TIMER": 1500,
-    "WINDOWS_HIDE_DELAY_MS": 1000,
-    "PHONEMODE_WINDOWS_HIDE_DELAY_MS": 5000,
+    "WINDOWS_HIDE_DELAY_MS": 3000,
+    "PHONEMODE_WINDOWS_HIDE_DELAY_MS": 6000,
     "PADDING_X": 0,
     "PADDING_Y": 10,
     "DEBUG_SRT_FILE": ""

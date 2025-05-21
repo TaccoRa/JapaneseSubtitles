@@ -40,7 +40,7 @@ class SubtitleController:
 
         self.playing      = False
         self.time_editing = False
-        self.user_hidden = False
+        self.subtitle_deleted = False
         self.alt_pressed = False
         self.subtitle_timeout_job = None
         self.last_subtitle_text = ""
@@ -62,6 +62,8 @@ class SubtitleController:
         self.settings.bind_set_to_time               (self.on_set_to_time)
         self.settings.bind_time_entry_return         (self.control_time_entry_return)
         self.settings.bind_time_entry_clear          (self.control_clear_time_entry)
+        self.settings.bind_on_settings               (self.on_settings)
+        self.settings.bind_control_window_enter      (self.control_window_enter)
         self.settings.bind_control_window_leave      (self.control_window_leave)
         self.settings.bind_setting_clear_offset_entry(self.setting_clear_offset_entry)
         self.settings.bind_setting_clear_skip_entry  (self.setting_clear_skip_entry)
@@ -70,7 +72,8 @@ class SubtitleController:
 
         self.overlay.subtitle_canvas.bind("<Button-3>", lambda e: self.popup.open_copy_popup(self.last_subtitle_text))
         self.overlay.bind_sub_window_enter(self.sub_window_enter)
-        self.overlay.bind_sub_window_leave(self.sub_window_leave)      
+        self.overlay.bind_sub_window_leave(self.sub_window_leave)
+        self.overlay.bind_sub_handel_enter(self.sub_handel_enter)   
 
         MouseListener(on_click=self.on_global_click).start()
         KeyboardListener(on_press=self._on_key_press, on_release=self._on_key_release).start()
@@ -80,55 +83,70 @@ class SubtitleController:
         self.update_subtitle_display()
 
     def sub_window_enter(self, event):
-        self.overlay.sub_window.attributes("-transparentcolor", "")
-        if getattr(self, "_sub_hide_job", None):
-            self.overlay.sub_window.after_cancel(self._sub_hide_job)
-            self._sub_hide_job = None
-        if getattr(self, "_hide_job", None):
-            self.settings.control_window.after_cancel(self._hide_job)
-            self._hide_job = None
-        self.user_hidden = False
+        self.overlay.sub_window.attributes("-transparentcolor", "") #not transparent
         self.settings.control_window.attributes("-topmost", True)
-        self.overlay.sub_window.attributes("-topmost", True)
-        self.update_subtitle_display()
+        self.overlay.sub_window.attributes("-topmost", True) 
+        # if getattr(self, "_sub_hide_job", None): #is this needed? Dont think so sutitle window should never be hidden only sutitles --> temporarly_hide
+        #     self.overlay.sub_window.after_cancel(self._sub_hide_job)
+        #     self._sub_hide_job = None
+        if getattr(self, "_con_hide_job", None):
+            self.settings.control_window.after_cancel(self._con_hide_job) #cancel hide after calls if triggered
+            self._con_hide_job = None
+        self.subtitle_deleted = False
+        # self.update_subtitle_display()
 
     def sub_window_leave(self, event):
         self.overlay.sub_window.attributes("-transparentcolor", "grey")
+        if self.settings.phone_mode.get():
+            return
 
-        delay = (self.settings.phone_mode.get()
-                and self.phone_windows_hide_control_ms
-                or self.windows_hide_control_ms)
+        if getattr(self, "_con_hide_job", None):
+            self.settings.control_window.after_cancel(self._con_hide_job)
 
-        if getattr(self, "_hide_job", None):
-            self.settings.control_window.after_cancel(self._hide_job)
-
-        self._hide_job = self.settings.control_window.after(
-            delay,
+        self._con_hide_job = self.settings.control_window.after(
+            self.windows_hide_control_ms,
             self.settings.control_window.lower)
+
+    def sub_handel_enter(self, event):
+        self.settings.control_window.attributes("-topmost", True)
+        self.overlay.sub_window.attributes("-topmost", True)
+        if getattr(self, "_con_hide_job", None):
+            self.settings.control_window.after_cancel(self._con_hide_job) #cancel hide after calls if triggered
+            self._con_hide_job = None
+        self.subtitle_deleted = False
+
+    def control_window_enter(self, event):
+        self.settings.control_window.attributes("-topmost", True)
+        self.overlay.sub_window.attributes("-topmost", True)
+        if getattr(self, "_con_hide_job", None):
+            self.settings.control_window.after_cancel(self._con_hide_job) #cancel hide after calls if triggered
+            self._con_hide_job = None
+        self.subtitle_deleted = False
+        # self.update_subtitle_display()
 
     def control_window_leave(self, event):
         delay = (self.settings.phone_mode.get()
                 and self.phone_windows_hide_control_ms
                 or self.windows_hide_control_ms)
 
-        if getattr(self, "_hide_job", None):
-            self.settings.control_window.after_cancel(self._hide_job)
+        if getattr(self, "_con_hide_job", None):
+            self.settings.control_window.after_cancel(self._con_hide_job)
 
-        self._hide_job = self.settings.control_window.after(
+        self._con_hide_job = self.settings.control_window.after(
             delay,
             self.settings.control_window.lower)
         
     def update_subtitle_display(self):
         offset = parse_time_value(self.settings.offset_var.get(), default_skip=self.default_skip) + self.extra_offset
         new_text = self.manager.get_subtitle_at(self.current_time, offset)
-        if new_text == self.last_subtitle_text and self.user_hidden:
+        if new_text == self.last_subtitle_text and self.subtitle_deleted:
             return
         if new_text != self.last_subtitle_text:
             if self.subtitle_timeout_job is not None:
                 self.overlay.root.after_cancel(self.subtitle_timeout_job)
                 self.subtitle_timeout_job = None
             self.last_subtitle_text = new_text
-            self.user_hidden = False
+            self.subtitle_deleted = False
             self.renderer.render(
                 text=new_text,
                 max_width=self.overlay.max_width,
@@ -154,9 +172,9 @@ class SubtitleController:
         if not self.playing:
             self.subtitle_timeout_job = None
             return
-        if not self.user_hidden:
+        if not self.subtitle_deleted:
             self.renderer.canvas.delete("all")
-            self.user_hidden = True
+            self.subtitle_deleted = True
         self.subtitle_timeout_job = None
 
 
@@ -266,9 +284,8 @@ class SubtitleController:
         formatted = format_time(self.current_time)
         self.settings.play_time_var.set(formatted)
 
-
-
-
+    def on_settings(self, event):
+        self.overlay.root.lift()
 
     def handle_open_srt(self):
         new_path = self.manager.prompt_srt_file()
@@ -289,8 +306,8 @@ class SubtitleController:
             if self.subtitle_timeout_job is not None:
                 self.overlay.root.after_cancel(self.subtitle_timeout_job)
                 self.subtitle_timeout_job = None
-            if self.user_hidden and self.last_subtitle_text:
-                    self.user_hidden = False
+            if self.subtitle_deleted and self.last_subtitle_text:
+                    self.subtitle_deleted = False
                     self.renderer.render(text=self.last_subtitle_text,
                         max_width=self.overlay.max_width,
                         bottom_anchor=self.overlay.bottom_anchor,
@@ -379,9 +396,9 @@ class SubtitleController:
     def schedule_hide_controls(self):
         # only in phone mode do we auto‐hide
         if self.settings.phone_mode.get():
-            if getattr(self, "_hide_job", None):
-                self.overlay.root.after_cancel(self._hide_job)
-            self._hide_job = self.overlay.root.after(
+            if getattr(self, "_con_hide_job", None):
+                self.overlay.root.after_cancel(self._con_hide_job)
+            self._con_hide_job = self.overlay.root.after(
                 self.phone_windows_hide_control_ms,
                 lambda: self.settings.control_window.lower()
             )

@@ -65,7 +65,8 @@ class SubtitleOverlayUI:
     # Subtitle overlay
     def bind_sub_window_enter(self, cb): self.on_sub_window_enter = cb
     def bind_sub_window_leave(self, cb): self.on_sub_window_leave = cb
-
+    def bind_sub_handel_enter(self, cb): self.on_handle_enter = cb
+    
     def show_handle(self):
         if self.subtitle_handle is not None:
             return  # Already exists
@@ -79,6 +80,7 @@ class SubtitleOverlayUI:
         self.subtitle_handle.attributes("-topmost", True)
         self.subtitle_handle.attributes("-alpha", 0.05)
         self.subtitle_handle.geometry(f"{drag_w}x{drag_h}+{pos_x}+{pos_y}")
+        self.subtitle_handle.bind("<Enter>", lambda ev: self.on_handle_enter(ev))
         make_draggable(self.subtitle_handle, self.sub_window, sync_windows=[self.subtitle_handle],on_drag=lambda bottom: setattr(self, "bottom_anchor", bottom))
         make_draggable(self.sub_window, self.sub_window, sync_windows=[self.subtitle_handle],on_drag=lambda bottom: setattr(self, "bottom_anchor", bottom))
 
