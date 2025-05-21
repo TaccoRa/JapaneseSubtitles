@@ -1,3 +1,4 @@
+When phone mode button to show settigns window issue
 When longer than 1 h resize control window and episode entry and change time entry
 Remember last position of windows over to next run
 Change windows size in config (during run time?)
