@@ -1,5 +1,3 @@
-When phone mode button to show settigns window issue
-When longer than 1 h resize control window and episode entry and change time entry
 Remember last position of windows over to next run
 Change windows size in config (during run time?)
 Wrong episode when turning off?
@@ -15,9 +13,11 @@ if the offset is set to big or negative and so on the slider is not adjusted to 
 Added:
 Show Kanji written above
 Add button in control window which shows settings window
+When longer than 1 h resize control window and episode entry and change time entry
 
 
 
 Fixed:
 If no .srt found dont reset to default slider position and so on
 when movie (when not japanese characters) the width of subtitle window is wrong
+When phone mode button to show settigns window issue
