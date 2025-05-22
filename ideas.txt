@@ -1,9 +1,8 @@
-Remember last position of windows over to next run
-Change windows size in config (during run time?)
 Wrong episode when turning off?
 Change subtitle width to fit current subtitle (maybe flashes)
 Detect uncommon words or phrases and let users hover or tap a subtitle segment to 
     see an in-line glossary or translation—great for educational content
+Change windows size in config (during run time?)
 
 Problems:
 if the offset is set to big or negative and so on the slider is not adjusted to this
@@ -14,6 +13,7 @@ Added:
 Show Kanji written above
 Add button in control window which shows settings window
 When longer than 1 h resize control window and episode entry and change time entry
+Remember last position of windows over to next run
 
 
 
