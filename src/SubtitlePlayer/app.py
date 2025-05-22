@@ -7,7 +7,6 @@ from model.renderer import SubtitleRenderer
 from view.settings_ui import SettingsUI
 from view.subtitle_overlay import SubtitleOverlayUI
 from controller.controller import SubtitleController
-from controller.mouse_manager import MouseManager
 from view.popup import CopyPopup
 
 class SubtitlePlayerApp:
@@ -56,11 +55,6 @@ class SubtitlePlayerApp:
             settings_ui=self.settings_ui,
             overlay_ui=self.sub_overlay_ui,
             popup=self.popup,
-            config=config)
-
-        self.mouse = MouseManager(
-            overlay_ui=self.sub_overlay_ui,
-            settings_ui=self.settings_ui,
             config=config)
 
         self.root.after(config.get("UPDATE_INTERVAL_MS"), self.controller.update_loop)
