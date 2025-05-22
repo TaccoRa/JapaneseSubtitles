@@ -22,16 +22,20 @@ class SubtitleOverlayUI:
         self.subtitle_handle = None
         self.subtitle_canvas: tk.Canvas = None
         self.max_width: int = 0
+        self.max_ruby_h = int(self.font.metrics('linespace') * 0.6)
+        self.max_total_height = self.max_ruby_h * 2 + self.line_height * 2
         self.bottom_anchor: int = 0
         self.build_overlay()
 
     def build_overlay(self) -> None:
         self.max_width = self.compute_max_width(self.cleaned_subs)
-        init_height = self.line_height * 2
+        init_height = self.max_total_height
         sw = self.root.winfo_screenwidth()
         sh = self.root.winfo_screenheight()
-        pos_x = (sw - self.max_width) // 2
-        pos_y = sh - init_height - 215
+        default_x = (sw - self.max_width) // 2
+        default_y = (sh - init_height - 215)
+        pos_x = self.config.get("LAST_SUBTITLE_WINDOW_X", default_x)
+        pos_y = self.config.get("LAST_SUBTITLE_WINDOW_Y", default_y)
 
         # main subtitle window
         self.sub_window = tk.Toplevel(self.root)
@@ -50,19 +54,9 @@ class SubtitleOverlayUI:
             highlightthickness=0
         )
         self.subtitle_canvas.pack(fill="both", expand=True)
-        # self.sub_window.bind("<Motion>", self._on_motion)
-        make_draggable(self.sub_window, self.sub_window,on_drag=lambda bottom: setattr(self, "bottom_anchor", bottom))
+        make_draggable(self.sub_window, self.sub_window,on_drag=lambda bottom: setattr(self, "bottom_anchor", bottom), save_position=(self.config,"LAST_SUBTITLE_WINDOW_X","LAST_SUBTITLE_WINDOW_Y"))
         self.sub_window.bind("<Enter>", lambda ev: self.on_sub_window_enter(ev))
         self.sub_window.bind("<Leave>", lambda ev: self.on_sub_window_leave(ev))
-
-    # def _on_motion(self, event):
-    #     x, y = event.x_root, event.y_root
-    #     wx, wy = self.sub_window.winfo_rootx(), self.sub_window.winfo_rooty()
-    #     w, h = self.sub_window.winfo_width(), self.sub_window.winfo_height()
-    #     if not (wx <= x <= wx + w and wy <= y <= wy + h):
-    #         self.on_sub_window_leave(event)
-
-
 
     # Subtitle overlay
     def bind_sub_window_enter(self, cb): self.on_sub_window_enter = cb
@@ -70,26 +64,25 @@ class SubtitleOverlayUI:
     def bind_sub_handel_enter(self, cb): self.on_handle_enter = cb
     
     def show_handle(self):
-        if self.subtitle_handle is not None:
-            return  # Already exists
-        drag_w, drag_h = 60, self.line_height * 2
-        sw = self.root.winfo_screenwidth()
-        sh = self.root.winfo_screenheight()
-        pos_x = (sw - self.max_width) // 2
-        pos_y = sh - drag_h - 215
+        # if self.subtitle_handle is not None:
+        #     return  # Already exists
+        self.sub_window.update_idletasks()
+        sub_x = self.sub_window.winfo_x()
+        sub_y = self.sub_window.winfo_y()
+        drag_w, drag_h = 80, self.sub_window.winfo_height()
+
         self.subtitle_handle = tk.Toplevel(self.root)
         self.subtitle_handle.overrideredirect(True)
         self.subtitle_handle.attributes("-topmost", True)
         self.subtitle_handle.attributes("-alpha", 0.05)
-        self.subtitle_handle.geometry(f"{drag_w}x{drag_h}+{pos_x}+{pos_y}")
+
+        self.subtitle_handle.geometry(f"{drag_w}x{drag_h}+{sub_x}+{sub_y}")
         self.subtitle_handle.bind("<Enter>", lambda ev: self.on_handle_enter(ev))
         make_draggable(self.subtitle_handle, self.sub_window, sync_windows=[self.subtitle_handle],on_drag=lambda bottom: setattr(self, "bottom_anchor", bottom))
         make_draggable(self.sub_window, self.sub_window, sync_windows=[self.subtitle_handle],on_drag=lambda bottom: setattr(self, "bottom_anchor", bottom))
 
     def hide_handle(self):
-        if self.subtitle_handle is not None:
-            self.subtitle_handle.destroy()
-            self.subtitle_handle = None
+        self.subtitle_handle.attributes("-alpha", 0.0)
 
     def compute_max_width(self, cleaned_subs: List[str]) -> int:
         max_width = 0

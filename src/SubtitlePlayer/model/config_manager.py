@@ -15,7 +15,6 @@ class ConfigManager:
         except json.JSONDecodeError as e:
             raise ValueError(f"Failed to parse config file: {e}")
 
-
     def get(self, key, default=None):
         return self.config.get(key, default)
 

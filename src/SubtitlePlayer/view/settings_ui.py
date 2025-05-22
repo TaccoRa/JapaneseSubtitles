@@ -24,6 +24,7 @@ class SettingsUI:
 
         self._build_settings_frame()
         self._build_control_window()
+        self.root.bind("<Configure>", self._on_root_move)
 
     def _init_defaults(self):
         get = self.config.get
@@ -32,8 +33,10 @@ class SettingsUI:
         self.default_start = get('DEFAULT_START_TIME')
         self.ratio = get('RATIO')
 
-        self.win_x = get('CONTROL_WINDOW_X')
-        self.win_y = get('CONTROL_WINDOW_Y')
+        self.default_x = self.config.get("LAST_SETTINGS_WINDOW_X", 100)
+        self.default_y = self.config.get("LAST_SETTINGS_WINDOW_Y", 100)
+        self.win_x = get('LAST_CONTROL_WINDOW_X')
+        self.win_y = get('LAST_CONTROL_WINDOW_Y')
         self.win_w = get('CONTROL_WINDOW_WIDTH')
         self.win_h = get('CONTROL_WINDOW_HEIGHT')
         self.win_w_phone = get('CONTROL_WINDOW_PHONE_MODE_WIDTH')
@@ -225,7 +228,7 @@ class SettingsUI:
         self.control_drag_handle = tk.Frame(self.handle_settings_frame, bg="gray", width=10, height=10)
         self.control_drag_handle.place(x=0, y=0)
         self.control_drag_handle.lift()
-        make_draggable(self.control_drag_handle, self.control_window)
+        make_draggable(self.control_drag_handle, self.control_window, save_position=(self.config,"LAST_CONTROL_WINDOW_X","LAST_CONTROL_WINDOW_Y"))
 
         self.forward_button.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_forward()))
         self.back_button.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_back()))
@@ -281,6 +284,26 @@ class SettingsUI:
         self.time_overlay.coords(self.time_overlay_text, x, 9+3)
         self.time_overlay.itemconfig(self.time_overlay_text, text=self.play_time_var.get())
 
+    def _restore_window_position(self):
+        x = self.config.get("LAST_SETTINGS_WINDOW_X", 100)
+        y = self.config.get("LAST_SETTINGS_WINDOW_Y", 100)
+        self.root.update_idletasks()
+        w, h = self.root.winfo_width(), self.root.winfo_height()
+        sw, sh = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
+        x = max(0, min(x, sw - w))
+        y = max(0, min(y, sh - h))
+        self.root.geometry(f"+{x}+{y}")
+
+    def _on_root_move(self, event):
+        if event.widget is self.root:
+            x = self.root.winfo_x()
+            y = self.root.winfo_y()
+            try:
+                self.config.set("LAST_SETTINGS_WINDOW_X", x)
+                self.config.set("LAST_SETTINGS_WINDOW_Y", y)
+            except Exception:
+                pass
+
     # ——— PHONE MODE UI ADJUSTMENT ————————————————————————————
     def _toggle_phone_mode(self):
         phone_mode = not self.phone_mode.get()
@@ -302,13 +325,17 @@ class SettingsUI:
 
     def _set_phone_mode_styles(self, phone_mode: bool):
         if phone_mode:
+            self.handle_settings_frame.configure(width=80, height=40)
             self.control_drag_handle.config(width=40, height=40)
             f_large = ("Arial", 30, "bold")
             f_btn = ("Arial", 18, "bold")
+            self.settings_btn.place_configure(x=40, y=0, width=40, height=40)
         else:
+            self.handle_settings_frame.configure(width=20, height=10)
             self.control_drag_handle.config(width=10, height=10)
             f_large = ("Arial", 14, "bold")
             f_btn = ("Arial", 12, "bold")
+            self.settings_btn.place_configure(x=10, y=0, width=10, height=10)
 
         self.play_time_entry.config(font=f_large)
         self.play_pause_btn.config(font=f_btn)
