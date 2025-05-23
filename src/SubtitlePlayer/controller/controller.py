@@ -125,10 +125,9 @@ class SubtitleController:
         # self.update_subtitle_display()
 
     def control_window_leave(self, event):
-        delay = (self.settings.phone_mode.get()
-                and self.phone_windows_hide_control_ms
-                or self.windows_hide_control_ms)
-
+        delay = (self.phone_windows_hide_control_ms if self.settings.phone_mode.get()
+                else self.windows_hide_control_ms)
+        
         if getattr(self, "_con_hide_job", None):
             self.settings.control_window.after_cancel(self._con_hide_job)
 
