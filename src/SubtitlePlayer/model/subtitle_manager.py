@@ -23,10 +23,12 @@ class SubtitleManager:
         if config.get("DEBUGGING"):
               self.srt_file = config.get("DEBUGGING_SRT_FILE")
         else: self.srt_file = config.get("LAST_SRT_FILE")
-        if not self.srt_file:
+        self.srt_dir = os.path.dirname(self.srt_file) if self.srt_file else os.getcwd()
+        if not self.srt_file or not os.path.exists(self.srt_file):
             selected = self.prompt_srt_file()
             if not selected:
                 raise FileNotFoundError("No subtitle file selected.")
+            self.srt_file = selected
 
             
         filename = os.path.basename(self.srt_file)
@@ -39,6 +41,9 @@ class SubtitleManager:
         self._load_and_process(self.srt_file)
 
     def prompt_srt_file(self) -> Optional[str]:
+        if not os.path.isdir(self.srt_dir):
+            print(f"Warning: srt_dir '{self.srt_dir}' not found.")
+            self.srt_dir = os.getcwd()
         window = tk.Tk()
         window.withdraw()
         window.attributes("-topmost", True)
