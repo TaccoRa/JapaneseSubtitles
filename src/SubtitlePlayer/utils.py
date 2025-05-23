@@ -48,7 +48,7 @@ def make_draggable(drag_handle: tk.Widget, target: tk.Toplevel, sync_windows: li
 def parse_time_value(time: str, default_skip: float) -> float:
     time = str(time).strip().rstrip("s").replace(",", ".")
     if not time:
-        return None
+        return default_skip  
 
     if ":" in time:
         parts = list(map(int, time.split(":")))
