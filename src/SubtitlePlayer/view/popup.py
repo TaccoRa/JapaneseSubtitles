@@ -36,8 +36,8 @@ class CopyPopup:
 
         font = tkFont.Font(family="Arial", size=14, weight="bold")
 
-        label = tk.Label(popup,text=subtitle_text, font=font,justify="center", anchor="center",
-                        anchor="nw",padx=8, pady=4, bg="white")
+        label = tk.Label(popup,text=subtitle_text, font=font,justify="center",
+                        anchor="center",padx=8, pady=4, bg="white")
         label.pack()
 
         x = self.root.winfo_pointerx()
