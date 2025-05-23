@@ -194,7 +194,11 @@ class SettingsUI:
         self.control_window.attributes("-topmost", True)
         w = self.win_w_phone if self.phone_mode.get() else self.win_w
         h = self.win_h_phone if self.phone_mode.get() else self.win_h
-        self.control_window.geometry(f"{w}x{h}+{self.win_x}+{self.win_y}")
+        sw, sh = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
+        x = self.win_x if 0 <= self.win_x <= sw - w else 30
+        y = self.win_y if 0 <= self.win_y <= sh - h else sh - 100
+
+        self.control_window.geometry(f"{w}x{h}+{x}+{y}")
 
         main_frame = tk.Frame(self.control_window, bg="black")
         main_frame.pack(fill="both", expand=True)
