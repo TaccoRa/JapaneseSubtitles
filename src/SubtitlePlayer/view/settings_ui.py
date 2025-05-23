@@ -272,6 +272,9 @@ class SettingsUI:
     def bind_setting_clear_offset_entry(self, cb): self._on_setting_clear_offset_entry = cb
     def bind_setting_clear_skip_entry(self, cb): self._on_setting_clear_skip_entry = cb
 
+    def bind_update_time_displaying(self,cb): self._on_update_time_displaying = cb
+
+
     def update_time_overlay_position(self):
         self.root.update_idletasks()
         root_width = self.root.winfo_width()
@@ -376,6 +379,7 @@ class SettingsUI:
             self.offset_entry.delete(0, tk.END)
             value = self._last_offset_value if self._last_offset_value is not None else ""
             self.offset_entry.insert(0, str(value))
+        self._on_update_time_displaying()
 
     def _on_skip_focus_out(self, event):
         val = self.skip_entry.get()

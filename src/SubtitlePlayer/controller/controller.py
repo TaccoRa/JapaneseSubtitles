@@ -69,11 +69,13 @@ class SubtitleController:
         self.settings.bind_setting_clear_skip_entry  (self.setting_clear_skip_entry)
         self.settings.bind_show_subtitle_handle      (self.show_subtitle_handle)
         # self.settings.slider.config(to=self.manager.get_total_duration())
-
+        self.settings.bind_update_time_displaying(lambda: self.set_current_time(self.current_time))
+        
         self.overlay.subtitle_canvas.bind("<Button-3>", lambda e: self.popup.open_copy_popup(self.last_subtitle_text))
         self.overlay.bind_sub_window_enter(self.sub_window_enter)
         self.overlay.bind_sub_window_leave(self.sub_window_leave)
         self.overlay.bind_sub_handel_enter(self.sub_handel_enter)   
+
 
         MouseListener(on_click=self.on_global_click).start()
         KeyboardListener(on_press=self._on_key_press, on_release=self._on_key_release).start()
