@@ -11,6 +11,7 @@ class CopyPopup:
         self._popup: tk.Toplevel | None = None
         self._close_job: str | None = None
         self._pinned = False
+        self.root.bind("<Destroy>", lambda e: self._cancel_close())
 
         self.close_delay = self.config.get("POPUP_CLOSE_TIMER")
         # bg_color = self.config.get("POPUP_BG_COLOR", "white")
@@ -35,20 +36,13 @@ class CopyPopup:
 
         font = tkFont.Font(family="Arial", size=14, weight="bold")
 
-        lines = (subtitle_text or "").splitlines()
-        line_height = font.metrics("linespace")
-        width = max(font.measure(line) for line in lines) + 10
-        height = line_height * len(lines) + 6
-
-        text_widget = tk.Text(popup, wrap="none", font=font, borderwidth=0,
-                              highlightthickness=0, padx=0, pady=0, bg="white")
-        text_widget.insert("1.0", subtitle_text)
-        text_widget.config(state="disabled")
-        text_widget.place(x=0, y=0, width=width, height=height)
+        label = tk.Label(popup,text=subtitle_text, font=font,justify="center", anchor="center",
+                        anchor="nw",padx=8, pady=4, bg="white")
+        label.pack()
 
         x = self.root.winfo_pointerx()
         y = self.root.winfo_pointery()
-        popup.geometry(f"{height}x{width}+{x}+{y-height-5}")
+        popup.geometry(f"+{x}+{y-label.winfo_reqheight()-5}")
         self._close_job = popup.after(self.close_delay, self._close)
 
         popup.bind("<Enter>", lambda e: self._cancel_close())
