@@ -64,8 +64,17 @@ def parse_time_value(time: str, default_skip: float) -> float:
             return default_skip
     m += s // 60;  s %= 60
     h += m // 60;  m %= 60
-    return h * 3600 + m * 60 + s
-            
+    return float(h * 3600 + m * 60 + s)
+   
+def format_time(seconds: float) -> str:
+    total = int(seconds)
+    hours, rem = divmod(total, 3600)
+    m, s = divmod(rem, 60)
+    if hours:
+        return f"{hours:02d}:{m:02d}:{s:02d}"
+    else:
+        return f"{m:02d}:{s:02d}"
+             
 def reformat_time_entry(entry: tk.Entry, parse_func, as_seconds=False) -> None:
     text = entry.get()
     secs = parse_func(text)
@@ -75,13 +84,3 @@ def reformat_time_entry(entry: tk.Entry, parse_func, as_seconds=False) -> None:
         formatted = format_time(secs)
     entry.delete(0, tk.END)
     entry.insert(0, formatted)
-
-@staticmethod
-def format_time(seconds: float) -> str:
-    total = int(seconds)
-    hours, rem = divmod(total, 3600)
-    m, s = divmod(rem, 60)
-    if hours:
-        return f"{hours:02d}:{m:02d}:{s:02d}"
-    else:
-        return f"{m:02d}:{s:02d}"

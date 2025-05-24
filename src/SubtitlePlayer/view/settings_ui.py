@@ -236,7 +236,7 @@ class SettingsUI:
 
         self.forward_button.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_forward()))
         self.back_button.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_back()))
-        self.play_pause_btn.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_play_pause()))
+        self.play_pause_btn.bind("<ButtonPress>", lambda event: (self._on_play_pause()))
         self.settings_btn.bind("<ButtonPress>", lambda event:  self._on_settings(event))
         self.play_time_entry.bind("<Return>", lambda ev:   self._on_time_entry_return(ev))
         self.play_time_entry.bind("<FocusOut>", lambda ev: self._on_time_entry_return(ev))
