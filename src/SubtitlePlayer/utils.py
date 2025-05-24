@@ -64,7 +64,6 @@ def parse_time_value(time: str, default_skip: float) -> float:
             return default_skip
     m += s // 60;  s %= 60
     h += m // 60;  m %= 60
-
     return h * 3600 + m * 60 + s
             
 def reformat_time_entry(entry: tk.Entry, parse_func, as_seconds=False) -> None:

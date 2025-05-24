@@ -356,10 +356,14 @@ class SubtitleController:
     def set_current_time(self, t: float):
         if t is None:
             return
-        dur = float(self.manager.get_total_duration())
+        dur = self.manager.get_total_duration()
         if self.current_time >= dur:
             self.current_time = dur
             self.playing = False
+            self.current_time = dur
+        else:
+            self.current_time = t
+        self.current_time = t
         self.settings.slider.set(self.current_time)
         self.update_time_displays()
         self.update_subtitle_display()
