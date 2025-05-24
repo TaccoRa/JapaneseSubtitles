@@ -348,8 +348,8 @@ class SubtitlePlayer:
         ch = config.get('CONTROL_WINDOW_HEIGHT') if not is_phone_mode else config.get('CONTROL_WINDOW_PHONE_MODE_HEIGHT')
 
         sh = self.root.winfo_screenheight()
-        pos_x = config['CONTROL_WINDOW_X']  #110
-        base_y = config['CONTROL_WINDOW_Y'] #1000
+        pos_x = config['LAST_CONTROL_WINDOW_X']  #110
+        base_y = config['LAST_CONTROL_WINDOW_Y'] #1000
         offset = 40 - ch  # Move up if ch is larger
         pos_y = base_y + offset if ch != 40 else base_y  
         self.control_window.geometry(f"{cw}x{ch}+{pos_x}+{pos_y}")
@@ -413,8 +413,8 @@ class SubtitlePlayer:
             new_width = config.get('CONTROL_WINDOW_WIDTH') if not is_phone_mode else config.get('CONTROL_WINDOW_PHONE_MODE_WIDTH')
             new_height = config.get('CONTROL_WINDOW_HEIGHT') if not is_phone_mode else config.get('CONTROL_WINDOW_PHONE_MODE_HEIGHT')
 
-            pos_x = config['CONTROL_WINDOW_X']
-            base_y = config['CONTROL_WINDOW_Y']
+            pos_x = config['LAST_CONTROL_WINDOW_X']
+            base_y = config['LAST_CONTROL_WINDOW_Y']
             offset = config.get('CONTROL_WINDOW_HEIGHT')  - new_height
             pos_y = base_y + offset if new_height != config.get('CONTROL_WINDOW_HEIGHT') else base_y
             self.control_window.geometry(f"{new_width}x{new_height}+{pos_x}+{pos_y}")

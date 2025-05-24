@@ -84,7 +84,6 @@ class SubtitleController:
         MouseListener(on_click=self.on_global_click).start()
         KeyboardListener(on_press=self._on_key_press, on_release=self._on_key_release).start()
 
-        self.last_update  = time.time()
         self.update_time_displays()
         self.update_subtitle_display()
 
@@ -145,7 +144,7 @@ class SubtitleController:
         offset = parse_time_value(self.settings.offset_var.get(), default_skip=self.default_skip) + self.extra_offset
         new_text = self.manager.get_subtitle_at(self.current_time, offset)
         self.last_subtitle_raw = new_text
-        
+
         # split into at most two lines, drop empty
         lines = [l for l in new_text.splitlines() if l.strip()]
 
@@ -309,27 +308,21 @@ class SubtitleController:
 
     # ——— Playback controls ———————————————————————————————————
     def toggle_play(self):
-        now = time.time()
+        self.playing = not self.playing 
         if self.playing:
-            elapsed = now - self.last_update
-            self.set_current_time(self.current_time + elapsed)
-            if hasattr(self, "_update_job"):
-                self.overlay.root.after_cancel(self._update_job)
-                self._update_job = None
+            self.settings.play_pause_btn.config(text="Stop", bg="red", activebackground="red")
+            self.last_update = time.time()
+            self.update_loop()
+        else:
             self.settings.play_pause_btn.config(text="Play", bg="green", activebackground="green")
-
             if self.subtitle_timeout_job is not None:
                 self.overlay.root.after_cancel(self.subtitle_timeout_job)
                 self.subtitle_timeout_job = None
             if self.subtitle_deleted and self.last_subtitle_text:
                 self.subtitle_deleted = False
                 self.update_subtitle_display()
-        else:
-            self.last_update = now
-            self.schedule_update()
-            self.settings.play_pause_btn.config(text="Stop", bg="red", activebackground="red")
-        self.playing = not self.playing
-        if self.video_click:self.simulate_video_click()
+
+        if self.video_click: self.simulate_video_click()
         self.update_time_displays()
         self.schedule_hide_controls()
 
@@ -360,13 +353,13 @@ class SubtitleController:
         self.slider_dragging = False
         self.set_current_time(self.settings.slider.get())
 
-
-
     def set_current_time(self, t: float):
         if t is None:
             return
-        dur = self.manager.get_total_duration()
-        self.current_time = max(0.0, min(t, dur))
+        dur = float(self.manager.get_total_duration())
+        if self.current_time >= dur:
+            self.current_time = dur
+            self.playing = False
         self.settings.slider.set(self.current_time)
         self.update_time_displays()
         self.update_subtitle_display()
@@ -374,23 +367,19 @@ class SubtitleController:
 
 
     # ——— Loop & scheduling ———————————————————————————————————
-    def schedule_update(self):
-        if hasattr(self, "_update_job"):
-            self.overlay.root.after_cancel(self._update_job)
-        self._update_job = self.overlay.root.after(self.update_interval_ms, self.update_loop)
-
-
     def update_loop(self):
         if self.playing:
             now = time.time()
             delta = now - self.last_update
+            self.current_time += delta
             self.last_update = now
-            self.set_current_time(self.current_time + delta)
-            self.schedule_update()
+            
+            self.set_current_time(self.current_time)
+        self.overlay.root.after(
+            self.update_interval_ms,
+            self.update_loop
+        )
     
-
-    # ——— Global mouse click handler ———————————————————————————
-
     # ——— Global mouse click handler ———————————————————————————
     def on_global_click(self, x, y, button, pressed):
         if button == Button.x2 and pressed:
@@ -442,7 +431,7 @@ class SubtitleController:
             self.overlay.hide_handle()
 
     def _on_app_close(self):
-        for job in ("_update_job", "subtitle_timeout_job", "_con_hide_job"):
+        for job in ("subtitle_timeout_job", "_con_hide_job"):
             handle = getattr(self, job, None)
             if handle is not None:
                 try:
