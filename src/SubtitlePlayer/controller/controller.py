@@ -267,7 +267,6 @@ class SubtitleController:
     # ——— Time handling ———————————————————————————————————
     def on_set_to_time(self, text: str):
         secs = parse_time_value(text, default_skip=self.default_skip)
-        print("on_set_to_time t: ", secs)
         self.set_current_time(secs)
         self.settings.setto_entry.delete(0, tk.END)
 
@@ -279,7 +278,6 @@ class SubtitleController:
             return
         try:
             new_time = parse_time_value(content, default_skip=self.default_skip)
-            print("control_time_entry_return t: ", new_time)
             self.set_current_time(new_time)
         except ValueError:
             pass
@@ -314,7 +312,6 @@ class SubtitleController:
             self.control_time_entry_return(None)
         self.playing = not self.playing 
         if self.playing:
-            print("Play")
             self.settings.play_pause_btn.config(text="Stop", bg="red", activebackground="red")
             self.last_update = time.time()
             self.schedule_update()
@@ -350,7 +347,6 @@ class SubtitleController:
 
     def on_slider_change(self, value):
         if getattr(self, "slider_dragging", False):
-            print("on_slider_change t: ", value)
             self.set_current_time(float(value))
     def on_slider_press(self, event):
         self.slider_dragging = True
@@ -359,7 +355,6 @@ class SubtitleController:
         self.set_current_time(self.settings.slider.get())
 
     def set_current_time(self, t: float):
-        print("set curren time 1: ",self.current_time, "t: ",t)
         if t is None:
             return
         if self.current_time >= self.manager.get_total_duration():
@@ -367,15 +362,10 @@ class SubtitleController:
             self.playing = False
         else:
             self.current_time = t
-        print("2: ",self.current_time)
         self.settings.slider.set(self.current_time)
-        print("3: ",self.current_time)
         self.update_time_displays()
-        print("4: ",self.current_time)
         self.update_subtitle_display()
-        print("5: ",self.current_time)
         self.settings.update_time_overlay_position()
-        print("6: ",self.current_time)
 
 
     # ——— Loop & scheduling ———————————————————————————————————
@@ -387,7 +377,6 @@ class SubtitleController:
             now = time.time()
             delta = now - self.last_update
             self.last_update = now
-            print("update_loop t: ", self.current_time + delta)
             self.set_current_time(self.current_time + delta)
             
         self.schedule_update()
