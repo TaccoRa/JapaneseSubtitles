@@ -84,6 +84,7 @@ class SubtitleController:
         MouseListener(on_click=self.on_global_click).start()
         KeyboardListener(on_press=self._on_key_press, on_release=self._on_key_release).start()
 
+        self.last_update  = time.time()
         self.update_time_displays()
         self.update_subtitle_display()
 
@@ -177,8 +178,7 @@ class SubtitleController:
             
     def update_time_displays(self):
         value = format_time(self.current_time)
-        self.settings.time_overlay.itemconfig(self.settings.time_overlay_text, text=value)
-        # self.settings.time_overlay.config(value) 
+        self.settings.time_overlay.itemconfig(self.settings.time_overlay_text, text=value) 
         if not self.entry_editing :
             self.settings.play_time_var.set(value)
 
@@ -267,6 +267,7 @@ class SubtitleController:
     # ——— Time handling ———————————————————————————————————
     def on_set_to_time(self, text: str):
         secs = parse_time_value(text, default_skip=self.default_skip)
+        print("on_set_to_time t: ", secs)
         self.set_current_time(secs)
         self.settings.setto_entry.delete(0, tk.END)
 
@@ -278,6 +279,7 @@ class SubtitleController:
             return
         try:
             new_time = parse_time_value(content, default_skip=self.default_skip)
+            print("control_time_entry_return t: ", new_time)
             self.set_current_time(new_time)
         except ValueError:
             pass
@@ -308,21 +310,24 @@ class SubtitleController:
 
     # ——— Playback controls ———————————————————————————————————
     def toggle_play(self):
+        if self.entry_editing:
+            self.control_time_entry_return(None)
         self.playing = not self.playing 
         if self.playing:
+            print("Play")
             self.settings.play_pause_btn.config(text="Stop", bg="red", activebackground="red")
             self.last_update = time.time()
-            self.update_loop()
+            self.schedule_update()
         else:
             self.settings.play_pause_btn.config(text="Play", bg="green", activebackground="green")
-            if self.subtitle_timeout_job is not None:
+            if self.subtitle_timeout_job:
                 self.overlay.root.after_cancel(self.subtitle_timeout_job)
                 self.subtitle_timeout_job = None
             if self.subtitle_deleted and self.last_subtitle_text:
                 self.subtitle_deleted = False
                 self.update_subtitle_display()
-
         if self.video_click: self.simulate_video_click()
+        # self.control_time_entry_return()
         self.update_time_displays()
         self.schedule_hide_controls()
 
@@ -343,9 +348,9 @@ class SubtitleController:
         self.settings.control_window.attributes("-topmost", True)
         pyautogui.moveTo(original_pos.x, original_pos.y)
 
-
     def on_slider_change(self, value):
         if getattr(self, "slider_dragging", False):
+            print("on_slider_change t: ", value)
             self.set_current_time(float(value))
     def on_slider_press(self, event):
         self.slider_dragging = True
@@ -354,35 +359,38 @@ class SubtitleController:
         self.set_current_time(self.settings.slider.get())
 
     def set_current_time(self, t: float):
+        print("set curren time 1: ",self.current_time, "t: ",t)
         if t is None:
             return
-        dur = self.manager.get_total_duration()
-        if self.current_time >= dur:
-            self.current_time = dur
+        if self.current_time >= self.manager.get_total_duration():
+            self.current_time = self.manager.get_total_duration()
             self.playing = False
-            self.current_time = dur
         else:
             self.current_time = t
-        self.current_time = t
+        print("2: ",self.current_time)
         self.settings.slider.set(self.current_time)
+        print("3: ",self.current_time)
         self.update_time_displays()
+        print("4: ",self.current_time)
         self.update_subtitle_display()
+        print("5: ",self.current_time)
         self.settings.update_time_overlay_position()
+        print("6: ",self.current_time)
 
 
     # ——— Loop & scheduling ———————————————————————————————————
+    def schedule_update(self):
+        self.overlay.root.after(self.update_interval_ms, self.update_loop)
+
     def update_loop(self):
         if self.playing:
             now = time.time()
             delta = now - self.last_update
-            self.current_time += delta
             self.last_update = now
+            print("update_loop t: ", self.current_time + delta)
+            self.set_current_time(self.current_time + delta)
             
-            self.set_current_time(self.current_time)
-        self.overlay.root.after(
-            self.update_interval_ms,
-            self.update_loop
-        )
+        self.schedule_update()
     
     # ——— Global mouse click handler ———————————————————————————
     def on_global_click(self, x, y, button, pressed):
