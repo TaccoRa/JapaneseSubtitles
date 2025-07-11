@@ -1,7 +1,7 @@
 {
     "DEBUGGING_SRT_FILE": "C:/Tobi/JapaneseSubtitles/subs/onepiece\\ワンピース.S22E611.WEBRip.Netflix.ja[cc].srt",
     "DEBUGGING": false,
-    "LAST_SRT_FILE": "D:/tobi/projects/JapaneseSubtitles/subs/onepiece\\ワンピース.S22E614.WEBRip.Netflix.ja[cc].srt",
+    "LAST_SRT_FILE": "G:/Personal/Programme/VSCode_projects/JapaneseSubtitles/subs/hunterxhunter\\HUNTER×HUNTER.S05E102.ノウリョク×ト×タイキョク.WEBRip.Netflix.ja[cc].srt",
     "DEFAULT_START_TIME": 120.0,
     "EXTRA_OFFSET": 13.7,
     "DEFAULT_SKIP": 1.0,
@@ -25,9 +25,9 @@
     "PADDING_Y": 10,
     "DEBUG_SRT_FILE": "",
     "LAST_SETTINGS_WINDOW_X": 0,
-    "LAST_SETTINGS_WINDOW_Y": 700,
-    "LAST_CONTROL_WINDOW_X": 27,
-    "LAST_CONTROL_WINDOW_Y": 958,
-    "LAST_SUBTITLE_WINDOW_X": 427,
-    "LAST_SUBTITLE_WINDOW_Y": 689
+    "LAST_SETTINGS_WINDOW_Y": 663,
+    "LAST_CONTROL_WINDOW_X": 26,
+    "LAST_CONTROL_WINDOW_Y": 961,
+    "LAST_SUBTITLE_WINDOW_X": 284,
+    "LAST_SUBTITLE_WINDOW_Y": 496
 }

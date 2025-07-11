@@ -18,7 +18,8 @@ class SettingsUI:
         self.mode_toggle_btn = None
         self.play_pause_btn = None
         self.slider = None
-
+        
+        self.user_offset = float(self.offset_default)
         self._last_offset_value = self.offset_var.get()
         self._last_skip_value = self.skip_var.get()
 
@@ -43,6 +44,7 @@ class SettingsUI:
         self.win_h_phone = get('CONTROL_WINDOW_PHONE_MODE_HEIGHT')
 
     def _init_vars(self):
+        self.user_offset = self.offset_default
         self.offset_var = tk.StringVar(value=f"{float(self.offset_default):.1f} s")
         self.skip_var = tk.StringVar(value=f"{float(self.skip_default):.1f} s")
         self.episode_var = tk.StringVar(value="Movie" if self.initial_episode is None else str(self.initial_episode))
@@ -369,15 +371,16 @@ class SettingsUI:
             parsed = parse_time_value(val, default_skip=None)
             if val.strip() == "" or parsed is None:
                 self.offset_entry.delete(0, tk.END)
-                value = self._last_offset_value if self._last_offset_value is not None else ""
+                value = self._last_offset_value or ""
                 self.offset_entry.insert(0, str(value))
             else:
+                self.user_offset = parsed
                 self._last_offset_value = f"{parsed:.1f} s"
                 self.offset_entry.delete(0, tk.END)
                 self.offset_entry.insert(0, self._last_offset_value)
         except Exception:
             self.offset_entry.delete(0, tk.END)
-            value = self._last_offset_value if self._last_offset_value is not None else ""
+            value = self._last_offset_value or ""
             self.offset_entry.insert(0, str(value))
         self._on_update_time_displaying()
 

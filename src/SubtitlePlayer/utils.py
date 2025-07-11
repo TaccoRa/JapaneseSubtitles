@@ -2,15 +2,18 @@ import tkinter as tk
 from model.config_manager import ConfigManager
 
 def make_draggable(drag_handle: tk.Widget, target: tk.Toplevel, sync_windows: list[tk.Toplevel] = None, on_drag=None, save_position: tuple[ConfigManager, str, str] = None) -> None:
+    drag_state = {}
+
     def start_drag(event):
-        drag_handle._drag_start_x = event.x_root
-        drag_handle._drag_start_y = event.y_root
+        drag_state['start_x'] = event.x_root
+        drag_state['start_y'] = event.y_root
+
     def do_drag(event):
         if not target.winfo_exists():
             drag_handle.unbind("<B1-Motion>")
             return
-        dx = event.x_root - drag_handle._drag_start_x
-        dy = event.y_root - drag_handle._drag_start_y
+        dx = event.x_root - drag_state.get('start_x', event.x_root)
+        dy = event.y_root - drag_state.get('start_y', event.y_root)
         new_x = target.winfo_x() + dx
         new_y = target.winfo_y() + dy
         try:
@@ -26,8 +29,8 @@ def make_draggable(drag_handle: tk.Widget, target: tk.Toplevel, sync_windows: li
                     except tk.TclError:
                         pass
 
-        drag_handle._drag_start_x = event.x_root
-        drag_handle._drag_start_y = event.y_root
+        drag_state['start_x'] = event.x_root
+        drag_state['start_y'] = event.y_root
         bottom_y = new_y + target.winfo_height()
 
         if on_drag:
