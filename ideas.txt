@@ -1,12 +1,23 @@
-Remember last position of windows over next run
-Change windows size in config (during run time?)
-Remember last episode not debugging
 Wrong episode when turning off?
-Show Kanji written above
-When changing episode maybe play button buggy(fixed?)
-When using a film change the episode entry or something and change length of slider
-Adjust slider depending on srt file
-Add button in control window which shows settings window
+Change subtitle width to fit current subtitle (maybe flashes)
+Detect uncommon words or phrases and let users hover or tap a subtitle segment to 
+    see an in-line glossary or translation—great for educational content
+Change windows size in config (during run time?)
 
 Problems:
-Only appearing control window when focus is on the subtitle window
+if the offset is set to big or negative and so on the slider is not adjusted to this
+
+
+
+Added:
+Show Kanji written above
+Add button in control window which shows settings window
+When longer than 1 h resize control window and episode entry and change time entry
+Remember last position of windows over to next run
+
+
+
+Fixed:
+If no .srt found dont reset to default slider position and so on
+when movie (when not japanese characters) the width of subtitle window is wrong
+When phone mode button to show settigns window issue
