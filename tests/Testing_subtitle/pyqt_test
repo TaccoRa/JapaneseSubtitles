@@ -1,0 +1,82 @@
+import sys
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
+
+# ====== USER-ADJUSTABLE PARAMETERS ======
+TEXT        = "リパパ おはようございます。トビアス様、元気ですか"
+FONT_PATH   = "meiryo.ttc"
+FONT_SIZE   = 72
+GLOW_RADIUS = 10
+GLOW_ALPHA  = 255
+GLOW_COLOR  = (0, 0, 0)
+TEXT_COLOR  = (255, 255, 255)
+WINDOW_W    = 1000
+WINDOW_H    = 300
+TEXT_POS    = (50, WINDOW_H // 2)
+
+# ====== BUILD THE PIL RGBA FRAME ======
+font = ImageFont.truetype(FONT_PATH, FONT_SIZE)
+
+mask = Image.new("L", (WINDOW_W, WINDOW_H), 0)
+draw = ImageDraw.Draw(mask)
+draw.text(TEXT_POS, TEXT, font=font, fill=255, anchor="lm")
+
+glow_mask = mask.filter(ImageFilter.GaussianBlur(GLOW_RADIUS))
+glow_mask = glow_mask.point(lambda v: v * (GLOW_ALPHA / 255.0))
+
+glow_layer = Image.new("RGBA", (WINDOW_W, WINDOW_H), GLOW_COLOR + (0,))
+glow_layer.putalpha(glow_mask)
+
+text_layer = Image.new("RGBA", (WINDOW_W, WINDOW_H), TEXT_COLOR + (0,))
+text_layer.putalpha(mask)
+
+def compose_frame():
+    frame = Image.new("RGBA", (WINDOW_W, WINDOW_H), (0,0,0,0))
+    frame.alpha_composite(glow_layer)
+    frame.alpha_composite(text_layer)
+    return frame
+
+# ====== PYQT5 WINDOW WITH DRAGGING ======
+class SubtitleWindow(QtWidgets.QLabel):
+    def __init__(self):
+        super().__init__()
+
+        # Frameless, always-on-top, per-pixel alpha
+        self.setWindowFlags(
+            QtCore.Qt.FramelessWindowHint |
+            QtCore.Qt.WindowStaysOnTopHint |
+            QtCore.Qt.Tool
+        )
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+
+        # Render PIL → QPixmap
+        pil_img = compose_frame()
+        data = pil_img.tobytes("raw", "BGRA")
+        qimg = QtGui.QImage(data, WINDOW_W, WINDOW_H, QtGui.QImage.Format_ARGB32)
+        pix = QtGui.QPixmap.fromImage(qimg)
+        self.setPixmap(pix)
+        self.resize(WINDOW_W, WINDOW_H)
+
+        # Track drag offset
+        self._drag_offset = None
+
+    def mousePressEvent(self, event):
+        if event.button() == QtCore.Qt.LeftButton:
+            # record relative position of click within window
+            self._drag_offset = event.pos()
+
+    def mouseMoveEvent(self, event):
+        if self._drag_offset is not None:
+            # move window so that cursor stays at same relative pos
+            new_pos = event.globalPos() - self._drag_offset
+            self.move(new_pos)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == QtCore.Qt.LeftButton:
+            self._drag_offset = None
+
+if __name__ == "__main__":
+    app = QtWidgets.QApplication(sys.argv)
+    w = SubtitleWindow()
+    w.show()
+    sys.exit(app.exec_())

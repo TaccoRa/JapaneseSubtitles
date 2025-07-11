@@ -7,50 +7,74 @@ class CopyPopup:
     def __init__(self, root: tk.Tk, config: ConfigManager) -> None:
         self.root = root
         self.config = config
-        self.copy_popup: tk.Toplevel | None = None
+
+        self._popup: tk.Toplevel | None = None
+        self._close_job: str | None = None
+        self._pinned = False
+        self.root.bind("<Destroy>", lambda e: self._cancel_close())
+
+        self.close_delay = self.config.get("POPUP_CLOSE_TIMER")
+        # bg_color = self.config.get("POPUP_BG_COLOR", "white")
+        # font_name = self.config.get("POPUP_FONT", "Arial")
+        # font_size = self.config.get("POPUP_FONT_SIZE", 14)
 
     def open_copy_popup(self, subtitle_text = None) -> None:
-        if self.copy_popup:
-            try:
-                self.copy_popup.after_cancel(self.copy_popup.close_timer)
-            except Exception:
-                pass
-            self.copy_popup.destroy()
-            self.copy_popup = None
-    
+        if self._popup:
+            self._cancel_close()
+            self._popup.destroy()
+            self._popup = None
+
+        if not subtitle_text:
+            return
+        
         popup = tk.Toplevel(self.root)
-        self.copy_popup = popup
+        self._popup = popup
         popup.overrideredirect(True)
         popup.configure(bg="white")
-        popup.geometry("+0+0")
-    
-        copy_font = tkFont.Font(family="Arial", size=14, weight="bold")
-        lines = subtitle_text.splitlines() or [""]
-        line_height = copy_font.metrics("linespace")
-        req_height = line_height * (len(lines) + 1)
-        req_width = max(copy_font.measure(line) for line in lines) if lines else 100
+        popup.attributes("-topmost", True)
+        self._pinned  = False
 
-        text_widget = tk.Text(popup, wrap="none", font=copy_font, borderwidth=0,
-                              highlightthickness=0, padx=0, pady=0, bg="white")
-        text_widget.insert("1.0", subtitle_text)
-        text_widget.config(state="disabled")
-        text_widget.place(x=0, y=0, width=req_width, height=req_height)
-        popup.geometry(f"{req_width}x{req_height}+0+0")
+        font = tkFont.Font(family="Arial", size=14, weight="bold")
 
-        def close_popup():
-            popup.destroy()
-            self.copy_popup = None
-            
-        popup.close_timer = popup.after(self.config.get("CLOSE_TIMER"), close_popup)
-    
-        def on_enter(_):
+        label = tk.Label(popup,text=subtitle_text, font=font,justify="center",
+                        anchor="center",padx=8, pady=4, bg="white")
+        label.pack()
+
+        x = self.root.winfo_pointerx()
+        y = self.root.winfo_pointery()
+        popup.geometry(f"+{x}+{y-label.winfo_reqheight()-5}")
+        self._close_job = popup.after(self.close_delay, self._close)
+
+        popup.bind("<Enter>", lambda e: self._cancel_close())
+        popup.bind("<Leave>", lambda e: self._restart_close() if not self._pinned else None)
+        popup.bind("<Button-3>", lambda e: self._pin(popup))
+        popup.bind("<Destroy>", lambda e: setattr(self, "_popup", None))
+
+
+    def _close(self) -> None:
+        """Destroy the popup immediately."""
+        if self._popup:
+            self._popup.destroy()
+        self._popup = None
+        self._close_job = None
+
+    def _cancel_close(self) -> None:
+        """Cancel the pending close timer, if any."""
+        if self._popup and self._close_job:
             try:
-                popup.after_cancel(popup.close_timer)
-            except Exception:
+                self._popup.after_cancel(self._close_job)
+            except tk.TclError:
                 pass
-        def on_leave(_):
-            popup.close_timer = popup.after(self.config.get("CLOSE_TIMER"), close_popup)
+        self._close_job = None
 
-        popup.bind("<Enter>", on_enter)
-        popup.bind("<Leave>", on_leave)
-        popup.bind("<Destroy>", lambda e: setattr(self, "copy_popup", None))
+    def _restart_close(self) -> None:
+        """Restart the auto-close timer."""
+        self._cancel_close()
+        if self._popup:
+            self._close_job = self._popup.after(self.close_delay, self._close)
+
+    def _pin(self, popup: tk.Toplevel) -> None:
+        self._cancel_close()
+        self._pinned = True
+        popup.overrideredirect(False)
+        popup.lift()

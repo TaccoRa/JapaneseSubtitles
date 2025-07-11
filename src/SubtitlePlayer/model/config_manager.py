@@ -9,8 +9,11 @@ class ConfigManager:
     def _load(self):
         if not os.path.exists(self.path):
             raise FileNotFoundError(f"Config file not found: {self.path}")
-        with open(self.path, "r", encoding="utf-8-sig") as f:
-            self.config = json.load(f)
+        try:
+            with open(self.path, "r", encoding="utf-8-sig") as f:
+                self.config = json.load(f)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Failed to parse config file: {e}")
 
     def get(self, key, default=None):
         return self.config.get(key, default)
@@ -18,6 +21,7 @@ class ConfigManager:
     def set(self, key, value):
         self.config[key] = value
         self._save()
+        
     def _save(self):
         with open(self.path, "w", encoding="utf-8") as f:
             json.dump(self.config, f, indent=4, ensure_ascii=False)
