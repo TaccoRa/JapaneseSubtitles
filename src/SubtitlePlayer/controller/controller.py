@@ -95,7 +95,7 @@ class SubtitleController:
         # if getattr(self, "_sub_hide_job", None): #is this needed? Dont think so sutitle window should never be hidden only sutitles --> temporarly_hide
         #     self.overlay.sub_window.after_cancel(self._sub_hide_job)
         #     self._sub_hide_job = None
-        if getattr(self, "_con_hide_job", None):
+        if getattr(self, "_con_hide_job", None) is not None:
             self.settings.control_window.after_cancel(self._con_hide_job) #cancel hide after calls if triggered
             self._con_hide_job = None
         self.subtitle_deleted = False
@@ -142,7 +142,7 @@ class SubtitleController:
     #         self.settings.control_window.lower)
         
     def update_subtitle_display(self):
-        offset = parse_time_value(self.settings.offset_var.get(), default_skip=self.default_skip) + self.extra_offset
+        offset = self.settings.user_offset
         new_text = self.manager.get_subtitle_at(self.current_time, offset)
         self.last_subtitle_raw = new_text
 
@@ -332,9 +332,12 @@ class SubtitleController:
         skip = parse_time_value(self.settings.skip_entry.get(), default_skip=self.default_skip)
         self.set_current_time(self.current_time + skip)
         self.schedule_hide_controls()
+        
     def go_back(self):
-        skip = parse_time_value(self.settings.skip_entry.get(), default_skip=self.default_skip)
-        self.set_current_time(self.current_time - skip)
+        skip = parse_time_value(self.settings.skip_entry.get(),default_skip=self.default_skip)
+        new_t = self.current_time - skip
+        new_t = max(0.0, new_t)
+        self.set_current_time(new_t)
         self.schedule_hide_controls()
 
     def simulate_video_click(self):
