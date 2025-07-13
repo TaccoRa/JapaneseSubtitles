@@ -44,20 +44,19 @@ class SubtitleManager:
         if not os.path.isdir(self.srt_dir):
             print(f"Warning: srt_dir '{self.srt_dir}' not found.")
             self.srt_dir = os.getcwd()
+
         window = tk.Tk()
         window.withdraw()
         window.attributes("-topmost", True)
         path = filedialog.askopenfilename(
-            parent=window,
-            title="Select SRT File",
+            parent=window, title="Select SRT File",
             initialdir=self.srt_dir,
             filetypes=[("SubRip files", "*.srt"), ("All Files", "*.*")]
         )
         window.destroy()
         if not path:
             return None
-        if not path.lower().endswith('.srt'):
-            raise ValueError("Selected file is not a .srt file")
+        
         self.srt_file = path
         self.srt_dir = os.path.dirname(self.srt_file)
         self._srt_file_list = [f for f in os.listdir(self.srt_dir) if f.lower().endswith('.srt')]
@@ -75,6 +74,7 @@ class SubtitleManager:
         return path
 
     def load_srt_file(self, path: str) -> None:
+        # self.prompt_srt_file()
         self.srt_file = path
         filename = os.path.basename(path)
         self.current_season = self._extract_number(self.SEASON_PATTERN, filename, default=None)
@@ -89,7 +89,7 @@ class SubtitleManager:
             self.current_season = None
             self.current_episode = None
             return True
-    
+
         new_file = None
         pat1 = re.compile(rf'S0*{season}E0*{episode}(?!\d)', re.IGNORECASE)
         for file in self._srt_file_list:
@@ -108,10 +108,10 @@ class SubtitleManager:
         episode_found = self._extract_number(self.EPISODE_PATTERN, new_file, default=None)
         if season_found is None or episode_found is None:
             return False
-            
+
         self.current_season = season
         self.current_episode = episode
-    
+
         new_path = os.path.join(self.srt_dir, new_file)
         self.config.set("LAST_SRT_FILE", new_path)
         self._load_and_process(new_path)
@@ -120,44 +120,16 @@ class SubtitleManager:
     def get_total_duration(self) -> float:
         return max(sub.end.total_seconds() for sub in self.subtitles)
 
-    def get_subtitle_at(self, time: float, offset: float = 0.0) -> str:
-        eff = time - offset
-        idx = bisect.bisect_right(self.start_times, eff) - 1
-        return self.cleaned_subtitles[idx] if idx >= 0 else ""  
-
-    def _extract_number(self, pattern, filename, default=None):
-        match = re.search(pattern, filename, re.IGNORECASE)
-        return int(match.group(1)) if match else default
+    def get_display_data(self, time: float, offset: float = 0.0):
+        # Return (cleaned, top_segments, bottom_segments) for given time
+        idx = bisect.bisect_right(self.start_times, time-offset)-1
+        return self.display_data[idx] if idx >= 0 else ""
     
-    def _load_subtitles(self, srt_path: str) -> List[srt.Subtitle]:
-        with open(srt_path, 'rb') as f:
-            raw = f.read()
-        detected = chardet.detect(raw)
-        text = raw.decode(detected['encoding'] or 'utf-8', errors='replace')
-        return list(srt.parse(text))
-    
-    def _load_and_process(self, path: str) -> None:
-        self.subtitles = self._load_subtitles(path)
-        self.cleaned_subtitles = [self._clean_text(s.content) for s in self.subtitles]
-        self.ruby_segments = [
-            self.parse_ruby_segments(line)
-            for line in self.cleaned_subtitles
-        ]
-        self.start_times = [s.start.total_seconds() for s in self.subtitles]
-
-    def _clean_text(self, text: str) -> str:
-        cleaned = self.CLEAN_PATTERN_1.sub('', text)
-        cleaned = regex.sub(r'(\p{Han}+)\(([^)]+)\)', r'\1«\2»', cleaned)
-        cleaned = regex.sub(r'[（(].*?[）)]', '', cleaned)
-        cleaned = cleaned.replace('«', '(').replace('»', ')')
-        return cleaned.replace('&lrm;','').replace('\u200e','').strip()
-         
     def parse_ruby_segments(self, text: str) -> List[tuple[str, Optional[str]]]:
         segments: List[tuple[str, Optional[str]]] = []
         pat = regex.compile(r'(\p{Han}+)\(([^)]+)\)')
         last = 0
         for m in pat.finditer(text):
-            # plain text before the match
             plain = text[last:m.start()].strip()
             if plain:
                 segments.append((plain, None))
@@ -167,3 +139,40 @@ class SubtitleManager:
         if tail:
             segments.append((tail, None))
         return segments
+
+    def _extract_number(self, pattern, filename, default=None):
+        match = re.search(pattern, filename, re.IGNORECASE)
+        return int(match.group(1)) if match else default
+
+     
+    def _load_and_process(self, path: str) -> None:
+        with open(path, 'rb') as f:
+            raw = f.read()
+        detected = chardet.detect(raw)
+        text = raw.decode(detected['encoding'] or 'utf-8', errors='replace')
+        self.subtitles = list(srt.parse(text))
+
+        self.cleaned_subtitles = [self._clean_text(s.content) for s in self.subtitles]
+        
+        self.start_times = [s.start.total_seconds() for s in self.subtitles]
+
+        self.display_data = []
+
+        for clean in self.cleaned_subtitles:# split into up to two nonempty lines
+            lines = [l for l in clean.splitlines() if l.strip()]
+            if not lines:
+                top, bottom = [], []
+            elif len(lines) == 1:
+                top, bottom = [], self.parse_ruby_segments(lines[0])
+            else:
+                top = self.parse_ruby_segments(lines[0])
+                bottom = self.parse_ruby_segments(lines[1])
+
+            self.display_data.append((clean, top, bottom))
+
+    def _clean_text(self, text: str) -> str:
+        cleaned = self.CLEAN_PATTERN_1.sub('', text)
+        cleaned = regex.sub(r'(\p{Han}+)\(([^)]+)\)', r'\1«\2»', cleaned)
+        cleaned = regex.sub(r'[（(].*?[）)]', '', cleaned)
+        cleaned = cleaned.replace('«', '(').replace('»', ')')
+        return cleaned.replace('&lrm;','').replace('\u200e','').strip()
