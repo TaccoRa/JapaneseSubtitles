@@ -92,7 +92,7 @@ class SubtitleController:
         self.overlay.sub_window.attributes("-transparentcolor", "") #not transparent
         self.settings.control_window.attributes("-topmost", True)
         self.overlay.sub_window.attributes("-topmost", True) 
-        # if getattr(self, "_sub_hide_job", None): #is this needed? Dont think so sutitle window should never be hidden only sutitles --> temporarly_hide
+        # if getattr(self, "_sub_hide_job", None): #is this needed? Dont think so sutitle window should never be hidden only subtitles --> temporarly_hide
         #     self.overlay.sub_window.after_cancel(self._sub_hide_job)
         #     self._sub_hide_job = None
         if getattr(self, "_con_hide_job", None) is not None:
@@ -168,7 +168,11 @@ class SubtitleController:
                 self.subtitle_timeout_job = None
             self.last_subtitle_text = joined
             self.subtitle_deleted = False
-            self.renderer.render_subtitle(top_segments, bottom_segments, self.overlay.max_width, self.overlay.bottom_anchor, self.overlay.sub_window)
+            top_w    = sum(self.overlay.font.measure(b) for b,_ in top_segments)
+            bottom_w = sum(self.overlay.font.measure(b) for b,_ in bottom_segments)
+            new_max_width = max(top_w, bottom_w, 1)
+
+            self.renderer.render_subtitle(top_segments, bottom_segments, new_max_width, self.overlay)
 
         if self.playing and not self.subtitle_timeout_job:
             self.subtitle_timeout_job = self.overlay.root.after(
