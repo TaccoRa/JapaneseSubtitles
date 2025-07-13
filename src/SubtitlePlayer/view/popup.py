@@ -1,10 +1,9 @@
 import tkinter as tk
 from tkinter import font as tkFont
-from model.config_manager import ConfigManager
 
 class CopyPopup:
     
-    def __init__(self, root: tk.Tk, config: ConfigManager) -> None:
+    def __init__(self, root: tk.Tk, config) -> None:
         self.root = root
         self.config = config
 
@@ -13,43 +12,38 @@ class CopyPopup:
         self._pinned = False
         self.root.bind("<Destroy>", lambda e: self._cancel_close())
 
+        self.bg_color = self.config.get("POPUP_BG_COLOR", "white")
+        self.font_name = self.config.get("POPUP_FONT", "Arial")
+        self.font_color = self.config.get("POPUP_FONT_COLOR")
+        self.font_size = self.config.get("POPUP_FONT_SIZE", 14)
         self.close_delay = self.config.get("POPUP_CLOSE_TIMER")
-        # bg_color = self.config.get("POPUP_BG_COLOR", "white")
-        # font_name = self.config.get("POPUP_FONT", "Arial")
-        # font_size = self.config.get("POPUP_FONT_SIZE", 14)
 
     def open_copy_popup(self, subtitle_text = None) -> None:
-        if self._popup:
+        if self._popup: #if already popup, close it and make a new one
             self._cancel_close()
             self._popup.destroy()
             self._popup = None
-
-        if not subtitle_text:
-            return
         
         popup = tk.Toplevel(self.root)
         self._popup = popup
         popup.overrideredirect(True)
-        popup.configure(bg="white")
+        # popup.configure(bg=self.bg_color)
         popup.attributes("-topmost", True)
-        self._pinned  = False
-        pad_x = 8
-        pad_y = 4
-        font = tkFont.Font(family="Arial", size=14, weight="bold")
 
-
+        #calulate size of popup based on text
+        font = tkFont.Font(family=self.font_name, size=self.font_size, weight="bold")
         lines = [l for l in subtitle_text.splitlines() if l.strip()]
-        lines = lines[:2]
         pixel_widths = [font.measure(line) for line in lines]
-        text_width = max(pixel_widths) if pixel_widths else 0
+        text_width = max(pixel_widths)
         line_height = font.metrics("linespace")
         text_height = line_height * len(lines)
-        total_width  = text_width  + pad_x * 2
-        total_height = text_height + pad_y * 2
+        pad_x, pad_y = 10,5
+        total_width  = text_width  + 2 * pad_x
+        total_height = text_height + 2 * pad_y
 
-        entry = tk.Text(popup, font=font, wrap="word", bg="white", relief="flat",
-                        padx=8, pady=4, bd=0, highlightthickness=0, cursor="xterm",
-                        height=len(lines))
+        entry = tk.Text(popup, font=font, wrap="word",padx=8, pady=4,
+                        bg=self.bg_color,fg= self.font_color,
+                        cursor="xterm", height=len(lines))
         entry.insert("1.0", subtitle_text)
         entry.tag_configure("center", justify="center")
         entry.tag_add("center", "1.0", "end")
@@ -59,7 +53,8 @@ class CopyPopup:
         x = self.root.winfo_pointerx()
         y = self.root.winfo_pointery() - total_height - 20
         popup.geometry(f"{total_width}x{total_height}+{x}+{y}")
-
+        
+        self._pinned  = False
         popup.bind("<Enter>", lambda e: self._cancel_close())
         popup.bind("<Leave>", lambda e: self._restart_close() if not self._pinned else None)
         popup.bind("<Button-3>", lambda e: self._pin(popup))
@@ -67,23 +62,16 @@ class CopyPopup:
 
 
     def _close(self) -> None:
-        """Destroy the popup immediately."""
-        if self._popup:
-            self._popup.destroy()
+        if self._popup: self._popup.destroy()
         self._popup = None
         self._close_job = None
 
     def _cancel_close(self) -> None:
-        """Cancel the pending close timer, if any."""
         if self._popup and self._close_job:
-            try:
-                self._popup.after_cancel(self._close_job)
-            except tk.TclError:
-                pass
+            self._popup.after_cancel(self._close_job)
         self._close_job = None
 
-    def _restart_close(self) -> None:
-        """Restart the auto-close timer."""
+    def _restart_close(self) -> None: #restart close timer
         self._cancel_close()
         if self._popup:
             self._close_job = self._popup.after(self.close_delay, self._close)

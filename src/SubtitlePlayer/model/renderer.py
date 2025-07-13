@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import font as tkFont
+from view.subtitle_overlay import SubtitleOverlayUI
 
 class SubtitleRenderer:
     def __init__(self, canvas: tk.Canvas, font: tkFont.Font, color: str, line_height: int) -> None:
@@ -7,46 +8,64 @@ class SubtitleRenderer:
         self.font = font
         self.color = color
         self.line_height = line_height
-        self.max_ruby_h = int(self.font.metrics('linespace') * 0.6)
-        self.max_total_height = self.max_ruby_h * 2 + self.line_height * 2
+        self.max_ruby_h = int(self.line_height * 0.6)
 
-    def render_subtitle(self, top_segments, bottom_segments, max_width: int,bottom_anchor: int, sub_window: tk.Toplevel) -> None:
-        # measure max ruby height across both lines
-        for segs in (top_segments, bottom_segments):
-            for base, ruby in segs:
-                if ruby:
-                    rf = tkFont.Font(
-                        family=self.font.actual('family'),
-                        size=int(self.font.actual('size')*0.6),
-                        weight="bold"
-                    )
-                    
-        # total: ruby_above + line1 + line2 + ruby_below
-        total_height = self.max_total_height
 
-        # resize canvas
+    def render_subtitle(self, top_segments, bottom_segments, content_w: int, overlay: SubtitleOverlayUI) -> None:
+        
+        pad_x     = overlay.pad_x
+
+        h = 0
+        if top_segments:
+            if any(r for _, r in top_segments): h += self.max_ruby_h
+            h += self.line_height
+        if bottom_segments:
+            h += self.line_height
+            if any(r for _, r in bottom_segments): h += self.max_ruby_h
+        content_h = h
+        
+        win_w = content_w + 2*pad_x
+        win_h = content_h
+
+        ref_w = overlay.max_width + 2*overlay.pad_x
+        ref_h = overlay.max_total_height 
+        new_x = overlay.ref_x + (ref_w - win_w)//2
+        new_y = overlay.ref_y + (ref_h - win_h)//2
+        
+        self.canvas.config(width=content_w, height=content_h)
         self.canvas.delete("all")
-        self.canvas.config(width=max_width, height=total_height)
+        
+        y = 0
+        if top_segments:
+            if any(r for _,r in top_segments):
+                y_ruby_top = y + self.max_ruby_h // 2
+                y += self.max_ruby_h
+            y_base1 = y + self.line_height//2
+            y += self.line_height
+        else:
+            y_base1 = None
 
-        # Y positions
-        y_ruby_top = self.max_ruby_h // 2
-        y_base1   = self.max_ruby_h + self.line_height//2
-        y_base2   = self.max_ruby_h + self.line_height + self.line_height//2
-        y_ruby_bot = self.max_ruby_h + self.line_height*2 + self.max_ruby_h//2
+        if bottom_segments:
+            y_base2 = y + self.line_height//2
+            if any(r for _,r in bottom_segments):
+                y_ruby_bot = y + self.line_height + self.max_ruby_h//2
+            y += self.line_height
+            if any(r for _,r in bottom_segments):
+                y += self.max_ruby_h
+        else:
+            y_base2 = None
 
-        top_width = sum(self.font.measure(b) for b,_ in top_segments)
-        bottom_width = sum(self.font.measure(b) for b,_ in bottom_segments)
-
-        # starting X positions
-        x_top = (max_width - top_width) / 2
-        x_bot = (max_width - bottom_width) / 2
+        top_w = sum(self.font.measure(b) for b, _ in top_segments)
+        bot_w = sum(self.font.measure(b) for b, _ in bottom_segments)
+        x_top = (content_w - top_w) / 2
+        x_bot = (content_w - bot_w) / 2
 
         # draw top line, if present
         cur_x = x_top
         if top_segments:
             for base, ruby in top_segments:
                 w = self.font.measure(base)
-                center = cur_x + w/2
+                cx = pad_x + cur_x + w/2
                 if ruby:
                     rf = tkFont.Font(
                         family=self.font.actual('family'),
@@ -54,16 +73,12 @@ class SubtitleRenderer:
                         weight="bold"
                     )
                     self.draw_outlined_text(
-                        self.canvas,
-                        center, y_ruby_top,
-                        ruby, rf,
-                        fill=self.color,
-                        outline="black",
-                        thickness=2
+                        self.canvas, cx, y_ruby_top,
+                        ruby, rf, fill=self.color,
+                        outline="black", thickness=2
                     )
                 self.draw_outlined_text(
-                    self.canvas,
-                    center, y_base1,
+                    self.canvas, cx, y_base1,
                     base, self.font,
                     fill=self.color, outline="black", thickness=3
                 )
@@ -73,7 +88,7 @@ class SubtitleRenderer:
         cur_x = x_bot
         for base, ruby in bottom_segments:
             w = self.font.measure(base)
-            center = cur_x + w/2
+            cx = pad_x + cur_x + w/2
             if ruby:
                 rf = tkFont.Font(
                     family=self.font.actual('family'),
@@ -81,29 +96,18 @@ class SubtitleRenderer:
                     weight="bold"
                 )
                 self.draw_outlined_text(
-                    self.canvas,
-                    center, y_ruby_bot,
-                    ruby, rf,
-                    fill=self.color,
-                    outline="black",
-                    thickness=2
+                    self.canvas, cx, y_ruby_bot,
+                    ruby, rf, fill=self.color,
+                    outline="black", thickness=2
                 )
-
             self.draw_outlined_text(
-                self.canvas,
-                center, y_base2,
+                self.canvas, cx, y_base2,
                 base, self.font,
                 fill=self.color, outline="black", thickness=3
             )
             cur_x += w
 
-        # reposition window
-        # reposition window so that the second‐line baseline (y_base2) stays fixed on screen
-        current_x = sub_window.winfo_x()
-        # canvas above line2 is (max_ruby_h +  self.line_height*2)
-        new_y = bottom_anchor - (self.max_ruby_h*2 + self.line_height*2)
-        # print(max_width, max_ruby_h)
-        sub_window.geometry(f"{max_width}x{total_height}+{current_x}+{new_y}")
+        overlay.sub_window.geometry(f"{win_w}x{win_h}+{new_x}+{new_y}")
 
     @staticmethod
     def draw_outlined_text(canvas: tk.Canvas, x: int, y: int, text: str,
