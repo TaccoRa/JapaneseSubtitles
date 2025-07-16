@@ -1,7 +1,11 @@
 import tkinter as tk
-from model.config_manager import ConfigManager
 
-def make_draggable(drag_handle: tk.Widget, target: tk.Toplevel, sync_windows: list[tk.Toplevel] = None, on_drag=None, save_position: tuple[ConfigManager, str, str] = None) -> None:
+def make_draggable(
+    drag_handle: tk.Widget,
+    target: tk.Toplevel,sync_windows: list[tk.Toplevel] = None,
+    on_drag=None,on_release=None
+    ):
+
     drag_state = {}
 
     def start_drag(event):
@@ -9,9 +13,6 @@ def make_draggable(drag_handle: tk.Widget, target: tk.Toplevel, sync_windows: li
         drag_state['start_y'] = event.y_root
 
     def do_drag(event):
-        if not target.winfo_exists():
-            drag_handle.unbind("<B1-Motion>")
-            return
         dx = event.x_root - drag_state.get('start_x', event.x_root)
         dy = event.y_root - drag_state.get('start_y', event.y_root)
         new_x = target.winfo_x() + dx
@@ -20,7 +21,6 @@ def make_draggable(drag_handle: tk.Widget, target: tk.Toplevel, sync_windows: li
             target.geometry(f"+{new_x}+{new_y}")
         except tk.TclError:
             return
-        
         if sync_windows:
             for win in sync_windows:
                 if win.winfo_exists():
@@ -31,21 +31,19 @@ def make_draggable(drag_handle: tk.Widget, target: tk.Toplevel, sync_windows: li
 
         drag_state['start_x'] = event.x_root
         drag_state['start_y'] = event.y_root
-        bottom_y = new_y + target.winfo_height()
 
         if on_drag:
-            on_drag(bottom_y)
+            on_drag()
 
-        if save_position:
-            cfg, key_x, key_y = save_position
-            try:
-                cfg.set(key_x, new_x)
-                cfg.set(key_y, new_y)
-            except Exception:
-                pass
+    def end_drag(event):
+        if on_release:
+            on_release(target.winfo_x(), target.winfo_y(),
+                       target.winfo_width(), target.winfo_height())
+
 
     drag_handle.bind("<ButtonPress-1>", start_drag)
     drag_handle.bind("<B1-Motion>", do_drag)
+    drag_handle.bind("<ButtonRelease-1>", end_drag)
 
 
 def parse_time_value(time: str, default_skip: float) -> float:

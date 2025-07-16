@@ -14,8 +14,9 @@ from model.config_manager import ConfigManager
 class SubtitleManager:
 
     CLEAN_PATTERN_1 = re.compile(r'\{\\an\d+\}')
-    SEASON_PATTERN = r'S(\d+)'
-    EPISODE_PATTERN = r'E(\d+)'
+    SEASON_PATTERN = re.compile(r'S(\d+)', re.IGNORECASE)
+    EPISODE_PATTERN = re.compile(r'E(\d+)', re.IGNORECASE)
+
 
     def __init__(self, config: ConfigManager) -> None:
         self.config = config
@@ -25,7 +26,7 @@ class SubtitleManager:
         else: self.srt_file = config.get("LAST_SRT_FILE")
         self.srt_dir = os.path.dirname(self.srt_file) if self.srt_file else os.getcwd()
         if not self.srt_file or not os.path.exists(self.srt_file):
-            selected = self.prompt_srt_file()
+            selected = self.load_srt_file()
             if not selected:
                 raise FileNotFoundError("No subtitle file selected.")
             self.srt_file = selected
@@ -40,48 +41,34 @@ class SubtitleManager:
 
         self._load_and_process(self.srt_file)
 
-    def prompt_srt_file(self) -> Optional[str]:
-        if not os.path.isdir(self.srt_dir):
-            print(f"Warning: srt_dir '{self.srt_dir}' not found.")
-            self.srt_dir = os.getcwd()
+    def load_srt_file(self, path: Optional[str] = None) -> bool:
+        # Prompt for file if not given
+        if path is None:
+            if not os.path.isdir(self.srt_dir):
+                self.srt_dir = os.getcwd()
+            window = tk.Tk(); window.withdraw(); window.attributes("-topmost", True)
+            path = filedialog.askopenfilename(
+                parent=window,
+                title="Select SRT File",
+                initialdir=self.srt_dir,
+                filetypes=[("SubRip files","*.srt"),("All Files","*.*")]
+            )
+            window.destroy()
+            if not path: return False
 
-        window = tk.Tk()
-        window.withdraw()
-        window.attributes("-topmost", True)
-        path = filedialog.askopenfilename(
-            parent=window, title="Select SRT File",
-            initialdir=self.srt_dir,
-            filetypes=[("SubRip files", "*.srt"), ("All Files", "*.*")]
-        )
-        window.destroy()
-        if not path:
-            return None
-        
+        # Stash path + update config + directory list
         self.srt_file = path
-        self.srt_dir = os.path.dirname(self.srt_file)
-        self._srt_file_list = [f for f in os.listdir(self.srt_dir) if f.lower().endswith('.srt')]
         self.config.set("LAST_SRT_FILE", path)
-        # Check for episoide or movie
-        season = self._extract_number(self.SEASON_PATTERN, os.path.basename(path), default=None)
-        episode = self._extract_number(self.EPISODE_PATTERN, os.path.basename(path), default=None)
-        if episode is None or season is None:
-            print("Selected file does not contain season or episode info. Treating as movie.")
-            self.current_episode = None
-            self.current_season = None
-        else:
-            self.current_episode = episode
-            self.current_season = season
-        return path
-
-    def load_srt_file(self, path: str) -> None:
-        # self.prompt_srt_file()
-        self.srt_file = path
-        filename = os.path.basename(path)
-        self.current_season = self._extract_number(self.SEASON_PATTERN, filename, default=None)
-        self.current_episode = self._extract_number(self.EPISODE_PATTERN, filename, default=None)
-        self._load_and_process(path)
         self.srt_dir = os.path.dirname(path)
         self._srt_file_list = [f for f in os.listdir(self.srt_dir) if f.lower().endswith('.srt')]
+
+        # Extract season/episode from filename
+        filename = os.path.basename(path)
+        self.current_season  = self._extract_number(self.SEASON_PATTERN, filename)
+        self.current_episode = self._extract_number(self.EPISODE_PATTERN, filename)
+
+        self._load_and_process(path)
+        return True
 
     def set_episode(self, season: int, episode: int) -> bool:
         # If both are None, treat as movie
@@ -123,28 +110,13 @@ class SubtitleManager:
     def get_display_data(self, time: float, offset: float = 0.0):
         # Return (cleaned, top_segments, bottom_segments) for given time
         idx = bisect.bisect_right(self.start_times, time-offset)-1
-        return self.display_data[idx] if idx >= 0 else ""
-    
-    def parse_ruby_segments(self, text: str) -> List[tuple[str, Optional[str]]]:
-        segments: List[tuple[str, Optional[str]]] = []
-        pat = regex.compile(r'(\p{Han}+)\(([^)]+)\)')
-        last = 0
-        for m in pat.finditer(text):
-            plain = text[last:m.start()].strip()
-            if plain:
-                segments.append((plain, None))
-            segments.append((m.group(1), m.group(2)))
-            last = m.end()
-        tail = text[last:].strip()
-        if tail:
-            segments.append((tail, None))
-        return segments
+        return self.display_data[idx]
 
-    def _extract_number(self, pattern, filename, default=None):
-        match = re.search(pattern, filename, re.IGNORECASE)
+    def _extract_number(self, pattern: re.Pattern, filename: str, default=None):
+        match = pattern.search(filename)
         return int(match.group(1)) if match else default
 
-     
+
     def _load_and_process(self, path: str) -> None:
         with open(path, 'rb') as f:
             raw = f.read()
@@ -163,13 +135,28 @@ class SubtitleManager:
             if not lines:
                 top, bottom = [], []
             elif len(lines) == 1:
-                top, bottom = [], self.parse_ruby_segments(lines[0])
+                top, bottom = [], self._parse_ruby_segments(lines[0])
             else:
-                top = self.parse_ruby_segments(lines[0])
-                bottom = self.parse_ruby_segments(lines[1])
+                top = self._parse_ruby_segments(lines[0])
+                bottom = self._parse_ruby_segments(lines[1])
 
             self.display_data.append((clean, top, bottom))
 
+    def _parse_ruby_segments(self, text: str) -> List[tuple[str, Optional[str]]]:
+        segments: List[tuple[str, Optional[str]]] = []
+        pat = regex.compile(r'(\p{Han}+)\(([^)]+)\)')
+        last = 0
+        for m in pat.finditer(text):
+            plain = text[last:m.start()].strip()
+            if plain:
+                segments.append((plain, None))
+            segments.append((m.group(1), m.group(2)))
+            last = m.end()
+        tail = text[last:].strip()
+        if tail:
+            segments.append((tail, None))
+        return segments
+    
     def _clean_text(self, text: str) -> str:
         cleaned = self.CLEAN_PATTERN_1.sub('', text)
         cleaned = regex.sub(r'(\p{Han}+)\(([^)]+)\)', r'\1«\2»', cleaned)
