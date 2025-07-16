@@ -22,8 +22,6 @@ class SubtitleRenderer:
 
         top_w = sum(self.font.measure(b) for b, _ in top_segments)
         bot_w = sum(self.font.measure(b) for b, _ in bottom_segments)
-        # x_top = (content_w - top_w) / 2
-        # x_bot = (content_w - bot_w) / 2
         x_top = (overlay.max_w - top_w) / 2
         x_bot = (overlay.max_w - bot_w) / 2
 
@@ -73,88 +71,6 @@ class SubtitleRenderer:
                 fill=self.color, outline="black", thickness=3
             )
             cur_x += w
-        
-
-                # y = 0
-        # if top_segments:
-        #     if any(r for _,r in top_segments):
-        #         y_ruby_top = y + self.max_ruby_h // 2
-        #         y += self.max_ruby_h
-        #     y_base1 = y + self.line_height//2
-        #     y += self.line_height
-        # else:
-        #     y_base1 = None
-
-        # if bottom_segments:
-        #     y_base2 = y + self.line_height//2
-        #     if any(r for _,r in bottom_segments):
-        #         y_ruby_bot = y + self.line_height + self.max_ruby_h//2
-        #     y += self.line_height
-        #     if any(r for _,r in bottom_segments):
-        #         y += self.max_ruby_h
-        # else:
-        #     y_base2 = None
-
-
-        # for calculating dynamix window height
-        # h = 0
-        # if top_segments:
-        #     if any(r for _, r in top_segments): h += self.max_ruby_h
-        #     h += self.line_height
-        # if bottom_segments:
-        #     h += self.line_height
-        #     if any(r for _, r in bottom_segments): h += self.max_ruby_h
-        # content_h = h
-        
-        # cx = overlay.center_x
-        # cy = overlay.center_y
-
-        # win_w = overlay.max_w
-        # win_h = overlay.max_h
-
-        # new_x = int(cx - win_w / 2)
-        # new_y = int(cy - win_h / 2)
-
-        # new_x = overlay.sub_window.winfo_x()
-        # canvas above line2 is (max_ruby_h +  self.line_height*2)
-        # new_y = overlay.bottom - (self.max_ruby_h*2 + self.line_height*2)
-
-        ## resizible window size
-        # win_w = content_w + 2 * pad_x
-        # win_h = content_h
-        
-        # new_x = int(cx - win_w / 2)
-        # new_y = int(cy - win_h / 2)
-    
-        # has_top      = bool(top_segments)
-        # has_bot      = bool(bottom_segments)
-        # has_top_ruby = has_top and any(r for _,r in top_segments)
-        # has_bot_ruby = has_bot and any(r for _,r in bottom_segments)
-        # num_lines    = int(has_top) + int(has_bot)
-        # shift = 0.0
-
-        # if num_lines == 1:# One line only: shift down by half a line
-            
-        #     shift += self.line_height / 2
-        #     # If there’s also a ruby, shift additionally by half a ruby
-        #     if has_bot_ruby:
-        #         shift += self.max_ruby_h / 2
-
-        # elif num_lines == 2:# Two lines: only shift if exactly one ruby present
-            
-        #     if has_top_ruby and not has_bot_ruby:
-        #         shift -= self.max_ruby_h / 2
-        #     elif has_bot_ruby and not has_top_ruby:
-        #         shift += self.max_ruby_h / 2
-
-        # new_y = int(new_y + shift)
-
-        # sw = self.canvas.winfo_screenwidth()
-        # sh = self.canvas.winfo_screenheight()
-        # new_x = max(0, min(new_x, sw - win_w))
-        # new_y = max(0, min(new_y, sh - win_h))
-
-        # overlay.sub_window.geometry(f"{win_w}x{win_h}+{new_x}+{new_y}")
 
     @staticmethod
     def draw_outlined_text(canvas: tk.Canvas, x: int, y: int, text: str,
