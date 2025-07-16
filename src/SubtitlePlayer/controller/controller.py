@@ -63,7 +63,7 @@ class SubtitleController:
             on_inc    = self.increment_episode,
             on_dec    = self.decline_episode
         )
-        self.settings.bind_open_srt                  (self.handle_open_srt)
+        self.settings.bind_open_srt                  (self._on_open_srt)
         self.settings.bind_set_to_time               (self.on_set_to_time)
         self.settings.bind_time_entry_return         (self.control_time_entry_return)
         self.settings.bind_time_entry_clear          (self.control_clear_time_entry)
@@ -294,10 +294,8 @@ class SubtitleController:
     def on_settings(self, event):
         self.overlay.root.lift()
 
-    def handle_open_srt(self):
-        new_path = self.sub_manager.prompt_srt_file()
-        if new_path:
-            self.sub_manager.load_srt_file(new_path)
+    def _on_open_srt(self, event=None):
+        if self.sub_manager.load_srt_file():
             self._after_episode_change()
 
     # ——— Playback controls ———————————————————————————————————

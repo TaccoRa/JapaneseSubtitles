@@ -3,6 +3,8 @@ from model.config_manager import ConfigManager
 from utils import parse_time_value, make_draggable, format_time
 
 class SettingsUI:
+    DEBOUNCE_MS = 1000
+
     def __init__(self, root: tk.Tk, config: ConfigManager, total_duration: float, initial_episode=None):
         self.root = root
         self.config = config
@@ -25,7 +27,8 @@ class SettingsUI:
 
         self._build_settings_frame()
         self._build_control_window()
-        self.root.bind("<Configure>", self._on_root_move)
+        self._save_after_id = None
+        self.root.bind("<Configure>", self._on_root_configure)
 
     def _init_defaults(self):
         get = self.config.get
@@ -234,7 +237,11 @@ class SettingsUI:
         self.control_drag_handle = tk.Frame(self.handle_settings_frame, bg="gray", width=10, height=10)
         self.control_drag_handle.place(x=0, y=0)
         self.control_drag_handle.lift()
-        make_draggable(self.control_drag_handle, self.control_window, save_position=(self.config,"LAST_CONTROL_WINDOW_X","LAST_CONTROL_WINDOW_Y"))
+        make_draggable(
+            self.control_drag_handle,
+            self.control_window,
+            on_release=self._save_control_window_pos
+        )
 
         self.forward_button.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_forward()))
         self.back_button.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_back()))
@@ -247,6 +254,9 @@ class SettingsUI:
         self.control_window.bind("<Enter>", lambda ev: self._on_control_window_enter(ev))
         self.control_window.bind("<Leave>", lambda ev: self._on_control_window_leave(ev))
         
+    def _save_control_window_pos(self, x, y, w, h):
+        self.config.set("LAST_CONTROL_WINDOW_X", x)
+        self.config.set("LAST_CONTROL_WINDOW_Y", y)
 
     # ——— PUBLIC binders ——————————————————————————————————————
     # Settings window
@@ -293,25 +303,24 @@ class SettingsUI:
         self.time_overlay.coords(self.time_overlay_text, x, 9+3)
         self.time_overlay.itemconfig(self.time_overlay_text, text=self.play_time_var.get())
 
-    def _restore_window_position(self):
-        x = self.config.get("LAST_SETTINGS_WINDOW_X", 100)
-        y = self.config.get("LAST_SETTINGS_WINDOW_Y", 100)
-        self.root.update_idletasks()
-        w, h = self.root.winfo_width(), self.root.winfo_height()
-        sw, sh = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
-        x = max(0, min(x, sw - w))
-        y = max(0, min(y, sh - h))
-        self.root.geometry(f"+{x}+{y}")
+    def _on_root_configure(self, event):
+        if event.widget is not self.root:
+            return
+        if self._save_after_id is not None:
+            self.root.after_cancel(self._save_after_id)
 
-    def _on_root_move(self, event):
-        if event.widget is self.root:
-            x = self.root.winfo_x()
-            y = self.root.winfo_y()
-            try:
-                self.config.set("LAST_SETTINGS_WINDOW_X", x)
-                self.config.set("LAST_SETTINGS_WINDOW_Y", y)
-            except Exception:
-                pass
+        self._save_after_id = self.root.after(self.DEBOUNCE_MS, self._save_settings_window_pos)
+
+    def _save_settings_window_pos(self):
+        x = self.root.winfo_x()
+        y = self.root.winfo_y()
+        try:
+            self.config.set("LAST_SETTINGS_WINDOW_X", x)
+            self.config.set("LAST_SETTINGS_WINDOW_Y", y)
+        except Exception:
+            pass
+        finally:
+            self._save_after_id = None
 
     # ——— PHONE MODE UI ADJUSTMENT ————————————————————————————
     def _toggle_phone_mode(self):
