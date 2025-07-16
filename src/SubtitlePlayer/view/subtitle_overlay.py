@@ -23,7 +23,7 @@ class SubtitleOverlayUI:
         self.max_h = self.max_ruby_h * 2 + self.line_height * 2
         
         self.pad_x = 5
-        content_w = self.compute_max_width(self.cleaned_subs)
+        content_w = self._compute_max_width(self.cleaned_subs)
         self.max_w = content_w + 2 * self.pad_x
 
 
@@ -53,9 +53,9 @@ class SubtitleOverlayUI:
         self.subtitle_canvas = tk.Canvas(self.border_frame, bg="grey", highlightthickness=0)
         self.subtitle_canvas.pack(fill="both", expand=True)
 
-        make_draggable(
-            self.sub_window, self.sub_window,
-            on_release=self._save_center_position
+        make_draggable(self.sub_window, 
+                       self.sub_window,
+                       on_release=self._save_center_position
         )
 
         self.sub_window.bind("<Enter>", lambda ev: self.on_sub_window_enter(ev))
@@ -67,8 +67,6 @@ class SubtitleOverlayUI:
     def bind_sub_handel_enter(self, cb): self.on_handle_enter = cb
     
     def show_handle(self):
-        # if self.subtitle_handle is not None:
-        #     return  # Already exists
         self.sub_window.update_idletasks()
         sub_x = self.sub_window.winfo_x()
         sub_y = self.sub_window.winfo_y()
@@ -81,13 +79,19 @@ class SubtitleOverlayUI:
 
         self.subtitle_handle.geometry(f"{drag_w}x{drag_h}+{sub_x}+{sub_y}")
         self.subtitle_handle.bind("<Enter>", lambda ev: self.on_handle_enter(ev))
-        make_draggable(self.subtitle_handle, self.sub_window, sync_windows=[self.subtitle_handle],on_drag=lambda bottom: setattr(self, "bottom_anchor", bottom))
-        make_draggable(self.sub_window, self.sub_window, sync_windows=[self.subtitle_handle],on_drag=lambda bottom: setattr(self, "bottom_anchor", bottom))
+        make_draggable(self.subtitle_handle,
+                        self.sub_window, sync_windows=[self.subtitle_handle],
+                        on_release=self._save_center_position
+        )
+        make_draggable(self.sub_window,
+                       self.sub_window, sync_windows=[self.subtitle_handle], 
+                       on_release=self._save_center_position
+        )
 
     def hide_handle(self):
         self.subtitle_handle.attributes("-alpha", 0.0)
 
-    def compute_max_width(self, cleaned_subs: List[str]) -> int:
+    def _compute_max_width(self, cleaned_subs: List[str]) -> int:
         max_width = 0
         for text in cleaned_subs:
             base_text = regex.sub(r'\p{Han}+\([^)]+\)', lambda m: regex.match(r'(\p{Han}+)', m.group()).group(), text)
