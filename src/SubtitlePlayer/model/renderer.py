@@ -13,38 +13,12 @@ class SubtitleRenderer:
 
     def render_subtitle(self, top_segments, bottom_segments, content_w: int, overlay: SubtitleOverlayUI) -> None:
         pad_x = overlay.pad_x
-
-        # for calculating dynamix window height
-        # h = 0
-        # if top_segments:
-        #     if any(r for _, r in top_segments): h += self.max_ruby_h
-        #     h += self.line_height
-        # if bottom_segments:
-        #     h += self.line_height
-        #     if any(r for _, r in bottom_segments): h += self.max_ruby_h
-        # content_h = h
-        self.canvas.config(width=overlay.max_w, height=overlay.max_h)
         self.canvas.delete("all")    
-        
-        y = 0
-        if top_segments:
-            if any(r for _,r in top_segments):
-                y_ruby_top = y + self.max_ruby_h // 2
-                y += self.max_ruby_h
-            y_base1 = y + self.line_height//2
-            y += self.line_height
-        else:
-            y_base1 = None
+        y_ruby_top = self.max_ruby_h // 2
+        y_base1   = self.max_ruby_h + self.line_height//2
+        y_base2   = self.max_ruby_h + self.line_height + self.line_height//2
+        y_ruby_bot = self.max_ruby_h + self.line_height*2 + self.max_ruby_h//2
 
-        if bottom_segments:
-            y_base2 = y + self.line_height//2
-            if any(r for _,r in bottom_segments):
-                y_ruby_bot = y + self.line_height + self.max_ruby_h//2
-            y += self.line_height
-            if any(r for _,r in bottom_segments):
-                y += self.max_ruby_h
-        else:
-            y_base2 = None
 
         top_w = sum(self.font.measure(b) for b, _ in top_segments)
         bot_w = sum(self.font.measure(b) for b, _ in bottom_segments)
@@ -99,15 +73,47 @@ class SubtitleRenderer:
                 fill=self.color, outline="black", thickness=3
             )
             cur_x += w
+        
 
-        cx = overlay.center_x
-        cy = overlay.center_y
+                # y = 0
+        # if top_segments:
+        #     if any(r for _,r in top_segments):
+        #         y_ruby_top = y + self.max_ruby_h // 2
+        #         y += self.max_ruby_h
+        #     y_base1 = y + self.line_height//2
+        #     y += self.line_height
+        # else:
+        #     y_base1 = None
 
-        win_w = overlay.max_w
-        win_h = overlay.max_h
+        # if bottom_segments:
+        #     y_base2 = y + self.line_height//2
+        #     if any(r for _,r in bottom_segments):
+        #         y_ruby_bot = y + self.line_height + self.max_ruby_h//2
+        #     y += self.line_height
+        #     if any(r for _,r in bottom_segments):
+        #         y += self.max_ruby_h
+        # else:
+        #     y_base2 = None
 
-        new_x = int(cx - win_w / 2)
-        new_y = int(cy - win_h / 2)
+
+        # for calculating dynamix window height
+        # h = 0
+        # if top_segments:
+        #     if any(r for _, r in top_segments): h += self.max_ruby_h
+        #     h += self.line_height
+        # if bottom_segments:
+        #     h += self.line_height
+        #     if any(r for _, r in bottom_segments): h += self.max_ruby_h
+        # content_h = h
+        
+        # cx = overlay.center_x
+        # cy = overlay.center_y
+
+        # win_w = overlay.max_w
+        # win_h = overlay.max_h
+
+        # new_x = int(cx - win_w / 2)
+        # new_y = int(cy - win_h / 2)
 
         # new_x = overlay.sub_window.winfo_x()
         # canvas above line2 is (max_ruby_h +  self.line_height*2)
@@ -143,12 +149,12 @@ class SubtitleRenderer:
 
         # new_y = int(new_y + shift)
 
-        sw = self.canvas.winfo_screenwidth()
-        sh = self.canvas.winfo_screenheight()
-        new_x = max(0, min(new_x, sw - win_w))
-        new_y = max(0, min(new_y, sh - win_h))
+        # sw = self.canvas.winfo_screenwidth()
+        # sh = self.canvas.winfo_screenheight()
+        # new_x = max(0, min(new_x, sw - win_w))
+        # new_y = max(0, min(new_y, sh - win_h))
 
-        overlay.sub_window.geometry(f"{win_w}x{win_h}+{new_x}+{new_y}")
+        # overlay.sub_window.geometry(f"{win_w}x{win_h}+{new_x}+{new_y}")
 
     @staticmethod
     def draw_outlined_text(canvas: tk.Canvas, x: int, y: int, text: str,

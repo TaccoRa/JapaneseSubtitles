@@ -1,10 +1,6 @@
 import tkinter as tk
 
-def make_draggable(
-    drag_handle: tk.Widget,
-    target: tk.Toplevel,sync_windows: list[tk.Toplevel] = None,
-    on_drag=None,on_release=None
-    ):
+def make_draggable(drag_handle: tk.Widget,target: tk.Toplevel,sync_windows: list[tk.Toplevel] = None, on_release=None):
 
     drag_state = {}
 
@@ -31,9 +27,6 @@ def make_draggable(
 
         drag_state['start_x'] = event.x_root
         drag_state['start_y'] = event.y_root
-
-        if on_drag:
-            on_drag()
 
     def end_drag(event):
         if on_release:
