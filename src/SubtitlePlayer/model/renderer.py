@@ -11,7 +11,7 @@ class SubtitleRenderer:
         self.max_ruby_h = int(self.line_height * 0.6)
 
 
-    def render_subtitle(self, top_segments, bottom_segments, content_w: int, overlay: SubtitleOverlayUI) -> None:
+    def render_subtitle(self, top_segments, bottom_segments, overlay: SubtitleOverlayUI) -> None:
         pad_x = overlay.pad_x
         self.canvas.delete("all")    
         y_ruby_top = self.max_ruby_h // 2

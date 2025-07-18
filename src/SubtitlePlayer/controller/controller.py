@@ -22,20 +22,22 @@ class SubtitleController:
                 settings_ui: SettingsUI,
                 overlay_ui: SubtitleOverlayUI,
                 popup: CopyPopup,
-                config: ConfigManager):
+                config: ConfigManager,
+                total_duration: float):
+        
         self.sub_manager = manager
         self.renderer = renderer
         self.settings = settings_ui
         self.overlay = overlay_ui
         self.popup   = popup
         self.config  = config
-
+        self.total_duration = total_duration
         self.settings.root.protocol("WM_DELETE_WINDOW", self._on_app_close)
 
         self.default_start_time = self.config.get("DEFAULT_START_TIME")
         self.current_time = self.default_start_time
         self.default_skip = self.config.get("DEFAULT_SKIP")
-        self.extra_offset = self.config.get("EXTRA_OFFSET")
+        self.default_offset = self.config.get("EXTRA_OFFSET")
         self.phone_windows_hide_control_ms = self.config.get("PHONEMODE_WINDOWS_HIDE_DELAY_MS")   # hides control window after # ms in phone mode
         self.windows_hide_control_ms = self.config.get("WINDOWS_HIDE_DELAY_MS")   # hides control window after # ms in phone mode
         self.hide_subtitles_ms = self.config.get("SUBTITLE_TIMEOUT_MS")                     # clears subtitle canvas after # ms
@@ -70,7 +72,6 @@ class SubtitleController:
         self.settings.bind_on_settings               (self.on_settings)
         self.settings.bind_control_window_enter      (self.control_window_enter)
         self.settings.bind_control_window_leave      (self.control_window_leave)
-        self.settings.bind_setting_clear_offset_entry(self.setting_clear_offset_entry)
         self.settings.bind_setting_clear_skip_entry  (self.setting_clear_skip_entry)
         self.settings.bind_show_subtitle_handle      (self.show_subtitle_handle)
         
@@ -143,12 +144,19 @@ class SubtitleController:
     #         self.settings.control_window.lower)
 
     def update_subtitle_display(self):
-        offset = self.settings.user_offset
+        offset = float(self.settings.offset_entry.get().strip().strip("s").replace(":","").replace(",", "."))
 
         clean, top_segments, bottom_segments = \
             self.sub_manager.get_display_data(self.current_time, offset)
         self.last_subtitle_raw = clean
 
+        if not top_segments and not bottom_segments:
+            if not self.subtitle_deleted:
+                self.renderer.canvas.delete("all")
+                self.subtitle_deleted = True
+                self.last_subtitle_text = ""
+            return
+    
         joined = ''.join(base for base, _ in (top_segments + bottom_segments))
         if joined == self.last_subtitle_text and self.subtitle_deleted:
             return
@@ -158,11 +166,8 @@ class SubtitleController:
                 self.subtitle_timeout_job = None
             self.last_subtitle_text = joined
             self.subtitle_deleted = False
-            top_w    = sum(self.overlay.font.measure(b) for b,_ in top_segments)
-            bottom_w = sum(self.overlay.font.measure(b) for b,_ in bottom_segments)
-            new_max_width = max(top_w, bottom_w, 1)
 
-            self.renderer.render_subtitle(top_segments, bottom_segments, new_max_width, self.overlay)
+            self.renderer.render_subtitle(top_segments, bottom_segments, self.overlay)
 
         if self.playing and not self.subtitle_timeout_job:
             self.subtitle_timeout_job = self.overlay.root.after(
@@ -226,8 +231,8 @@ class SubtitleController:
         
     def _after_episode_change(self):
         self.settings.slider.set(self.default_start_time)
+        self.settings.slider.config(to=self.total_duration + float(self.settings.offset_entry.get().strip().strip("s").replace(":","").replace(",", ".")))
         self.current_time = self.default_start_time
-        self.settings.slider.config(to=self.sub_manager.get_total_duration())
         self.update_time_displays()
         self.update_subtitle_display()
         self.settings.update_time_overlay_position()
@@ -260,18 +265,18 @@ class SubtitleController:
 
     # ——— Time handling ———————————————————————————————————
     def on_set_to_time(self, text: str):
-        secs = parse_time_value(text, default_skip=self.default_skip)
+        secs = parse_time_value(text)
         self.set_current_time(secs)
         self.settings.setto_entry.delete(0, tk.END)
 
     def control_time_entry_return(self, event):
         self.entry_editing  = False
-        content = self.settings.play_time_var.get().strip()
+        content = self.settings.play_time_var.get().strip().strip("s").replace(":","").replace(",", ".")
         if content == "":
             self.force_update_entry()
             return
         try:
-            new_time = parse_time_value(content, default_skip=self.default_skip)
+            new_time = parse_time_value(content)
             self.set_current_time(new_time)
         except ValueError:
             pass
@@ -281,8 +286,6 @@ class SubtitleController:
         self.entry_editing  = True
         event.widget.delete(0, tk.END)
 
-    def setting_clear_offset_entry(self, event):
-        self.settings.offset_entry.delete(0, tk.END)
 
     def setting_clear_skip_entry(self, event):
         self.settings.skip_entry.delete(0, tk.END)
@@ -321,16 +324,18 @@ class SubtitleController:
         self.schedule_hide_controls()
 
     def go_forward(self):
-        skip = parse_time_value(self.settings.skip_entry.get(), default_skip=self.default_skip)
-        self.set_current_time(self.current_time + skip)
-        self.schedule_hide_controls()
-        
+        skip = parse_time_value(self.settings.skip_entry.get()) or self.default_skip
+        if self.current_time <= self.total_duration + float(self.settings.offset_entry.get().replace("s","").replace(" ","").replace(":","")):
+            self.set_current_time(self.current_time + skip)
+            self.schedule_hide_controls()
+
     def go_back(self):
-        skip = parse_time_value(self.settings.skip_entry.get(),default_skip=self.default_skip)
-        new_t = self.current_time - skip
-        new_t = max(0.0, new_t)
-        self.set_current_time(new_t)
-        self.schedule_hide_controls()
+        skip = parse_time_value(self.settings.skip_entry.get()) or self.default_skip
+        if self.current_time >= 0:
+            self.set_current_time(self.current_time - skip)
+            self.schedule_hide_controls()
+
+
 
     def simulate_video_click(self):
         original_pos = pyautogui.position()
@@ -352,16 +357,25 @@ class SubtitleController:
     def set_current_time(self, t: float):
         if t is None:
             return
-        total_duration = self.sub_manager.get_total_duration()
-        if self.current_time >= total_duration:
-            self.current_time = total_duration
-            self.playing = False
-        else:
-            self.current_time = t
+        offset   = float(self.settings.offset_entry.get().strip().strip("s").replace(":","").replace(",", "."))
+
+        lower = 0
+        upper = self.total_duration + offset
+        t = max(lower, min(t, upper))
+        
+        if t - offset >= self.total_duration and self.playing:
+            self.toggle_play()
+
+        self.current_time = t
         self.settings.slider.set(self.current_time)
         self.update_time_displays()
         self.update_subtitle_display()
         self.settings.update_time_overlay_position()
+
+
+
+
+
 
 
     # ——— Loop & scheduling ———————————————————————————————————

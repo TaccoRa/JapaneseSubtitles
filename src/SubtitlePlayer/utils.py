@@ -39,26 +39,17 @@ def make_draggable(drag_handle: tk.Widget,target: tk.Toplevel,sync_windows: list
     drag_handle.bind("<ButtonRelease-1>", end_drag)
 
 
-def parse_time_value(time: str, default_skip: float) -> float:
-    time = str(time).strip().rstrip("s").replace(",", ".")
+def parse_time_value(time: str) -> float:
     if not time:
-        return default_skip  
-
-    if ":" in time:
-        parts = list(map(int, time.split(":")))
-        h, m, s = ([0] * (3 - len(parts)) + parts)
-    elif time.isdigit():
-        z = time.zfill(6)
-        h, m, s = int(z[:-4]), int(z[-4:-2]), int(z[-2:])
-    # decimal seconds
-    else:
-        try:
-            return float(time)
-        except ValueError:
-            return default_skip
-    m += s // 60;  s %= 60
-    h += m // 60;  m %= 60
-    return float(h * 3600 + m * 60 + s)
+        return ""
+    time = str(time).replace("s","").replace(" ","").replace(":","").replace(",", ".")
+    if time.isdigit():
+        z = time.zfill(7)
+        h, m, s, ds = int(z[:-5]), int(z[-5:-3]), int(z[-3:-1]), int(z[-1:])
+        print(f"Parsed time: {h:02d}:{m:02d}:{s:02d}.{ds}")
+        m += s // 60;  s %= 60
+        h += m // 60;  m %= 60
+    return float(h * 3600 + m * 60 + s + ds / 10)
    
 def format_time(seconds: float) -> str:
     total = int(seconds)
@@ -69,12 +60,12 @@ def format_time(seconds: float) -> str:
     else:
         return f"{m:02d}:{s:02d}"
              
-def reformat_time_entry(entry: tk.Entry, parse_func, as_seconds=False) -> None:
-    text = entry.get()
-    secs = parse_func(text)
-    if as_seconds:
-        formatted = f"{secs:.1f} s"
-    else:
-        formatted = format_time(secs)
-    entry.delete(0, tk.END)
-    entry.insert(0, formatted)
+# def reformat_time_entry(entry: tk.Entry, parse_func, as_seconds=False) -> None:
+#     text = entry.get()
+#     secs = parse_func(text)
+#     if as_seconds:
+#         formatted = f"{secs:.1f} s"
+#     else:
+#         formatted = format_time(secs)
+#     entry.delete(0, tk.END)
+#     entry.insert(0, formatted)
