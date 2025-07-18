@@ -15,7 +15,7 @@ class SubtitlePlayerApp:
         # Initialize config and subtitle manager
         self.config = ConfigManager("config.json")
         self.sub_manager = SubtitleManager(self.config)
-
+        self.total_duration = self.sub_manager.get_total_duration()
         # App window
         self.root = tk.Tk()
         self.root.title("Subtitle Player Settings")
@@ -33,7 +33,7 @@ class SubtitlePlayerApp:
         
         self.settings_ui = SettingsUI(
             root=self.root, config=self.config,
-            total_duration=self.sub_manager.get_total_duration(),
+            total_duration=self.total_duration,
             initial_episode=self.sub_manager.current_episode)
 
         # Model
@@ -51,7 +51,8 @@ class SubtitlePlayerApp:
             settings_ui=self.settings_ui,
             overlay_ui=self.sub_overlay_ui,
             popup=self.popup,
-            config=self.config)
+            config=self.config,
+            total_duration=self.total_duration)
 
         self.root.after(self.config.get("UPDATE_INTERVAL_MS"), self.controller.update_loop)
 

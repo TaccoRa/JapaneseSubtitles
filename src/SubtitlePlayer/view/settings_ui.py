@@ -20,8 +20,7 @@ class SettingsUI:
         self.mode_toggle_btn = None
         self.play_pause_btn = None
         self.slider = None
-        
-        self.user_offset = float(self.offset_default)
+
         self._last_offset_value = self.offset_var.get()
         self._last_skip_value = self.skip_var.get()
 
@@ -32,8 +31,8 @@ class SettingsUI:
 
     def _init_defaults(self):
         get = self.config.get
-        self.offset_default = get('EXTRA_OFFSET')
-        self.skip_default = get('DEFAULT_SKIP')
+        self.default_offset = get('EXTRA_OFFSET')
+        self.default_skip = get('DEFAULT_SKIP')
         self.default_start = get('DEFAULT_START_TIME')
         self.ratio = get('RATIO')
 
@@ -47,12 +46,13 @@ class SettingsUI:
         self.win_h_phone = get('CONTROL_WINDOW_PHONE_MODE_HEIGHT')
 
     def _init_vars(self):
-        self.user_offset = self.offset_default
-        self.offset_var = tk.StringVar(value=f"{float(self.offset_default):.1f} s")
-        self.skip_var = tk.StringVar(value=f"{float(self.skip_default):.1f} s")
+        self.phone_mode = tk.BooleanVar(value=False)
+        self.offset_var = tk.StringVar(value=f"{float(self.default_offset):.1f} s")
+        self.skip_var = tk.StringVar(value=f"{float(self.default_skip):.1f} s")
+
         self.episode_var = tk.StringVar(value="Movie" if self.initial_episode is None else str(self.initial_episode))
         self.setto_var = tk.StringVar(value="")
-        self.phone_mode = tk.BooleanVar(value=False)
+
         self.play_time_var = tk.StringVar(value=format_time(self.default_start))
 
     def _noop(self, *args, **kwargs):
@@ -100,9 +100,9 @@ class SettingsUI:
             .pack(side="right")
         self.offset_entry = tk.Entry(options_frame, textvariable=self.offset_var,font=("Arial",12), width=7)
         self.offset_entry.grid(row=0, column=1, padx=(0,5) , pady=5, sticky="we")
+        self.offset_entry.bind("<FocusIn>",  self._clear_offset_entry)
         self.offset_entry.bind("<FocusOut>", self._on_offset_focus_out)
-        self.offset_entry.bind("<Return>", self._on_offset_focus_out)
-        self.offset_entry.bind("<Button-1>", lambda e : self._on_setting_clear_offset_entry(e))
+        self.offset_entry.bind("<Return>",   self._on_offset_focus_out)
 
         
         # Skip entry.
@@ -135,7 +135,6 @@ class SettingsUI:
         # Episode entry
         self.episode_entry = tk.Entry(episode_frame, textvariable=self.episode_var, font=("Arial", 12), width=7)
         self.episode_entry.grid(row=0, column=0, sticky="ew")
-        self.episode_entry.bind("<FocusOut>", lambda e: (self._on_ep_change(), self.root.focus()))
         self.episode_entry.bind("<Return>", lambda e: (self._on_ep_change(), self.root.focus()))
         
         self.episode_dec_btn = tk.Button(episode_frame, text="-", font=("Arial", 8, "bold"), width=1, height=1,
@@ -174,9 +173,8 @@ class SettingsUI:
         # Slider
         self.slider  = tk.Scale(
             self.slider_frame,
-            from_=0, to=self.total_duration,
+            from_=0, to=(self.total_duration + self.default_offset),
             orient="horizontal",
-            #length=int(self.total_duration//4.6),
             resolution=0.1,
             showvalue=False,
             sliderlength=32,
@@ -189,8 +187,6 @@ class SettingsUI:
         self.slider.set(float(self.default_start))
         self.update_time_overlay_position()
         
-        # self.root.update_idletasks()
-        # print(self.root.geometry())
 
     # ——— CONTROL WINDOW ——————————————————————————————————————
     def _build_control_window(self):
@@ -281,7 +277,6 @@ class SettingsUI:
     def bind_on_settings(self, cb): self._on_settings = cb
     def bind_control_window_enter(self, cb): self._on_control_window_enter = cb
     def bind_control_window_leave(self, cb): self._on_control_window_leave = cb
-    def bind_setting_clear_offset_entry(self, cb): self._on_setting_clear_offset_entry = cb
     def bind_setting_clear_skip_entry(self, cb): self._on_setting_clear_skip_entry = cb
 
     def bind_update_time_displaying(self,cb): self._on_update_time_displaying = cb
@@ -362,42 +357,34 @@ class SettingsUI:
 
 
     # ——— HELPERS ————————————————————————————————————————————
-    def _on_setting_clear_offset_entry(self, event):
-        val = self.offset_entry.get()
-        if val.strip():
-            self._last_offset_value = val
+    def _clear_offset_entry(self, event):
+        self._last_offset_value = self.offset_entry.get()
         self.offset_entry.delete(0, tk.END)
     
+    def _on_offset_focus_out(self, event):
+        if self.offset_entry.get():
+            self.offset_entry.delete(0, tk.END)
+            self.offset_entry.insert(0, self._last_offset_value)
+        else:
+            new_offset_value = parse_time_value(self.offset_entry.get()) or self.default_offset
+            print(f"New offset: {new_offset_value:.1f} s", type(new_offset_value))
+            self.offset_entry.delete(0, tk.END)
+            self.offset_entry.insert(0, f"{new_offset_value:.1f} s")
+            self.slider.config(to=self.total_duration + new_offset_value)
+            # self._on_update_time_displaying()
+
     def _on_setting_clear_skip_entry(self, event):
-        val = self.skip_entry.get()
-        if val.strip():
-            self._last_skip_value = val
+        value = float(self.skip_entry.get().strip().strip("s").replace(":","").replace(",", "."))
+        print(f"Setting skip entry to {value:.1f} s")
+        self._last_skip_value = value
         self.skip_entry.delete(0, tk.END)
 
-    def _on_offset_focus_out(self, event):
-        val = self.offset_entry.get()
-        try:
-            parsed = parse_time_value(val, default_skip=None)
-            if val.strip() == "" or parsed is None:
-                self.offset_entry.delete(0, tk.END)
-                value = self._last_offset_value or ""
-                self.offset_entry.insert(0, str(value))
-            else:
-                self.user_offset = parsed
-                self._last_offset_value = f"{parsed:.1f} s"
-                self.offset_entry.delete(0, tk.END)
-                self.offset_entry.insert(0, self._last_offset_value)
-        except Exception:
-            self.offset_entry.delete(0, tk.END)
-            value = self._last_offset_value or ""
-            self.offset_entry.insert(0, str(value))
-        self._on_update_time_displaying()
 
     def _on_skip_focus_out(self, event):
         val = self.skip_entry.get()
         try:
             parsed = parse_time_value(val, default_skip=None)
-            if val.strip() == "" or parsed is None:
+            if val.strip().strip().strip("s").replace(":","").replace(",", ".") == "" or parsed is None:
                 self.skip_entry.delete(0, tk.END)
                 value = self._last_skip_value if self._last_skip_value is not None else ""
                 self.skip_entry.insert(0, str(value))
