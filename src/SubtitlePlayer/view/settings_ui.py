@@ -279,7 +279,7 @@ class SettingsUI:
     def bind_control_window_enter(self, cb): self._on_control_window_enter = cb
     def bind_control_window_leave(self, cb): self._on_control_window_leave = cb
 
-    def bind_update_time_displaying(self,cb): self._on_update_time_displaying = cb
+    # def bind_update_time_displaying(self,cb): self._on_update_time_displaying = cb
 
 
     def update_time_overlay_position(self):
@@ -366,7 +366,7 @@ class SettingsUI:
                 entry.insert(0, self._format_offset(number))
                 if entry is self.offset_entry:
                     self.slider.config(to=self.total_duration + number)
-                    self._on_update_time_displaying()
+                    # self._on_update_time_displaying()
             else:
                 entry.delete(0, tk.END)
                 entry.insert(0, formatted)
