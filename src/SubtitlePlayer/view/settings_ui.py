@@ -1,9 +1,11 @@
 import tkinter as tk
+from re import fullmatch
 from model.config_manager import ConfigManager
 from utils import parse_time_value, make_draggable, format_time
 
 class SettingsUI:
     DEBOUNCE_MS = 1000
+    OFFSET_PATTERN = r"\s*(-?\d+(?:\.\d+)?)\s*s?"
 
     def __init__(self, root: tk.Tk, config: ConfigManager, total_duration: float, initial_episode=None):
         self.root = root
@@ -100,7 +102,7 @@ class SettingsUI:
             .pack(side="right")
         self.offset_entry = tk.Entry(options_frame, textvariable=self.offset_var,font=("Arial",12), width=7)
         self.offset_entry.grid(row=0, column=1, padx=(0,5) , pady=5, sticky="we")
-        self.offset_entry.bind("<FocusIn>",  self._clear_offset_entry)
+        self.offset_entry.bind("<Button-1>",  self._clear_offset_entry)
         self.offset_entry.bind("<FocusOut>", self._on_offset_focus_out)
         self.offset_entry.bind("<Return>",   self._on_offset_focus_out)
 
@@ -358,20 +360,34 @@ class SettingsUI:
 
     # ——— HELPERS ————————————————————————————————————————————
     def _clear_offset_entry(self, event):
-        self._last_offset_value = self.offset_entry.get()
+        value_str = self.offset_entry.get().replace(",", ".").strip()
+        match = fullmatch(self.OFFSET_PATTERN, value_str)
+        if match:
+            self._last_offset_value = float(match.group(1))
         self.offset_entry.delete(0, tk.END)
     
     def _on_offset_focus_out(self, event):
-        if self.offset_entry.get():
+        value_str = self.offset_entry.get().replace(",", ".").strip()
+        #check if changed
+        if value_str == self._format_offset(self._last_offset_value):
+            return
+        #check if valid
+        match = fullmatch(self.OFFSET_PATTERN, value_str)
+        if match:
+            number = float(match.group(1))
+            self._last_offset_value = number
             self.offset_entry.delete(0, tk.END)
-            self.offset_entry.insert(0, self._last_offset_value)
-        else:
-            new_offset_value = parse_time_value(self.offset_entry.get()) or self.default_offset
-            print(f"New offset: {new_offset_value:.1f} s", type(new_offset_value))
-            self.offset_entry.delete(0, tk.END)
-            self.offset_entry.insert(0, f"{new_offset_value:.1f} s")
-            self.slider.config(to=self.total_duration + new_offset_value)
+            self.offset_entry.insert(0, self._format_offset(number))
+            self.slider.config(to=self.total_duration + number)
             # self._on_update_time_displaying()
+        else:
+            self.offset_entry.delete(0, tk.END)
+            self.offset_entry.insert(0, self._format_offset(self._last_offset_value))
+        self.offset_entry.master.focus_set()
+
+
+    def _format_offset(self, value: float) -> str:
+        return f"{int(value) if value.is_integer() else value} s"
 
     def _on_setting_clear_skip_entry(self, event):
         value = float(self.skip_entry.get().strip().strip("s").replace(":","").replace(",", "."))

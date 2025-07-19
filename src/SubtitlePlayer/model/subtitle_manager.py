@@ -31,7 +31,6 @@ class SubtitleManager:
                 raise FileNotFoundError("No subtitle file selected.")
             self.srt_file = selected
 
-            
         filename = os.path.basename(self.srt_file)
         self.srt_dir = os.path.dirname(self.srt_file)
         self._srt_file_list = [f for f in os.listdir(self.srt_dir) if f.lower().endswith('.srt')]
@@ -67,8 +66,7 @@ class SubtitleManager:
         self.current_season  = self._extract_number(self.SEASON_PATTERN, filename)
         self.current_episode = self._extract_number(self.EPISODE_PATTERN, filename)
 
-        self._load_and_process(path)
-        return True
+        return path
 
     def set_episode(self, season: int, episode: int) -> bool:
         # If both are None, treat as movie
