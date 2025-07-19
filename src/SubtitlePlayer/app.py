@@ -10,6 +10,7 @@ from controller.controller import SubtitleController
 from view.popup import CopyPopup
 
 class SubtitlePlayerApp:
+    DEBOUNCE_MS = 100
     def __init__(self):
 
         # Initialize config and subtitle manager
@@ -21,7 +22,9 @@ class SubtitlePlayerApp:
         self.root.title("Subtitle Player Settings")
         self.root.geometry("320x123")
         self.root.minsize(320, 123)
+        self._save_after_id = None
         self._restore_window_position()
+        self.root.bind("<Configure>", self._on_root_configure)
         self.root.deiconify()
 
         # UI (View)
@@ -61,10 +64,22 @@ class SubtitlePlayerApp:
         y = self.config.get("LAST_SETTINGS_WINDOW_Y")
         self.root.update_idletasks()
         w, h = self.root.winfo_width(), self.root.winfo_height()
-        sw, sh = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
+        sw, sh = self.root.winfo_vrootwidth(), self.root.winfo_vrootheight()
         x = max(0, min(x, sw - w))
         y = max(0, min(y, sh - h))
         self.root.geometry(f"+{x}+{y}")
+
+    def _on_root_configure(self, event):
+        if self._save_after_id is not None:
+            self.root.after_cancel(self._save_after_id)
+        self._save_after_id = self.root.after(self.DEBOUNCE_MS, self._save_settings_window_pos)
+
+    def _save_settings_window_pos(self):
+        x = self.root.winfo_x()
+        y = self.root.winfo_y()
+        self.config.set("LAST_SETTINGS_WINDOW_X", x)
+        self.config.set("LAST_SETTINGS_WINDOW_Y", y)
+        self._save_after_id = None
         
     def run(self):
         self.root.mainloop()
