@@ -39,17 +39,22 @@ def make_draggable(drag_handle: tk.Widget,target: tk.Toplevel,sync_windows: list
     drag_handle.bind("<ButtonRelease-1>", end_drag)
 
 
-def parse_time_value(time: str) -> float:
-    if not time:
-        return ""
+def parse_time_value(time: str, last_subtitle = None) -> float:
     time = str(time).replace("s","").replace(" ","").replace(":","").replace(",", ".")
-    if time.isdigit():
-        z = time.zfill(7)
-        h, m, s, ds = int(z[:-5]), int(z[-5:-3]), int(z[-3:-1]), int(z[-1:])
-        print(f"Parsed time: {h:02d}:{m:02d}:{s:02d}.{ds}")
-        m += s // 60;  s %= 60
-        h += m // 60;  m %= 60
-    return float(h * 3600 + m * 60 + s + ds / 10)
+    if "." in time:
+        int_part, frac = time.split(".", 1)
+        frac_secs = float("0." + frac)
+    else:
+        int_part, frac_secs = time, 0.0
+    p = int_part.zfill(6)
+    h, m, sec = int(p[:2]), int(p[2:4]), int(p[4:6])
+
+    m += sec // 60
+    sec %= 60
+    h += m // 60
+    m %= 60
+
+    return h * 3600 + m * 60 + sec + frac_secs
    
 def format_time(seconds: float) -> str:
     total = int(seconds)
@@ -59,13 +64,4 @@ def format_time(seconds: float) -> str:
         return f"{hours:02d}:{m:02d}:{s:02d}"
     else:
         return f"{m:02d}:{s:02d}"
-             
-# def reformat_time_entry(entry: tk.Entry, parse_func, as_seconds=False) -> None:
-#     text = entry.get()
-#     secs = parse_func(text)
-#     if as_seconds:
-#         formatted = f"{secs:.1f} s"
-#     else:
-#         formatted = format_time(secs)
-#     entry.delete(0, tk.END)
-#     entry.insert(0, formatted)
+
