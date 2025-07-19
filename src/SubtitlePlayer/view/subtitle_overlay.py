@@ -41,7 +41,7 @@ class SubtitleOverlayUI:
 
         x = int(self.center_x - self.max_w / 2)
         y = int(self.center_y - self.max_h / 2)
-        sw, sh = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
+        sw, sh = self.root.winfo_vrootwidth(), self.root.winfo_vrootheight()
         x = max(0, min(x, sw - self.max_w))
         y = max(0, min(y, sh - self.max_h))
 
