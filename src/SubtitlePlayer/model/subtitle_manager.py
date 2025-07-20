@@ -65,7 +65,8 @@ class SubtitleManager:
         filename = os.path.basename(path)
         self.current_season  = self._extract_number(self.SEASON_PATTERN, filename)
         self.current_episode = self._extract_number(self.EPISODE_PATTERN, filename)
-
+        self._load_and_process(path)
+        
         return path
 
     def set_episode(self, season: int, episode: int) -> bool:

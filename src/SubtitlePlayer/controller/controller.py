@@ -154,10 +154,6 @@ class SubtitleController:
         if idx < 0:
             self._reset_canvas()
             return
-        # end_t = self.sub_manager.subtitles[idx].end.total_seconds()
-        # if sub_t > end_t:
-        #     self._reset_canvas()
-        #     return
         clean, top, bottom = self.sub_manager.display_data[idx]
         joined = ''.join(base for base, _ in (top + bottom))
 
@@ -231,10 +227,12 @@ class SubtitleController:
             raise FileNotFoundError(f"No .srt found for S{season}E{next_ep}")
         
     def _after_episode_change(self):
-        self.settings.slider.set(self.default_start_time)
-        self.settings.slider.config(to=self.total_duration + float(self.settings.offset_entry.get().strip().strip("s").replace(":","").replace(",", ".")))
+        self.total_duration = self.sub_manager.get_total_duration()
+
         self.current_time = self.default_start_time
-        self.update_time_and_subtitle_displays()
+        self.set_current_time(self.current_time)
+        self.settings.slider.set(self.default_start_time)
+        self.settings.slider.config(to=self.total_duration + self.settings._last_offset_value)
         if self.sub_manager.current_episode is None:
             self.settings.episode_var.set("Movie")
         else:
@@ -280,6 +278,7 @@ class SubtitleController:
         secs = parse_time_value(text)
         self.set_current_time(secs)
         self.settings.setto_entry.delete(0, tk.END)
+        self.settings.root.focus_set()
 
     def control_time_entry_return(self, event):
         self.entry_editing  = False
