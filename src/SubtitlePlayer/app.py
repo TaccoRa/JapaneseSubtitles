@@ -19,7 +19,7 @@ class SubtitlePlayerApp:
         self.total_duration = self.sub_manager.get_total_duration()
         # App window
         self.root = tk.Tk()
-        self.root.title("Subtitle Player Settings")
+        self.root.title("Subtitle Player Settings") 
         self.root.geometry("320x123")
         self.root.minsize(320, 123)
         self._save_after_id = None
