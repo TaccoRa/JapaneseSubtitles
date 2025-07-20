@@ -66,6 +66,7 @@ class SubtitleController:
             on_inc    = self.increment_episode,
             on_dec    = self.decline_episode
         )
+        self._reset_after_srt_load()
         self.settings.bind_open_srt                  (self._on_open_srt)
         self.settings.bind_set_to_return             (self.on_set_to_return)
         self.settings.bind_time_entry_return         (self.control_time_entry_return)
@@ -87,6 +88,32 @@ class SubtitleController:
 
         self.last_update  = time.time()
         self.update_time_and_subtitle_displays()
+
+
+
+    def _reset_after_srt_load(self):
+        # 1) tell your manager about new file already happened before calling this…
+        self.total_duration = self.sub_manager.get_total_duration()
+
+        # 2) reconfigure the slider’s range
+        offset = self.settings._last_offset_value
+        self.settings.slider.config(to=self.total_duration + offset)
+
+        # 3) reset play time / slider thumb
+        self.current_time = self.default_start_time
+        self.settings.slider.set(self.current_time)
+
+        # 4) reset any play/stop state
+        self.playing = False
+        self.settings.play_pause_btn.config(text="Play", bg="green", activebackground="green")
+
+        # 5) force a full redraw of everything
+        self.update_time_and_subtitle_displays()
+
+
+
+
+
 
     def sub_window_enter(self, event):
         self.overlay.sub_window.attributes("-transparentcolor", "") #not transparent
@@ -231,6 +258,7 @@ class SubtitleController:
 
         self.current_time = self.default_start_time
         self.set_current_time(self.current_time)
+        self.settings.update_time_overlay_position()
         self.settings.slider.set(self.default_start_time)
         self.settings.slider.config(to=self.total_duration + self.settings._last_offset_value)
         if self.sub_manager.current_episode is None:
@@ -295,23 +323,18 @@ class SubtitleController:
         self.entry_editing  = True
         event.widget.delete(0, tk.END)
 
-
-
-
     # ——— Buttons ———————————————————————————————————
     def _on_open_srt(self, event=None):
         if self.sub_manager.load_srt_file():
-            self._after_episode_change()
-            
+            self._reset_after_srt_load()
+
+
     def _on_global_click(self, x, y, button, pressed):
         if button == Button.x2 and pressed:
             self.renderer.canvas.delete("all")
             self.last_subtitle_text = ""
             self.last_subtitle_raw = ""
             self.subtitle_deleted = True
-
-
-
 
     # ——— Playback controls ———————————————————————————————————
     def toggle_play(self):
