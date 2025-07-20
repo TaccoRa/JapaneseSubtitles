@@ -334,11 +334,12 @@ class SettingsUI:
         self.forward_button.config(font=f_btn)
 
     def _on_settings(self, event):#button to lift the root window
+        self.root.deiconify()
         self.root.lift()
 
 
 
-        
+
     # ——— HELPERS ————————————————————————————————————————————
     def _format_offset(self, value: float) -> str:
         return f"{int(value) if value.is_integer() else value} s"
