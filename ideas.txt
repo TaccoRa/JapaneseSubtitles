@@ -1,5 +1,4 @@
 To Do:
-Change control time entry size if movie and bigger time string
 add config for phone mode default true/false
 
 Ideas:
@@ -16,6 +15,7 @@ Show Kanji written above
 Add button in control window which shows settings window
 When longer than 1 h resize control window and episode entry and change time entry
 Remember last position of windows over to next run
+Change control time entry size if movie and bigger time string
 
 
 
