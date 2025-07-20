@@ -1,3 +1,8 @@
+To Do:
+Change control time entry size if movie and bigger time string
+add config for phone mode default true/false
+
+Ideas:
 Wrong episode when turning off?
 Detect uncommon words or phrases and let users hover or tap a subtitle segment to 
     see an in-line glossary or translation—great for educational content

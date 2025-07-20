@@ -32,6 +32,7 @@ class SettingsUI:
         self.default_skip = get('DEFAULT_SKIP')
         self._last_skip_value   = float(self.default_skip)
         self.default_start = get('DEFAULT_START_TIME')
+        # self.phone_mode = get("PHONEMODE_DEFAULT")
         self.ratio = get('RATIO')
 
         self.default_x = self.config.get("LAST_SETTINGS_WINDOW_X", 100)
@@ -55,7 +56,12 @@ class SettingsUI:
         self.setto_var = tk.StringVar(value="")
 
         self.control_time_seconds = tk.DoubleVar(value=self.default_start)
-        self.control_time_str = tk.StringVar(value=format_time(self.default_start))
+        self.control_time_str     = tk.StringVar(value=format_time(self.default_start))
+        self.control_time_str.trace_add("write", self._adjust_time_entry_width)
+        max_secs = self.total_duration + self._last_offset_value
+        max_str  = format_time(max_secs)
+        self._max_time_width = len(max_str)# + 1
+
 
     def _noop(self, *args, **kwargs):
         pass
@@ -204,7 +210,9 @@ class SettingsUI:
 
         main_frame = tk.Frame(self.control_window, bg="black")
         main_frame.pack(fill="both", expand=True)
-        main_frame.columnconfigure((0,1,2), weight=1, minsize=60)
+        main_frame.columnconfigure(0, weight=1, minsize=60)  # skip button
+        main_frame.columnconfigure(1, weight=0, minsize=0)   # time entry – NO weight!
+        main_frame.columnconfigure(2, weight=1, minsize=60)
         main_frame.rowconfigure((0,1), weight=1, minsize=20)
 
         self.back_button = tk.Button(main_frame, text="<< Skip", font=("Arial", 12, "bold"),
@@ -212,7 +220,7 @@ class SettingsUI:
 
         self.time_entry = tk.Entry(main_frame, textvariable=self.control_time_str,
                                         font=("Arial", 14, "bold"), bd=0,
-                                        bg="black", fg="white", width=6, justify="center")
+                                        bg="black", fg="white", width=self._max_time_width, justify="center")
 
         self.play_pause_btn = tk.Button(main_frame, text="Play", bg="green",
                                             activebackground="green", font=("Arial", 12, "bold"), height=1, relief="flat")
@@ -294,6 +302,19 @@ class SettingsUI:
         x = int(min_x + rel * (max_x - min_x))
         self.time_overlay.coords(self.time_overlay_text, x, 9+3)
 
+    def _adjust_time_entry_width(self, *args):
+        txt       = self.control_time_str.get()
+        new_width = max(6, len(txt))
+        self.time_entry.config(width=new_width)
+
+        self.control_window.update_idletasks()
+        reqw = self.control_window.winfo_reqwidth()
+        x = self.control_window.winfo_x()
+        y = self.control_window.winfo_y()
+        self.control_window.geometry(f"{reqw}x{self.control_window.winfo_height()}+{x}+{y}")
+
+
+
 
     # ——— PHONE MODE UI ADJUSTMENT ————————————————————————————
     def _toggle_phone_mode(self):
@@ -336,9 +357,6 @@ class SettingsUI:
     def _on_settings(self, event):#button to lift the root window
         self.root.deiconify()
         self.root.lift()
-
-
-
 
     # ——— HELPERS ————————————————————————————————————————————
     def _format_offset(self, value: float) -> str:
