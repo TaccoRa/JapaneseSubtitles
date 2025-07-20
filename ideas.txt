@@ -1,13 +1,10 @@
 Wrong episode when turning off?
-Change subtitle width to fit current subtitle (maybe flashes)
 Detect uncommon words or phrases and let users hover or tap a subtitle segment to 
     see an in-line glossary or translation—great for educational content
 Change windows size in config (during run time?)
 
-Problems:
-if the offset is set to big or negative and so on the slider is not adjusted to this
-
-
+Dont do:
+Change subtitle width to fit current subtitle (maybe flashes --> YES)
 
 Added:
 Show Kanji written above
@@ -21,3 +18,4 @@ Fixed:
 If no .srt found dont reset to default slider position and so on
 when movie (when not japanese characters) the width of subtitle window is wrong
 When phone mode button to show settigns window issue
+if the offset is set to big or negative and so on the slider is not adjusted to this

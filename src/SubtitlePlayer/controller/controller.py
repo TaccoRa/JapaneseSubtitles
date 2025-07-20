@@ -70,12 +70,11 @@ class SubtitleController:
         self.settings.bind_set_to_return             (self.on_set_to_return)
         self.settings.bind_time_entry_return         (self.control_time_entry_return)
         self.settings.bind_time_entry_clear          (self.control_clear_time_entry)
-        self.settings.bind_on_settings               (self.on_settings)
         self.settings.bind_control_window_enter      (self.control_window_enter)
         self.settings.bind_control_window_leave      (self.control_window_leave)
         self.settings.bind_show_subtitle_handle      (self.show_subtitle_handle)
         
-        # self.settings.bind_update_time_displaying(lambda: self.set_current_time(self.current_time))
+        self.settings.bind_update_display            (self.update_time_and_subtitle_displays)
         
         self.overlay.subtitle_canvas.bind("<Button-3>", lambda e: self.popup.open_copy_popup(self.last_subtitle_raw))
         self.overlay.bind_sub_window_enter(self.sub_window_enter)
@@ -126,7 +125,7 @@ class SubtitleController:
         self._hide_controls_after(delay)
 
 
-    def update_time_and_subtitle_displays(self):#updates settings time overlay and control window entry 
+    def update_time_and_subtitle_displays(self):#updates settings time overlay and control window entry
         text = format_time(self.current_time)
         self.settings.time_overlay.itemconfig(self.settings.time_overlay_text, text=text)
         self.settings.update_time_overlay_position()
@@ -138,41 +137,48 @@ class SubtitleController:
 
 
 
-
+    def _reset_canvas(self):
+        self.renderer.canvas.delete("all")
+        self.subtitle_deleted = True
+        self.last_subtitle_text = ""
 
 
     def update_subtitle_display(self):
-        offset = float(self.settings.offset_entry.get().strip().strip("s").replace(":","").replace(",", "."))
-
-        clean, top_segments, bottom_segments = \
-            self.sub_manager.get_display_data(self.current_time, offset)
-        self.last_subtitle_raw = clean
-
-        if not top_segments and not bottom_segments:
-            if not self.subtitle_deleted:
-                self.renderer.canvas.delete("all")
-                self.subtitle_deleted = True
-                self.last_subtitle_text = ""
+        offset = self.settings._last_offset_value
+        sub_t = self.current_time - offset
+        if sub_t < 0 or sub_t > self.total_duration:
+            self._reset_canvas()
             return
-    
-        joined = ''.join(base for base, _ in (top_segments + bottom_segments))
-        if joined == self.last_subtitle_text and self.subtitle_deleted:
+        
+        idx = bisect.bisect_right(self.sub_manager.start_times, sub_t) - 1
+        if idx < 0:
+            self._reset_canvas()
             return
+        # end_t = self.sub_manager.subtitles[idx].end.total_seconds()
+        # if sub_t > end_t:
+        #     self._reset_canvas()
+        #     return
+        clean, top, bottom = self.sub_manager.display_data[idx]
+        joined = ''.join(base for base, _ in (top + bottom))
+
         if joined != self.last_subtitle_text:
+            # cancel any old hide‐job
             if self.subtitle_timeout_job:
                 self.overlay.root.after_cancel(self.subtitle_timeout_job)
                 self.subtitle_timeout_job = None
+
+            # clear old and draw new
+            self.renderer.canvas.delete("all")
             self.last_subtitle_text = joined
-            self.subtitle_deleted = False
+            self.subtitle_deleted   = False
+            self.renderer.render_subtitle(top, bottom, self.overlay)
 
-            self.renderer.render_subtitle(top_segments, bottom_segments, self.overlay)
-
-        if self.playing and not self.subtitle_timeout_job:
+            # schedule its removal after your fixed timeout
             self.subtitle_timeout_job = self.overlay.root.after(
                 self.hide_subtitles_ms,
                 self.hide_subtitles_temporarily
-                )
-            
+            )
+
     def hide_subtitles_temporarily(self):
         if not self.playing:
             self.subtitle_timeout_job = None
@@ -294,9 +300,6 @@ class SubtitleController:
 
 
     # ——— Buttons ———————————————————————————————————
-    def on_settings(self, event):#button to lift the root window
-        self.overlay.root.lift()
-
     def _on_open_srt(self, event=None):
         if self.sub_manager.load_srt_file():
             self._after_episode_change()
@@ -327,7 +330,6 @@ class SubtitleController:
                 self.subtitle_timeout_job = None
             if self.subtitle_deleted and self.last_subtitle_text:
                 self.subtitle_deleted = False
-                self.update_subtitle_display()
         if self.video_click: self.simulate_video_click()
         # self.control_time_entry_return()
         self.update_time_and_subtitle_displays()

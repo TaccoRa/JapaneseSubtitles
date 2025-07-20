@@ -104,12 +104,7 @@ class SubtitleManager:
 
     def get_total_duration(self) -> float:
         return max(sub.end.total_seconds() for sub in self.subtitles)
-
-    def get_display_data(self, time: float, offset: float = 0.0):
-        # Return (cleaned, top_segments, bottom_segments) for given time
-        idx = bisect.bisect_right(self.start_times, time)-1
-        return self.display_data[idx]
-
+    
     def _extract_number(self, pattern: re.Pattern, filename: str, default=None):
         match = pattern.search(filename)
         return int(match.group(1)) if match else default

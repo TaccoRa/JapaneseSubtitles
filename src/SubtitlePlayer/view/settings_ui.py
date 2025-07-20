@@ -1,7 +1,7 @@
 import tkinter as tk
 from re import fullmatch
 from model.config_manager import ConfigManager
-from utils import parse_time_value, make_draggable, format_time
+from utils import make_draggable, format_time
 
 class SettingsUI:
     OFFSET_PATTERN = r"\s*([-+]?\d+(?:\.\d+)?)\s*s?"
@@ -243,7 +243,7 @@ class SettingsUI:
         self.forward_button.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_forward()))
         self.back_button.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_back()))
         self.play_pause_btn.bind("<ButtonPress>", lambda event: (self._on_play_pause()))
-        self.settings_btn.bind("<ButtonPress>", lambda event:  self._on_settings(event))
+        self.settings_btn.bind("<ButtonPress>", self._on_settings)
         self.time_entry.bind("<Button-1>", lambda ev: self._on_time_entry_clear(ev))
         self.time_entry.bind("<FocusOut>", lambda ev: self._on_time_entry_return(ev))
         self.time_entry.bind("<Return>", lambda ev:   self._on_time_entry_return(ev))
@@ -275,11 +275,10 @@ class SettingsUI:
     def bind_play_pause(self,cb): self._on_play_pause = cb
     def bind_time_entry_return(self, cb): self._on_time_entry_return = cb
     def bind_time_entry_clear(self, cb): self._on_time_entry_clear = cb
-    def bind_on_settings(self, cb): self._on_settings = cb
     def bind_control_window_enter(self, cb): self._on_control_window_enter = cb
     def bind_control_window_leave(self, cb): self._on_control_window_leave = cb
 
-    # def bind_update_time_displaying(self,cb): self._on_update_time_displaying = cb
+    def bind_update_display(self, cb): self.update_time_and_subtitle_displays = cb
 
 
     def update_time_overlay_position(self):
@@ -334,7 +333,12 @@ class SettingsUI:
         self.back_button.config(font=f_btn)
         self.forward_button.config(font=f_btn)
 
+    def _on_settings(self, event):#button to lift the root window
+        self.root.lift()
 
+
+
+        
     # ——— HELPERS ————————————————————————————————————————————
     def _format_offset(self, value: float) -> str:
         return f"{int(value) if value.is_integer() else value} s"
@@ -366,7 +370,8 @@ class SettingsUI:
                 entry.insert(0, self._format_offset(number))
                 if entry is self.offset_entry:
                     self.slider.config(to=self.total_duration + number)
-                    # self._on_update_time_displaying()
+                    self.update_time_and_subtitle_displays()
+                    self._on_slider_release(None)
             else:
                 entry.delete(0, tk.END)
                 entry.insert(0, formatted)
