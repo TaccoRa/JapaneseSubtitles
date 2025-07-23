@@ -32,25 +32,20 @@ class SettingsUI:
         self.default_skip = get('DEFAULT_SKIP')
         self._last_skip_value   = float(self.default_skip)
         self.default_start = get('DEFAULT_START_TIME')
-        # self.phone_mode = get("PHONEMODE_DEFAULT")
+        self.default_phone_mode = get("PHONEMODE_DEFAULT")
         self.ratio = get('RATIO')
 
         self.default_x = self.config.get("LAST_SETTINGS_WINDOW_X", 100)
         self.default_y = self.config.get("LAST_SETTINGS_WINDOW_Y", 100)
         self.win_x = get('LAST_CONTROL_WINDOW_X')
         self.win_y = get('LAST_CONTROL_WINDOW_Y')
-        self.win_w = get('CONTROL_WINDOW_WIDTH')
-        self.win_h = get('CONTROL_WINDOW_HEIGHT')
-        self.win_w_phone = get('CONTROL_WINDOW_PHONE_MODE_WIDTH')
-        self.win_h_phone = get('CONTROL_WINDOW_PHONE_MODE_HEIGHT')
 
     def _init_vars(self):
-        self.phone_mode = tk.BooleanVar(value=False)
         val = float(self.default_offset)
         self.offset_var = tk.StringVar(value=f"{int(val) if val.is_integer() else val} s")
-        # self.offset_var = tk.StringVar(value=f"{val:.6g} s")
-
-        self.skip_var = tk.StringVar(value=f"{self.default_skip} s")
+        
+        val = float(self.default_skip)
+        self.skip_var = tk.StringVar(value=f"{int(val) if val.is_integer() else val} s")
 
         self.episode_var = tk.StringVar(value="Movie" if self.initial_episode is None else str(self.initial_episode))
         self.setto_var = tk.StringVar(value="")
@@ -143,7 +138,7 @@ class SettingsUI:
         # Episode entry
         self.episode_entry = tk.Entry(episode_frame, textvariable=self.episode_var, font=("Arial", 12), width=7)
         self.episode_entry.grid(row=0, column=0, sticky="ew")
-        self.episode_entry.bind("<Return>", lambda e: (self._on_ep_change(), self.root.focus()))
+        self.episode_entry.bind("<Return>", lambda e: (self._on_ep_entry_change(), self.root.focus()))
         
         self.episode_dec_btn = tk.Button(episode_frame, text="-", font=("Arial", 8, "bold"), width=1, height=1,
                                          command=lambda: self._on_ep_dec())
@@ -174,7 +169,7 @@ class SettingsUI:
 
         self.time_overlay_text = self.time_overlay.create_text(
             0, 0,
-            text=self.control_time_str,
+            text=self.control_time_str.get(),
             font=("Arial", 10)
         )
 
@@ -200,20 +195,13 @@ class SettingsUI:
         self.control_window = tk.Toplevel(self.root)
         self.control_window.overrideredirect(True)
         self.control_window.attributes("-topmost", True)
-        w = self.win_w_phone if self.phone_mode.get() else self.win_w
-        h = self.win_h_phone if self.phone_mode.get() else self.win_h
-        sw, sh = self.root.winfo_vrootwidth(), self.root.winfo_vrootheight()
-        x = self.win_x if 0 <= self.win_x <= sw - w else 30
-        y = self.win_y if 0 <= self.win_y <= sh - h else sh - 100
-
-        self.control_window.geometry(f"{w}x{h}+{x}+{y}")
-
+        self.control_window.minsize(200, 40)
+        
         main_frame = tk.Frame(self.control_window, bg="black")
         main_frame.pack(fill="both", expand=True)
-        main_frame.columnconfigure(0, weight=1, minsize=60)  # skip button
-        main_frame.columnconfigure(1, weight=0, minsize=0)   # time entry – NO weight!
-        main_frame.columnconfigure(2, weight=1, minsize=60)
-        main_frame.rowconfigure((0,1), weight=1, minsize=20)
+        main_frame.columnconfigure(1, weight=0)
+        main_frame.columnconfigure((0,2), weight=1)
+        main_frame.rowconfigure((0,1), weight=1)
 
         self.back_button = tk.Button(main_frame, text="<< Skip", font=("Arial", 12, "bold"),
                                       width=6, height=2, bg="#3582B5", activebackground="#42A1E0", relief="flat")
@@ -233,15 +221,25 @@ class SettingsUI:
         self.time_entry.grid(row=0, column=1, sticky="nsew", ipady=5)
         self.forward_button.grid(row=0, column=2, rowspan=2, sticky="nsew")
 
-        self.handle_settings_frame = tk.Frame(self.control_window, width=20, height=10)
+        self.handle_settings_frame = tk.Frame(self.control_window, width=30, height=10)
         self.handle_settings_frame.place(x=0, y=0)
         self.settings_btn = tk.Button(self.handle_settings_frame,
                                       relief="raised", bg= "grey")
+        self.refresh_btn = tk.Button(self.handle_settings_frame,
+                                     relief="raised", bg= "grey")
 
         self.settings_btn.place(x=10, y=0, width=10, height=10)
+        self.refresh_btn.place(x=20, y=0, width=10, height=10)
+
         self.control_drag_handle = tk.Frame(self.handle_settings_frame, bg="gray", width=10, height=10)
         self.control_drag_handle.place(x=0, y=0)
         self.control_drag_handle.lift()
+
+        if self.default_phone_mode:
+            self._set_phone_mode_styles(self.default_phone_mode)
+        else:
+            self._set_phone_mode_styles(self.default_phone_mode)
+
         make_draggable(
             self.control_drag_handle,
             self.control_window,
@@ -252,6 +250,7 @@ class SettingsUI:
         self.back_button.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_back()))
         self.play_pause_btn.bind("<ButtonPress>", lambda event: (self._on_play_pause()))
         self.settings_btn.bind("<ButtonPress>", self._on_settings)
+        self.refresh_btn.bind("<ButtonPress>", lambda ev: self.on_refresh_subtitles(ev))
         self.time_entry.bind("<Button-1>", lambda ev: self._on_time_entry_clear(ev))
         self.time_entry.bind("<FocusOut>", lambda ev: self._on_time_entry_return(ev))
         self.time_entry.bind("<Return>", lambda ev:   self._on_time_entry_return(ev))
@@ -266,27 +265,28 @@ class SettingsUI:
     # ——— PUBLIC binders ——————————————————————————————————————
     # Settings window
     def bind_episode_change(self, on_ent, on_inc, on_dec):
-        self._on_ep_change = on_ent
-        self._on_ep_inc    = on_inc
-        self._on_ep_dec    = on_dec
+        self._on_ep_entry_change = on_ent
+        self._on_ep_inc          = on_inc
+        self._on_ep_dec          = on_dec
     def bind_slider(self,   on_chg, on_pr, on_rl):
-        self._on_slider_change = on_chg
-        self._on_slider_press  = on_pr
+        self._on_slider_change   = on_chg
+        self._on_slider_press    = on_pr
         self._on_slider_release  = on_rl
-    def bind_set_to_return(self, cb): self._on_set_to_return = cb
-    def bind_open_srt(self, cb):  self._on_open_srt = cb
+    def bind_set_to_return(self, cb):        self._on_set_to_return = cb
+    def bind_open_srt(self, cb):             self._on_open_srt = cb
     def bind_show_subtitle_handle(self, cb): self._on_show_handle = cb
 
     # Control window
-    def bind_back(self,      cb): self._on_back       = cb
-    def bind_forward(self,   cb): self._on_forward    = cb
-    def bind_play_pause(self,cb): self._on_play_pause = cb
-    def bind_time_entry_return(self, cb): self._on_time_entry_return = cb
-    def bind_time_entry_clear(self, cb): self._on_time_entry_clear = cb
+    def bind_back(self,      cb):            self._on_back       = cb
+    def bind_forward(self,   cb):            self._on_forward    = cb
+    def bind_play_pause(self,cb):            self._on_play_pause = cb
+    def bind_time_entry_return(self, cb):    self._on_time_entry_return = cb
+    def bind_time_entry_clear(self,  cb):    self._on_time_entry_clear = cb
     def bind_control_window_enter(self, cb): self._on_control_window_enter = cb
     def bind_control_window_leave(self, cb): self._on_control_window_leave = cb
+    def bind_refresh_subtitles(self, cb):    self.on_refresh_subtitles = cb
 
-    def bind_update_display(self, cb): self.update_time_and_subtitle_displays = cb
+    def bind_update_display(self, cb):       self.update_time_and_subtitle_displays = cb
 
 
     def update_time_overlay_position(self):
@@ -302,63 +302,64 @@ class SettingsUI:
         x = int(min_x + rel * (max_x - min_x))
         self.time_overlay.coords(self.time_overlay_text, x, 9+3)
 
-    def _adjust_time_entry_width(self, *args):
-        txt       = self.control_time_str.get()
-        new_width = max(6, len(txt))
-        self.time_entry.config(width=new_width)
-
-        self.control_window.update_idletasks()
-        reqw = self.control_window.winfo_reqwidth()
-        x = self.control_window.winfo_x()
-        y = self.control_window.winfo_y()
-        self.control_window.geometry(f"{reqw}x{self.control_window.winfo_height()}+{x}+{y}")
-
-
-
-
     # ——— PHONE MODE UI ADJUSTMENT ————————————————————————————
+
+
+    
     def _toggle_phone_mode(self):
-        phone_mode = not self.phone_mode.get()
-        self.phone_mode.set(phone_mode)
-
-        new_width = self.win_w_phone if phone_mode else self.win_w
-        new_height = self.win_h_phone if phone_mode else self.win_h
-
-        x = self.control_window.winfo_x()
-        x, y = self.control_window.winfo_x(), self.control_window.winfo_y() + self.control_window.winfo_height() - new_height
+        phone_mode = not self.default_phone_mode
+        self.default_phone_mode = phone_mode
         self._set_phone_mode_styles(phone_mode)
-
-        self.control_window.geometry(f"{new_width}x{new_height}+{x}+{y}")
-        self.control_window.update_idletasks()
         self.mode_toggle_btn.configure(bg="green" if phone_mode else "SystemButtonFace")
         self.control_window.attributes("-topmost", True)
-
-        self._on_show_handle(phone_mode)
-
+        self._on_show_handle(self.default_phone_mode)
+        
     def _set_phone_mode_styles(self, phone_mode: bool):
         if phone_mode:
-            self.handle_settings_frame.configure(width=80, height=40)
+            self.handle_settings_frame.configure(width=120, height=40)
             self.control_drag_handle.config(width=40, height=40)
             f_large = ("Arial", 30, "bold")
-            f_btn = ("Arial", 18, "bold")
+            f_btn = ("Arial", 22, "bold")
             self.settings_btn.place_configure(x=40, y=0, width=40, height=40)
+            self.refresh_btn .place_configure(x= 80, y=0, width=40, height=40)
         else:
-            self.handle_settings_frame.configure(width=20, height=10)
+            self.handle_settings_frame.configure(width=30, height=10)
             self.control_drag_handle.config(width=10, height=10)
             f_large = ("Arial", 14, "bold")
             f_btn = ("Arial", 12, "bold")
             self.settings_btn.place_configure(x=10, y=0, width=10, height=10)
+            self.refresh_btn .place_configure(x= 20, y=0, width=10, height=10)
 
         self.time_entry.config(font=f_large)
         self.play_pause_btn.config(font=f_btn)
         self.back_button.config(font=f_btn)
         self.forward_button.config(font=f_btn)
 
+        self.time_entry.config(width=len(self.control_time_str.get()))
+        self.control_window.update_idletasks()
+        reqw = self.control_window.winfo_reqwidth()
+        reqh = self.control_window.winfo_reqheight()
+        sw, sh = self.root.winfo_vrootwidth(), self.root.winfo_vrootheight()
+        x = self.win_x if 0 <= self.win_x <= sw - reqw else 30
+        y = self.win_y if 0 <= self.win_y <= sh - reqh else sh - 100 - reqh
+        self.control_window.geometry(f"{reqw}x{reqh}+{x}+{y}")
+
+    def _adjust_time_entry_width(self, *args):
+        self.time_entry.config(width=len(self.control_time_str.get()))
+        self.control_window.update_idletasks()
+        reqw = self.control_window.winfo_reqwidth()
+        reqh = self.control_window.winfo_reqheight()
+        x = self.control_window.winfo_x()
+        y = self.control_window.winfo_y()
+        self.control_window.geometry(f"{reqw}x{reqh}+{x}+{y}")
+
+
+
+    # ——— HELPERS ————————————————————————————————————————————
     def _on_settings(self, event):#button to lift the root window
         self.root.deiconify()
         self.root.lift()
-
-    # ——— HELPERS ————————————————————————————————————————————
+        
     def _format_offset(self, value: float) -> str:
         return f"{int(value) if value.is_integer() else value} s"
     

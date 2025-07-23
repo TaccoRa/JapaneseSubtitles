@@ -1,9 +1,13 @@
 To Do:
-add config for phone mode default true/false
 change how everything is initialized when a new srt is loaded. Currently the subtitle window size is not recalculated.
+Check where the biggest size was
+
+Bugs:
+When new srt file is chosen the list of the srt files available should be updated.
+Wrong episode when turning off?
+
 
 Ideas:
-Wrong episode when turning off?
 Detect uncommon words or phrases and let users hover or tap a subtitle segment to 
     see an in-line glossary or translation—great for educational content
 Change windows size in config (during run time?)
@@ -17,6 +21,7 @@ Add button in control window which shows settings window
 When longer than 1 h resize control window and episode entry and change time entry
 Remember last position of windows over to next run
 Change control time entry size if movie and bigger time string
+add config for phone mode default true/false
 
 
 

@@ -110,7 +110,6 @@ class SubtitleManager:
         match = pattern.search(filename)
         return int(match.group(1)) if match else default
 
-
     def _load_and_process(self, path: str) -> None:
         with open(path, 'rb') as f:
             raw = f.read()
@@ -135,6 +134,13 @@ class SubtitleManager:
                 bottom = self._parse_ruby_segments(lines[1])
 
             self.display_data.append((clean, top, bottom))
+    
+    def _clean_text(self, text: str) -> str:
+        cleaned = self.CLEAN_PATTERN_1.sub('', text)
+        cleaned = regex.sub(r'(\p{Han}+)\(([^)]+)\)', r'\1«\2»', cleaned)
+        cleaned = regex.sub(r'[（(].*?[）)]', '', cleaned)
+        cleaned = cleaned.replace('«', '(').replace('»', ')')
+        return cleaned.replace('&lrm;','').replace('\u200e','').strip()
 
     def _parse_ruby_segments(self, text: str) -> List[tuple[str, Optional[str]]]:
         segments: List[tuple[str, Optional[str]]] = []
@@ -150,10 +156,3 @@ class SubtitleManager:
         if tail:
             segments.append((tail, None))
         return segments
-    
-    def _clean_text(self, text: str) -> str:
-        cleaned = self.CLEAN_PATTERN_1.sub('', text)
-        cleaned = regex.sub(r'(\p{Han}+)\(([^)]+)\)', r'\1«\2»', cleaned)
-        cleaned = regex.sub(r'[（(].*?[）)]', '', cleaned)
-        cleaned = cleaned.replace('«', '(').replace('»', ')')
-        return cleaned.replace('&lrm;','').replace('\u200e','').strip()
