@@ -87,7 +87,7 @@ class SubtitleController:
         KeyboardListener(on_press=self._on_key_press, on_release=self._on_key_release).start()
 
         self.last_update  = time.time()
-        self.update_time_and_subtitle_displays()
+        # self.update_time_and_subtitle_displays()
 
 
 
@@ -255,16 +255,14 @@ class SubtitleController:
         
     def _after_episode_change(self):
         self.total_duration = self.sub_manager.get_total_duration()
-
-        self.current_time = self.default_start_time
-        self.set_current_time(self.current_time)
-        self.settings.update_time_overlay_position()
         self.settings.slider.set(self.default_start_time)
         self.settings.slider.config(to=self.total_duration + self.settings._last_offset_value)
         if self.sub_manager.current_episode is None:
-            self.settings.episode_var.set("Movie")
-        else:
-            self.settings.episode_var.set(str(self.sub_manager.current_episode))
+              self.settings.episode_var.set("Movie")
+        else: self.settings.episode_var.set(str(self.sub_manager.current_episode))
+        self.current_time = self.default_start_time
+        self.set_current_time(self.current_time)
+
 
 
     # ——— Keyboard handlers —————————————————————————————————————
@@ -325,8 +323,10 @@ class SubtitleController:
 
     # ——— Buttons ———————————————————————————————————
     def _on_open_srt(self, event=None):
-        if self.sub_manager.load_srt_file():
-            self._reset_after_srt_load()
+        if not self.sub_manager.load_srt_file():
+            return
+        self._after_episode_change()
+
 
 
     def _on_global_click(self, x, y, button, pressed):

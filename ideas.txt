@@ -1,5 +1,6 @@
 To Do:
 add config for phone mode default true/false
+change how everything is initialized when a new srt is loaded. Currently the subtitle window size is not recalculated.
 
 Ideas:
 Wrong episode when turning off?
