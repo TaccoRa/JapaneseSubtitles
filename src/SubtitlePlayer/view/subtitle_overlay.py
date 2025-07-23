@@ -52,6 +52,11 @@ class SubtitleOverlayUI:
         self.border_frame.pack(fill="both", expand=True)
         self.subtitle_canvas = tk.Canvas(self.border_frame, bg="grey", highlightthickness=0)
         self.subtitle_canvas.pack(fill="both", expand=True)
+        if self.config.get("PHONEMODE_DEFAULT"):
+            self.show_handle()
+        else:
+            self.hide_handle()
+        
 
         make_draggable(self.sub_window, 
                        self.sub_window,
@@ -67,17 +72,16 @@ class SubtitleOverlayUI:
     def bind_sub_handel_enter(self, cb): self.on_handle_enter = cb
     
     def show_handle(self):
+        self.subtitle_handle = tk.Toplevel(self.root)
+        self.subtitle_handle.overrideredirect(True)
+        self.subtitle_handle.attributes("-topmost", True)
         self.sub_window.update_idletasks()
         sub_x = self.sub_window.winfo_x()
         sub_y = self.sub_window.winfo_y()
         drag_w, drag_h = 80, self.sub_window.winfo_height()
-
-        self.subtitle_handle = tk.Toplevel(self.root)
-        self.subtitle_handle.overrideredirect(True)
-        self.subtitle_handle.attributes("-topmost", True)
+        self.subtitle_handle.geometry(f"{drag_w}x{drag_h}+{sub_x}+{sub_y}")
         self.subtitle_handle.attributes("-alpha", 0.05)
 
-        self.subtitle_handle.geometry(f"{drag_w}x{drag_h}+{sub_x}+{sub_y}")
         self.subtitle_handle.bind("<Enter>", lambda ev: self.on_handle_enter(ev))
         make_draggable(self.subtitle_handle,
                         self.sub_window, sync_windows=[self.subtitle_handle],
@@ -89,7 +93,8 @@ class SubtitleOverlayUI:
         )
 
     def hide_handle(self):
-        self.subtitle_handle.attributes("-alpha", 0.0)
+        if self.subtitle_handle:
+            self.subtitle_handle.attributes("-alpha", 0.0)
 
     def _compute_max_width(self, cleaned_subs: List[str]) -> int:
         max_width = 0
@@ -100,6 +105,25 @@ class SubtitleOverlayUI:
                 max_width = max(max_width, width)
         return max_width
     
+    def update_max_width(self, cleaned_subs: List[str]) -> None:
+        # Recompute content width + padding
+        content_w = self._compute_max_width(cleaned_subs)
+        self.max_w = content_w + 2 * self.pad_x
+
+        # Re‐center around the stored center_x/center_y
+        x = int(self.center_x - self.max_w / 2)
+        y = int(self.center_y - self.max_h / 2)
+
+        # Clamp to screen bounds
+        sw = self.root.winfo_vrootwidth()
+        sh = self.root.winfo_vrootheight()
+        x = max(0, min(x, sw  - self.max_w))
+        y = max(0, min(y, sh  - self.max_h))
+
+        # Apply the new geometry
+        self.sub_window.geometry(f"{self.max_w}x{self.max_h}+{x}+{y}")
+        self.sub_window.update_idletasks()
+
     def _save_center_position(self, win_x, win_y, win_w, win_h):
         cx = win_x + win_w / 2
         cy = win_y + win_h / 2

@@ -62,11 +62,10 @@ class SubtitleController:
             on_rl     = self.on_slider_release
         )
         self.settings.bind_episode_change(
-            on_ent    = self.on_episode_change,
-            on_inc    = self.increment_episode,
-            on_dec    = self.decline_episode
+            on_ent    = lambda: self.change_episode('set'),
+            on_inc    = lambda: self.change_episode('inc'),
+            on_dec    = lambda: self.change_episode('dec')
         )
-        self._reset_after_srt_load()
         self.settings.bind_open_srt                  (self._on_open_srt)
         self.settings.bind_set_to_return             (self.on_set_to_return)
         self.settings.bind_time_entry_return         (self.control_time_entry_return)
@@ -74,7 +73,8 @@ class SubtitleController:
         self.settings.bind_control_window_enter      (self.control_window_enter)
         self.settings.bind_control_window_leave      (self.control_window_leave)
         self.settings.bind_show_subtitle_handle      (self.show_subtitle_handle)
-        
+        self.settings.bind_refresh_subtitles         (self.on_refresh_subtitles)
+
         self.settings.bind_update_display            (self.update_time_and_subtitle_displays)
         
         self.overlay.subtitle_canvas.bind("<Button-3>", lambda e: self.popup.open_copy_popup(self.last_subtitle_raw))
@@ -91,199 +91,18 @@ class SubtitleController:
 
 
 
-    def _reset_after_srt_load(self):
-        # 1) tell your manager about new file already happened before calling this…
-        self.total_duration = self.sub_manager.get_total_duration()
+    # ——— Loop & scheduling ———————————————————————————————————
+    def update_loop(self):
+        if self.playing:
+            now = time.time()
+            delta = now - self.last_update
+            self.last_update = now
+            self.set_current_time(self.current_time + delta)
+            
+        self.schedule_update()
 
-        # 2) reconfigure the slider’s range
-        offset = self.settings._last_offset_value
-        self.settings.slider.config(to=self.total_duration + offset)
-
-        # 3) reset play time / slider thumb
-        self.current_time = self.default_start_time
-        self.settings.slider.set(self.current_time)
-
-        # 4) reset any play/stop state
-        self.playing = False
-        self.settings.play_pause_btn.config(text="Play", bg="green", activebackground="green")
-
-        # 5) force a full redraw of everything
-        self.update_time_and_subtitle_displays()
-
-
-
-
-
-
-    def sub_window_enter(self, event):
-        self.overlay.sub_window.attributes("-transparentcolor", "") #not transparent
-        self.settings.control_window.attributes("-topmost", True)
-        self.overlay.sub_window.attributes("-topmost", True)
-        if getattr(self, "_con_hide_job", None) is not None:
-            self.settings.control_window.after_cancel(self._con_hide_job) #cancel hide after calls if triggered
-            self._con_hide_job = None
-        self.subtitle_deleted = False
-
-    def sub_window_leave(self, event):
-        self.overlay.sub_window.attributes("-transparentcolor", "grey")
-        if not self.settings.phone_mode.get():
-            self._hide_controls_after(self.windows_hide_control_ms)
-
-    def sub_handel_enter(self, event):
-        self.settings.control_window.attributes("-topmost", True)
-        self.overlay.sub_window.attributes("-topmost", True)
-        if getattr(self, "_con_hide_job", None):
-            self.settings.control_window.after_cancel(self._con_hide_job) #cancel hide after calls if triggered
-            self._con_hide_job = None
-        self.subtitle_deleted = False
-
-    def control_window_enter(self, event):
-        self.settings.control_window.attributes("-topmost", True)
-        self.overlay.sub_window.attributes("-topmost", True)
-        if getattr(self, "_con_hide_job", None):
-            self.settings.control_window.after_cancel(self._con_hide_job) #cancel hide after calls if triggered
-            self._con_hide_job = None
-        self.subtitle_deleted = False
-
-    def control_window_leave(self, event):
-        delay = (self.phone_windows_hide_control_ms
-                 if self.settings.phone_mode.get()
-                 else self.windows_hide_control_ms)
-        self._hide_controls_after(delay)
-
-
-    def update_time_and_subtitle_displays(self):#updates settings time overlay and control window entry
-        text = format_time(self.current_time)
-        self.settings.time_overlay.itemconfig(self.settings.time_overlay_text, text=text)
-        self.settings.update_time_overlay_position()
-        if not self.entry_editing:
-            self.settings.control_time_str.set(text)
-        self.update_subtitle_display()
-
-
-
-
-
-    def _reset_canvas(self):
-        self.renderer.canvas.delete("all")
-        self.subtitle_deleted = True
-        self.last_subtitle_text = ""
-
-
-    def update_subtitle_display(self):
-        offset = self.settings._last_offset_value
-        sub_t = self.current_time - offset
-        if sub_t < 0 or sub_t > self.total_duration:
-            self._reset_canvas()
-            return
-        
-        idx = bisect.bisect_right(self.sub_manager.start_times, sub_t) - 1
-        if idx < 0:
-            self._reset_canvas()
-            return
-        clean, top, bottom = self.sub_manager.display_data[idx]
-        joined = ''.join(base for base, _ in (top + bottom))
-
-        if joined != self.last_subtitle_text:
-            # cancel any old hide‐job
-            if self.subtitle_timeout_job:
-                self.overlay.root.after_cancel(self.subtitle_timeout_job)
-                self.subtitle_timeout_job = None
-
-            # clear old and draw new
-            self.renderer.canvas.delete("all")
-            self.last_subtitle_text = joined
-            self.subtitle_deleted   = False
-            self.renderer.render_subtitle(top, bottom, self.overlay)
-
-            # schedule its removal after your fixed timeout
-            self.subtitle_timeout_job = self.overlay.root.after(
-                self.hide_subtitles_ms,
-                self.hide_subtitles_temporarily
-            )
-
-    def hide_subtitles_temporarily(self):
-        if not self.playing:
-            self.subtitle_timeout_job = None
-            return
-        if not self.subtitle_deleted:
-            self.renderer.canvas.delete("all")
-            self.subtitle_deleted = True
-        self.subtitle_timeout_job = None
-
-
-
-
-
-
-    def on_episode_change(self):
-        if self.sub_manager.current_episode is None or self.settings.episode_var.get() == "Movie":
-            self.settings.episode_var.set("Movie")
-            return
-        ep = int(self.settings.episode_var.get() or 1)
-        season = self.sub_manager.current_season
-        self.sub_manager.set_episode(season, ep)
-        self._after_episode_change()
-        
-    def increment_episode(self):
-        if self.sub_manager.current_episode is None or self.settings.episode_var.get() == "Movie":
-            self.settings.episode_var.set("Movie")
-            return
-        current = int(self.settings.episode_var.get() or 1)
-        next_ep = current + 1
-        season = self.sub_manager.current_season
-        try:
-            self.sub_manager.set_episode(season, next_ep)
-            self._after_episode_change()
-        except FileNotFoundError:
-            self.settings.episode_var.set(str(self.sub_manager.current_episode))
-            raise FileNotFoundError(f"No .srt found for S{season}E{next_ep}")
-
-    def decline_episode(self):
-        if self.sub_manager.current_episode is None or self.settings.episode_var.get() == "Movie":
-            self.settings.episode_var.set("Movie")
-            return
-        current = int(self.settings.episode_var.get() or 1)
-        next_ep = current - 1
-        season = self.sub_manager.current_season
-        try:
-            self.sub_manager.set_episode(season, next_ep)
-            self._after_episode_change()
-        except FileNotFoundError:
-            self.settings.episode_var.set(str(self.sub_manager.current_episode))
-            raise FileNotFoundError(f"No .srt found for S{season}E{next_ep}")
-        
-    def _after_episode_change(self):
-        self.total_duration = self.sub_manager.get_total_duration()
-        self.settings.slider.set(self.default_start_time)
-        self.settings.slider.config(to=self.total_duration + self.settings._last_offset_value)
-        if self.sub_manager.current_episode is None:
-              self.settings.episode_var.set("Movie")
-        else: self.settings.episode_var.set(str(self.sub_manager.current_episode))
-        self.current_time = self.default_start_time
-        self.set_current_time(self.current_time)
-
-
-
-    # ——— Keyboard handlers —————————————————————————————————————
-    def _on_key_press(self, key):
-        if key in (Key.alt_l, Key.alt_r):
-            self.alt_pressed = True
-        elif self.alt_pressed:
-            if hasattr(key, "char") and key.char:
-                if key.char.lower() == "x":
-                    self.on_alt_x()
-                elif key.char.lower() == "c":
-                    self.increment_episode()
-                elif key.char.lower() == "y":
-                    self.decline_episode()
-
-    def _on_key_release(self, key):
-        if key in (Key.alt_l, Key.alt_r):
-            self.alt_pressed = False
-
-    def on_alt_x(self, event=None):
-        self.settings.control_window.attributes("-topmost", True)
+    def schedule_update(self):
+        self.overlay.root.after(self.update_interval_ms, self.update_loop)
 
 
     # ——— Time handling ———————————————————————————————————
@@ -321,20 +140,125 @@ class SubtitleController:
         self.entry_editing  = True
         event.widget.delete(0, tk.END)
 
-    # ——— Buttons ———————————————————————————————————
+
+
+
+    # ——— Updating Logic —————————————————————————————————————
+
+    def update_time_and_subtitle_displays(self):#updates settings time overlay and control window entry
+        text = format_time(self.current_time)
+        self.settings.time_overlay.itemconfig(self.settings.time_overlay_text, text=text)
+        self.settings.update_time_overlay_position()
+        if not self.entry_editing:
+            self.settings.control_time_str.set(text)
+        self._update_subtitle_display()
+
+    def _update_subtitle_display(self):
+        offset = self.settings._last_offset_value
+        sub_t = self.current_time - offset
+        if sub_t < 0 or sub_t > self.total_duration:
+            self._reset_canvas()
+            return
+        
+        idx = bisect.bisect_right(self.sub_manager.start_times, sub_t) - 1
+        if idx < 0:
+            self._reset_canvas()
+            return
+        clean, top, bottom = self.sub_manager.display_data[idx]
+        joined = ''.join(base for base, _ in (top + bottom))
+
+        if joined != self.last_subtitle_text:
+            # cancel any old hide‐job
+            if self.subtitle_timeout_job:
+                self.overlay.root.after_cancel(self.subtitle_timeout_job)
+                self.subtitle_timeout_job = None
+
+            # clear old and draw new
+            self.renderer.canvas.delete("all")
+            self.last_subtitle_text = joined
+            self.subtitle_deleted   = False
+            self.renderer.render_subtitle(top, bottom, self.overlay)
+
+            # schedule its removal after your fixed timeout
+            self.subtitle_timeout_job = self.overlay.root.after(
+                self.hide_subtitles_ms,
+                self._hide_subtitles_temporarily
+            )
+
+    def _reset_canvas(self):
+        self.renderer.canvas.delete("all")
+        self.subtitle_deleted = True
+        self.last_subtitle_text = ""
+
+    def _hide_subtitles_temporarily(self):
+        if not self.playing:
+            self.subtitle_timeout_job = None
+            return
+        if not self.subtitle_deleted:
+            self.renderer.canvas.delete("all")
+            self.subtitle_deleted = True
+        self.subtitle_timeout_job = None
+
+    def on_refresh_subtitles(self, event):
+        # 1) cancel any pending hide‐job
+        if self.subtitle_timeout_job:
+            self.overlay.root.after_cancel(self.subtitle_timeout_job)
+            self.subtitle_timeout_job = None
+        self.last_subtitle_text = ""
+        self.subtitle_deleted    = False
+
+        self.update_time_and_subtitle_displays()
+
+
+    # ——— Change srt file ———————————————————————————————————
     def _on_open_srt(self, event=None):
         if not self.sub_manager.load_srt_file():
             return
         self._after_episode_change()
 
+    def _after_episode_change(self):
+        if self.sub_manager.current_episode is None:
+              self.settings.episode_var.set("Movie")
+        else: 
+            self.settings.episode_var.set(str(self.sub_manager.current_episode))
 
+        self.total_duration = self.sub_manager.get_total_duration()
+        self.settings.slider.set(self.default_start_time)
+        self.settings.slider.config(to=self.total_duration + self.settings._last_offset_value)
+        self.overlay.update_max_width(self.sub_manager.cleaned_subtitles)
 
-    def _on_global_click(self, x, y, button, pressed):
-        if button == Button.x2 and pressed:
-            self.renderer.canvas.delete("all")
-            self.last_subtitle_text = ""
-            self.last_subtitle_raw = ""
-            self.subtitle_deleted = True
+        self.current_time = self.default_start_time
+        self.set_current_time(self.current_time)
+
+    def change_episode(self, action: str):
+        season = self.sub_manager.current_season
+        if action == 'dec':
+            if self.sub_manager.current_episode is None or self.sub_manager.current_episode < 2:
+                return
+            target = self.sub_manager.current_episode - 1
+        elif action == 'inc':
+            if self.sub_manager.current_episode is None:
+                return
+            target = self.sub_manager.current_episode + 1
+        elif action == 'set':
+            raw = self.settings.episode_var.get().strip()
+            if raw == 'Movie':
+                target = None
+            else:
+                target = int(raw or 1)
+
+        try:
+            self.sub_manager.set_episode(season, target)  
+        except FileNotFoundError:
+            self.settings.episode_var.set(
+                'Movie' if self.sub_manager.current_episode is None
+                         else str(self.sub_manager.current_episode))
+            raise
+        else:
+            if target is None:
+                self.settings.episode_var.set('Movie')
+            self._after_episode_change()
+    
 
     # ——— Playback controls ———————————————————————————————————
     def toggle_play(self):
@@ -355,19 +279,31 @@ class SubtitleController:
         if self.video_click: self.simulate_video_click()
         # self.control_time_entry_return()
         self.update_time_and_subtitle_displays()
-        self.schedule_hide_controls()
+        self._schedule_hide_controls()
 
     def go_forward(self):
         skip = self.settings._last_skip_value
         if self.current_time <= self.total_duration + float(self.settings.offset_entry.get().replace("s","").replace(" ","").replace(":","")):
             self.set_current_time(self.current_time + skip)
-            self.schedule_hide_controls()
+            self._schedule_hide_controls()
 
     def go_back(self):
         skip = self.settings._last_skip_value
         if self.current_time >= 0:
             self.set_current_time(self.current_time - skip)
-            self.schedule_hide_controls()
+            self._schedule_hide_controls()
+
+    def _schedule_hide_controls(self):
+        if self.settings.default_phone_mode:
+            self._hide_controls_after(self.phone_windows_hide_control_ms)
+
+    def _hide_controls_after(self, ms: int):
+        if getattr(self, "_con_hide_job", None):
+            self.settings.control_window.after_cancel(self._con_hide_job)
+        self._con_hide_job = self.settings.control_window.after(
+            ms,
+            self.settings.control_window.lower
+        )
 
     def on_slider_change(self, value):
         if self.slider_dragging:
@@ -386,38 +322,72 @@ class SubtitleController:
         self.settings.control_window.attributes("-topmost", True)
         pyautogui.moveTo(original_pos.x, original_pos.y)
 
+    def _on_global_click(self, x, y, button, pressed):
+        if button == Button.x2 and pressed:
+            self.renderer.canvas.delete("all")
+            self.last_subtitle_text = ""
+            self.last_subtitle_raw = ""
+            self.subtitle_deleted = True
 
 
+    # ——— Keyboard handlers —————————————————————————————————————
+    def _on_key_press(self, key):
+        if key in (Key.alt_l, Key.alt_r):
+            self.alt_pressed = True
+        elif self.alt_pressed:
+            if hasattr(key, "char") and key.char:
+                if key.char.lower() == "x":
+                    self.on_alt_x()
+                elif key.char.lower() == "c":
+                    self.increment_episode()
+                elif key.char.lower() == "y":
+                    self.decline_episode()
 
-    # ——— Loop & scheduling ———————————————————————————————————
-    def update_loop(self):
-        if self.playing:
-            now = time.time()
-            delta = now - self.last_update
-            self.last_update = now
-            self.set_current_time(self.current_time + delta)
-            
-        self.schedule_update()
+    def _on_key_release(self, key):
+        if key in (Key.alt_l, Key.alt_r):
+            self.alt_pressed = False
 
-    def schedule_update(self):
-        self.overlay.root.after(self.update_interval_ms, self.update_loop)
+    def on_alt_x(self, event=None):
+        self.settings.control_window.attributes("-topmost", True)
 
 
+    # ——— Hide window logic —————————————————————————————————————
 
+    def sub_window_enter(self, event):
+        self.overlay.sub_window.attributes("-transparentcolor", "") #not transparent
+        self.settings.control_window.attributes("-topmost", True)
+        self.overlay.sub_window.attributes("-topmost", True)
+        if getattr(self, "_con_hide_job", None) is not None:
+            self.settings.control_window.after_cancel(self._con_hide_job) #cancel hide after calls if triggered
+            self._con_hide_job = None
+        self.subtitle_deleted = False
 
-    # ——— Hide helpers  ———————————————————————
-    def _hide_controls_after(self, ms: int):
-        """Cancel any pending hide-job and schedule a new one."""
+    def sub_window_leave(self, event):
+        self.overlay.sub_window.attributes("-transparentcolor", "grey")
+        if not self.settings.default_phone_mode:
+            self._hide_controls_after(self.windows_hide_control_ms)
+
+    def sub_handel_enter(self, event):
+        self.settings.control_window.attributes("-topmost", True)
+        self.overlay.sub_window.attributes("-topmost", True)
         if getattr(self, "_con_hide_job", None):
-            self.settings.control_window.after_cancel(self._con_hide_job)
-        self._con_hide_job = self.settings.control_window.after(
-            ms,
-            self.settings.control_window.lower
-        )
+            self.settings.control_window.after_cancel(self._con_hide_job) #cancel hide after calls if triggered
+            self._con_hide_job = None
+        self.subtitle_deleted = False
 
-    def schedule_hide_controls(self):
-        if self.settings.phone_mode.get():
-            self._hide_controls_after(self.phone_windows_hide_control_ms)
+    def control_window_enter(self, event):
+        self.settings.control_window.attributes("-topmost", True)
+        self.overlay.sub_window.attributes("-topmost", True)
+        if getattr(self, "_con_hide_job", None):
+            self.settings.control_window.after_cancel(self._con_hide_job) #cancel hide after calls if triggered
+            self._con_hide_job = None
+        self.subtitle_deleted = False
+
+    def control_window_leave(self, event):
+        delay = (self.phone_windows_hide_control_ms
+                 if self.settings.default_phone_mode
+                 else self.windows_hide_control_ms)
+        self._hide_controls_after(delay)
 
     def show_subtitle_handle(self, is_phone):
         if is_phone:
