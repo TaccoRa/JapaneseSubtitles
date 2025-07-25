@@ -81,7 +81,7 @@ class SubtitleManager:
             self.display_data.append((clean, top, bottom))
     
     def get_total_duration(self) -> float:
-        return max(sub.end.total_seconds() for sub in self.subtitles)
+        return self.subtitles[-1].end.total_seconds()
 
     def set_episode(self, season: int, episode: int) -> bool:
         # If both are None, treat as movie
