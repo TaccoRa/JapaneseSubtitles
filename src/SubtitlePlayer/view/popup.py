@@ -12,10 +12,10 @@ class CopyPopup:
         self._pinned = False
         self.root.bind("<Destroy>", lambda e: self._cancel_close())
 
-        self.bg_color = self.config.get("POPUP_BG_COLOR", "white")
-        self.font_name = self.config.get("POPUP_FONT", "Arial")
+        self.bg_color = self.config.get("POPUP_BG_COLOR")
+        self.font_name = self.config.get("POPUP_FONT")
         self.font_color = self.config.get("POPUP_FONT_COLOR")
-        self.font_size = self.config.get("POPUP_FONT_SIZE", 14)
+        self.font_size = self.config.get("POPUP_FONT_SIZE")
         self.close_delay = self.config.get("POPUP_CLOSE_TIMER")
 
     def open_copy_popup(self, subtitle_text = None) -> None:

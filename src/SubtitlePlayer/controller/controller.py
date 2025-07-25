@@ -212,8 +212,10 @@ class SubtitleController:
 
     # ——— Change srt file ———————————————————————————————————
     def _on_open_srt(self, event=None):
-        if not self.sub_manager.load_srt_file():
+        path = self.sub_manager.ask_srt_file()
+        if not path:
             return
+        # self.sub_manager._load_and_process(path)
         self._after_episode_change()
 
     def _after_episode_change(self):
@@ -232,31 +234,35 @@ class SubtitleController:
 
     def change_episode(self, action: str):
         season = self.sub_manager.current_season
+        current = self.sub_manager.current_episode
         if action == 'dec':
-            if self.sub_manager.current_episode is None or self.sub_manager.current_episode < 2:
+            if current is None or current < 2:
                 return
-            target = self.sub_manager.current_episode - 1
+            target = current - 1
         elif action == 'inc':
-            if self.sub_manager.current_episode is None:
+            if current is None:
                 return
-            target = self.sub_manager.current_episode + 1
+            target = current + 1
         elif action == 'set':
             raw = self.settings.episode_var.get().strip()
-            if raw == 'Movie':
+            if not raw or raw.lower() == 'movie':
                 target = None
             else:
-                target = int(raw or 1)
+                try:
+                    target = int(raw)
+                except ValueError:
+                    self.settings.episode_var.set(str(current) if current else 'Movie')
+                    return
 
         try:
-            self.sub_manager.set_episode(season, target)  
+            success = self.sub_manager.set_episode(season, target)
+            if not success:
+                raise FileNotFoundError
         except FileNotFoundError:
-            self.settings.episode_var.set(
-                'Movie' if self.sub_manager.current_episode is None
-                         else str(self.sub_manager.current_episode))
+            self.settings.episode_var.set(str(current) if current else 'Movie')
             raise
         else:
-            if target is None:
-                self.settings.episode_var.set('Movie')
+            self.settings.episode_var.set('Movie' if target is None else str(target))
             self._after_episode_change()
     
 

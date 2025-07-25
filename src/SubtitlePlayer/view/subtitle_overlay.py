@@ -25,11 +25,8 @@ class SubtitleOverlayUI:
         self.pad_x = 5
         content_w = self._compute_max_width(self.cleaned_subs)
         self.max_w = content_w + 2 * self.pad_x
-
-
-        sw, sh = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
-        self.center_x = config.get("LAST_SUB_CENTER_X", sw // 2)
-        self.center_y = config.get("LAST_SUB_CENTER_Y", sh // 2)
+        self.center_x = config.get("LAST_SUB_CENTER_X")
+        self.center_y = config.get("LAST_SUB_CENTER_Y")
 
         self.build_overlay()
 

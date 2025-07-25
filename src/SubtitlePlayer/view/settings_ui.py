@@ -35,8 +35,8 @@ class SettingsUI:
         self.default_phone_mode = get("PHONEMODE_DEFAULT")
         self.ratio = get('RATIO')
 
-        self.default_x = self.config.get("LAST_SETTINGS_WINDOW_X", 100)
-        self.default_y = self.config.get("LAST_SETTINGS_WINDOW_Y", 100)
+        self.default_x = self.config.get("LAST_SETTINGS_WINDOW_X")
+        self.default_y = self.config.get("LAST_SETTINGS_WINDOW_Y")
         self.win_x = get('LAST_CONTROL_WINDOW_X')
         self.win_y = get('LAST_CONTROL_WINDOW_Y')
 
@@ -234,11 +234,12 @@ class SettingsUI:
         self.control_drag_handle = tk.Frame(self.handle_settings_frame, bg="gray", width=10, height=10)
         self.control_drag_handle.place(x=0, y=0)
         self.control_drag_handle.lift()
-
         if self.default_phone_mode:
             self._set_phone_mode_styles(self.default_phone_mode)
+            self.mode_toggle_btn.configure(bg="green")
         else:
             self._set_phone_mode_styles(self.default_phone_mode)
+            self.mode_toggle_btn.configure(bg="SystemButtonFace")
 
         make_draggable(
             self.control_drag_handle,
@@ -322,6 +323,7 @@ class SettingsUI:
             f_btn = ("Arial", 22, "bold")
             self.settings_btn.place_configure(x=40, y=0, width=40, height=40)
             self.refresh_btn .place_configure(x= 80, y=0, width=40, height=40)
+            h = 160
         else:
             self.handle_settings_frame.configure(width=30, height=10)
             self.control_drag_handle.config(width=10, height=10)
@@ -329,6 +331,7 @@ class SettingsUI:
             f_btn = ("Arial", 12, "bold")
             self.settings_btn.place_configure(x=10, y=0, width=10, height=10)
             self.refresh_btn .place_configure(x= 20, y=0, width=10, height=10)
+            h = 40
 
         self.time_entry.config(font=f_large)
         self.play_pause_btn.config(font=f_btn)
@@ -338,20 +341,18 @@ class SettingsUI:
         self.time_entry.config(width=len(self.control_time_str.get()))
         self.control_window.update_idletasks()
         reqw = self.control_window.winfo_reqwidth()
-        reqh = self.control_window.winfo_reqheight()
         sw, sh = self.root.winfo_vrootwidth(), self.root.winfo_vrootheight()
         x = self.win_x if 0 <= self.win_x <= sw - reqw else 30
-        y = self.win_y if 0 <= self.win_y <= sh - reqh else sh - 100 - reqh
-        self.control_window.geometry(f"{reqw}x{reqh}+{x}+{y}")
+        y = self.win_y if 0 <= self.win_y <= sh - h else sh - 100 - h
+        self.control_window.geometry(f"{reqw}x{h}+{x}+{y}")
 
     def _adjust_time_entry_width(self, *args):
         self.time_entry.config(width=len(self.control_time_str.get()))
         self.control_window.update_idletasks()
         reqw = self.control_window.winfo_reqwidth()
-        reqh = self.control_window.winfo_reqheight()
         x = self.control_window.winfo_x()
         y = self.control_window.winfo_y()
-        self.control_window.geometry(f"{reqw}x{reqh}+{x}+{y}")
+        self.control_window.geometry(f"{reqw}x{self.control_window.winfo_height()}+{x}+{y}")
 
 
 
