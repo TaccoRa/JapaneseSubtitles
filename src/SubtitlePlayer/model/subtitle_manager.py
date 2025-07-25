@@ -1,6 +1,5 @@
 import re
 import os
-import bisect
 from typing import List, Optional
 import regex
 
@@ -43,8 +42,6 @@ class SubtitleManager:
     def load_srt_file(self, path: Optional[str] = None) -> bool:
         # Prompt for file if not given
         if path is None:
-            if not os.path.isdir(self.srt_dir):
-                self.srt_dir = os.getcwd()
             window = tk.Tk(); window.withdraw(); window.attributes("-topmost", True)
             path = filedialog.askopenfilename(
                 parent=window,
