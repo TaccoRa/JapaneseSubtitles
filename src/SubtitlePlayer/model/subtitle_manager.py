@@ -83,8 +83,7 @@ class SubtitleManager:
     def get_total_duration(self) -> float:
         return self.subtitles[-1].end.total_seconds()
 
-    def set_episode(self, season: int, episode: int) -> bool:
-        # If both are None, treat as movie
+    def set_episode(self, season: int, episode: int) -> bool: #true if movie, false if nothing found, If found set season and episode and path
         if season is None and episode is None:
             self.current_season = None
             self.current_episode = None
@@ -115,8 +114,9 @@ class SubtitleManager:
         self.current_episode = episode
 
         full_path = os.path.join(self.srt_dir, target_file)
-        self.config.set("LAST_SRT_FILE", full_path)
-        self._load_and_process(full_path)
+        self.srt_file = full_path
+        self.config.set("LAST_SRT_FILE", self.srt_file)
+        self._load_and_process(self.srt_file)
         return True
     
     def _extract_number(self, pattern: re.Pattern, filename: str):
@@ -129,7 +129,6 @@ class SubtitleManager:
         cleaned = regex.sub(r'[（(].*?[）)]', '', cleaned)
         cleaned = cleaned.replace('«', '(').replace('»', ')')
         return cleaned.replace('&lrm;', '').replace('\u200e', '').strip()
-
 
     def _parse_ruby_segments(self, text: str) -> List[tuple[str, Optional[str]]]:
         segments: List[tuple[str, Optional[str]]] = []
