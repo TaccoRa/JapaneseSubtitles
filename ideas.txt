@@ -1,6 +1,7 @@
 To Do:
 change how everything is initialized when a new srt is loaded. Currently the subtitle window size is not recalculated.
 Check where the biggest size was
+srt button cant be doen twice in a row while still open
 
 Bugs:
 When new srt file is chosen the list of the srt files available should be updated.
