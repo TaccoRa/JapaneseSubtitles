@@ -33,7 +33,6 @@ class SettingsUI:
         self._last_skip_value   = float(self.default_skip)
         self.default_start = get('DEFAULT_START_TIME')
         self.default_phone_mode = get("PHONEMODE_DEFAULT")
-        self.ratio = get('RATIO')
 
         self.default_x = self.config.get("LAST_SETTINGS_WINDOW_X")
         self.default_y = self.config.get("LAST_SETTINGS_WINDOW_Y")
@@ -178,17 +177,17 @@ class SettingsUI:
             self.slider_frame,
             from_=0, to=(self.total_duration + self.default_offset),
             orient="horizontal",
-            resolution=0.1,
+            resolution=00.1,
             showvalue=False,
             sliderlength=32,
             command=lambda v: self._on_slider_change(v)
         )
         self.slider.grid(row=1, column=0, sticky="ew", padx=0, pady=0)
         self.slider.set(float(self.default_start))
-        self.slider.bind("<ButtonPress-1>", lambda e: self._on_slider_press(e))
+        self.slider.bind("<ButtonPress-1>", self._on_click_or_drag)
+        self.slider.bind("<B1-Motion>",      self._on_click_or_drag)
         self.slider.bind("<ButtonRelease-1>", lambda e: self._on_slider_release(e))
         self.update_time_overlay_position()
-
 
     # ——— CONTROL WINDOW ——————————————————————————————————————
     def _build_control_window(self):
@@ -247,8 +246,8 @@ class SettingsUI:
             on_release=self._save_control_window_pos
         )
 
-        self.forward_button.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_forward()))
-        self.back_button.bind("<ButtonPress>", lambda event: (self._on_time_entry_return(event), self._on_back()))
+        self.forward_button.bind("<ButtonPress>", lambda event: self._on_forward())
+        self.back_button.bind("<ButtonPress>", lambda event: self._on_back())
         self.play_pause_btn.bind("<ButtonPress>", lambda event: (self._on_play_pause()))
         self.settings_btn.bind("<ButtonPress>", self._on_settings)
         self.refresh_btn.bind("<ButtonPress>", lambda ev: self.on_refresh_subtitles(ev))
@@ -289,7 +288,6 @@ class SettingsUI:
 
     def bind_update_display(self, cb):       self.update_time_and_subtitle_displays = cb
 
-
     def update_time_overlay_position(self):
         self.root.update_idletasks()
         root_width = self.root.winfo_width()
@@ -303,10 +301,20 @@ class SettingsUI:
         x = int(min_x + rel * (max_x - min_x))
         self.time_overlay.coords(self.time_overlay_text, x, 9+3)
 
+    def _on_click_or_drag(self, event):
+        self._on_slider_press(event)
+        w      = self.slider.winfo_width() - self.slider["sliderlength"]
+        x_off  = event.x - (self.slider["sliderlength"] / 2)
+        frac   = max(0.0, min(1.0, x_off / w))
+        start  = float(self.slider.cget("from"))
+        end    = float(self.slider.cget("to"))
+        new_val = start + frac * (end - start)
+        self.slider.set(new_val)
+        self._on_slider_change(str(new_val))
+        return "break"
+
     # ——— PHONE MODE UI ADJUSTMENT ————————————————————————————
 
-
-    
     def _toggle_phone_mode(self):
         phone_mode = not self.default_phone_mode
         self.default_phone_mode = phone_mode
@@ -397,4 +405,8 @@ class SettingsUI:
                 entry.delete(0, tk.END)
                 entry.insert(0, formatted)
         entry.master.focus_set()
+
+    def set_total_duration(self, total_duration: float):
+        self.total_duration = total_duration
+        self.slider.config(to=total_duration + self._last_offset_value)
 

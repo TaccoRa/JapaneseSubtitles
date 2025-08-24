@@ -17,13 +17,14 @@ class SubtitlePlayerApp:
         self.config = ConfigManager("config.json")
         self.sub_manager = SubtitleManager(self.config)
         self.total_duration = self.sub_manager.get_total_duration()
+
         # App window
         self.root = tk.Tk()
         self.root.title("Subtitle Player Settings") 
         self.root.geometry("320x123")
         self.root.minsize(320, 123)
-        self._save_after_id = None
         self._restore_window_position()
+        self._save_after_id = None
         self.root.bind("<Configure>", self._on_root_configure)
         self.root.deiconify()
 
@@ -32,7 +33,8 @@ class SubtitlePlayerApp:
 
         self.sub_overlay_ui = SubtitleOverlayUI(
             root=self.root, config=self.config,
-            cleaned_subs=self.sub_manager.cleaned_subtitles)
+            cleaned_subs=[item[0] for item in self.sub_manager.display_data],
+            overlay_geometry=self.sub_manager.calculate_geometry()) #height, width
         
         self.settings_ui = SettingsUI(
             root=self.root, config=self.config,
@@ -41,10 +43,8 @@ class SubtitlePlayerApp:
 
         # Model
         self.renderer = SubtitleRenderer(
-            canvas=self.sub_overlay_ui.subtitle_canvas,
-            font=self.sub_overlay_ui.font,
-            color=self.config.get("SUBTITLE_COLOR"),
-            line_height=self.sub_overlay_ui.line_height
+            config=self.config,
+            canvas=self.sub_overlay_ui.subtitle_canvas
             )
 
         # Controller

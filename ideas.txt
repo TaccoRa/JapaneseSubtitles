@@ -4,6 +4,8 @@ Check where the biggest size was
 srt button cant be doen twice in a row while still open
 
 Bugs:
+When changing to movie the highest slide possible is to maximum of episode from before
+When offset is set after changing to movie for example the total duration is wrong
 When new srt file is chosen the list of the srt files available should be updated.
 Wrong episode when turning off?
 

@@ -6,10 +6,11 @@ import regex
 import srt
 import chardet
 import tkinter as tk
+from tkinter import font as tkFont
 from tkinter import filedialog
 
 from model.config_manager import ConfigManager
-
+from utils import format_time
 class SubtitleManager:
 
     CLEAN_PATTERN = re.compile(r'\{\\an\d+\}')
@@ -45,10 +46,8 @@ class SubtitleManager:
             if not path: return False   
         return path
 
-
-
     def _load_and_process(self, path: str) -> None:
-        # save to last file, create srt list, set season/episode
+        # save to last file, create srt list, set season/episode, creates subtitle data
         self.srt_file = path
         self.config.set("LAST_SRT_FILE", path)
         self.srt_dir = os.path.dirname(path)
@@ -63,12 +62,12 @@ class SubtitleManager:
         detected = chardet.detect(raw)
         text = raw.decode(detected['encoding'] or 'utf-8', errors='replace')
         self.subtitles = list(srt.parse(text))
-        self.cleaned_subtitles = [self._clean_text(s.content) for s in self.subtitles]
-        self.start_times = [s.start.total_seconds() for s in self.subtitles]
 
-        #seperate into clean top and bottom segments
+        #seperate into clean, start times, top and bottom segments
         self.display_data = []
-        for clean in self.cleaned_subtitles:
+        for sub in self.subtitles:
+            clean = self._clean_text(sub.content)
+            start_times = sub.start.total_seconds()
             lines = [l for l in clean.splitlines() if l.strip()]
             if not lines:
                 top, bottom = [], []
@@ -77,11 +76,30 @@ class SubtitleManager:
             else:
                 top = self._parse_ruby_segments(lines[0])
                 bottom = self._parse_ruby_segments(lines[1])
+            self.display_data.append((clean, start_times, top, bottom))
 
-            self.display_data.append((clean, top, bottom))
-    
     def get_total_duration(self) -> float:
         return self.subtitles[-1].end.total_seconds()
+
+    def calculate_geometry(self) -> dict:
+        font = tkFont.Font(family=self.config.get("SUBTITLE_FONT"),size=self.config.get("SUBTITLE_FONT_SIZE"),weight="bold")
+        max_width = 0
+        for clean, time, *_rest in self.display_data:
+            base_text = regex.sub(r'\p{Han}+\([^)]+\)', lambda m: regex.match(r'(\p{Han}+)', m.group()).group(), clean)
+            for line in base_text.splitlines():
+                width = font.measure(line)
+                if max_width < width:
+                    max_width = width
+        #             biggest_line = line
+        #             start_time = time
+        # print(format_time(start_time),": ",biggest_line)
+        line_height = font.metrics("linespace")
+        ruby_height = int(line_height * 0.6)
+        pad_x = 5
+        total_height = ruby_height * 2 + line_height * 2
+        total_width  = max_width + 2 * pad_x
+
+        return {"max_height": total_height, "max_width":   total_width}
 
     def set_episode(self, season: int, episode: int) -> bool: #true if movie, false if nothing found, If found set season and episode and path
         if season is None and episode is None:

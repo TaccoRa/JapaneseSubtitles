@@ -50,9 +50,11 @@ class SubtitleController:
         self.alt_pressed = False
         self.subtitle_timeout_job = None
         self.last_subtitle_text = ""
+        self.last_subtitle_raw = ""
         self.sub_hidden = False
         self.slider_dragging = False
-        
+        self.last_rendered_sub_time = None
+
         self.settings.bind_back(self.go_back)
         self.settings.bind_forward(self.go_forward)
         self.settings.bind_play_pause(self.toggle_play)
@@ -87,7 +89,7 @@ class SubtitleController:
         KeyboardListener(on_press=self._on_key_press, on_release=self._on_key_release).start()
 
         self.last_update  = time.time()
-        # self.update_time_and_subtitle_displays()
+        self.update_time_and_subtitle_displays()
 
 
 
@@ -116,8 +118,9 @@ class SubtitleController:
             self.toggle_play()
 
         self.current_time = t
-        self.settings.slider.set(t)
-        self.update_time_and_subtitle_displays()
+        if not self.slider_dragging:
+            self.settings.slider.set(t)
+            self.update_time_and_subtitle_displays()
 
     def on_set_to_return(self, text: str):
         secs = parse_time_value(text)
@@ -160,30 +163,29 @@ class SubtitleController:
             self._reset_canvas()
             return
         
-        idx = bisect.bisect_right(self.sub_manager.start_times, sub_t) - 1
+        start_times = [item[1] for item in self.sub_manager.display_data]
+        idx = bisect.bisect_right(start_times, sub_t) - 1
         if idx < 0:
             self._reset_canvas()
             return
-        clean, top, bottom = self.sub_manager.display_data[idx]
+        clean, _, top, bottom = self.sub_manager.display_data[idx]
         joined = ''.join(base for base, _ in (top + bottom))
-
+        self.last_subtitle_raw = clean
+        if joined == self.last_subtitle_text:
+            return
         if joined != self.last_subtitle_text:
-            # cancel any old hide‐job
             if self.subtitle_timeout_job:
                 self.overlay.root.after_cancel(self.subtitle_timeout_job)
                 self.subtitle_timeout_job = None
 
-            # clear old and draw new
             self.renderer.canvas.delete("all")
             self.last_subtitle_text = joined
             self.subtitle_deleted   = False
             self.renderer.render_subtitle(top, bottom, self.overlay)
 
-            # schedule its removal after your fixed timeout
             self.subtitle_timeout_job = self.overlay.root.after(
                 self.hide_subtitles_ms,
-                self._hide_subtitles_temporarily
-            )
+                self._hide_subtitles_temporarily)
 
     def _reset_canvas(self):
         self.renderer.canvas.delete("all")
@@ -215,22 +217,42 @@ class SubtitleController:
         path = self.sub_manager.ask_srt_file()
         if not path:
             return
-        # self.sub_manager._load_and_process(path)
-        self._after_episode_change()
+        self.sub_manager._load_and_process(path)
+        self._after_episode_change(path)
 
-    def _after_episode_change(self):
+    def _after_episode_change(self, path = None):
         if self.sub_manager.current_episode is None:
               self.settings.episode_var.set("Movie")
         else: 
             self.settings.episode_var.set(str(self.sub_manager.current_episode))
 
-        self.total_duration = self.sub_manager.get_total_duration()
-        self.settings.slider.set(self.default_start_time)
-        self.settings.slider.config(to=self.total_duration + self.settings._last_offset_value)
-        self.overlay.update_max_width(self.sub_manager.cleaned_subtitles)
+        self.settings.set_total_duration(self.sub_manager.get_total_duration())
+        self.sub_manager.calculate_geometry()
 
         self.current_time = self.default_start_time
         self.set_current_time(self.current_time)
+        # if not path:
+
+        # self.sub_manager._load_and_process(path)
+        
+    def update_max_width(self, cleaned_subs) -> None:
+        # Recompute content width + padding
+        content_w = self._compute_max_width(cleaned_subs)
+        self.max_w = content_w + 2 * self.pad_x
+
+        # Re‐center around the stored center_x/center_y
+        x = int(self.center_x - self.max_w / 2)
+        y = int(self.center_y - self.max_h / 2)
+
+        # Clamp to screen bounds
+        sw = self.root.winfo_vrootwidth()
+        sh = self.root.winfo_vrootheight()
+        x = max(0, min(x, sw  - self.max_w))
+        y = max(0, min(y, sh  - self.max_h))
+
+        # Apply the new geometry
+        self.sub_window.geometry(f"{self.max_w}x{self.max_h}+{x}+{y}")
+        self.sub_window.update_idletasks()
 
     def change_episode(self, action: str):
         season = self.sub_manager.current_season
@@ -253,7 +275,6 @@ class SubtitleController:
                 except ValueError:
                     self.settings.episode_var.set(str(current) if current else 'Movie')
                     return
-
         try:
             success = self.sub_manager.set_episode(season, target)
             if not success:
@@ -313,7 +334,14 @@ class SubtitleController:
 
     def on_slider_change(self, value):
         if self.slider_dragging:
-            self.set_current_time(float(value))
+            text = format_time(float(value))
+            self.settings.time_overlay.itemconfig(self.settings.time_overlay_text, text=text)
+            self.settings.update_time_overlay_position()
+            if not self.entry_editing:
+                self.settings.control_time_str.set(text)
+            self.current_time = float(value)
+            self._update_subtitle_display()#quite laggy but if you want to see the subtitles during dragging
+
     def on_slider_press(self, event):
         self.slider_dragging = True
     def on_slider_release(self, event):
@@ -332,7 +360,6 @@ class SubtitleController:
         if button == Button.x2 and pressed:
             self.renderer.canvas.delete("all")
             self.last_subtitle_text = ""
-            self.last_subtitle_raw = ""
             self.subtitle_deleted = True
 
 
