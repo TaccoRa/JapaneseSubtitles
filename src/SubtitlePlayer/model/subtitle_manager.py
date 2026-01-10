@@ -30,7 +30,7 @@ class SubtitleManager:
     SEASON_PATTERN = re.compile(r'S(\d+)', re.IGNORECASE)
     EPISODE_PATTERN = re.compile(r'E(\d+)', re.IGNORECASE)
     RUBY_PATTERN = regex.compile(r'(\p{Han}+)\(([^)]+)\)')
-    SXXEXX_PATTERN = re.compile(r'[Ss](\d{1,2})[^\d]*[Ee](\d{1,3})')
+    SXXEXX_PATTERN = re.compile(r'[Ss](\d{1,2})[^\d]*[Ee](\d{1,4})')
 
     def __init__(self, config: ConfigManager) -> None:
         self.config = config
@@ -50,27 +50,18 @@ class SubtitleManager:
 
         self.local_srt_dir = self._get_cache_base_dir()
         url = self.config.get("LAST_GITHUB_URL").strip()
-        self.init_srt_file_path = self.get_srt_files()
-        self.load_srt(self.init_srt_file_path)
+        self.init_srt_file_path = self.get_srt_files(url)
+        # self.load_srt(self.init_srt_file_path)
 
         # atexit.register(self._cleanup_created_caches)
 
-    #test
+
 
         #for startup testing for now
         self.srt_file = self.config.get("LAST_SRT_FILE")
         self._load_and_process(self.srt_file)
 
-    def _get_raw_url(self, owner: str, repo: str, ref: str, path: str) -> str:
-        """
-        Construct a raw.githubusercontent URL for a file path.
-        Use this to download the file contents.
-        """
-        # raw URL must have path URL-encoded for safety
-        enc_path = "/".join(quote(p) for p in path.split("/"))
-        return f"https://raw.githubusercontent.com/{owner}/{repo}/{ref}/{enc_path}"
 
-        
     '''
     First run: use last used github url to download current season
     during runtime: either episode switch or season switch
@@ -93,19 +84,19 @@ class SubtitleManager:
     After app close delete cache.
     '''
 
-    def load_srt(self, path) -> None:
-        self.get_srt_file()
+    # def load_srt(self, path) -> None:
+    #     self.get_srt_file()
 
 
 
     def get_srt_files(self, url) -> None: 
         self.srt_file = self._get_remote_srt(url.strip())
-        if not self.srt_file:
+        # if not self.srt_file:
             # ask for remote url
-            remote_url = self.ask_remote_srt_file()
-            self.srt_file = self._get_remote_srt(remote_url)
-        if not self.srt_file: #last fail safe
-            self.srt_file = self.ask_local_srt_file()
+        #     remote_url = self.ask_remote_srt_file()
+        #     self.srt_file = self._get_remote_srt(remote_url)
+        # if not self.srt_file: #last fail safe
+        #     self.srt_file = self.ask_local_srt_file()
         return self.srt_file ##not sure if i should do it like this???
 
 
@@ -128,8 +119,8 @@ class SubtitleManager:
             self.srt_file = self.ask_remote_srt_file()
 
 
-        # folder_title = "One Piece" #for debugging
-        folder_title = self._extract_folder_name_from_url(remote_path)
+        folder_title = "ONE PIECE" #for debugging
+        # folder_title = self._extract_folder_name_from_url(remote_path)
         print("Folder_title: ",folder_title)
         if folder_title:
             folders = self._search_subtitle_folders(owner, repo, ref, token, folder_title)
@@ -142,8 +133,8 @@ class SubtitleManager:
         #save all files from this folder if hit, in the local cache:
         ...
 
-        if files:
-            return(files[0])
+        # if files:
+        #     return(files[0])
 
 
     def _parse_github_url(self, url: str) -> Dict[str, Optional[str]]:  
@@ -187,8 +178,9 @@ class SubtitleManager:
             "Authorization": f"token {token}"
         }
         params = {
-            "q": f"repo:{owner}/{repo} path:subtitles {query}"
+            "q": f'repo:{owner}/{repo} {query}'
         }
+
 
         resp = requests.get(api_url, headers=headers, params=params, timeout=15)
         if resp.status_code != 200:
@@ -205,7 +197,8 @@ class SubtitleManager:
 
         return (results)
 
-    def _search_srt_files_in_folders(self, owner: str, repo: str, token: Optional[str],folders: List[str],season, episode) -> List[str]:
+
+    def _search_srt_files_in_folders(self, owner: str, repo: str, token: Optional[str],folders: List[str]) -> List[str]:
 
         headers = {
             "Accept": "application/vnd.github.v3+json",
@@ -214,8 +207,8 @@ class SubtitleManager:
             headers["Authorization"] = f"token {token}"
 
         # hardcoded episode for now
-        season = 3
-        episode = 1
+        season = 2
+        episode = 2
         sxxexx_pattern = re.compile(
             rf"(?i)s0*{season}[^0-9]*e0*{episode}(?!\d)"
         )
@@ -245,10 +238,10 @@ class SubtitleManager:
 
                     name = it.get("name", "")
                     lname = name.lower()
-
+                    # print(name)
                     if not lname.endswith(".srt"):
                         continue
-                    if "netflix" not in lname:
+                    if  ("netflix"or"amazon") not in lname: # or "bandai"
                         continue
                     if not sxxexx_pattern.search(name):
                         continue
@@ -389,9 +382,9 @@ class SubtitleManager:
         except Exception:
             return None
         
-    # def _extract_number(self, pattern: re.Pattern, filename: str):
-    #     match = pattern.search(filename)
-    #     if match: return int(match.group(1))
+    def _extract_number(self, pattern: re.Pattern, filename: str):
+        match = pattern.search(filename)
+        if match: return int(match.group(1))
 
     def _clean_text(self, text: str) -> str:
         cleaned = self.CLEAN_PATTERN.sub('', text)
