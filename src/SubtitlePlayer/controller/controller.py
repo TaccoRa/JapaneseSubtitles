@@ -255,36 +255,21 @@ class SubtitleController:
         self.sub_window.update_idletasks()
 
     def change_episode(self, action: str):
-        season = self.sub_manager.current_season
-        current = self.sub_manager.current_episode
-        if action == 'dec':
-            if current is None or current < 2:
+        raw = self.settings.episode_var.get().strip()
+        if not raw or raw <= 0: #if nothing written set back to orignal
+            self.settings.episode_var.set(raw)
+
+        if raw.lower() == 'movie':
+            if action != "set": #if movie only set is allowed if inc or dec do nothing
                 return
-            target = current - 1
-        elif action == 'inc':
-            if current is None:
-                return
-            target = current + 1
-        elif action == 'set':
-            raw = self.settings.episode_var.get().strip()
-            if not raw or raw.lower() == 'movie':
-                target = None
-            else:
-                try:
-                    target = int(raw)
-                except ValueError:
-                    self.settings.episode_var.set(str(current) if current else 'Movie')
-                    return
-        try:
-            success = self.sub_manager.set_episode(season, target)
-            if not success:
-                raise FileNotFoundError
-        except FileNotFoundError:
-            self.settings.episode_var.set(str(current) if current else 'Movie')
-            raise
-        else:
-            self.settings.episode_var.set('Movie' if target is None else str(target))
-            self._after_episode_change()
+
+        target_season,target_episode = self.sub_manager.change_episode(action, raw)
+        if target_episode is not None:
+            self.settings.episode_var.set(str(target_episode))
+            self._after_episode_change() #reset all with new srt data
+        else: #change not allowed
+            self.settings.episode_var.set(raw) #set back to original
+
     
 
     # ——— Playback controls ———————————————————————————————————

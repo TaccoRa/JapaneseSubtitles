@@ -1,22 +1,74 @@
+#app.py
+import os
 import tkinter as tk
-from tkinter import font as tkFont
+import logging
 
+from view.settings_ui import SettingsUI
+from view.subtitle_overlay import SubtitleOverlayUI
+from view.popup import CopyPopup
 from model.config_manager import ConfigManager
 from model.subtitle_manager import SubtitleManager
 from model.renderer import SubtitleRenderer
-from view.settings_ui import SettingsUI
-from view.subtitle_overlay import SubtitleOverlayUI
 from controller.controller import SubtitleController
-from view.popup import CopyPopup
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
+
 
 class SubtitlePlayerApp:
     DEBOUNCE_MS = 100
     def __init__(self):
+        logger.info("Starting SubtitlePlayerApp")
 
-        # Initialize config and subtitle manager
-        self.config = ConfigManager("config.json")
+        self._load_config()
+        self._load_subtitle_metadata()
+        # self._build_app_window()
+        # self._bind_events()
+
+        # self._build_model()
+        # self._build_ui()
+        # self._build_controller()
+
+
+
+    def _load_config(self):
+        try:
+            self.config = ConfigManager("config.json")
+        except Exception:
+            logger.exception("Failed to load config.json")
+            raise SystemExit(1)
+        
+    def _load_subtitle_metadata(self):
         self.sub_manager = SubtitleManager(self.config)
         self.total_duration = self.sub_manager.get_total_duration()
+        #Get subtitle metadata...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        # self.config = ConfigManager("config.json")
+        # self.sub_manager = SubtitleManager(self.config)
+        # self.total_duration = self.sub_manager.get_total_duration()
 
         # App window
         self.root = tk.Tk()
