@@ -107,7 +107,8 @@ class SubtitleManager:
         and if hit saves the other srt files of this season into the cache folder.
         '''
         parsed = self._parse_github_url(url)
-        token = self.config.get("GITHUB_TOKEN") or os.environ.get("GITHUB_TOKEN")
+        token = os.environ.get("GITHUB_TOKEN")
+        print(token)
         owner = parsed.get('owner')
         repo = parsed.get('repo')
         ref = parsed.get('ref') or 'HEAD'
