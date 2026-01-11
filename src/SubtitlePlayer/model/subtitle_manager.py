@@ -24,13 +24,27 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+'''
+First run: use last used github url to download current season
+during runtime: either episode switch or season switch
+e switch: switch_episode(season, episode) look for s(season)e(episode+-1) (depending on switching) 
+if this is not in current cache get the new season:
+s switch: look for anime name in url, search in github for folders with this name. 
+(problem if currently at season 2 and the naming is arbitrary the base name of season two must not be inside name of season three)
+(solution: if season 1 save the name of the anime in config and only change if new anime/new season 1 and use this to search the other seasons)
+(maybe make an additional check for the least common char in all of the folders found -> should be anime name)
+if last episode (not in current cache) look for S(season+1)E1 inside the folders. -> download from the folder
+where this srt file is in, the other srt files and safe in cache. (If multiple hits for folder use the first hit)
+(For later: If srt button is used ask for new url to get new anime)
+'''
+
 class SubtitleManager:
 
     CLEAN_PATTERN = re.compile(r'\{\\an\d+\}')
     SEASON_PATTERN = re.compile(r'S(\d+)', re.IGNORECASE)
     EPISODE_PATTERN = re.compile(r'E(\d+)', re.IGNORECASE)
     RUBY_PATTERN = regex.compile(r'(\p{Han}+)\(([^)]+)\)')
-    SXXEXX_PATTERN = re.compile(r'[Ss](\d{1,2})[^\d]*[Ee](\d{1,4})')
+    # SXXEXX_PATTERN = re.compile(r'[Ss](\d{1,2})[^\d]*[Ee](\d{1,4})')
 
     def __init__(self, config: ConfigManager) -> None:
         self.config = config
@@ -49,43 +63,69 @@ class SubtitleManager:
         self.cache_dir = None
 
         self.local_srt_dir = self._get_cache_base_dir()
-        url = self.config.get("LAST_GITHUB_URL").strip()
-        self.init_srt_file_path = self.get_srt_files(url)
+        self.init_srt_file_path = self.get_srt_files(self.config.get("LAST_GITHUB_URL").strip())
+        #cache this season
         # self.load_srt(self.init_srt_file_path)
 
         # atexit.register(self._cleanup_created_caches)
-
 
 
         #for startup testing for now
         self.srt_file = self.config.get("LAST_SRT_FILE")
         self._load_and_process(self.srt_file)
 
+    # def _parse_sxxexx_from_filename(self, name: str) -> Optional[Tuple[int,int]]:
+    #     m = self.SXXEXX_PATTERN.search(name)
+    #     if not m:
+    #         return None
+    #     try:
+    #         s = int(m.group(1))
+    #         e = int(m.group(2))
+    #         return (s, e)
+    #     except Exception:
+    #         return None
+        
+    def extract_season_episode(self, name):
+        # 1) SxxExx
+        m = re.search(r'(?i)s(\d{1,2})\D*e(\d{1,4})', name)
+        if m:
+            return int(m.group(1)), int(m.group(2))
 
-    '''
-    First run: use last used github url to download current season
-    during runtime: either episode switch or season switch
-    e switch: switch_episode(season, episode) look for s(season)e(episode+-1) (depending on switching) 
-    if this is not in current cache get the new season:
-    s switch: look for anime name in url, search in github for folders with this name. 
-    (problem if currently at season 2 and the naming is arbitrary the base name of season two must not be inside name of season three)
-    (solution: if season 1 save the name of the anime in config and only change if new anime/new season 1 and use this to search the other seasons)
-    (maybe make an additional check for the least common char in all of the folders found -> should be anime name)
-    if last episode (not in current cache) look for S(season+1)E1 inside the folders. -> download from the folder
-    where this srt file is in, the other srt files and safe in cache. (If multiple hits for folder use the first hit)
-    (For later: If srt button is used ask for new url to get new anime)
+        # 2) Exx
+        m = re.search(r'(?i)\b[eE](\d{1,4})\b', name)
+        if m:
+            return None, int(m.group(1))
 
-    app.py will call SubtitleManager() and initilize it and give it to the other modules. 
-    During init: See above first run. 
-    so controller will call: sub_manager.change_episode(action)
+        # 3) After dash
+        m = re.search(r'-(?:\s*)(\d{2,4})(?=\s|\[|\.|$)', name)
+        if m:
+            return None, int(m.group(1))
 
-    conceptual: always remote, failsafe ask for local file or new url.
-    Meaning: safe last github url, use this to get the season folder and cache it
-    After app close delete cache.
-    '''
+        # 4) LAST number before extension/tags
+        nums = re.findall(r'(?<!\d)(\d{2,4})(?!\d)', name)
+        if nums:
+            ep = int(nums[-1])
+            # filter obvious junk
+            if 1900 <= ep <= 2100:  # year
+                return None, None
+            return None, ep
+
+        return None, None
+
+
+    def _get_raw_url(self, owner: str, repo: str, ref: str, path: str) -> str:
+        """
+        Construct a raw.githubusercontent URL for a file path.
+        Use this to download the file contents.
+        """
+        # raw URL must have path URL-encoded for safety
+        enc_path = "/".join(quote(p) for p in path.split("/"))
+        return f"https://raw.githubusercontent.com/{owner}/{repo}/{ref}/{enc_path}"
+    
+
 
     # def load_srt(self, path) -> None:
-    #     self.get_srt_file()
+        #     self.get_srt_file()
 
 
 
@@ -108,7 +148,6 @@ class SubtitleManager:
         '''
         parsed = self._parse_github_url(url)
         token = os.environ.get("GITHUB_TOKEN")
-        print(token)
         owner = parsed.get('owner')
         repo = parsed.get('repo')
         ref = parsed.get('ref') or 'HEAD'
@@ -119,12 +158,12 @@ class SubtitleManager:
             self.srt_file = self.ask_remote_srt_file()
 
 
-        folder_title = "shuumatsu no v" #for debugging
+        folder_title = "One Piece" #for debugging
         # folder_title = self._extract_folder_name_from_url(remote_path)
         print("Folder_title: ",folder_title)
         if folder_title:
             folders = self._search_subtitle_folders(owner, repo, ref, token, folder_title)
-            print("Found folders:", folders)
+            # print("Found folders:", folders)
 
             files = self._search_srt_files_in_folders(owner, repo, token, folders)
 
@@ -133,8 +172,8 @@ class SubtitleManager:
         #save all files from this folder if hit, in the local cache:
         ...
 
-        # if files:
-        #     return(files[0])
+        if files:
+            return(files[0])
 
 
     def _parse_github_url(self, url: str) -> Dict[str, Optional[str]]:  
@@ -199,7 +238,7 @@ class SubtitleManager:
 
 
     def _search_srt_files_in_folders(self, owner: str, repo: str, token: Optional[str],folders: List[str]) -> List[str]:
-
+        #only needed to find episode 1 of the new season. Then save the path to this episode and the other episodes should be in the same folder and download every episode of this season.
         headers = {
             "Accept": "application/vnd.github.v3+json",
         }
@@ -207,11 +246,7 @@ class SubtitleManager:
             headers["Authorization"] = f"token {token}"
 
         # hardcoded episode for now
-        season = 2
-        episode = 1
-        sxxexx_pattern = re.compile(
-            rf"(?i)s0*{season}[^0-9]*e0*{episode}(?!\d)"
-        )
+        season = 6
 
         results: List[str] = []
 
@@ -241,9 +276,9 @@ class SubtitleManager:
                     # print(name)
                     if not lname.endswith(".srt"):
                         continue
-                    if not any(x in lname for x in ['amazon','netflix',"bandai", "Webrip"]):
-                        continue
-                    if not sxxexx_pattern.search(name):
+                    # if not any(x in lname for x in ['amazon','netflix',"bandai", "Webrip"]):
+                    #     continue
+                    if self.extract_season_episode(name) != (season ,1):
                         continue
 
                     results.append(it.get("path"))
