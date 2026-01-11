@@ -91,12 +91,11 @@ class SubtitleManager:
 
     def get_srt_files(self, url) -> None: 
         self.srt_file = self._get_remote_srt(url.strip())
-        # if not self.srt_file:
-            # ask for remote url
-        #     remote_url = self.ask_remote_srt_file()
-        #     self.srt_file = self._get_remote_srt(remote_url)
-        # if not self.srt_file: #last fail safe
-        #     self.srt_file = self.ask_local_srt_file()
+        if not self.srt_file:# ask for remote url
+            remote_url = self.ask_remote_srt_file()
+            self.srt_file = self._get_remote_srt(remote_url)
+        if not self.srt_file: #last fail safe
+            self.srt_file = self.ask_local_srt_file()
         return self.srt_file ##not sure if i should do it like this???
 
 
@@ -119,7 +118,7 @@ class SubtitleManager:
             self.srt_file = self.ask_remote_srt_file()
 
 
-        folder_title = "ONE PIECE" #for debugging
+        folder_title = "shuumatsu no v" #for debugging
         # folder_title = self._extract_folder_name_from_url(remote_path)
         print("Folder_title: ",folder_title)
         if folder_title:
@@ -195,7 +194,7 @@ class SubtitleManager:
                 folder = os.path.dirname(path)
                 results.append(folder)
 
-        return (results)
+        return (set(results))
 
 
     def _search_srt_files_in_folders(self, owner: str, repo: str, token: Optional[str],folders: List[str]) -> List[str]:
@@ -208,7 +207,7 @@ class SubtitleManager:
 
         # hardcoded episode for now
         season = 2
-        episode = 2
+        episode = 1
         sxxexx_pattern = re.compile(
             rf"(?i)s0*{season}[^0-9]*e0*{episode}(?!\d)"
         )
@@ -241,7 +240,7 @@ class SubtitleManager:
                     # print(name)
                     if not lname.endswith(".srt"):
                         continue
-                    if  ("netflix"or"amazon") not in lname: # or "bandai"
+                    if not any(x in lname for x in ['amazon','netflix',"bandai", "Webrip"]):
                         continue
                     if not sxxexx_pattern.search(name):
                         continue
