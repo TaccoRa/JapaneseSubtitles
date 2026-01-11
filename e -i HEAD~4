@@ -1,0 +1,74 @@
+[33m5f5cd9a[m[33m ([m[1;31morigin/newTryRemoteSRT[m[33m)[m Added Ragnarok files
+[33mcb4e183[m[33m ([m[1;31morigin/Improvingcode[m[33m, [m[1;32mfix-messed-up[m[33m, [m[1;32mImprovingcode[m[33m)[m Last changes for visual
+[33mc6215b3[m Cleared up
+[33md6073c1[m changed get total duration to only check last subtitle end time
+[33m6470797[m Changed how set episode and change episode worked
+[33m987d70f[m unneded call for current working directory
+[33m7130b56[m Fixed again how sutitle handle is shown
+[33m194c65a[m add config for phone mode default true/false
+[33m90f28b8[m fixed bug that old values were used for calculation thumb overlay position and so on
+[33m46c3c21[m added so the width of the control window changes dynamically
+[33m06b0e72[m added so that the root window also appears on btn click when it is minimized
+[33m0aa6290[m Fixed the slider update when offset changed
+[33m77732e3[m reorderd controller
+[33md9e94a3[m cleaned up control and settings window functions
+[33m7820032[m Fixed how last offset was formatted and saved. Now for displaying use _format_offset and saved are the float values in seconds.
+[33mccd2b87[m Changed total duration to fit offset
+[33m7be00f2[m Deleted unnecessary dynamical code
+[33mf55276f[m Finally fixed txt playement (not dynamically because black background flashing)
+[33m3fec7b5[m changed how sub window is shown
+[33m5a2dfec[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m Put cleaned and segments into one list and functions to call only that list
+[33m3dcd736[m Messed up the last saved position of subtitle windows. Cleaned up popup.py
+[33m7efe2f0[m Added hunterxhunter files and changed the offset functions, added how popup interacts
+[33m759d212[m Merge pull request #3 from TaccoRa/FuriganaRuby
+[33mbab1ead[m[33m ([m[1;31morigin/FuriganaRuby[m[33m, [m[1;32mFuriganaRuby[m[33m)[m Deleted prints()
+[33mbed7fbc[m Fixed toggle issue
+[33md1becc6[m Fixed set_current_time
+[33m42ee66e[m Bug where max of duration and current time gave int not float
+[33m6f89138[m Typo
+[33md794d38[m Changed popup and delete button mechanics
+[33mfd9ff0b[m Changed a little how the offset entry is processed.
+[33m24ba950[m Changed hide delay for control window
+[33m448c85f[m Changed directory calling and window displaying
+[33mb1bc50d[m added testing morphology for dictionary.
+[33mf19945a[m Added positioning memory for windows, Changed popup.py
+[33m536a620[m Deleted unnesecary mouse_manager
+[33mb8243e8[m Added bug issue
+[33m651a94b[m Now shows rubies above kanjis and correct width calculated
+[33mb375b14[m[33m ([m[1;31morigin/SplittingClasses[m[33m)[m Added button in control window to lift settings window
+[33ma1e5ff5[m Implemented hide logic and changed renderer back to origin
+[33mf712e06[m Fixed back to before PYQT
+[33m045989b[m Changed back to nonpyqt
+[33me5984e0[m Not sure what happened
+[33mf3a6b3a[m Messed around with the subtitle display
+[33m803dc62[m Fixed popup functions and added right click so the window stays open. Changed where methods should be controller or manager. Also renamed control_ui to settings_ui to not confuse it with control_window
+[33m1ea86f0[m Changed control window and changed name from control_ui to settings_ui
+[33me982e07[m fixed settings window functions and slider position
+[33m9baea16[m Merge pull request #2 from TaccoRa/SplittingClasses
+[33m2d032bf[m Merge branch 'SplittingClasses' of https://github.com/TaccoRa/JapaneseSubtitles into SplittingClasses
+[33mdecc219[m Changes to be committed: 	modified:   src/SubtitlePlayer/main.py
+[33mec06401[m adding clear functions in control_ui
+[33m78ba872[m Keep fixing settings functions
+[33m25310c1[m Finished correcting control_ui
+[33m43548c5[m Fixed _build_settings_frame
+[33m1afd966[m Corrected toggle_phone_mode
+[33ma00cd1d[m Added phone mode control window feometry
+[33m06789f5[m Finished subtitle_manager started cleanup of control_ui
+[33m0d132cf[m keep editing subtitle_manager  and therefore changing controller manager and control_ui.py
+[33m7ee8897[m fixing app.py and config_manager.py
+[33m9074f54[m Fixing new structure
+[33m3de109d[m New structure
+[33m40fbaf5[m Correcting new file system
+[33m6a9e75b[m Backup of new format
+[33mf61c622[m Same as before
+[33m9de55d7[m First refactoring of the code into smaller classes and files
+[33mb2cd517[m Started creating different files for each class
+[33m8d6ce80[m Merge pull request #1 from TaccoRa/drstone
+[33m2895fc1[m Remove venv from repo and ignore it
+[33m492974f[m Changes to be committed: 	modified:   .gitignore 	modified:   README.md
+[33m63ff004[m Added gitignore file
+[33m67d7e96[m Changes to be committed: 	modified:   SubtitlesJapanese1.0.py     Strucured python imports for best practice
+[33mc156d16[m Run the code
+[33m7d7fcb2[m Created repository
+[33m5444ac1[m Update README.md
+[33m004b29a[m Initial commit
