@@ -27,6 +27,9 @@ class SubtitlePlayerApp:
 
         self._load_config()
         self._load_subtitle_metadata()
+
+
+
         # self._build_app_window()
         # self._bind_events()
 
@@ -49,7 +52,6 @@ class SubtitlePlayerApp:
         self.sub_manager = SubtitleManager(self.config)
         self.total_duration = self.sub_manager.get_total_duration()
         #Get subtitle metadata...
-
 
 
 
@@ -93,7 +95,7 @@ class SubtitlePlayerApp:
         self.settings_ui = SettingsUI(
             root=self.root, config=self.config,
             total_duration=self.total_duration,
-            initial_episode=self.sub_manager.current_episode)
+            initial_episode=self.sub_manager.get_current_episode())
 
         # Model
         self.renderer = SubtitleRenderer(
@@ -110,8 +112,20 @@ class SubtitlePlayerApp:
             popup=self.popup,
             config=self.config,
             total_duration=self.total_duration)
+        
 
+        self.download_season_asynch()
         self.root.after(self.config.get("UPDATE_INTERVAL_MS"), self.controller.update_loop)
+
+
+    def download_season_asynch(self):
+        init_url = self.sub_manager._parse_github_url(self.config.get("LAST_GITHUB_URL"))
+        (owner, repo, ref, path,
+         file_name, season_num, episode_num,
+         anime_name, remote_folder) = self.sub_manager.extract_episode_metadata(init_url)
+        season_dir = self.sub_manager._season_cache_dir(self.sub_manager.anime_folder_name, season_num, create=True)
+        season_files = self.sub_manager._search_srt_files_in_folders(owner, repo, [remote_folder], season_num)
+        self.sub_manager.download_remaining_season_async(owner, repo, ref, season_files, file_name, season_dir)
 
     def _restore_window_position(self): #gets last saved position of settings window or centers it on the screen if out of bounds
         x = self.config.get("LAST_SETTINGS_WINDOW_X")

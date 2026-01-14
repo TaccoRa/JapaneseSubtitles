@@ -214,7 +214,7 @@ class SubtitleController:
 
     # ——— Change srt file ———————————————————————————————————
     def _on_open_srt(self, event=None):
-        path = self.sub_manager.ask_srt_file()
+        path = self.sub_manager.ask_local_srt_file()
         if not path:
             return
         self.sub_manager._load_and_process(path)
@@ -256,14 +256,13 @@ class SubtitleController:
 
     def change_episode(self, action: str):
         raw = self.settings.episode_var.get().strip()
-        if not raw or raw <= 0: #if nothing written set back to orignal
-            self.settings.episode_var.set(raw)
-
+        if not raw or int(raw) <= 0: #if nothing written set back to orignal
+            self.settings.episode_var.set(int(raw))
+            return
         if raw.lower() == 'movie':
-            if action != "set": #if movie only set is allowed if inc or dec do nothing
-                return
+            return
 
-        target_season,target_episode = self.sub_manager.change_episode(action, raw)
+        target_season,target_episode = self.sub_manager.change_episode(action, int(raw))
         if target_episode is not None:
             self.settings.episode_var.set(str(target_episode))
             self._after_episode_change() #reset all with new srt data
