@@ -1,3 +1,4 @@
+#renderer.py
 import tkinter as tk
 from tkinter import font as tkFont
 from view.subtitle_overlay import SubtitleOverlayUI
