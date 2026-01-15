@@ -214,45 +214,8 @@ class SubtitleController:
 
     # ——— Change srt file ———————————————————————————————————
     def _on_open_srt(self, event=None):
-        path = self.sub_manager.ask_local_srt_file()
-        if not path:
-            return
-        self.sub_manager._load_and_process(path)
-        self._after_episode_change(path)
-
-    def _after_episode_change(self, path = None):
-        if self.sub_manager.current_episode is None:
-              self.settings.episode_var.set("Movie")
-        else: 
-            self.settings.episode_var.set(str(self.sub_manager.current_episode))
-
-        self.settings.set_total_duration(self.sub_manager.get_total_duration())
-        self.sub_manager.calculate_geometry()
-
-        self.current_time = self.default_start_time
-        self.set_current_time(self.current_time)
-        # if not path:
-
-        # self.sub_manager._load_and_process(path)
-        
-    def update_max_width(self, cleaned_subs) -> None:
-        # Recompute content width + padding
-        content_w = self._compute_max_width(cleaned_subs)
-        self.max_w = content_w + 2 * self.pad_x
-
-        # Re‐center around the stored center_x/center_y
-        x = int(self.center_x - self.max_w / 2)
-        y = int(self.center_y - self.max_h / 2)
-
-        # Clamp to screen bounds
-        sw = self.root.winfo_vrootwidth()
-        sh = self.root.winfo_vrootheight()
-        x = max(0, min(x, sw  - self.max_w))
-        y = max(0, min(y, sh  - self.max_h))
-
-        # Apply the new geometry
-        self.sub_window.geometry(f"{self.max_w}x{self.max_h}+{x}+{y}")
-        self.sub_window.update_idletasks()
+        self.sub_manager.set_new_file()
+        self._after_episode_change()
 
     def change_episode(self, action: str):
         raw = self.settings.episode_var.get().strip()
@@ -269,7 +232,38 @@ class SubtitleController:
         else: #change not allowed
             self.settings.episode_var.set(raw) #set back to original
 
-    
+
+    def _after_episode_change(self):
+        if self.sub_manager.current_episode is None:
+              self.settings.episode_var.set("Movie")
+        else: 
+            self.settings.episode_var.set(str(self.sub_manager.current_episode))
+
+        self.settings.set_total_duration(self.sub_manager.get_total_duration())
+        self.update_max_width()
+
+        self.current_time = self.default_start_time
+        self.set_current_time(self.current_time)
+        
+    def update_max_width(self) -> None:
+        # Recompute content width + padding
+        max_h, max_w = self.sub_manager.get_subtitle_geometry()
+        # Re‐center around the stored center_x/center_y
+        center_x, center_y = self.config.get("LAST_SUB_CENTER_X"), self.config.get("LAST_SUB_CENTER_Y")
+        x = int(center_x - max_w / 2)
+        y = int(center_y - max_h / 2)
+
+        # Clamp to screen bounds
+        sw = self.overlay.root.winfo_vrootwidth()
+        sh = self.overlay.root.winfo_vrootheight()
+        x = max(0, min(x, sw  - x))
+        y = max(0, min(y, sh  - y))
+        # print("new width is ",max_w)
+        # Apply the new geometry
+        self.overlay.sub_window.geometry(f"{max_w}x{max_h}+{x}+{y}")
+        self.overlay.sub_window.update_idletasks()
+
+
 
     # ——— Playback controls ———————————————————————————————————
     def toggle_play(self):

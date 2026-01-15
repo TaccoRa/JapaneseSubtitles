@@ -6,15 +6,14 @@ from utils import make_draggable
 
 class SubtitleOverlayUI:
 
-    def __init__(self, root: tk.Tk, config: ConfigManager,cleaned_subs: Optional[List[str]] = None, overlay_geometry: dict = None) -> None:
+    def __init__(self, root: tk.Tk, config: ConfigManager,cleaned_subs: Optional[List[str]] = None, overlay_geometry =  None) -> None:
         self.root = root
         self.sub_window: tk.Toplevel = None 
         self.subtitle_canvas: tk.Canvas = None
         self.subtitle_handle = None
         self.config = config
         self.cleaned_subs = cleaned_subs
-        self.max_h = overlay_geometry["max_height"]
-        self.max_w = overlay_geometry["max_width"]
+        self.max_h,self.max_w  = overlay_geometry
         self.center_x = self.config.get("LAST_SUB_CENTER_X")
         self.center_y = self.config.get("LAST_SUB_CENTER_Y")
 
@@ -29,6 +28,7 @@ class SubtitleOverlayUI:
         x = int(self.center_x - self.max_w / 2)
         y = int(self.center_y - self.max_h / 2)
         sw, sh = self.root.winfo_vrootwidth(), self.root.winfo_vrootheight()
+        print("Startup width is: ",self.max_w)
         x = max(0, min(x, sw - self.max_w))
         y = max(0, min(y, sh - self.max_h))
         self.sub_window.geometry(f"{self.max_w}x{self.max_h}+{x}+{y}")

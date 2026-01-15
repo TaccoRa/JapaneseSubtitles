@@ -17,6 +17,7 @@ from tkinter import font as tkFont
 from tkinter import filedialog, messagebox, simpledialog
 
 from model.config_manager import ConfigManager
+from utils import format_time
 
 import logging
 logger = logging.getLogger(__name__)
@@ -84,20 +85,17 @@ class SubtitleManager:
                 self.config.set("LAST_ANIME_NAME", self.anime_folder_name)
 
 
-        # create cache directory for the current season
+
+        # create cache directory for the current season and download first file and process
         self.season_dir = self._season_cache_dir(self.anime_folder_name, self.current_season, create=True)
-
-        # must be set before any download
         self.update_current_github_reference(owner, repo, ref, path)
-
-        # download and load the initial episode
         self.srt_file = self.download_current_episode(path)
         self._load_and_process(self.srt_file)
 
         # register cleanup of temp cache on exit
         self._register_cache_cleanup()
 
-
+################ TODO: figure out the anime name of first season #################
 
     def _load_local_srt(self, path):
         self.config.set("LAST_SRT_FILE", path)
@@ -131,8 +129,6 @@ class SubtitleManager:
                 bottom = self._parse_ruby_segments(lines[1])
             self.display_data.append((clean, start_times, top, bottom))
 
-
-
     def _clean_text(self, text: str) -> str:
         cleaned = self.CLEAN_PATTERN.sub('', text)
         cleaned = self.RUBY_PATTERN.sub(r'\1«\2»', cleaned)
@@ -140,8 +136,7 @@ class SubtitleManager:
         cleaned = cleaned.replace('«', '(').replace('»', ')')
         return cleaned.replace('&lrm;', '').replace('\u200e', '').strip()
 
-
-    def calculate_geometry(self) -> dict:
+    def calculate_geometry(self):
         font = tkFont.Font(family=self.config.get("SUBTITLE_FONT"),size=self.config.get("SUBTITLE_FONT_SIZE"),weight="bold")
         max_width = 0
         for clean, time, *_rest in self.display_data:
@@ -153,21 +148,25 @@ class SubtitleManager:
         #             biggest_line = line
         #             start_time = time
         # print(format_time(start_time),": ",biggest_line)
+        # print(self.display_data[1:4])
         line_height = font.metrics("linespace")
         ruby_height = int(line_height * 0.6)
         pad_x = 5
         total_height = ruby_height * 2 + line_height * 2
         total_width  = max_width + 2 * pad_x
 
-        return {"max_height": total_height, "max_width":   total_width}
+        return (total_height, total_width)
 
 
 # ---------------------- get data -------------------------
+    def get_title(self)-> Optional[str]:
+        return self.anime_folder_name
+    
     def get_subtitle_display_data(self):
         return self.display_data
     
-    def get_title(self)-> Optional[str]:
-        return self.anime_folder_name
+    def get_subtitle_geometry(self):
+        return self.calculate_geometry()
         
     def get_season_episode_movie_info(self) -> Tuple[Optional[int], Optional[int]]:
         return (self.current_season, self.current_episode)
@@ -176,8 +175,7 @@ class SubtitleManager:
         return self.subtitles[-1].end.total_seconds()
     
     def get_current_season(self) -> int:
-        return self.current_season
-    
+        return self.current_season  
     def get_current_episode(self) -> int:
         return self.current_episode
 # ---------------------- get data -------------------------
@@ -193,8 +191,7 @@ class SubtitleManager:
         if create:
             os.makedirs(season_dir, exist_ok=True)
         return season_dir
-
-    
+ 
     def _get_cache_base_dir(self) -> str: #get current base directory
         project_root = os.path.dirname(os.path.abspath(os.path.join(__file__, "..")))
         base = os.path.join(project_root, "cache_github")
@@ -214,7 +211,6 @@ class SubtitleManager:
                 eps.append(e)
         return sorted(set(eps))
 
-    
     def _register_cache_cleanup(self) -> None:
         def _cleanup():
             try:
@@ -331,6 +327,12 @@ class SubtitleManager:
 
 
 # ---------------------- GitHub searching / downloading ----------------------
+    def update_current_github_reference(self, owner, repo, ref, path):
+        self.github_owner = owner
+        self.github_repo  = repo
+        self.github_ref   = ref
+        self.github_path  = path
+
     def _get_remote_files_for_season(self, season: int) -> List[str]:
         """
         Return list of remote file paths for a season (cached in-memory per run).
@@ -353,7 +355,6 @@ class SubtitleManager:
         # cache result (even empty) for the session
         self._remote_files_cache[season] = files
         return files
-
 
     def _search_subtitle_folders(self, owner: str, repo: str, ref: str, query: str) -> List[str]:
 
@@ -420,8 +421,6 @@ class SubtitleManager:
         self._download_file(self.github_owner, self.github_repo, self.github_ref, path, local_path)
         return local_path
 
-
-    
     def sanitize_filename(self,filename: str) -> str:
         # Replace invalid Windows characters with underscore
         return re.sub(r'[<>:"/\\|?*]', '_', filename)
@@ -440,12 +439,6 @@ class SubtitleManager:
                 daemon=True
             ).start()
 
-    def update_current_github_reference(self, owner, repo, ref, path):
-        self.github_owner = owner
-        self.github_repo  = repo
-        self.github_ref   = ref
-        self.github_path  = path
-
     def _download_file(self, owner, repo, ref, remote_path, local_path):
         # Ensure only the directory exists, not the file
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
@@ -458,9 +451,10 @@ class SubtitleManager:
                 f.write(r.content)
         except Exception as e:
             logger.error(f"Download failed for {url}: {e}")
+# ---------------------- GitHub searching / downloading ----------------------
 
 
-# ---------------------- Manual file selection ----------------------
+# ---------------------- file selection ----------------------
     def ask_local_srt_file(self) -> Optional[str]:
         try:
             window = tk.Tk(); window.withdraw(); window.attributes("-topmost", True)
@@ -486,7 +480,7 @@ class SubtitleManager:
             logger.exception("No url given")
             return None
         return url
-# ---------------------- Manual file selection ----------------------
+# ---------------------- file selection ----------------------
 
 
 
@@ -504,7 +498,6 @@ class SubtitleManager:
         target_episode = current
         remote_path = None
         season_files = None
-        print("S",season,"E",current)
 
         if action == 'dec':
             if season == 1 and current <= 1:  # cannot go below S1E1
@@ -683,6 +676,38 @@ class SubtitleManager:
             logger.exception("Failed to start async season download")
 
         return self.current_season, self.current_episode
+    
+    def set_new_file(self):
+        popup = tk.Toplevel()
+        popup.title("Choose Source")
+        popup.attributes("-topmost", True)
+        popup.grab_set() 
+        w,h = 290,120 
+        popup.update_idletasks()
+        sw, sh = popup.winfo_screenwidth(), popup.winfo_screenheight()
+        x,y = (sw - w) // 2, (sh - h) // 2
+        popup.geometry(f"{w}x{h}+{x}+{y}")
+
+        tk.Label(popup, text="Select source for subtitle file:", font=("Arial", 12)).pack(pady=(20, 10))
+        button_frame = tk.Frame(popup)
+        button_frame.pack(pady=20)
+
+        def choose_local():
+            popup.destroy()
+            self.local_srt_path = self.ask_local_srt_file()
+            self._load_local_srt(self.local_srt_path)
+
+        def choose_remote():
+            popup.destroy()
+            url = self.ask_remote_srt_file()
+            #act like this is startup where you get url and everything else is resetted
+
+        tk.Button(button_frame, text="Local File", width=15, command=choose_local).grid(row=0, column=0, padx=15)
+        tk.Button(button_frame, text="Remote URL", width=15, command=choose_remote).grid(row=0, column=1, padx=15)
+
+        popup.wait_window(popup)
+
+
 # ---------------------- episode / season switching ----------------------
 
 
@@ -702,205 +727,39 @@ class SubtitleManager:
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    # def
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        # if config.get("DEBUGGING"):
-        #       self.srt_file = config.get("DEBUGGING_SRT_FILE")
-        # else: self.srt_file = config.get("LAST_SRT_FILE")
-        # self.srt_dir = os.path.dirname(self.srt_file) if self.srt_file else os.getcwd()
-        # if not self.srt_file or not os.path.exists(self.srt_file):
-        #     selected = self.ask_srt_file()
-        #     if not selected:
-        #         raise FileNotFoundError("No subtitle file selected.")
-        #     self.srt_file = selected
-        # self._load_and_process(self.srt_file)
-
-
-    # def ask_srt_file(self, path: Optional[str] = None) -> bool:
-    #     # Prompt for file if not given
-    #     if path is None:
-    #         window = tk.Tk(); window.withdraw(); window.attributes("-topmost", True)
-    #         path = filedialog.askopenfilename(
-    #             parent=window,
-    #             title="Select SRT File",
-    #             initialdir=self.srt_dir,
-    #             filetypes=[("SubRip files","*.srt"),("All Files","*.*")]
-    #         )
-    #         window.destroy()
-    #         if not path: return False   
-    #     return path
-
-    # def _load_and_process(self, path: str) -> None:
-    #     # save to last file, create srt list, set season/episode, creates subtitle data
-    #     self.srt_file = path
-    #     self.config.set("LAST_SRT_FILE", path)
-    #     self.srt_dir = os.path.dirname(path)
-    #     self._srt_file_list = [f for f in os.listdir(self.srt_dir) if f.lower().endswith('.srt')]
-    #     filename = os.path.basename(self.srt_file)
-    #     self.current_season = self._extract_number(self.SEASON_PATTERN, filename)
-    #     self.current_episode = self._extract_number(self.EPISODE_PATTERN, filename)
-
-    #     # get subtitles and start time
-    #     with open(path, 'rb') as f:
-    #         raw = f.read()
-    #     detected = chardet.detect(raw)
-    #     text = raw.decode(detected['encoding'] or 'utf-8', errors='replace')
-    #     self.subtitles = list(srt.parse(text))
-
-    #     #seperate into clean, start times, top and bottom segments
-    #     self.display_data = []
-    #     for sub in self.subtitles:
-    #         clean = self._clean_text(sub.content)
-    #         start_times = sub.start.total_seconds()
-    #         lines = [l for l in clean.splitlines() if l.strip()]
-    #         if not lines:
-    #             top, bottom = [], []
-    #         elif len(lines) == 1:
-    #             top, bottom = [], self._parse_ruby_segments(lines[0])
-    #         else:
-    #             top = self._parse_ruby_segments(lines[0])
-    #             bottom = self._parse_ruby_segments(lines[1])
-    #         self.display_data.append((clean, start_times, top, bottom))
-
-    # def get_total_duration(self) -> float:
-    #     return self.subtitles[-1].end.total_seconds()
-
-    # def calculate_geometry(self) -> dict:
-    #     font = tkFont.Font(family=self.config.get("SUBTITLE_FONT"),size=self.config.get("SUBTITLE_FONT_SIZE"),weight="bold")
-    #     max_width = 0
-    #     for clean, time, *_rest in self.display_data:
-    #         base_text = regex.sub(r'\p{Han}+\([^)]+\)', lambda m: regex.match(r'(\p{Han}+)', m.group()).group(), clean)
-    #         for line in base_text.splitlines():
-    #             width = font.measure(line)
-    #             if max_width < width:
-    #                 max_width = width
-    #     #             biggest_line = line
-    #     #             start_time = time
-    #     # print(format_time(start_time),": ",biggest_line)
-    #     line_height = font.metrics("linespace")
-    #     ruby_height = int(line_height * 0.6)
-    #     pad_x = 5
-    #     total_height = ruby_height * 2 + line_height * 2
-    #     total_width  = max_width + 2 * pad_x
-
-    #     return {"max_height": total_height, "max_width":   total_width}
-
-
-
-
-
-
-    # def set_episode(self, season: int, episode: int) -> bool: #true if movie, false if nothing found, If found set season and episode and path
-    #     if season is None and episode is None:
-    #         self.current_season = None
-    #         self.current_episode = None
-    #         return True
+#this should be updated...
+    def _load_local_srt(self, season: int, episode: int) -> bool: #true if movie, false if nothing found, If found set season and episode and path
+        if season is None and episode is None:
+            self.current_season = None
+            self.current_episode = None
+            return True
         
-    #     target_file = None
-    #     full_pattern = re.compile(rf'S0*{season}E0*{episode}(?!\d)', re.IGNORECASE)
-    #     for file in self._srt_file_list:
-    #         if full_pattern.search(file):
-    #             target_file = file
-    #             break
+        target_file = None
+        full_pattern = re.compile(rf'S0*{season}E0*{episode}(?!\d)', re.IGNORECASE)
+        for file in self._srt_file_list:
+            if full_pattern.search(file):
+                target_file = file
+                break
 
-    #     if not target_file:
-    #         episode_only = re.compile(rf'E0*{episode}(?!\d)', re.IGNORECASE)
-    #         for file in self._srt_file_list:
-    #             if episode_only.search(file):
-    #                 target_file = file
-    #                 break
-    #     if not target_file:
-    #         return False
+        if not target_file:
+            episode_only = re.compile(rf'E0*{episode}(?!\d)', re.IGNORECASE)
+            for file in self._srt_file_list:
+                if episode_only.search(file):
+                    target_file = file
+                    break
+        if not target_file:
+            return False
         
-    #     season_found = self._extract_number(self.SEASON_PATTERN, target_file)
-    #     episode_found = self._extract_number(self.EPISODE_PATTERN, target_file)
-    #     if season_found is None or episode_found is None:
-    #         return False
+        season_found = self._extract_number(self.SEASON_PATTERN, target_file)
+        episode_found = self._extract_number(self.EPISODE_PATTERN, target_file)
+        if season_found is None or episode_found is None:
+            return False
 
-    #     self.current_season = season
-    #     self.current_episode = episode
+        self.current_season = season
+        self.current_episode = episode
 
-    #     full_path = os.path.join(self.srt_dir, target_file)
-    #     self.srt_file = full_path
-    #     self.config.set("LAST_SRT_FILE", self.srt_file)
-    #     self._load_and_process(self.srt_file)
-    #     return True
-    
-    # def _extract_number(self, pattern: re.Pattern, filename: str):
-    #     match = pattern.search(filename)
-    #     if match: return int(match.group(1))
-
-    # def _clean_text(self, text: str) -> str:
-    #     cleaned = self.CLEAN_PATTERN.sub('', text)
-    #     cleaned = self.RUBY_PATTERN.sub(r'\1«\2»', cleaned)
-    #     cleaned = regex.sub(r'[（(].*?[）)]', '', cleaned)
-    #     cleaned = cleaned.replace('«', '(').replace('»', ')')
-    #     return cleaned.replace('&lrm;', '').replace('\u200e', '').strip()
-
-    # def _parse_ruby_segments(self, text: str) -> List[tuple[str, Optional[str]]]:
-    #     segments: List[tuple[str, Optional[str]]] = []
-    #     last = 0
-    #     for m in self.RUBY_PATTERN.finditer(text):
-    #         plain = text[last:m.start()].strip()
-    #         if plain:
-    #             segments.append((plain, None))
-    #         segments.append((m.group(1), m.group(2)))
-    #         last = m.end()
-    #     tail = text[last:].strip()
-    #     if tail:
-    #         segments.append((tail, None))
-    #     return segments
+        full_path = os.path.join(self.srt_dir, target_file)
+        self.srt_file = full_path
+        self.config.set("LAST_SRT_FILE", self.srt_file)
+        self._load_and_process(self.srt_file)
+        return True

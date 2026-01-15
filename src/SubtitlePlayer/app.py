@@ -95,7 +95,8 @@ class SubtitlePlayerApp:
         self.settings_ui = SettingsUI(
             root=self.root, config=self.config,
             total_duration=self.total_duration,
-            initial_episode=self.sub_manager.get_current_episode())
+            initial_episode=self.sub_manager.get_current_episode()
+            )
 
         # Model
         self.renderer = SubtitleRenderer(
