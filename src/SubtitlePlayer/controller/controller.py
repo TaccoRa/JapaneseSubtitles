@@ -1,3 +1,4 @@
+# controller.py
 import time
 import tkinter as tk
 from pynput.mouse import Button, Listener as MouseListener
@@ -219,19 +220,35 @@ class SubtitleController:
 
     def change_episode(self, action: str):
         raw = self.settings.episode_var.get().strip()
-        if not raw or int(raw) <= 0: #if nothing written set back to orignal
-            self.settings.episode_var.set(int(raw))
+        if not raw:
+            # restore to current known value
+            if self.sub_manager.current_episode is None:
+                self.settings.episode_var.set("Movie")
+            else:
+                self.settings.episode_var.set(str(self.sub_manager.current_episode))
             return
         if raw.lower() == 'movie':
             return
-
-        target_season,target_episode = self.sub_manager.change_episode(action, int(raw))
+        try:
+            raw_int = int(raw)
+            if raw_int <= 0:
+                raise ValueError()
+        except ValueError:
+            # invalid entry -> restore
+            if self.sub_manager.current_episode is None:
+                self.settings.episode_var.set("Movie")
+            else:
+                self.settings.episode_var.set(str(self.sub_manager.current_episode))
+            return
+        target_season,target_episode = self.sub_manager.change_episode(action, raw_int)
         if target_episode is not None:
             self.settings.episode_var.set(str(target_episode))
             self._after_episode_change() #reset all with new srt data
         else: #change not allowed
-            self.settings.episode_var.set(raw) #set back to original
-
+            if self.sub_manager.current_episode is None:
+                self.settings.episode_var.set("Movie")
+            else:
+                self.settings.episode_var.set(str(self.sub_manager.current_episode))
 
     def _after_episode_change(self):
         if self.sub_manager.current_episode is None:
@@ -239,7 +256,9 @@ class SubtitleController:
         else: 
             self.settings.episode_var.set(str(self.sub_manager.current_episode))
 
-        self.settings.set_total_duration(self.sub_manager.get_total_duration())
+        new_total = self.sub_manager.get_total_duration()
+        self.settings.set_total_duration(new_total)
+        self.total_duration = new_total
         self.update_max_width()
 
         self.current_time = self.default_start_time
@@ -247,21 +266,49 @@ class SubtitleController:
         
     def update_max_width(self) -> None:
         # Recompute content width + padding
-        max_h, max_w = self.sub_manager.get_subtitle_geometry()
-        # Re‐center around the stored center_x/center_y
-        center_x, center_y = self.config.get("LAST_SUB_CENTER_X"), self.config.get("LAST_SUB_CENTER_Y")
-        x = int(center_x - max_w / 2)
-        y = int(center_y - max_h / 2)
+        max_w, max_h = self.sub_manager.get_subtitle_geometry()
+        max_w, max_h = int(max_w), int(max_h)
 
-        # Clamp to screen bounds
-        sw = self.overlay.root.winfo_vrootwidth()
-        sh = self.overlay.root.winfo_vrootheight()
-        x = max(0, min(x, sw  - x))
-        y = max(0, min(y, sh  - y))
-        # print("new width is ",max_w)
-        # Apply the new geometry
-        self.overlay.sub_window.geometry(f"{max_w}x{max_h}+{x}+{y}")
-        self.overlay.sub_window.update_idletasks()
+        # Apply geometry on overlay and update renderer's canvas ref
+        self.overlay.update_geometry(max_w, max_h)
+        self.renderer.update_canvas(self.overlay.subtitle_canvas)
+
+        # ensure layout finalized so canvas.winfo_width() matches what renderer expects
+        self.overlay.subtitle_canvas.update_idletasks()
+
+        # Immediately re-render the subtitle at current_time (same logic as _update_subtitle_display)
+        offset = self.settings._last_offset_value
+        sub_t = self.current_time - offset
+        start_times = [item[1] for item in self.sub_manager.display_data]
+        idx = bisect.bisect_right(start_times, sub_t) - 1
+        if idx < 0:
+            # nothing to draw
+            self.renderer.canvas.delete("all")
+            return
+
+        _, _, top_segments, bottom_segments = self.sub_manager.display_data[idx]
+        # render freshly using updated overlay/canvas
+        try:
+            self.renderer.canvas.delete("all")
+            self.renderer.render_subtitle(top_segments, bottom_segments, self.overlay)
+        except Exception:
+            # keep app alive if rendering fails; log if you have logger
+            pass
+
+        # # Re‐center around the stored center_x/center_y
+        # center_x, center_y = self.config.get("LAST_SUB_CENTER_X"), self.config.get("LAST_SUB_CENTER_Y")
+        # x = int(center_x - max_w / 2)
+        # y = int(center_y - max_h / 2)
+
+        # # Clamp to screen bounds
+        # sw = self.overlay.root.winfo_vrootwidth()
+        # sh = self.overlay.root.winfo_vrootheight()
+        # x = max(0, min(x, sw  - x))
+        # y = max(0, min(y, sh  - y))
+        # # print("new width is ",max_w)
+        # # Apply the new geometry
+        # self.overlay.sub_window.geometry(f"{max_w}x{max_h}+{x}+{y}")
+        # self.overlay.sub_window.update_idletasks()
 
 
 

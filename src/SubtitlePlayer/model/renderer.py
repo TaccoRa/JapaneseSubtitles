@@ -56,3 +56,7 @@ class SubtitleRenderer:
                 if dx or dy:
                     canvas.create_text(x + dx, y + dy, text=text, fill=outline, font=font, anchor=anchor)
         canvas.create_text(x, y, text=text, fill=fill, font=font, anchor=anchor)
+
+    def update_canvas(self, canvas: tk.Canvas):
+        """Switch the renderer to a different canvas (after overlay update)."""
+        self.canvas = canvas

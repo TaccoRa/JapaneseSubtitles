@@ -87,10 +87,11 @@ class SubtitlePlayerApp:
         # UI (View)
         self.popup = CopyPopup(root=self.root, config=self.config)
 
+        overlay_geometry = self.sub_manager.calculate_geometry()
         self.sub_overlay_ui = SubtitleOverlayUI(
             root=self.root, config=self.config,
             cleaned_subs=[item[0] for item in self.sub_manager.display_data],
-            overlay_geometry=self.sub_manager.calculate_geometry()) #height, width
+            overlay_geometry=overlay_geometry) #width, height
         
         self.settings_ui = SettingsUI(
             root=self.root, config=self.config,
@@ -126,7 +127,7 @@ class SubtitlePlayerApp:
          anime_name, remote_folder) = self.sub_manager.extract_episode_metadata(init_url)
         season_dir = self.sub_manager._season_cache_dir(self.sub_manager.anime_folder_name, season_num, create=True)
         season_files = self.sub_manager._search_srt_files_in_folders(owner, repo, [remote_folder], season_num)
-        self.sub_manager.download_remaining_season_async(owner, repo, ref, season_files, file_name, season_dir)
+        self.sub_manager.download_remaining_season_async(owner, repo, ref, season_files, file_name, season_dir, window = 15)
 
     def _restore_window_position(self): #gets last saved position of settings window or centers it on the screen if out of bounds
         x = self.config.get("LAST_SETTINGS_WINDOW_X")

@@ -9,12 +9,13 @@ class SubtitleOverlayUI:
 
     def __init__(self, root: tk.Tk, config: ConfigManager,cleaned_subs: Optional[List[str]] = None, overlay_geometry =  None) -> None:
         self.root = root
+        self.config = config
+        self.cleaned_subs = cleaned_subs
+
         self.sub_window: tk.Toplevel = None 
         self.subtitle_canvas: tk.Canvas = None
         self.subtitle_handle = None
-        self.config = config
-        self.cleaned_subs = cleaned_subs
-        self.max_h,self.max_w  = overlay_geometry
+        self.max_w, self.max_h = overlay_geometry
         self.center_x = self.config.get("LAST_SUB_CENTER_X")
         self.center_y = self.config.get("LAST_SUB_CENTER_Y")
 
@@ -36,7 +37,13 @@ class SubtitleOverlayUI:
 
         self.border_frame = tk.Frame(self.sub_window, bg="grey")
         self.border_frame.pack(fill="both", expand=True)
-        self.subtitle_canvas = tk.Canvas(self.border_frame, bg="grey", highlightthickness=0)
+        self.subtitle_canvas = tk.Canvas(
+            self.border_frame,
+            bg="grey",
+            highlightthickness=0,
+            width=self.max_w,
+            height=self.max_h
+        )
         self.subtitle_canvas.pack(fill="both", expand=True)
         if self.config.get("PHONEMODE_DEFAULT"):
             self.show_handle()
@@ -53,7 +60,29 @@ class SubtitleOverlayUI:
     def bind_sub_window_enter(self, cb): self.on_sub_window_enter = cb
     def bind_sub_window_leave(self, cb): self.on_sub_window_leave = cb
     def bind_sub_handel_enter(self, cb): self.on_handle_enter = cb
-    
+
+    def update_geometry(self, new_w, new_h):
+        """Resize overlay window and internal canvas to the new width/height (integers)."""
+        self.max_w = int(new_w)
+        self.max_h = int(new_h)
+
+        # Recenter around stored center_x/center_y
+        x = int(self.center_x - self.max_w / 2)
+        y = int(self.center_y - self.max_h / 2)
+
+        # Clamp to screen
+        sw = self.root.winfo_vrootwidth()
+        sh = self.root.winfo_vrootheight()
+        x = max(0, min(x, sw - self.max_w))
+        y = max(0, min(y, sh - self.max_h))
+
+        # Apply geometry
+        self.sub_window.geometry(f"{self.max_w}x{self.max_h}+{x}+{y}")
+        # Resize canvas to match coordinate system the renderer expects
+        self.subtitle_canvas.config(width=self.max_w, height=self.max_h)
+        self.subtitle_canvas.update_idletasks()
+
+
     def show_handle(self):
         self.subtitle_handle = tk.Toplevel(self.root)
         self.subtitle_handle.overrideredirect(True)

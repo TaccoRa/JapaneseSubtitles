@@ -151,7 +151,7 @@ class SubtitleManager:
         total_height = ruby_height * 2 + line_height * 2
         total_width  = max_width + 2 * pad_x
 
-        return (total_height, total_width)
+        return (total_width, total_height)
 
 
 # ---------------------- get data -------------------------
@@ -421,19 +421,86 @@ class SubtitleManager:
         # Replace invalid Windows characters with underscore
         return re.sub(r'[<>:"/\\|?*]', '_', filename)
 
-    def download_remaining_season_async(self, owner, repo, ref, season_files, current_file, season_dir):
-        for remote_path in season_files:
-            filename = self.sanitize_filename(os.path.basename(remote_path))
-            local_path = os.path.join(season_dir, filename)
+    # def download_remaining_season_async(self, owner, repo, ref, season_files, current_file, season_dir):
+    #     for remote_path in season_files:
+    #         filename = self.sanitize_filename(os.path.basename(remote_path))
+    #         local_path = os.path.join(season_dir, filename)
 
-            if filename == current_file:
+    #         if filename == current_file:
+    #             continue
+    #         local_path = os.path.join(season_dir, filename)
+    #         threading.Thread(
+    #             target=self._download_file,
+    #             args=(owner, repo, ref, remote_path, local_path),
+    #             daemon=True
+    #         ).start()
+
+    def download_remaining_season_async(self, owner, repo, ref, season_files: List[str], current_file: str, season_dir: str, window: int = 20):
+        """
+        Download a window of episodes around the currently selected episode.
+        season_files: list of remote paths
+        current_file: sanitized filename of currently loaded episode
+        """
+        # map remote paths to episode numbers and sanitized filename
+        entries = []
+        for remote_path in season_files:
+            fname = self.sanitize_filename(os.path.basename(remote_path))
+            s, e = self.extract_season_episode(fname)
+            entries.append((e if e is not None else -1, fname, remote_path))
+        # sort by episode number; unknown numbers at end
+        entries.sort(key=lambda x: (x[0] if x[0] >= 0 else 10**9, x[1]))
+
+        # locate current index
+        idx = next((i for i, (_, fname, _) in enumerate(entries) if fname == current_file), None)
+        if idx is None:
+            # fallback: download first N
+            start, end = 0, min(len(entries)-1, window-1)
+        else:
+            start = max(0, idx - window)
+            end = min(len(entries)-1, idx + window)
+
+        # create set of filenames to keep
+        to_download = entries[start:end+1]
+        keep_filenames = {fname for _, fname, _ in to_download}
+
+        # spawn download threads for the window
+        for _, fname, remote_path in to_download:
+            local_path = os.path.join(season_dir, fname)
+            if os.path.exists(local_path):
                 continue
-            local_path = os.path.join(season_dir, filename)
             threading.Thread(
                 target=self._download_file,
                 args=(owner, repo, ref, remote_path, local_path),
                 daemon=True
             ).start()
+
+        # optional: evict files outside keep_filenames to limit disk usage
+        try:
+            self._evict_outside_window(season_dir, keep_filenames)
+        except Exception:
+            logger.exception("Failed to evict old episode files")
+
+    def _evict_outside_window(self, season_dir: str, keep_filenames: set):
+        """
+        Remove files in season_dir that are not in keep_filenames.
+        Safe-guards: only remove .srt and only when season_dir exists.
+        """
+        if not season_dir or not os.path.isdir(season_dir):
+            return
+        for fn in os.listdir(season_dir):
+            if not fn.lower().endswith(".srt"):
+                continue
+            if fn in keep_filenames:
+                continue
+            try:
+                path = os.path.join(season_dir, fn)
+                os.remove(path)
+                logger.debug("Evicted old episode file: %s", path)
+            except Exception:
+                logger.exception("Failed to remove cached file: %s", fn)
+
+
+
 
     def _download_file(self, owner, repo, ref, remote_path, local_path):
         # Ensure only the directory exists, not the file
@@ -602,9 +669,14 @@ class SubtitleManager:
 
         # Try to load from cache if available and we don't already have a remote_path
         if remote_path is None:
-            season_dir = self._season_cache_dir(self.anime_folder_name or "unknown", target_season, create=False)
-            # find matching file in season_dir
-            if os.path.isdir(season_dir):
+            # If we're in local mode, look in the local folder; otherwise look in cache_github
+            if getattr(self, "using_local_folder", False) and self.season_dir:
+                season_dir = self.season_dir
+            else:
+                season_dir = self._season_cache_dir(self.anime_folder_name or "unknown", target_season, create=False)
+           
+           # find matching file in season_dir
+            if season_dir and os.path.isdir(season_dir):
                 for fn in os.listdir(season_dir):
                     if not fn.lower().endswith(".srt"):
                         continue
@@ -686,7 +758,7 @@ class SubtitleManager:
             if season_files:
                 # convert remote paths to filenames to tell the async downloader which is current
                 current_file = filename
-                self.download_remaining_season_async(self.github_owner, self.github_repo, self.github_ref, season_files, current_file, season_dir)
+                self.download_remaining_season_async(self.github_owner, self.github_repo, self.github_ref, season_files, current_file, season_dir, window = 15)
         except Exception:
             logger.exception("Failed to start async season download")
 
@@ -777,6 +849,48 @@ class SubtitleManager:
 
 
 
+
+    def _find_season1_folder_for_remote(self, owner: str, repo: str, ref: str, hint_folder: str) -> Optional[str]:
+        """
+        Search candidate subtitle folders (using the hint folder name) for an S1E1 file.
+        Returns the folder-name to use as anime_folder_name if found, else None.
+        """
+        filename = os.path.basename(remote_path)
+        m = re.search(r"[Ss](\d{1,2})[Ee](\d{1,2})", filename)
+        if m:
+            season = int(m.group(1))
+            episode = int(m.group(2))
+            if season == 1:
+                return os.path.basename(os.path.dirname(remote_path.rstrip("/")))
+        try:
+            # try the hint first, then a broader repo search using the hint token
+            token = os.path.basename(hint_folder) or hint_folder or ""
+            folders = self._search_subtitle_folders(owner, repo, ref, token) if token else []
+            # fallback: try searching with token trimmed (split on spaces/dots)
+            if not folders and token:
+                token2 = re.split(r'[\s\.\-]', token)[0]
+                if token2 and token2 != token:
+                    folders = self._search_subtitle_folders(owner, repo, ref, token2)
+            for folder in folders:
+                # look inside this folder for season 1 files
+                files = self._search_srt_files_in_folders(owner, repo, [folder], season=1)
+                for f in files:
+                    s, e = self.extract_season_episode(os.path.basename(f))
+                    if s == 1 and e == 1:
+                        # canonical folder name is last path component
+                        return os.path.basename(folder.rstrip('/'))
+        except Exception:
+            logger.exception("Failed to resolve season1 folder")
+        return None
+
+
+
+
+
+
+
+
+
     # ----- New: load a remote GitHub URL (acts like startup) -----
     def load_remote_srt_url(self, url: str) -> bool:
         """
@@ -802,18 +916,34 @@ class SubtitleManager:
             file_name, season_num, episode_num,
             anime_name, remote_folder) = self.extract_episode_metadata(parsed)
 
+
+
         # set persistent anime folder name (placeholder logic for season1 detection kept)
         stored_name = self.config.get("LAST_ANIME_NAME")
         if stored_name and stored_name.strip():
             self.anime_folder_name = stored_name
         else:
-            '''
+        #     '''
 
 
-             TODO: more advanced 'figure out season 1 anime name' logic here
+        #      TODO: more advanced 'figure out season 1 anime name' logic here
 
 
-            '''
+        #     '''
+        #     self.anime_folder_name = anime_name or os.path.basename(remote_folder) or owner
+        #     if self.anime_folder_name:
+        #         self.config.set("LAST_ANIME_NAME", self.anime_folder_name)
+
+        # try to find a canonical season-1 folder (strong signal for anime base name)
+        # resolved = self._find_season1_folder_for_remote(owner, repo, ref, remote_folder)
+        # if resolved:
+        #     self.anime_folder_name = resolved
+        #     # persist only when we actually found S1
+        #     self.config.set("LAST_ANIME_NAME", self.anime_folder_name)
+        # else:
+        #     # fallback: use detected anime_name or remote folder basename (do not persist)
+        #     self.anime_folder_name = anime_name or os.path.basename(remote_folder) or owner
+
             self.anime_folder_name = anime_name or os.path.basename(remote_folder) or owner
             if self.anime_folder_name:
                 self.config.set("LAST_ANIME_NAME", self.anime_folder_name)
@@ -844,12 +974,24 @@ class SubtitleManager:
 
         # start async download of remaining season files (use cached per-session lookup)
         try:
-            season_files = self._get_remote_files_for_season(self.current_season)
-            if season_files:
-                current_file = os.path.basename(self.srt_file)
-                self.download_remaining_season_async(owner, repo, ref, season_files, self.sanitize_filename(current_file), self.season_dir)
+            # If this season already has cached episodes, skip remote lookup to avoid duplicates / extra API calls.
+            cached_eps = self._cached_episode_numbers(self.anime_folder_name, self.current_season)
+            if cached_eps:
+                logger.debug("Season %s already cached (%s episodes) — skipping remote lookup.", self.current_season, len(cached_eps))
+            else:
+                season_files = self._get_remote_files_for_season(self.current_season)
+                if season_files:
+                    current_file = os.path.basename(self.srt_file)
+                    self.download_remaining_season_async(
+                        owner, repo, ref,
+                        season_files,
+                        self.sanitize_filename(current_file),
+                        self.season_dir,
+                        window = 15
+                    )
         except Exception:
             logger.exception("Failed to schedule async season downloads")
+
 
         return True
 
