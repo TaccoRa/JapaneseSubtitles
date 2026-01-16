@@ -1,9 +1,9 @@
 {
     "DEBUGGING_SRT_FILE": "D:/Tobi/Programme/VSCode_projects/JapaneseSubtitles/subs/Record.of.Ragnarok/Record.of.Ragnarok.S02E01.WEBRip.Netflix.ja[cc].srt",
     "DEBUGGING": false,
-    "LAST_SRT_FILE": "D:/Tobi/Programme/VSCode_projects/JapaneseSubtitles/subs/onepiece/ワンピース.S22E614.WEBRip.Netflix.ja[cc].srt",
-    "LAST_GITHUB_URL": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/main/subtitles/anime_tv/Shuumatsu%20no%20Valkyrie%20III/%E7%B5%82%E6%9C%AB%E3%81%AE%E3%83%AF%E3%83%AB%E3%82%AD%E3%83%A5%E3%83%BC%E3%83%AC.S03E04.%E7%B4%84%E6%9D%9F%E3%81%A8%E8%AA%93%E3%81%84.WEBRip.Netflix.ja%5Bcc%5D.srt",
-    "LAST_ANIME_NAME": "Shuumatsu no Valkyrie",
+    "LAST_SRT_FILE": "d:\\Tobi\\Programme\\VSCode_projects\\JapaneseSubtitles\\src\\SubtitlePlayer\\cache_github\\Shingeki no Kyojin\\Season3\\[Trix] Shingeki no Kyojin S03E13 (50) (BD 1080p AV1) [2F5039B9].srt",
+    "LAST_GITHUB_URL": "https://raw.githubusercontent.com/Ajatt-Tools/kitsunekko-mirror/main/subtitles/anime_tv/Shingeki no Kyojin 3 Part 2/[Trix] Shingeki no Kyojin S03E13 (50) (BD 1080p AV1) [2F5039B9].srt",
+    "LAST_ANIME_NAME": "Shingeki no Kyojin",
     "DEFAULT_START_TIME": 120,
     "EXTRA_OFFSET": 13.7,
     "DEFAULT_SKIP": 1,
@@ -25,11 +25,13 @@
     "PADDING_X": 0,
     "PADDING_Y": 10,
     "DEBUG_SRT_FILE": "",
-    "LAST_SETTINGS_WINDOW_X": 30,
-    "LAST_SETTINGS_WINDOW_Y": 650,
-    "LAST_CONTROL_WINDOW_X": 60,
-    "LAST_CONTROL_WINDOW_Y": 818,
-    "LAST_SUB_CENTER_X": 1164.0,
-    "LAST_SUB_CENTER_Y": 697.0,
-    "RATIO": 1
+    "LAST_SETTINGS_WINDOW_X": 979,
+    "LAST_SETTINGS_WINDOW_Y": 709,
+    "LAST_CONTROL_WINDOW_X": 1499,
+    "LAST_CONTROL_WINDOW_Y": 837,
+    "LAST_SUB_CENTER_X": 1344.0,
+    "LAST_SUB_CENTER_Y": 700.0,
+    "RATIO": 1,
+    "LAST_SEASON": 3,
+    "LAST_EPISODE": 13
 }
