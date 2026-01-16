@@ -46,9 +46,8 @@ class SubtitleManager:
 
     def __init__(self, config: ConfigManager) -> None:
         self.config = config
+        
         self.url = None
-        self.local_srt_path = None
-
         self.srt_file = None
         self.srt_dir = None
         self.is_movie = False
@@ -66,9 +65,9 @@ class SubtitleManager:
         if not init_url:
             init_url = self.ask_remote_srt_file()
         if not init_url:
-            self.local_srt_path = self.ask_local_srt_file()
-        if self.local_srt_path:
-            self.load_local_srt(self.local_srt_path)
+            local_srt_path = self.ask_local_srt_file()
+        if local_srt_path:
+            self.load_local_srt(local_srt_path)
 
         self.github_token = os.environ.get("GITHUB_TOKEN")
 
@@ -742,7 +741,6 @@ class SubtitleManager:
         This makes loading a new local file or new remote URL deterministic.
         """
         # local/remote path info
-        self.local_srt_path = None
         self.srt_file = None
         self.srt_dir = None
         self.season_dir = None
@@ -880,7 +878,6 @@ class SubtitleManager:
         self.srt_dir = srt_dir
         self._srt_file_list = files
         self.srt_file = path
-        self.local_srt_path = path
         self.season_dir = srt_dir
 
         filename = os.path.basename(path)
