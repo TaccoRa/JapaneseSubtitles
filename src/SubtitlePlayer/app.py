@@ -1,6 +1,7 @@
 #app.py
 import os
 import tkinter as tk
+import tkinter.font as tkFont
 from threading import Thread
 import time
 import logging
@@ -30,7 +31,7 @@ class SubtitlePlayerApp:
 
 
 
-        # self._build_app_window()
+        self._build_app_window()
         # self._bind_events()
 
         # self._build_model()
@@ -46,40 +47,17 @@ class SubtitlePlayerApp:
             logger.exception("Failed to load config.json")
             raise SystemExit(1)
         
-
-
     def _load_subtitle_metadata(self):
         self.sub_manager = SubtitleManager(self.config)
         self.total_duration = self.sub_manager.get_total_duration()
-        #Get subtitle metadata...
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        self.config = ConfigManager("config.json")
-        self.sub_manager = SubtitleManager(self.config)
-        self.total_duration = self.sub_manager.get_total_duration()
-
-        # App window
+    def _build_app_window(self):
         self.root = tk.Tk()
-        self.root.title("Subtitle Player Settings") 
-        self.root.geometry("320x123")
-        self.root.minsize(320, 123)
         self._restore_window_position()
+        title= f'S{self.sub_manager.get_current_season()}E{self.sub_manager.get_current_episode()} {self.sub_manager.get_anime_name()}'
+        self.root.title(title)
+        self.root.geometry(f"320x123")
+        self.root.minsize(320, 123)
         self._save_after_id = None
         self.root.bind("<Configure>", self._on_root_configure)
         self.root.deiconify()
