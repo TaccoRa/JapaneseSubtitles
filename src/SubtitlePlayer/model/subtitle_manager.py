@@ -80,7 +80,6 @@ class SubtitleManager:
             local_srt_path = self.ask_local_srt_file()
         self._extract_and_set_local_episode_metadata(local_srt_path)
         self.set_subtitle_display_data(local_srt_path)
- 
 
     def _extract_and_set_local_episode_metadata(self, local_path):
         if not self.remote_flag:
@@ -93,7 +92,6 @@ class SubtitleManager:
         self.local_file_list = [f for f in os.listdir(self.local_srt_dir) if f.lower().endswith('.srt')]
         if not self.local_file_list:
             logger.error("No .srt files found in folder: %s", self.local_srt_dir)
-
 
     def set_subtitle_display_data(self, local_path):
         with open(local_path, 'rb') as f:
@@ -116,7 +114,7 @@ class SubtitleManager:
                 top = self._parse_ruby_segments(lines[0])
                 bottom = self._parse_ruby_segments(lines[1])
             self.display_data.append((clean, start_times, top, bottom))
-
+        
     def _parse_github_url(self, url: str) -> Dict[str, Optional[str]]:  
         p = urlparse(url)
         path = unquote(p.path)
@@ -168,11 +166,8 @@ class SubtitleManager:
         return segments
 #--------------------------------local handling-----------------------------------
 
-#--------------------initializing--------------------------
 
-
-# ---------------------- file selection ----------------------
-
+#--------------------------------file selection-----------------------------------
     def ask_local_srt_file(self) -> Optional[str]:
         try:
             window = tk.Tk(); window.withdraw(); window.attributes("-topmost", True)
@@ -192,18 +187,18 @@ class SubtitleManager:
             return None
        
     def ask_remote_srt_with_hint(self) -> Tuple[Optional[str], Optional[int], Optional[int]]:
-        """
-        Show a small dialog that asks for:
-        - GitHub subtitle URL
-        - Season/Episode hint in form sXXeYY (case-insensitive). User may write minimal digits (s2e1).
-        Returns (url, season_int_or_None, episode_int_or_None) or (None, None, None) on cancel.
-        """
         result = {"url": None, "season": None, "episode": None}
         dlg = tk.Toplevel()
         dlg.title("Remote subtitle (URL + sXeY)")
         dlg.attributes("-topmost", True)
         dlg.grab_set()
         dlg.resizable(False, False)
+        dlg.update_idletasks()
+        sw, sh = dlg.winfo_screenwidth(), dlg.winfo_screenheight()
+        w, h = dlg.winfo_reqwidth(), dlg.winfo_reqheight()
+        x = (sw - w) // 2
+        y = (sh - h) // 2
+        dlg.geometry(f"+{x}+{y}")
 
         tk.Label(dlg, text="GitHub subtitle URL:", anchor="w").grid(row=0, column=0, sticky="w", padx=8, pady=(8,2))
         url_entry = tk.Entry(dlg, width=60)
@@ -218,95 +213,40 @@ class SubtitleManager:
 
         def on_ok():
             u = url_entry.get().strip()
-            se = se_entry.get().strip().lower()
-            s = e = None
-            if se:
-                m = re.search(r'[sS](\d{1,2})\D*[eE](\d{1,4})', se)
-                if m:
-                    s = int(m.group(1))
-                    e = int(m.group(2))
+            s,e = self.extract_season_episode(se_entry.get().strip().lower())
             result["url"], result["season"], result["episode"] = (u or None, s, e)
             dlg.destroy()
-
         def on_cancel():
             dlg.destroy()
-
         tk.Button(btn_frame, text="OK", width=10, command=on_ok).pack(side="left", padx=6)
         tk.Button(btn_frame, text="Cancel", width=10, command=on_cancel).pack(side="left", padx=6)
 
-        # center
-        dlg.update_idletasks()
-        sw, sh = dlg.winfo_screenwidth(), dlg.winfo_screenheight()
-        w, h = dlg.winfo_reqwidth(), dlg.winfo_reqheight()
-        x = (sw - w) // 2
-        y = (sh - h) // 2
-        dlg.geometry(f"+{x}+{y}")
-
         dlg.wait_window(dlg)
         return result["url"], result["season"], result["episode"]
-
-# ---------------------- file selection ----------------------
-
+#--------------------------------file selection-----------------------------------
 
 
-    def reset_state(self) -> None:
-        """
-        Reset runtime state that is specific to the currently loaded subtitle file/season.
-        This makes loading a new local file or new remote URL deterministic.
-        """
-        # local/remote path info
-        self.srt_file = None
-        self.season_dir = None
-
-        # metadata
-        self.is_movie = False
-        self.title = None
-        self.current_season = None
-        self.current_episode = None
-        self.total_duration = 0
-
-        # subtitle contents / display
-        self.subtitles = []
-        self.display_data = []
-        self.raw_subtitles = None
-        self.max_width = None
-        self.max_height = None
-
-        self.remote_flag = False
-        # remote cache for per-session lookups
-        try:
-            self._remote_files_cache.clear()
-        except Exception:
-            self._remote_files_cache = {}
-
-        # github related (keep token)
-        self.github_owner = None
-        self.github_repo = None
-        self.github_ref = None
-        self.github_path = None
-
-
-# ---------------------- episode / season switching ----------------------
+# -------------------------episode / season switching-----------------------------
     def change_episode(self, action: str, raw: Optional[int] = None) -> Tuple[int, int]:
         #action: "dec","inc","set"; raw: if user set episode(int); sets new episode and returns target
-            
-        season = self.current_season
-        current = self.current_episode
-
-        target_season = season
-        target_episode = current
-        remote_path = None
-        season_files = None
+        cur_season = self.current_season
+        cur_episode = self.current_episode
+        
+        episodes = []
+        for filename in self.local_file_list:
+            s, e = self.extract_season_episode(filename)
+            if e is not None: episodes.append(e)
+        lowest_episode, highest_episode = min(episodes), max(episodes)
 
         if action == 'dec':#decrease episode if episdoe 1 search for new season (only remote for now)
-            if season == 1 and current <= 1:  # cannot go below S1E1
-                return season, current
-            if current > 1:
-                target_episode = current - 1
-                target_season = season
+            if cur_season == 1 and cur_episode <= 1:  # cannot go below S1E1
+                return cur_season, cur_episode
+            elif cur_episode > lowest_episode:
+                target_episode = cur_episode - 1
+                target_season = cur_season
             else:
                 # go to previous season, prefer cached last-episode if that season is cached
-                target_season = season - 1
+                target_season = cur_season - 1
                 lc = self._last_cached(target_season)
                 # lc > 0 only when that specific season is cached
                 if lc:
@@ -316,7 +256,7 @@ class SubtitleManager:
                     files = self._get_remote_files_for_season(target_season)
                     if not files:
                         # season likely not released
-                        return season, current
+                        return cur_season, cur_episode
                     # pick file with highest episode number
                     max_e = 0
                     chosen_remote = None
@@ -326,20 +266,20 @@ class SubtitleManager:
                             max_e = e
                             chosen_remote = fpath
                     if not chosen_remote:
-                        return season, current
+                        return cur_season, cur_episode
                     target_episode = max_e
                     remote_path = chosen_remote
                     season_files = files
 
         elif action == 'inc': #increase episode if end of season search for new season (only remote for now)
             # check in-cache
-            lc = self._last_cached(season)
-            if current + 1 <= lc:
-                target_episode = current + 1
-                target_season = season
+            lc = self._last_cached(cur_season)
+            if cur_episode + 1 <= lc:
+                target_episode = cur_episode + 1
+                target_season = cur_season
             else:
                 # try next season (remote or cached)
-                target_season = season + 1
+                target_season = cur_season + 1
                 lc_next = self._last_cached(target_season)
                 if lc_next:
                     # if cached and contains ep1, use that
@@ -350,7 +290,7 @@ class SubtitleManager:
                     folders = self._search_subtitle_folders()
                     files = self._search_srt_files_in_folders(folders, target_season)
                     if not files:
-                        return season, current
+                        return cur_season, cur_episode
                     # choose ep1 if present, else smallest episode
                     chosen_remote = None
                     min_e = None
@@ -362,20 +302,20 @@ class SubtitleManager:
                             min_e = e
                             chosen_remote = fpath
                     if not chosen_remote:
-                        return season, current
+                        return cur_season, cur_episode
                     target_episode = min_e
                     remote_path = chosen_remote
                     season_files = files
 
         elif action == 'set': #manually written inside the settings episode entry raw only > 0
-            lc = self._last_cached(season) #change if specific episode is wished
+            lc = self._last_cached(cur_season) #change if specific episode is wished
             if raw > lc:
-                return season, current
-            target_season = season
+                return cur_season, cur_episode
+            target_season = cur_season
             target_episode = raw
         else:
             # unknown action
-            return season, current
+            return cur_season, cur_episode
 
         # If the target is the same as current and it exists cached, do nothing
         if target_season == self.current_season and target_episode == self.current_episode:
@@ -414,7 +354,7 @@ class SubtitleManager:
             folders = self._search_subtitle_folders()
             files = self._search_srt_files_in_folders(folders, target_season)
             if not files:
-                return season, current
+                return cur_season, cur_episode
             # find file matching target_episode
             chosen_remote = None
             for fpath in files:
@@ -431,7 +371,7 @@ class SubtitleManager:
                         max_e = e
                         chosen_remote = fpath
                 if chosen_remote is None:
-                    return season, current
+                    return cur_season, cur_episode
             remote_path = chosen_remote
             season_files = files
 
@@ -513,28 +453,7 @@ class SubtitleManager:
         tk.Button(button_frame, text="Local File", width=15, command=choose_local).grid(row=0, column=0, padx=12)
         tk.Button(button_frame, text="Remote URL", width=15, command=choose_remote).grid(row=0, column=1, padx=12)
         popup.wait_window(popup)
-
-
-    def calculate_geometry(self):
-        font = tkFont.Font(family=self.config.get("SUBTITLE_FONT"),size=self.config.get("SUBTITLE_FONT_SIZE"),weight="bold")
-        max_width = 0
-        for clean, time, *_rest in self.display_data:
-            base_text = regex.sub(r'\p{Han}+\([^)]+\)', lambda m: regex.match(r'(\p{Han}+)', m.group()).group(), clean)
-            for line in base_text.splitlines():
-                width = font.measure(line)
-                if max_width < width:
-                    max_width = width
-                    biggest_line = line
-                    start_time = time
-        # print(format_time(start_time),": ",biggest_line)
-        # print(self.display_data[1:4])
-        line_height = font.metrics("linespace")
-        ruby_height = int(line_height * 0.6)
-        pad_x = 5
-        total_height = ruby_height * 2 + line_height * 2
-        total_width  = max_width + 2 * pad_x
-
-        return (total_width, total_height)
+# -------------------------episode / season switching-----------------------------
 
 
 # ---------------------- get data -------------------------
@@ -551,10 +470,7 @@ class SubtitleManager:
         return (self.github_owner, self.github_repo, self.github_ref, self.remote_path,
                 self.remote_folder,self.anime_folder_name, self.file_name,
                 self.current_season, self.current_episode)
-         
-    def get_season_episode_movie_info(self) -> Tuple[Optional[int], Optional[int]]:
-        return (self.current_season, self.current_episode)
-
+    
     def get_total_duration(self) -> float:
         return self.subtitles[-1].end.total_seconds()
     
@@ -572,6 +488,8 @@ class SubtitleManager:
 
 
 
+
+# -------------------------remote handling-----------------------------
     def _initialize_remote_path(self):
         #extract github metadata
         init_url = self.config.get("LAST_GITHUB_URL")
@@ -594,6 +512,7 @@ class SubtitleManager:
         self.remote_path = github_dict["path"]
         self.remote_folder = os.path.dirname(self.remote_path)
         self.anime_folder_name = self._extract_anime_name_from_url(self.remote_path)
+        self.file_name = ...
         self.config.set("LAST_GITHUB_URL", remote_url)
         if self.current_season == 1:
             self.config.set("LAST_ANIME_NAME", self.anime_folder_name)
@@ -603,7 +522,7 @@ class SubtitleManager:
         file_name = os.path.basename(self.remote_path)
         local_path = os.path.join(season_dir, file_name)
         self._extract_and_set_local_episode_metadata(local_path)
-        
+
     def load_remote_srt_url(self, url: str, s_e: Optional[Tuple[Optional[int], Optional[int]]] = None) -> bool:
         """
         url: GitHub (or raw) URL pointing to a subtitle file. 
@@ -611,7 +530,6 @@ class SubtitleManager:
         """
         if not url:
             return False
-        self.reset_state()
         self._extract_and_set_remote_episode_metadata(url)
         self.remote_flag = True
 
@@ -661,6 +579,8 @@ class SubtitleManager:
         except Exception:
             logger.exception("Failed to schedule async season downloads")
         return True
+    
+
 # ---------------------- helpers: cache dirs ----------------------base
     def _season_cache_dir(self) -> str:
         base = self._get_cache_base_dir()
@@ -692,15 +612,13 @@ class SubtitleManager:
 
 
 
-
-
 # ---------------------- Helpers: parsing ----------------------
     def _get_raw_url(self, filename: str) -> str:
         return f"https://raw.githubusercontent.com/{self.github_owner}/{self.github_repo}/{self.github_ref}/{filename}"
 
     def extract_season_episode(self, name: str) -> Tuple[Optional[int], Optional[int]]:
         # 1) SxxExx
-        m = re.search(r'(?i)s(\d{1,2})\D*e(\d{1,4})', name)
+        m = re.search(r'(?i)[sS](\d{1,2})\D*[eE](\d{1,4})', name)
         if m:
             return int(m.group(1)), int(m.group(2))
 
@@ -719,7 +637,7 @@ class SubtitleManager:
         if nums:
             ep = int(nums[-1])
             # filter obvious junk
-            if 1900 <= ep <= 2100:  # year
+            if 1500 <= ep <= 2100:  # year
                 return None, None
             return None, ep
         return None, None
@@ -951,11 +869,35 @@ class SubtitleManager:
         # remote/cache mode (existing behavior)
         eps = self._cached_episode_numbers(season_to_check)
         return max(eps) if eps else 0
+# -------------------------remote handling-----------------------------
 
 
 
-# ---------------------- episode / season switching ----------------------
 
+
+
+
+
+    def calculate_geometry(self):
+        font = tkFont.Font(family=self.config.get("SUBTITLE_FONT"),size=self.config.get("SUBTITLE_FONT_SIZE"),weight="bold")
+        max_width = 0
+        for clean, time, *_rest in self.display_data:
+            base_text = regex.sub(r'\p{Han}+\([^)]+\)', lambda m: regex.match(r'(\p{Han}+)', m.group()).group(), clean)
+            for line in base_text.splitlines():
+                width = font.measure(line)
+                if max_width < width:
+                    max_width = width
+                    biggest_line = line
+                    start_time = time
+        # print(format_time(start_time),": ",biggest_line)
+        # print(self.display_data[1:4])
+        line_height = font.metrics("linespace")
+        ruby_height = int(line_height * 0.6)
+        pad_x = 5
+        total_height = ruby_height * 2 + line_height * 2
+        total_width  = max_width + 2 * pad_x
+
+        return (total_width, total_height)
 
 
     def _register_cache_cleanup(self) -> None:

@@ -95,7 +95,7 @@ class SubtitlePlayerApp:
         # UI (View)
         self.popup = CopyPopup(root=self.root, config=self.config)
 
-        overlay_geometry = self.sub_manager.calculate_geometry()
+        overlay_geometry = self.sub_manager.get_subtitle_geometry()
         self.sub_overlay_ui = SubtitleOverlayUI(
             root=self.root, config=self.config,
             cleaned_subs=[item[0] for item in self.sub_manager.display_data],
