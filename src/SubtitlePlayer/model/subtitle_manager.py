@@ -119,19 +119,13 @@ class SubtitleManager:
         self.config.set("LAST_GITHUB_URL", remote_url)
 
 
+    def _load_local_and_process(self, local_path: str) -> None:
+        if not local_path or not os.path.isfile(local_path):
+            raise FileNotFoundError(local_path)
+        self.set_subtitle_display_data(local_path)
+        # self.total_duration = self.get_total_duration() if self.subtitles else 0
 
-    # def extract_episode_metadata(self, episode_url):
-    #     self.github_owner = episode_url["owner"]
-    #     self.github_repo  = episode_url["repo"]
-    #     self.github_ref   = episode_url["ref"]
-    #     path  = episode_url["path"]
 
-    #     file_name = os.path.basename(path)
-    #     season_num, episode_num = self.extract_season_episode(file_name)
-    #     anime_name = self._extract_anime_name_from_url(path)
-    #     remote_folder = os.path.dirname(path)
-
-    #     return owner, repo, ref, path, file_name, season_num, episode_num, anime_name, remote_folder
 
   
     def _parse_github_url(self, url: str) -> Dict[str, Optional[str]]:  
@@ -166,12 +160,6 @@ class SubtitleManager:
 
 
 
-
-    def _load_local_and_process(self, local_path: str) -> None:
-        if not local_path or not os.path.isfile(local_path):
-            raise FileNotFoundError(local_path)
-        self.set_subtitle_display_data(local_path)
-        # self.total_duration = self.get_total_duration() if self.subtitles else 0
 
     def set_subtitle_display_data(self, local_path):
         with open(local_path, 'rb') as f:
@@ -247,13 +235,20 @@ class SubtitleManager:
         return self.subtitles[-1].end.total_seconds()
     
     def get_current_season(self) -> int:
-        return self.current_season  
+        return self.current_season
+      
     def get_current_episode(self) -> int:
         return self.current_episode
 # ---------------------- get data -------------------------
 
 
 # ---------------------- helpers: cache dirs ----------------------
+    def _get_cache_base_dir(self) -> str: #get current base directory
+        project_root = os.path.dirname(os.path.abspath(os.path.join(__file__, "..")))
+        base = os.path.join(project_root, "cache_github")
+        os.makedirs(base, exist_ok=True)
+        return base
+    
     def _season_cache_dir(self) -> str:
         base = self._get_cache_base_dir()
         season_dir = os.path.join(base, self.anime_folder_name,f"Season{self.current_season}")
@@ -261,13 +256,7 @@ class SubtitleManager:
             os.makedirs(season_dir, exist_ok=True)
         return season_dir
  
-    def _get_cache_base_dir(self) -> str: #get current base directory
-        project_root = os.path.dirname(os.path.abspath(os.path.join(__file__, "..")))
-        base = os.path.join(project_root, "cache_github")
-        os.makedirs(base, exist_ok=True)
-        return base
-
-    def _cached_episode_numbers(self, season: int) -> List[int]:
+    def _cached_episode_numbers(self, season: int) -> List[int]:# count current season episodes maybe needs adjustment if github switches from sXeX to Ex or wrong season count maybe need to prioritize episode
         season_dir = self._season_cache_dir()
         if not os.path.isdir(season_dir):
             return []
@@ -291,6 +280,8 @@ class SubtitleManager:
                 logger.exception("Failed to cleanup cache on exit")
         atexit.register(_cleanup)
 # ---------------------- helpers: cache dirs ----------------------
+
+
 
 
 
@@ -332,11 +323,7 @@ class SubtitleManager:
             return parts[idx + 2]  # folder 2 under /subtitles/
         except ValueError:
             return None
-
-    def _extract_number(self, pattern: re.Pattern, filename: str):
-        match = pattern.search(filename)
-        if match: return int(match.group(1))
-
+ 
     def _parse_ruby_segments(self, text: str) -> List[tuple[str, Optional[str]]]:
         segments: List[tuple[str, Optional[str]]] = []
         last = 0
