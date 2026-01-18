@@ -35,8 +35,8 @@ class SubtitlePlayerApp:
         self._build_ui()
         self._build_model()
         self._build_controller()
-
-        self._download_init_season_asynch()
+        if self.config.get("REMOTE_FLAG"):
+            self._download_init_season_asynch()
         self.root.after(self.config.get("UPDATE_INTERVAL_MS"), self.controller.update_loop)
 
 
@@ -54,7 +54,13 @@ class SubtitlePlayerApp:
     def _build_app_window(self):
         self.root = tk.Tk()
         self._restore_window_position()
-        title= f'S{self.sub_manager.get_current_season()}E{self.sub_manager.get_current_episode()} {self.sub_manager.get_anime_name()}'
+        s = self.sub_manager.get_current_season()
+        e = self.sub_manager.get_current_episode()
+        n = self.sub_manager.get_anime_name()
+
+        title = (n if (s and e) is None else
+                 f"E{e} {n}" if s is None else
+                 f"S{s}E{e} {n}")
         self.root.title(title)
         self.root.geometry(f"320x123")
         self.root.minsize(320, 123)
