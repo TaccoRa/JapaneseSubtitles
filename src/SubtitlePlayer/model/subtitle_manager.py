@@ -45,89 +45,78 @@ class SubtitleManager:
 
     def __init__(self, config: ConfigManager) -> None:
         self.config = config
-        
-        self.url = None
-        local_srt_path = None
-        self.srt_file = None
-        self.srt_dir = None
-        self.is_movie = False
-        self.title = None
+
         self.total_duration = 0
         self.display_data = []
         self.raw_subtitles = None
         self.max_width = None
         self.max_height = None
+        
+        self.local_srt_dir = None
+        self.is_movie = False
+        self.title = None
+
+        self.url = None
+        self.srt_file = None
         self.cache_dir = None
         self._remote_files_cache: Dict[int, List[str]] = {}
-
         self.github_token = os.environ.get("GITHUB_TOKEN")
 
         # first check if last used remote or not then get path to local or download remote
-        self.remote_flag = self.config.get("REMOTE_FLAG") #need to change self.source? or using_local_folder?
+        self.remote_flag = self.config.get("REMOTE_FLAG")
         if self.remote_flag:
             self._initialize_remote_path()
+            local_srt_path = ...
+            # register cleanup of temp cache on exit
+            self._register_cache_cleanup()
         else:
-            self._initialize_local_path()
-        # register cleanup of temp cache on exit
-        self._register_cache_cleanup()
+            local_srt_path = self.config.get("LAST_LOCAL_SRT_FILE")
+        self._load_local_and_process(local_srt_path)
 
-################ TODO: figure out the anime name of first season #################
-##### workaround user gives always s1 when pasting URL##########
-#look for same string in folder name and file name?
+#--------------------------------local handling-----------------------------------
+    def _load_local_and_process(self, local_srt_path: str) -> bool:
+        if not (local_srt_path and os.path.isfile(local_srt_path)):
+            logger.error("Local SRT path not found: \n%s\n -> Manual selection", local_srt_path)
+            local_srt_path = self.ask_local_srt_file()
+        self._extract_and_set_local_episode_metadata(local_srt_path)
+        self.set_subtitle_display_data(local_srt_path)
+ 
 
-    def _initialize_local_path(self):
-        local_srt_path = self.config.get("LAST_LOCAL_SRT_FILE")
-        if local_srt_path:
-            self.load_local_srt(local_srt_path)
-        else:#fallback
-            self.ask_local_srt_file()
-            if local_srt_path:
-                self.load_local_srt(local_srt_path)
-    
-    def _initialize_remote_path(self):
-        #extract github metadata
-        init_url = self.config.get("LAST_GITHUB_URL")
-        self._extract_and_set_episode_metadata(init_url)
-        if not init_url:#fallback
-            init_url = self.ask_remote_srt_file()
-            if not init_url:
-                local_srt_path = self.ask_local_srt_file()
-                if local_srt_path:
-                    self.load_local_srt(local_srt_path)
-                    return
-
-        self.srt_file = self.download_current_episode() #other episodes downloaded in app.py
-        self._load_local_and_process(self.srt_file)
+    def _extract_and_set_local_episode_metadata(self, local_path):
+        if not self.remote_flag:
+            self.anime_folder_name = local_path.replace("\\", "/").split("/")[local_path.replace("\\", "/").split("/").index("subs")+1]
+            self.config.set("LAST_LOCAL_SRT_FILE",local_path)
+        self.current_season, self.current_episode = self.extract_season_episode(local_path)
+        if (self.current_season and self.current_episode) is None:
+            self.is_movie = True
+        self.local_srt_dir = os.path.dirname(local_path)
+        self.local_file_list = [f for f in os.listdir(self.local_srt_dir) if f.lower().endswith('.srt')]
+        if not self.local_file_list:
+            logger.error("No .srt files found in folder: %s", self.local_srt_dir)
 
 
+    def set_subtitle_display_data(self, local_path):
+        with open(local_path, 'rb') as f:
+            raw = f.read()
+        detected = chardet.detect(raw)
+        text = raw.decode(detected['encoding'] or 'utf-8', errors='replace')
+        self.subtitles = list(srt.parse(text))
 
-    def _extract_and_set_episode_metadata(self, remote_url):
-        github_dict = self._parse_github_url(remote_url)
-        self.github_owner = github_dict["owner"]
-        self.github_repo  = github_dict["repo"]
-        self.github_ref   = github_dict["ref"]
-        self.remote_path = github_dict["path"]
-        self.remote_folder = os.path.dirname(self.remote_path)
-        self.file_name = os.path.basename(self.remote_path)
-        self.current_season, self.current_episode = self.extract_season_episode(self.file_name)
-        
-        if self.current_season == 1:
-            self.anime_folder_name = self._extract_anime_name_from_url(self.remote_path)
-            self.config.set("LAST_ANIME_NAME", self.anime_folder_name)
-        else:
-            self.anime_folder_name = self.config.get("LAST_ANIME_NAME")
-        self.config.set("LAST_GITHUB_URL", remote_url)
+        #seperate into clean, start times, top and bottom segments
+        self.display_data = []
+        for sub in self.subtitles:
+            clean = self._clean_text(sub.content)
+            start_times = sub.start.total_seconds()
+            lines = [l for l in clean.splitlines() if l.strip()]
+            if not lines:
+                top, bottom = [], []
+            elif len(lines) == 1:
+                top, bottom = [], self._parse_ruby_segments(lines[0])
+            else:
+                top = self._parse_ruby_segments(lines[0])
+                bottom = self._parse_ruby_segments(lines[1])
+            self.display_data.append((clean, start_times, top, bottom))
 
-
-    def _load_local_and_process(self, local_path: str) -> None:
-        if not local_path or not os.path.isfile(local_path):
-            raise FileNotFoundError(local_path)
-        self.set_subtitle_display_data(local_path)
-        # self.total_duration = self.get_total_duration() if self.subtitles else 0
-
-
-
-  
     def _parse_github_url(self, url: str) -> Dict[str, Optional[str]]:  
         p = urlparse(url)
         path = unquote(p.path)
@@ -156,33 +145,6 @@ class SubtitleManager:
                 out['filename'] = os.path.basename(out['path'])
         return out
         
-
-
-
-
-
-    def set_subtitle_display_data(self, local_path):
-        with open(local_path, 'rb') as f:
-            raw = f.read()
-        detected = chardet.detect(raw)
-        text = raw.decode(detected['encoding'] or 'utf-8', errors='replace')
-        self.subtitles = list(srt.parse(text))
-
-        #seperate into clean, start times, top and bottom segments
-        self.display_data = []
-        for sub in self.subtitles:
-            clean = self._clean_text(sub.content)
-            start_times = sub.start.total_seconds()
-            lines = [l for l in clean.splitlines() if l.strip()]
-            if not lines:
-                top, bottom = [], []
-            elif len(lines) == 1:
-                top, bottom = [], self._parse_ruby_segments(lines[0])
-            else:
-                top = self._parse_ruby_segments(lines[0])
-                bottom = self._parse_ruby_segments(lines[1])
-            self.display_data.append((clean, start_times, top, bottom))
-
     def _clean_text(self, text: str) -> str:
         cleaned = self.CLEAN_PATTERN.sub('', text)
         cleaned = self.TAG_PATTERN.sub('', cleaned)
@@ -190,140 +152,7 @@ class SubtitleManager:
         cleaned = regex.sub(r'[（(].*?[）)]', '', cleaned)
         cleaned = cleaned.replace('«', '(').replace('»', ')')
         return cleaned.replace('&lrm;', '').replace('\u200e', '').strip()
-
-    def calculate_geometry(self):
-        font = tkFont.Font(family=self.config.get("SUBTITLE_FONT"),size=self.config.get("SUBTITLE_FONT_SIZE"),weight="bold")
-        max_width = 0
-        for clean, time, *_rest in self.display_data:
-            base_text = regex.sub(r'\p{Han}+\([^)]+\)', lambda m: regex.match(r'(\p{Han}+)', m.group()).group(), clean)
-            for line in base_text.splitlines():
-                width = font.measure(line)
-                if max_width < width:
-                    max_width = width
-                    biggest_line = line
-                    start_time = time
-        # print(format_time(start_time),": ",biggest_line)
-        # print(self.display_data[1:4])
-        line_height = font.metrics("linespace")
-        ruby_height = int(line_height * 0.6)
-        pad_x = 5
-        total_height = ruby_height * 2 + line_height * 2
-        total_width  = max_width + 2 * pad_x
-
-        return (total_width, total_height)
-
-
-# ---------------------- get data -------------------------
-    def get_anime_name(self)-> Optional[str]:
-        return self.anime_folder_name
-    
-    def get_subtitle_display_data(self):
-        return self.display_data
-    
-    def get_subtitle_geometry(self):
-        return self.calculate_geometry()
-        
-    def get_episode_metadata(self):
-        return (self.github_owner, self.github_repo, self.github_ref, self.remote_path,
-                self.remote_folder,self.anime_folder_name, self.file_name,
-                self.current_season, self.current_episode)
-         
-    def get_season_episode_movie_info(self) -> Tuple[Optional[int], Optional[int]]:
-        return (self.current_season, self.current_episode)
-
-    def get_total_duration(self) -> float:
-        return self.subtitles[-1].end.total_seconds()
-    
-    def get_current_season(self) -> int:
-        return self.current_season
-      
-    def get_current_episode(self) -> int:
-        return self.current_episode
-# ---------------------- get data -------------------------
-
-
-# ---------------------- helpers: cache dirs ----------------------
-    def _get_cache_base_dir(self) -> str: #get current base directory
-        project_root = os.path.dirname(os.path.abspath(os.path.join(__file__, "..")))
-        base = os.path.join(project_root, "cache_github")
-        os.makedirs(base, exist_ok=True)
-        return base
-    
-    def _season_cache_dir(self) -> str:
-        base = self._get_cache_base_dir()
-        season_dir = os.path.join(base, self.anime_folder_name,f"Season{self.current_season}")
-        if not os.path.exists(season_dir):
-            os.makedirs(season_dir, exist_ok=True)
-        return season_dir
- 
-    def _cached_episode_numbers(self, season: int) -> List[int]:# count current season episodes maybe needs adjustment if github switches from sXeX to Ex or wrong season count maybe need to prioritize episode
-        season_dir = self._season_cache_dir()
-        if not os.path.isdir(season_dir):
-            return []
-        eps = []
-        for fn in os.listdir(season_dir):
-            if not fn.lower().endswith(".srt"):
-                continue
-            s, e = self.extract_season_episode(fn)
-            if e:
-                eps.append(e)
-        return sorted(set(eps))
-
-    def _register_cache_cleanup(self) -> None:
-        def _cleanup():
-            try:
-                base = self._get_cache_base_dir()
-                if os.path.exists(base):
-                    shutil.rmtree(base)
-                    logger.debug("Removed runtime cache: %s", base)
-            except Exception:
-                logger.exception("Failed to cleanup cache on exit")
-        atexit.register(_cleanup)
-# ---------------------- helpers: cache dirs ----------------------
-
-
-
-
-
-# ---------------------- Helpers: parsing ----------------------
-    def _get_raw_url(self, owner: str, repo: str, ref: str, path: str) -> str:
-        enc_path = "/".join(quote(p) for p in path.split("/"))
-        return f"https://raw.githubusercontent.com/{owner}/{repo}/{ref}/{enc_path}"
-
-    def extract_season_episode(self, name: str) -> Tuple[Optional[int], Optional[int]]:
-        # 1) SxxExx
-        m = re.search(r'(?i)s(\d{1,2})\D*e(\d{1,4})', name)
-        if m:
-            return int(m.group(1)), int(m.group(2))
-
-        # 2) Exx
-        m = re.search(r'(?i)\b[eE](\d{1,4})\b', name)
-        if m:
-            return None, int(m.group(1))
-
-        # 3) After dash
-        m = re.search(r'-(?:\s*)(\d{2,4})(?=\s|\[|\.|$)', name)
-        if m:
-            return None, int(m.group(1))
-
-        # 4) LAST number before extension/tags
-        nums = re.findall(r'(?<!\d)(\d{2,4})(?!\d)', name)
-        if nums:
-            ep = int(nums[-1])
-            # filter obvious junk
-            if 1900 <= ep <= 2100:  # year
-                return None, None
-            return None, ep
-        return None, None
-
-    def _extract_anime_name_from_url(self, remote_path: str) -> Optional[str]:
-        parts = remote_path.split("/")
-        try:
-            idx = parts.index("subtitles")
-            return parts[idx + 2]  # folder 2 under /subtitles/
-        except ValueError:
-            return None
- 
+     
     def _parse_ruby_segments(self, text: str) -> List[tuple[str, Optional[str]]]:
         segments: List[tuple[str, Optional[str]]] = []
         last = 0
@@ -337,217 +166,20 @@ class SubtitleManager:
         if tail:
             segments.append((tail, None))
         return segments
-# ---------------------- Helpers: parsing ----------------------
+#--------------------------------local handling-----------------------------------
 
-
-
-# ---------------------- GitHub searching / downloading ----------------------
-    def _get_remote_files_for_season(self, season: int) -> List[str]:
-        """
-        Return list of remote file paths for a season (cached in-memory per run).
-        Caches results in self._remote_files_cache to avoid repeated GitHub API calls.
-        """
-        if season in self._remote_files_cache:
-            return self._remote_files_cache[season]
-
-        try:
-            folders = self._search_subtitle_folders()
-            files = self._search_srt_files_in_folders(folders, season)
-        except Exception:
-            logger.exception("Remote lookup failed for season %s", season)
-            files = []
-
-        # cache result (even empty) for the session
-        self._remote_files_cache[season] = files
-        return files
-
-    def _search_subtitle_folders(self) -> List[str]:
-
-        api_url = "https://api.github.com/search/code"
-        headers = {"Accept": "application/vnd.github.v3+json", "Authorization": f"token {self.github_token}"}
-        params = {"q": f'repo:{self.github_owner}/{self.github_repo} {self.anime_folder_name}'}
-
-        resp = requests.get(api_url, headers=headers, params=params, timeout=15)
-        if resp.status_code != 200:
-            raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
-
-        data = resp.json()
-        results = []
-
-        for item in data.get("items", []):
-            path = item.get("path", "")
-            if self.anime_folder_name.lower() in path.lower():
-                folder = os.path.dirname(path)
-                results.append(folder)
-        return list(set(results))
-
-    def _search_srt_files_in_folders(self, folders: List[str], season: Optional[int] = None) -> List[str]:
-        #only needed to find episode 1 of the new season. Then save the path to this episode and the other episodes should be in the same folder and download every episode of this season.
-        headers = {"Accept": "application/vnd.github.v3+json", "Authorization": f"token {self.github_token}"}
-
-        results: List[str] = []
-
-        for folder in folders:
-            url = f"https://api.github.com/repos/{self.github_owner}/{self.github_repo}/contents/{folder}"
-            try:
-                resp = requests.get(url, headers=headers, timeout=15)
-                if resp.status_code != 200:
-                    logger.debug("Skipping folder %s (HTTP %s)", folder, resp.status_code)
-                    continue
-                items = resp.json()
-                if not isinstance(items, list):
-                    continue
-                for it in items:
-                    if it.get("type") != "file":
-                        continue
-                    name = it.get("name", "")
-                    if not name.lower().endswith('.srt'):
-                        continue
-                    # if not any(x in lname for x in ['amazon','netflix',"bandai", "Webrip"]):
-                    #     continue
-                    s, e = self.extract_season_episode(name)
-                    if season is not None:
-                        if s is None:
-                            continue
-                        if s != season:
-                            continue
-                    results.append(it.get("path"))
-            except Exception:
-                logger.exception("Failed to inspect folder: %s", folder)
-        return results
-
-    def download_current_episode(self):
-        file_name = self.sanitize_filename(os.path.basename(self.file_name))
-        season_dir = self._season_cache_dir()
-        local_path = os.path.join(season_dir, file_name)
-
-        self._download_file(self.github_owner, self.github_repo, self.github_ref, self.remote_path, local_path)
-        return local_path
-
-    def sanitize_filename(self,filename: str) -> str:
-        # Replace invalid Windows characters with underscore
-        return re.sub(r'[<>:"/\\|?*]', '_', filename)
-
-    def download_remaining_season_async(self, season_files: List[str], current_file: str, season_dir: str, window: int = 20):
-        """
-        Download a window of episodes around the currently selected episode.
-        Deduplicate by episode number (only one file per episode).
-        """
-        # Map episode -> (episode, fname, remote_path) keeping first encountered entry for that episode.
-        entries_map: Dict[int, Tuple[int, str, str]] = {}
-        unknowns: List[Tuple[str, str]] = []  # (fname, remote_path) for files without episode number
-
-        for remote_path in season_files:
-            fname = self.sanitize_filename(os.path.basename(remote_path))
-            s, e = self.extract_season_episode(os.path.basename(remote_path))
-            if e is None:
-                unknowns.append((fname, remote_path))
-                continue
-            if e in entries_map:
-                # keep first seen for this episode (avoid downloading multiple variants for same epi)
-                continue
-            entries_map[e] = (e, fname, remote_path)
-
-        # create a sorted list of episodes
-        entries = sorted(entries_map.values(), key=lambda x: x[0])
-
-        # locate current index by matching filename
-        idx = next((i for i, (_e, fname, _rp) in enumerate(entries) if fname == current_file), None)
-        if idx is None:
-            # fallback: find index by episode number of current_file
-            cur_e = None
-            for e, fname, rp in entries:
-                if fname == current_file:
-                    cur_e = e
-                    idx = entries.index((e, fname, rp))
-                    break
-
-        if idx is None:
-            start, end = 0, min(len(entries)-1, window-1)
-        else:
-            start = max(0, idx - window)
-            end = min(len(entries)-1, idx + window)
-
-        to_download = entries[start:end+1]
-        keep_filenames = {fname for _e, fname, _rp in to_download}
-
-        # For safety, also include the current_file in keep_filenames
-        keep_filenames.add(current_file)
-
-        # spawn download threads for the window
-        for e, fname, remote_path in to_download:
-            local_path = os.path.join(season_dir, fname)
-            if os.path.exists(local_path):
-                continue
-            threading.Thread(
-                target=self._download_file,
-                args=(self.github_owner, self.github_repo, self.github_ref, remote_path, local_path),
-                daemon=True
-            ).start()
-
-        # optionally consider unknowns (files without parsed episode) only if season_dir is empty
-        if not entries and unknowns:
-            for fname, remote_path in unknowns[:window]:
-                local_path = os.path.join(season_dir, fname)
-                if os.path.exists(local_path):
-                    continue
-                threading.Thread(
-                    target=self._download_file,
-                    args=(self.github_owner, self.github_repo, self.github_ref, remote_path, local_path),
-                    daemon=True
-                ).start()
-
-        # optional: evict files outside keep_filenames to limit disk usage
-        try:
-            self._evict_outside_window(season_dir, keep_filenames)
-        except Exception:
-            logger.exception("Failed to evict old episode files")
-
-
-    def _evict_outside_window(self, season_dir: str, keep_filenames: set):
-        """
-        Remove files in season_dir that are not in keep_filenames.
-        Safe-guards: only remove .srt and only when season_dir exists.
-        """
-        if not season_dir or not os.path.isdir(season_dir):
-            return
-        for fn in os.listdir(season_dir):
-            if not fn.lower().endswith(".srt"):
-                continue
-            if fn in keep_filenames:
-                continue
-            try:
-                path = os.path.join(season_dir, fn)
-                os.remove(path)
-                logger.debug("Evicted old episode file: %s", path)
-            except Exception:
-                logger.exception("Failed to remove cached file: %s", fn)
-
-
-
-
-    def _download_file(self, owner, repo, ref, remote_path, local_path):
-        # Ensure only the directory exists, not the file
-        os.makedirs(os.path.dirname(local_path), exist_ok=True)
-        url = self._get_raw_url(owner, repo, ref, remote_path)
-        try:
-            r = requests.get(url)
-            r.raise_for_status()
-            with open(local_path, "wb") as f:
-                f.write(r.content)
-        except Exception as e:
-            logger.error(f"Download failed for {url}: {e}")
-# ---------------------- GitHub searching / downloading ----------------------
+#--------------------initializing--------------------------
 
 
 # ---------------------- file selection ----------------------
+
     def ask_local_srt_file(self) -> Optional[str]:
         try:
             window = tk.Tk(); window.withdraw(); window.attributes("-topmost", True)
             path = filedialog.askopenfilename(
                 parent=window,
                 title="Select SRT File",
-                initialdir=self.srt_dir,
+                initialdir=self.local_srt_dir,
                 filetypes=[("SubRip files","*.srt"),("All Files","*.*")]
             )
             window.destroy()
@@ -558,16 +190,7 @@ class SubtitleManager:
         except Exception:
             logger.exception("SRT file selection failed")
             return None
-        
-    def ask_remote_srt_file(self) -> str:
-        window = tk.Tk(); window.withdraw(); window.attributes("-topmost", True)
-        url = simpledialog.askstring("Remote URL", "Enter GitHub subtitle URL:", parent=window)
-        window.destroy()
-        if not url or not url.strip():
-            logger.exception("No url given")
-            return None
-        return url
-    
+       
     def ask_remote_srt_with_hint(self) -> Tuple[Optional[str], Optional[int], Optional[int]]:
         """
         Show a small dialog that asks for:
@@ -624,28 +247,43 @@ class SubtitleManager:
 
 # ---------------------- file selection ----------------------
 
-    def _last_cached(self, season_to_check: int) -> int:
-        """
-        Unified 'last cached episode' lookup.
-        If using a local folder, inspect that folder. Otherwise use cache under cache_github.
-        """
-        # local folder mode
-        if getattr(self, "using_local_folder", False):
-            sd = self.season_dir
-            if sd and os.path.isdir(sd):
-                eps = []
-                for fn in os.listdir(sd):
-                    if not fn.lower().endswith(".srt"):
-                        continue
-                    s, e = self.extract_season_episode(fn)
-                    if e:
-                        eps.append(e)
-                return max(eps) if eps else 0
-            return 0
 
-        # remote/cache mode (existing behavior)
-        eps = self._cached_episode_numbers(season_to_check)
-        return max(eps) if eps else 0
+
+    def reset_state(self) -> None:
+        """
+        Reset runtime state that is specific to the currently loaded subtitle file/season.
+        This makes loading a new local file or new remote URL deterministic.
+        """
+        # local/remote path info
+        self.srt_file = None
+        self.season_dir = None
+
+        # metadata
+        self.is_movie = False
+        self.title = None
+        self.current_season = None
+        self.current_episode = None
+        self.total_duration = 0
+
+        # subtitle contents / display
+        self.subtitles = []
+        self.display_data = []
+        self.raw_subtitles = None
+        self.max_width = None
+        self.max_height = None
+
+        self.remote_flag = False
+        # remote cache for per-session lookups
+        try:
+            self._remote_files_cache.clear()
+        except Exception:
+            self._remote_files_cache = {}
+
+        # github related (keep token)
+        self.github_owner = None
+        self.github_repo = None
+        self.github_ref = None
+        self.github_path = None
 
 
 # ---------------------- episode / season switching ----------------------
@@ -804,7 +442,7 @@ class SubtitleManager:
 
         # blocking download of the required episode (so UI can show it)
         try:
-            self._download_file(self.github_owner, self.github_repo, self.github_ref, remote_path, local_path)
+            self._download_file(remote_path, local_path)
             # verify file exists
             if not os.path.isfile(local_path):
                 logger.error("Downloaded file missing: %s", local_path)
@@ -840,7 +478,6 @@ class SubtitleManager:
 
 
         # update: new github url to current episode to config, update github metadata?, ...
-
         return self.current_season, self.current_episode
     
     def set_new_file(self):
@@ -863,9 +500,7 @@ class SubtitleManager:
             path = self.ask_local_srt_file()
             if not path:
                 return
-            success = self.load_local_srt(path)
-            if not success:
-                messagebox.showerror("Load failed", "Failed to load selected local SRT file.")
+            self._load_local_and_process(path)
 
         def choose_remote():
             popup.destroy()
@@ -875,66 +510,100 @@ class SubtitleManager:
             success = self.load_remote_srt_url(url, hint=(season_hint, episode_hint))
             if not success:
                 messagebox.showerror("Load failed", "Failed to load subtitle from the provided URL.")
-
         tk.Button(button_frame, text="Local File", width=15, command=choose_local).grid(row=0, column=0, padx=12)
         tk.Button(button_frame, text="Remote URL", width=15, command=choose_remote).grid(row=0, column=1, padx=12)
-
         popup.wait_window(popup)
 
 
+    def calculate_geometry(self):
+        font = tkFont.Font(family=self.config.get("SUBTITLE_FONT"),size=self.config.get("SUBTITLE_FONT_SIZE"),weight="bold")
+        max_width = 0
+        for clean, time, *_rest in self.display_data:
+            base_text = regex.sub(r'\p{Han}+\([^)]+\)', lambda m: regex.match(r'(\p{Han}+)', m.group()).group(), clean)
+            for line in base_text.splitlines():
+                width = font.measure(line)
+                if max_width < width:
+                    max_width = width
+                    biggest_line = line
+                    start_time = time
+        # print(format_time(start_time),": ",biggest_line)
+        # print(self.display_data[1:4])
+        line_height = font.metrics("linespace")
+        ruby_height = int(line_height * 0.6)
+        pad_x = 5
+        total_height = ruby_height * 2 + line_height * 2
+        total_width  = max_width + 2 * pad_x
+
+        return (total_width, total_height)
 
 
-# ---------------------- episode / season switching ----------------------
+# ---------------------- get data -------------------------
+    def get_anime_name(self)-> Optional[str]:
+        return self.anime_folder_name
+    
+    def get_subtitle_display_data(self):
+        return self.display_data
+    
+    def get_subtitle_geometry(self):
+        return self.calculate_geometry()
+        
+    def get_episode_metadata(self):
+        return (self.github_owner, self.github_repo, self.github_ref, self.remote_path,
+                self.remote_folder,self.anime_folder_name, self.file_name,
+                self.current_season, self.current_episode)
+         
+    def get_season_episode_movie_info(self) -> Tuple[Optional[int], Optional[int]]:
+        return (self.current_season, self.current_episode)
 
+    def get_total_duration(self) -> float:
+        return self.subtitles[-1].end.total_seconds()
+    
+    def get_current_season(self) -> int:
+        return self.current_season
+      
+    def get_current_episode(self) -> int:
+        return self.current_episode
+# ---------------------- get data -------------------------
 
-    # ----- New utility: reset internal state before loading a new SRT source -----
-    def reset_state(self) -> None:
-        """
-        Reset runtime state that is specific to the currently loaded subtitle file/season.
-        This makes loading a new local file or new remote URL deterministic.
-        """
-        # local/remote path info
-        self.srt_file = None
-        self.srt_dir = None
-        self.season_dir = None
-
-        # metadata
-        self.is_movie = False
-        self.title = None
-        self.current_season = None
-        self.current_episode = None
-        self.total_duration = 0
-
-        # subtitle contents / display
-        self.subtitles = []
-        self.display_data = []
-        self.raw_subtitles = None
-        self.max_width = None
-        self.max_height = None
-
-        self.remote_flag = False
-        # remote cache for per-session lookups
-        try:
-            self._remote_files_cache.clear()
-        except Exception:
-            self._remote_files_cache = {}
-
-        # github related (keep token)
-        self.github_owner = None
-        self.github_repo = None
-        self.github_ref = None
-        self.github_path = None
+################ TODO: figure out the anime name of first season #################
+##### workaround user gives always s1 when pasting URL##########
+#look for same string in folder name and file name?
 
 
 
 
+    def _initialize_remote_path(self):
+        #extract github metadata
+        init_url = self.config.get("LAST_GITHUB_URL")
+        if not init_url:#fallback
+            init_url = self.ask_remote_srt_with_hint()
+            if not init_url:
+                local_srt_path = self.ask_local_srt_file()
+                if local_srt_path:
+                    return local_srt_path
+        self._extract_and_set_remote_episode_metadata(init_url)
+        local_srt_path = self.download_current_episode(init_url) #other episodes downloaded in app.py
+        return local_srt_path
+    
 
-
-
-
-
-
-    # ----- New: load a remote GitHub URL (acts like startup) -----
+    def _extract_and_set_remote_episode_metadata(self, remote_url):
+        github_dict = self._parse_github_url(remote_url)
+        self.github_owner = github_dict["owner"]
+        self.github_repo  = github_dict["repo"]
+        self.github_ref   = github_dict["ref"]
+        self.remote_path = github_dict["path"]
+        self.remote_folder = os.path.dirname(self.remote_path)
+        self.anime_folder_name = self._extract_anime_name_from_url(self.remote_path)
+        self.config.set("LAST_GITHUB_URL", remote_url)
+        if self.current_season == 1:
+            self.config.set("LAST_ANIME_NAME", self.anime_folder_name)
+        else:
+            self.anime_folder_name = self.config.get("LAST_ANIME_NAME")
+        season_dir = self._season_cache_dir()
+        file_name = os.path.basename(self.remote_path)
+        local_path = os.path.join(season_dir, file_name)
+        self._extract_and_set_local_episode_metadata(local_path)
+        
     def load_remote_srt_url(self, url: str, s_e: Optional[Tuple[Optional[int], Optional[int]]] = None) -> bool:
         """
         url: GitHub (or raw) URL pointing to a subtitle file. 
@@ -943,7 +612,7 @@ class SubtitleManager:
         if not url:
             return False
         self.reset_state()
-        self._extract_and_set_episode_metadata(url)
+        self._extract_and_set_remote_episode_metadata(url)
         self.remote_flag = True
 
 
@@ -991,55 +660,321 @@ class SubtitleManager:
                 self.download_remaining_season_async(season_files, self.sanitize_filename(current_file), self.season_dir, window=15)
         except Exception:
             logger.exception("Failed to schedule async season downloads")
-
         return True
+# ---------------------- helpers: cache dirs ----------------------base
+    def _season_cache_dir(self) -> str:
+        base = self._get_cache_base_dir()
+        season_dir = os.path.join(base, self.anime_folder_name,f"Season{self.current_season}")
+        if not os.path.exists(season_dir):
+            os.makedirs(season_dir, exist_ok=True)
+        return season_dir
+    
+    def _get_cache_base_dir(self) -> str: #get current base directory
+        project_root = os.path.dirname(os.path.abspath(os.path.join(__file__, "..")))
+        base = os.path.join(project_root, "cache_github")
+        os.makedirs(base, exist_ok=True)
+        return 
+ 
+    def _cached_episode_numbers(self, season: int) -> List[int]:# count current season episodes maybe needs adjustment if github switches from sXeX to Ex or wrong season count maybe need to prioritize episode
+        season_dir = self._season_cache_dir()
+        if not os.path.isdir(season_dir):
+            return []
+        eps = []
+        for fn in os.listdir(season_dir):
+            if not fn.lower().endswith(".srt"):
+                continue
+            s, e = self.extract_season_episode(fn)
+            if e:
+                eps.append(e)
+        return sorted(set(eps))
+
+# ---------------------- helpers: cache dirs ----------------------
 
 
-    # ----- New: load a local SRT file (path)-----
-    def load_local_srt(self, path: str) -> bool:
+
+
+
+# ---------------------- Helpers: parsing ----------------------
+    def _get_raw_url(self, filename: str) -> str:
+        return f"https://raw.githubusercontent.com/{self.github_owner}/{self.github_repo}/{self.github_ref}/{filename}"
+
+    def extract_season_episode(self, name: str) -> Tuple[Optional[int], Optional[int]]:
+        # 1) SxxExx
+        m = re.search(r'(?i)s(\d{1,2})\D*e(\d{1,4})', name)
+        if m:
+            return int(m.group(1)), int(m.group(2))
+
+        # 2) Exx
+        m = re.search(r'(?i)\b[eE](\d{1,4})\b', name)
+        if m:
+            return None, int(m.group(1))
+
+        # 3) After dash
+        m = re.search(r'-(?:\s*)(\d{2,4})(?=\s|\[|\.|$)', name)
+        if m:
+            return None, int(m.group(1))
+
+        # 4) LAST number before extension/tags
+        nums = re.findall(r'(?<!\d)(\d{2,4})(?!\d)', name)
+        if nums:
+            ep = int(nums[-1])
+            # filter obvious junk
+            if 1900 <= ep <= 2100:  # year
+                return None, None
+            return None, ep
+        return None, None
+
+    def _extract_anime_name_from_url(self, remote_path: str) -> Optional[str]:
+        parts = remote_path.split("/")
+        try:
+            idx = parts.index("subtitles")
+            return parts[idx + 2]  # folder 2 under /subtitles/
+        except ValueError:
+            return None
+
+# ---------------------- Helpers: parsing ----------------------
+
+
+
+# ---------------------- GitHub searching / downloading ----------------------
+    def _get_remote_files_for_season(self, season: int) -> List[str]:
         """
-        Load a local .srt file selected by the user.
-        - Resets state
-        - Determines season/episode from filename if possible
-        - Copies available .srt files from the selected file's folder into cache (SeasonX folder)
-        - Loads & processes the selected file into runtime state
-        Returns True on success.
+        Return list of remote file paths for a season (cached in-memory per run).
+        Caches results in self._remote_files_cache to avoid repeated GitHub API calls.
         """
-        if not path or not os.path.isfile(path):
-            logger.error("Local SRT path not found: %s", path)
-            return False
-
-        self.reset_state()
-
-        srt_dir = os.path.dirname(path)
-        files = [f for f in os.listdir(srt_dir) if f.lower().endswith('.srt')]
-        if not files:
-            logger.error("No .srt files found in folder: %s", srt_dir)
-            return False
-        self.using_local_folder = True
-        self.source = "local"
-
-        self.srt_dir = srt_dir
-        self._srt_file_list = files
-        self.srt_file = path
-        self.season_dir = srt_dir
-
-        filename = os.path.basename(path)
-        s_num, e_num = self.extract_season_episode(filename)
-        if s_num is None:
-            self.current_season = 1 if e_num is not None else None
-            self.is_movie = (e_num is None)
-        else:
-            self.current_season = s_num
-
-        self.current_episode = e_num if e_num is not None else (1 if self.current_season is not None else None)
-
-        self.config.set("LAST_LOCAL_SRT_FILE", self.srt_file)
+        if season in self._remote_files_cache:
+            return self._remote_files_cache[season]
 
         try:
-            self._load_local_and_process(self.srt_file)
+            folders = self._search_subtitle_folders()
+            files = self._search_srt_files_in_folders(folders, season)
         except Exception:
-            logger.exception("Failed to load local srt: %s", self.srt_file)
-            return False
-        
-        return True
+            logger.exception("Remote lookup failed for season %s", season)
+            files = []
+
+        # cache result (even empty) for the session
+        self._remote_files_cache[season] = files
+        return files
+
+    def _search_subtitle_folders(self) -> List[str]:
+
+        api_url = "https://api.github.com/search/code"
+        headers = {"Accept": "application/vnd.github.v3+json", "Authorization": f"token {self.github_token}"}
+        params = {"q": f'repo:{self.github_owner}/{self.github_repo} {self.anime_folder_name}'}
+
+        resp = requests.get(api_url, headers=headers, params=params, timeout=15)
+        if resp.status_code != 200:
+            raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
+
+        data = resp.json()
+        results = []
+
+        for item in data.get("items", []):
+            path = item.get("path", "")
+            if self.anime_folder_name.lower() in path.lower():
+                folder = os.path.dirname(path)
+                results.append(folder)
+        return list(set(results))
+
+    def _search_srt_files_in_folders(self, folders: List[str], season: Optional[int] = None) -> List[str]:
+        #only needed to find episode 1 of the new season. Then save the path to this episode and the other episodes should be in the same folder and download every episode of this season.
+        headers = {"Accept": "application/vnd.github.v3+json", "Authorization": f"token {self.github_token}"}
+
+        results: List[str] = []
+
+        for folder in folders:
+            url = f"https://api.github.com/repos/{self.github_owner}/{self.github_repo}/contents/{folder}"
+            try:
+                resp = requests.get(url, headers=headers, timeout=15)
+                if resp.status_code != 200:
+                    logger.debug("Skipping folder %s (HTTP %s)", folder, resp.status_code)
+                    continue
+                items = resp.json()
+                if not isinstance(items, list):
+                    continue
+                for it in items:
+                    if it.get("type") != "file":
+                        continue
+                    name = it.get("name", "")
+                    if not name.lower().endswith('.srt'):
+                        continue
+                    # if not any(x in lname for x in ['amazon','netflix',"bandai", "Webrip"]):
+                    #     continue
+                    s, e = self.extract_season_episode(name)
+                    if season is not None:
+                        if s is None:
+                            continue
+                        if s != season:
+                            continue
+                    results.append(it.get("path"))
+            except Exception:
+                logger.exception("Failed to inspect folder: %s", folder)
+        return results
+
+    def download_current_episode(self, remote_url):
+        file_name = self.sanitize_filename(os.path.basename(self.file_name))
+        season_dir = self._season_cache_dir()
+        local_path = os.path.join(season_dir, file_name)
+        remote_path = (remote_url)
+        self._download_file(remote_path, local_path)
+        return local_path
+
+    def sanitize_filename(self,filename: str) -> str:
+        # Replace invalid Windows characters with underscore
+        return re.sub(r'[<>:"/\\|?*]', '_', filename)
+
+    def download_remaining_season_async(self, season_files: List[str], current_file: str, season_dir: str, window: int = 20):
+        """
+        Download a window of episodes around the currently selected episode.
+        Deduplicate by episode number (only one file per episode).
+        """
+        # Map episode -> (episode, fname, remote_path) keeping first encountered entry for that episode.
+        entries_map: Dict[int, Tuple[int, str, str]] = {}
+        unknowns: List[Tuple[str, str]] = []  # (fname, remote_path) for files without episode number
+
+        for file in season_files:
+            fname = self.sanitize_filename(os.path.basename(file))
+            s, e = self.extract_season_episode(os.path.basename(file))
+            if e is None:
+                unknowns.append((fname, file))
+                continue
+            if e in entries_map:
+                # keep first seen for this episode (avoid downloading multiple variants for same epi)
+                continue
+            entries_map[e] = (e, fname, file)
+
+        # create a sorted list of episodes
+        entries = sorted(entries_map.values(), key=lambda x: x[0])
+
+        # locate current index by matching filename
+        idx = next((i for i, (_e, fname, _rp) in enumerate(entries) if fname == current_file), None)
+        if idx is None:
+            # fallback: find index by episode number of current_file
+            cur_e = None
+            for e, fname, rp in entries:
+                if fname == current_file:
+                    cur_e = e
+                    idx = entries.index((e, fname, rp))
+                    break
+
+        if idx is None:
+            start, end = 0, min(len(entries)-1, window-1)
+        else:
+            start = max(0, idx - window)
+            end = min(len(entries)-1, idx + window)
+
+        to_download = entries[start:end+1]
+        keep_filenames = {fname for _e, fname, _rp in to_download}
+
+        # For safety, also include the current_file in keep_filenames
+        keep_filenames.add(current_file)
+        # spawn download threads for the window
+        for e, fname, remote_path in to_download:
+            local_path = os.path.join(season_dir, fname)
+            if os.path.exists(local_path):
+                continue
+            threading.Thread(
+                target=self._download_file,
+                args=(self._get_raw_url(remote_path), local_path),
+                daemon=True
+            ).start()
+
+        # optionally consider unknowns (files without parsed episode) only if season_dir is empty
+        if not entries and unknowns:
+            for fname, remote_path in unknowns[:window]:
+                local_path = os.path.join(season_dir, fname)
+                if os.path.exists(local_path):
+                    continue
+                threading.Thread(
+                    target=self._download_file,
+                    args=(current_file, local_path),
+                    daemon=True
+                ).start()
+
+        # optional: evict files outside keep_filenames to limit disk usage
+        try:
+            self._evict_outside_window(season_dir, keep_filenames)
+        except Exception:
+            logger.exception("Failed to evict old episode files")
+
+    def _evict_outside_window(self, season_dir: str, keep_filenames: set):
+        """
+        Remove files in season_dir that are not in keep_filenames.
+        Safe-guards: only remove .srt and only when season_dir exists.
+        """
+        if not season_dir or not os.path.isdir(season_dir):
+            return
+        for fn in os.listdir(season_dir):
+            if not fn.lower().endswith(".srt"):
+                continue
+            if fn in keep_filenames:
+                continue
+            try:
+                path = os.path.join(season_dir, fn)
+                os.remove(path)
+                logger.debug("Evicted old episode file: %s", path)
+            except Exception:
+                logger.exception("Failed to remove cached file: %s", fn)
+
+    def _download_file(self,remote_path, local_path):
+        if not os.path.exists(local_path):
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        try:
+            r = requests.get(remote_path)
+            r.raise_for_status()
+            with open(local_path, "wb") as f:
+                f.write(r.content)
+        except Exception as e:
+            logger.error(f"Download failed for {remote_path}: {e}")
+# ---------------------- GitHub searching / downloading ----------------------
+
+
+    def _last_cached(self, season_to_check: int) -> int:
+        """
+        Unified 'last cached episode' lookup.
+        If using a local folder, inspect that folder. Otherwise use cache under cache_github.
+        """
+        # local folder mode
+        if getattr(self, "using_local_folder", False):
+            sd = self.season_dir
+            if sd and os.path.isdir(sd):
+                eps = []
+                for fn in os.listdir(sd):
+                    if not fn.lower().endswith(".srt"):
+                        continue
+                    s, e = self.extract_season_episode(fn)
+                    if e:
+                        eps.append(e)
+                return max(eps) if eps else 0
+            return 0
+
+        # remote/cache mode (existing behavior)
+        eps = self._cached_episode_numbers(season_to_check)
+        return max(eps) if eps else 0
+
+
+
+# ---------------------- episode / season switching ----------------------
+
+
+
+    def _register_cache_cleanup(self) -> None:
+        def _cleanup():
+            try:
+                base = self._get_cache_base_dir()
+                if os.path.exists(base):
+                    shutil.rmtree(base)
+                    logger.debug("Removed runtime cache: %s", base)
+            except Exception:
+                logger.exception("Failed to cleanup cache on exit")
+        atexit.register(_cleanup)
+
+
+
+
+
+
+
+
+
+

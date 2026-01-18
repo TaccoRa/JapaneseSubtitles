@@ -1,6 +1,6 @@
 {
     "DEBUGGING_SRT_FILE": "D:/Tobi/Programme/VSCode_projects/JapaneseSubtitles/subs/Record.of.Ragnarok/Record.of.Ragnarok.S02E01.WEBRip.Netflix.ja[cc].srt",
-    "LAST_LOCAL_SRT_FILE": "D:/Tobi/Programme/VSCode_projects/JapaneseSubtitles/src/SubtitlePlayer/cache_github/Shingeki no Kyojin/Season5/進撃の巨人.S05E62.希望の扉.WEBRip.Netflix.ja[cc].srt",
+    "LAST_LOCAL_SRT_FILE": "D:/Tobi/Programme/VSCode_projects/JapaneseSubtitles/subs/HarryPotter_Italian/HarryPotter_1.srt",
     "LAST_GITHUB_URL": "https://raw.githubusercontent.com/Ajatt-Tools/kitsunekko-mirror/main/subtitles/anime_tv/Shingeki no Kyojin 3 Part 2/[Trix] Shingeki no Kyojin S03E13 (50) (BD 1080p AV1) [2F5039B9].srt",
     "LAST_ANIME_NAME": "Shingeki no Kyojin",
     "DEFAULT_START_TIME": 120,
@@ -14,7 +14,7 @@
     "POPUP_BG_COLOR": "black",
     "POPUP_FONT_SIZE": 20,
     "GLOW_RADIUS": 10,
-    "REMOTE_FLAG": true,
+    "REMOTE_FLAG": false,
     "DEBUGGING": false,
     "VIDEO_CLICK": false,
     "PHONEMODE_DEFAULT": false,
@@ -27,6 +27,6 @@
     "LAST_SETTINGS_WINDOW_Y": 646,
     "LAST_CONTROL_WINDOW_X": 1499,
     "LAST_CONTROL_WINDOW_Y": 837,
-    "LAST_SUB_CENTER_X": 1169.5,
-    "LAST_SUB_CENTER_Y": 515.0
+    "LAST_SUB_CENTER_X": 1039.0,
+    "LAST_SUB_CENTER_Y": 452.0
 }
