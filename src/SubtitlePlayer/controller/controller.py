@@ -256,11 +256,12 @@ class SubtitleController:
         else: 
             self.settings.episode_var.set(str(self.sub_manager.current_episode))
 
-        new_total = self.sub_manager.get_total_duration()
+        new_total = self.sub_manager.get_total_duration() ##maybe not needed anymore
         self.settings.set_total_duration(new_total)
         self.total_duration = new_total
         self.update_max_width()
-
+        title= f'S{self.sub_manager.get_current_season()}E{self.sub_manager.get_current_episode()} {self.sub_manager.get_anime_name()}'
+        self.settings.root.title(title)
         self.current_time = self.default_start_time
         self.set_current_time(self.current_time)
         
