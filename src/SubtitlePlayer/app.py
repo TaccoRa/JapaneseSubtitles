@@ -28,9 +28,6 @@ class SubtitlePlayerApp:
 
         self._load_config()
         self._load_subtitle_metadata()
-
-
-
         self._build_app_window()
         self._build_ui()
         self._build_model()
