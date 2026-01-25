@@ -14,11 +14,25 @@ from model.subtitle_manager import SubtitleManager
 from model.renderer import SubtitleRenderer
 from controller.controller import SubtitleController
 
+import sys
+
+sys.stdout = open("stdout_debug.txt", "w", encoding="utf-8")
+sys.stderr = open("stderr_debug.txt", "w", encoding="utf-8")
+
+LOG_DIR = "logs"
+os.makedirs(LOG_DIR, exist_ok=True)
+
+LOG_FILE = os.path.join(LOG_DIR, "app.log")
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    filename=LOG_FILE,
+    filemode="a",
+    encoding="utf-8"
 )
+
+
 logger = logging.getLogger(__name__)
 
 class SubtitlePlayerApp:

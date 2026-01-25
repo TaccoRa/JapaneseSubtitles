@@ -75,7 +75,7 @@ class SubtitleManager:
 #--------------------------------local handling-----------------------------------
     def _load_local_and_process(self, local_srt_path: str) -> bool:
         if not (local_srt_path and os.path.isfile(local_srt_path)):
-            logger.error("Local SRT path not found: \n%s\n -> Manual selection", local_srt_path)
+            # logger.error("Local SRT path not found: \n%s\n -> Manual selection", local_srt_path)
             local_srt_path = self.ask_local_srt_file()
         self._extract_and_set_local_episode_metadata(local_srt_path)
         self.set_subtitle_display_data(local_srt_path)
@@ -362,9 +362,9 @@ class SubtitleManager:
                             self.season_dir = season_dir
                             self.srt_file = chosen
                             return self.current_season, self.current_episode
-                        # except Exception:
-                        #     logger.exception("Failed to load cached subtitle: %s", chosen)
-                        #     break  # fall back to remote if available
+                        except Exception:
+                            # logger.exception("Failed to load cached subtitle: %s", chosen)
+                            break  # fall back to remote if available
 
         # If we reach here we need to fetch remote_path (either was found above or we need to locate it)
         if remote_path is None:
@@ -421,9 +421,9 @@ class SubtitleManager:
                     if cleaned:
                         self.anime_folder_name = cleaned
                         self.config.set("LAST_ANIME_NAME", self.anime_folder_name)
-        # except Exception:
-        #     logger.exception("Failed to download or load remote episode: %s", remote_path)
-        #     return cur_season, cur_episode
+        except Exception:
+            # logger.exception("Failed to download or load remote episode: %s", remote_path)
+            return cur_season, cur_episode
 
         # kick off background downloads for remaining season files (if we have file list)
         try:
@@ -518,7 +518,7 @@ class SubtitleManager:
                 if local_srt_path:
                     return local_srt_path
         self._extract_and_set_remote_episode_metadata(init_url)
-        local_srt_path = self.download_current_episode(init_url) #other episodes downloaded in app.py
+        local_srt_path = self.download_current_episode(self.remote_path) #other episodes downloaded in app.py
         return local_srt_path
     
 
@@ -535,7 +535,7 @@ class SubtitleManager:
         file_name = os.path.basename(self.remote_path)
         local_path = os.path.join(season_dir, file_name)
         self._extract_and_set_local_episode_metadata(local_path)
-        # self.file_name = ...
+        self.file_name = file_name
         self.config.set("LAST_GITHUB_URL", remote_url)
         if self.current_season == 1:
             self.config.set("LAST_ANIME_NAME", self.anime_folder_name)
@@ -582,12 +582,11 @@ class SubtitleManager:
             return False
 
         self.current_season, self.current_episode = self.extract_season_episode(wished_episode_file)
-        self.download_current_episode(url)
-        self.srt_file = 00
+        self.srt_file = self.download_current_episode(wished_episode_file)
         try:
             self._load_local_and_process(self.srt_file)
         except Exception:
-            logger.exception("Failed to load downloaded subtitle: %s", self.srt_file)
+            # logger.exception("Failed to load downloaded subtitle: %s", self.srt_file)
             return False
 
         # Start background download of the rest of the season from the chosen folder (if not already cached)
@@ -701,7 +700,8 @@ class SubtitleManager:
 
         resp = requests.get(api_url, headers=headers, params=params, timeout=15)
         if resp.status_code != 200:
-            raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
+            print("fail")
+            # raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
 
         data = resp.json()
         results = []
@@ -724,7 +724,8 @@ class SubtitleManager:
             try:
                 resp = requests.get(url, headers=headers, timeout=15)
                 if resp.status_code != 200:
-                    logger.debug("Skipping folder %s (HTTP %s)", folder, resp.status_code)
+                    print("fail")
+                    # logger.debug("Skipping folder %s (HTTP %s)", folder, resp.status_code)
                     continue
                 items = resp.json()
                 if not isinstance(items, list):
@@ -745,15 +746,16 @@ class SubtitleManager:
                             continue
                     results.append(it.get("path"))
             except Exception:
-                logger.exception("Failed to inspect folder: %s", folder)
+                print("fail")
+                # logger.exception("Failed to inspect folder: %s", folder)
         return results
 
-    def download_current_episode(self, remote_url):
-        file_name = self.sanitize_filename(remote_url)
+    def download_current_episode(self, remote_path):
+        file_name = self.sanitize_filename(os.path.basename(remote_path))
         season_dir = self._season_cache_dir()
         local_path = os.path.join(season_dir, file_name)
-        remote_path = (remote_url)
-        self._download_file(remote_path, local_path)
+        raw_url = self._get_raw_url(remote_path)
+        self._download_file(raw_url, local_path)
         return local_path
 
     def sanitize_filename(self,filename: str) -> str:
@@ -824,7 +826,7 @@ class SubtitleManager:
                     continue
                 threading.Thread(
                     target=self._download_file,
-                    args=(current_file, local_path),
+                    args=(self._get_raw_url(remote_path), local_path),
                     daemon=True
                 ).start()
 
@@ -849,9 +851,10 @@ class SubtitleManager:
             try:
                 path = os.path.join(season_dir, fn)
                 os.remove(path)
-                logger.debug("Evicted old episode file: %s", path)
+                # logger.debug("Evicted old episode file: %s", path)
             except Exception:
-                logger.exception("Failed to remove cached file: %s", fn)
+                print("fail")
+                # logger.exception("Failed to remove cached file: %s", fn)
 
     def _download_file(self,remote_path, local_path):
         if not os.path.exists(local_path):

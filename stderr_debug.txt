@@ -1,0 +1,126 @@
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "D:\Tobi\Programme\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\view\settings_ui.py", line 146, in <lambda>
+    command=lambda: self._on_ep_inc())
+                    ~~~~~~~~~~~~~~~^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\controller\controller.py", line 69, in <lambda>
+    on_inc    = lambda: self.change_episode('inc'),
+                        ~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\controller\controller.py", line 243, in change_episode
+    target_season,target_episode = self.sub_manager.change_episode(action, raw_int)
+                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\model\subtitle_manager.py", line 343, in change_episode
+    if remote_path is None:
+       ^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'remote_path' where it is not associated with a value
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "D:\Tobi\Programme\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\view\settings_ui.py", line 146, in <lambda>
+    command=lambda: self._on_ep_inc())
+                    ~~~~~~~~~~~~~~~^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\controller\controller.py", line 69, in <lambda>
+    on_inc    = lambda: self.change_episode('inc'),
+                        ~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\controller\controller.py", line 243, in change_episode
+    target_season,target_episode = self.sub_manager.change_episode(action, raw_int)
+                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\model\subtitle_manager.py", line 343, in change_episode
+    if remote_path is None:
+       ^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'remote_path' where it is not associated with a value
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "D:\Tobi\Programme\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\view\settings_ui.py", line 146, in <lambda>
+    command=lambda: self._on_ep_inc())
+                    ~~~~~~~~~~~~~~~^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\controller\controller.py", line 69, in <lambda>
+    on_inc    = lambda: self.change_episode('inc'),
+                        ~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\controller\controller.py", line 243, in change_episode
+    target_season,target_episode = self.sub_manager.change_episode(action, raw_int)
+                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\model\subtitle_manager.py", line 343, in change_episode
+    if remote_path is None:
+       ^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'remote_path' where it is not associated with a value
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "D:\Tobi\Programme\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\view\settings_ui.py", line 146, in <lambda>
+    command=lambda: self._on_ep_inc())
+                    ~~~~~~~~~~~~~~~^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\controller\controller.py", line 69, in <lambda>
+    on_inc    = lambda: self.change_episode('inc'),
+                        ~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\controller\controller.py", line 243, in change_episode
+    target_season,target_episode = self.sub_manager.change_episode(action, raw_int)
+                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\model\subtitle_manager.py", line 343, in change_episode
+    if remote_path is None:
+       ^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'remote_path' where it is not associated with a value
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "D:\Tobi\Programme\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\view\settings_ui.py", line 146, in <lambda>
+    command=lambda: self._on_ep_inc())
+                    ~~~~~~~~~~~~~~~^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\controller\controller.py", line 69, in <lambda>
+    on_inc    = lambda: self.change_episode('inc'),
+                        ~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\controller\controller.py", line 243, in change_episode
+    target_season,target_episode = self.sub_manager.change_episode(action, raw_int)
+                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\model\subtitle_manager.py", line 343, in change_episode
+    if remote_path is None:
+       ^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'remote_path' where it is not associated with a value
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "D:\Tobi\Programme\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\view\settings_ui.py", line 146, in <lambda>
+    command=lambda: self._on_ep_inc())
+                    ~~~~~~~~~~~~~~~^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\controller\controller.py", line 69, in <lambda>
+    on_inc    = lambda: self.change_episode('inc'),
+                        ~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\controller\controller.py", line 243, in change_episode
+    target_season,target_episode = self.sub_manager.change_episode(action, raw_int)
+                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\model\subtitle_manager.py", line 343, in change_episode
+    if remote_path is None:
+       ^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'remote_path' where it is not associated with a value
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "D:\Tobi\Programme\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\view\settings_ui.py", line 146, in <lambda>
+    command=lambda: self._on_ep_inc())
+                    ~~~~~~~~~~~~~~~^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\controller\controller.py", line 69, in <lambda>
+    on_inc    = lambda: self.change_episode('inc'),
+                        ~~~~~~~~~~~~~~~~~~~^^^^^^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\controller\controller.py", line 243, in change_episode
+    target_season,target_episode = self.sub_manager.change_episode(action, raw_int)
+                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "d:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\src\SubtitlePlayer\model\subtitle_manager.py", line 343, in change_episode
+    if remote_path is None:
+       ^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'remote_path' where it is not associated with a value
