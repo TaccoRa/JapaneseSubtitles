@@ -14,25 +14,11 @@ from model.subtitle_manager import SubtitleManager
 from model.renderer import SubtitleRenderer
 from controller.controller import SubtitleController
 
-import sys
-
-sys.stdout = open("stdout_debug.txt", "w", encoding="utf-8")
-sys.stderr = open("stderr_debug.txt", "w", encoding="utf-8")
-
-LOG_DIR = "logs"
-os.makedirs(LOG_DIR, exist_ok=True)
-
-LOG_FILE = os.path.join(LOG_DIR, "app.log")
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    filename=LOG_FILE,
-    filemode="a",
-    encoding="utf-8"
 )
-
-
 logger = logging.getLogger(__name__)
 
 class SubtitlePlayerApp:
@@ -43,12 +29,12 @@ class SubtitlePlayerApp:
         self._load_config()
         self._load_subtitle_metadata()
         self._build_app_window()
-        self._build_ui()
-        self._build_model()
-        self._build_controller()
-        if self.config.get("REMOTE_FLAG"):
-            self._download_init_season_asynch()
-        self.root.after(self.config.get("UPDATE_INTERVAL_MS"), self.controller.update_loop)
+        # self._build_ui()
+        # self._build_model()
+        # self._build_controller()
+        # if self.config.get("REMOTE_FLAG"):
+        #     self._download_init_season_asynch()
+        # self.root.after(self.config.get("UPDATE_INTERVAL_MS"), self.controller.update_loop)
 
 
     def _load_config(self):
@@ -60,19 +46,19 @@ class SubtitlePlayerApp:
         
     def _load_subtitle_metadata(self):
         self.sub_manager = SubtitleManager(self.config)
-        self.total_duration = self.sub_manager.get_total_duration()
+        # self.total_duration = self.sub_manager.get_total_duration()
 
     def _build_app_window(self):
         self.root = tk.Tk()
         self._restore_window_position()
-        s = self.sub_manager.get_current_season()
-        e = self.sub_manager.get_current_episode()
-        n = self.sub_manager.get_anime_name()
+        # s = self.sub_manager.get_current_season()
+        # e = self.sub_manager.get_current_episode()
+        # n = self.sub_manager.get_anime_name()
 
-        title = (n if (s and e) is None else
-                 f"E{e} {n}" if s is None else
-                 f"S{s}E{e} {n}")
-        self.root.title(title)
+        # title = (n if (s and e) is None else
+        #          f"E{e} {n}" if s is None else
+        #          f"S{s}E{e} {n}")
+        # self.root.title(title)
         self.root.geometry(f"320x123")
         self.root.minsize(320, 123)
         self._save_after_id = None #save after id really needed?

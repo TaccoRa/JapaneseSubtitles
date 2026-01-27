@@ -1,0 +1,281 @@
+{
+  "query": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles/anime_tv extension:srt in:path \"Isekai Nonbiri\"",
+  "repo": "Ajatt-Tools/kitsunekko-mirror",
+  "created_at": "2026-01-26T21:43:47.778795Z",
+  "partial": false,
+  "stop_reason": null,
+  "rate_info": {
+    "limit": "10",
+    "remaining": "9",
+    "reset": "1769463888",
+    "retry_after": null
+  },
+  "result_count": 53,
+  "items": [
+    {
+      "name": "[NanakoRaws] Isekai Nonbiri Nouka - 07 (1080p).srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/[NanakoRaws] Isekai Nonbiri Nouka - 07 (1080p).srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/[NanakoRaws]%20Isekai%20Nonbiri%20Nouka%20-%2007%20(1080p).srt"
+    },
+    {
+      "name": "[NanakoRaws] Isekai Nonbiri Nouka - 06 (1080p).srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/[NanakoRaws] Isekai Nonbiri Nouka - 06 (1080p).srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/[NanakoRaws]%20Isekai%20Nonbiri%20Nouka%20-%2006%20(1080p).srt"
+    },
+    {
+      "name": "[NanakoRaws] Isekai Nonbiri Nouka - 11 (1080p).srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/[NanakoRaws] Isekai Nonbiri Nouka - 11 (1080p).srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/[NanakoRaws]%20Isekai%20Nonbiri%20Nouka%20-%2011%20(1080p).srt"
+    },
+    {
+      "name": "[NanakoRaws] Isekai Nonbiri Nouka - 09 (1080p).srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/[NanakoRaws] Isekai Nonbiri Nouka - 09 (1080p).srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/[NanakoRaws]%20Isekai%20Nonbiri%20Nouka%20-%2009%20(1080p).srt"
+    },
+    {
+      "name": "[NanakoRaws] Isekai Nonbiri Nouka - 03 (1080p).srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/[NanakoRaws] Isekai Nonbiri Nouka - 03 (1080p).srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/[NanakoRaws]%20Isekai%20Nonbiri%20Nouka%20-%2003%20(1080p).srt"
+    },
+    {
+      "name": "[NanakoRaws] Isekai Nonbiri Nouka - 10 (1080p).srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/[NanakoRaws] Isekai Nonbiri Nouka - 10 (1080p).srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/[NanakoRaws]%20Isekai%20Nonbiri%20Nouka%20-%2010%20(1080p).srt"
+    },
+    {
+      "name": "[NanakoRaws] Isekai Nonbiri Nouka - 08 (1080p).srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/[NanakoRaws] Isekai Nonbiri Nouka - 08 (1080p).srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/[NanakoRaws]%20Isekai%20Nonbiri%20Nouka%20-%2008%20(1080p).srt"
+    },
+    {
+      "name": "[NanakoRaws] Isekai Nonbiri Nouka - 02 (1080p).srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/[NanakoRaws] Isekai Nonbiri Nouka - 02 (1080p).srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/[NanakoRaws]%20Isekai%20Nonbiri%20Nouka%20-%2002%20(1080p).srt"
+    },
+    {
+      "name": "[NanakoRaws] Isekai Nonbiri Nouka - 01 (1080p).srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/[NanakoRaws] Isekai Nonbiri Nouka - 01 (1080p).srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/[NanakoRaws]%20Isekai%20Nonbiri%20Nouka%20-%2001%20(1080p).srt"
+    },
+    {
+      "name": "[NanakoRaws] Isekai Nonbiri Nouka - 12 END (1080p).srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/[NanakoRaws] Isekai Nonbiri Nouka - 12 END (1080p).srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/[NanakoRaws]%20Isekai%20Nonbiri%20Nouka%20-%2012%20END%20(1080p).srt"
+    },
+    {
+      "name": "[NanakoRaws] Isekai Nonbiri Nouka - 05 (1080p).srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/[NanakoRaws] Isekai Nonbiri Nouka - 05 (1080p).srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/[NanakoRaws]%20Isekai%20Nonbiri%20Nouka%20-%2005%20(1080p).srt"
+    },
+    {
+      "name": "[NanakoRaws] Isekai Nonbiri Nouka - 04 (1080p).srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/[NanakoRaws] Isekai Nonbiri Nouka - 04 (1080p).srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/[NanakoRaws]%20Isekai%20Nonbiri%20Nouka%20-%2004%20(1080p).srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E12.誕生.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E12.誕生.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E12.%E8%AA%95%E7%94%9F.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "[YE] Isekai Nonbiri Nouka - 05 (BS-TX 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/[YE] Isekai Nonbiri Nouka - 05 (BS-TX 1280x720 x264 AAC).srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/[YE]%20Isekai%20Nonbiri%20Nouka%20-%2005%20(BS-TX%201280x720%20x264%20AAC).srt"
+    },
+    {
+      "name": "[shincaps] Isekai Nonbiri Nouka - 02 (AT-X 1440x1080 MPEG2 AAC).srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/[shincaps] Isekai Nonbiri Nouka - 02 (AT-X 1440x1080 MPEG2 AAC).srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/[shincaps]%20Isekai%20Nonbiri%20Nouka%20-%2002%20(AT-X%201440x1080%20MPEG2%20AAC).srt"
+    },
+    {
+      "name": "[shincaps] Isekai Nonbiri Nouka - 01 (AT-X 1440x1080 MPEG2 AAC).srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/[shincaps] Isekai Nonbiri Nouka - 01 (AT-X 1440x1080 MPEG2 AAC).srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/[shincaps]%20Isekai%20Nonbiri%20Nouka%20-%2001%20(AT-X%201440x1080%20MPEG2%20AAC).srt"
+    },
+    {
+      "name": "Farming.Life.in.Another.World.S01E11.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/extra/Farming.Life.in.Another.World.S01E11.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/extra/Farming.Life.in.Another.World.S01E11.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "Farming.Life.in.Another.World.S01E09.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/extra/Farming.Life.in.Another.World.S01E09.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/extra/Farming.Life.in.Another.World.S01E09.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "Farming.Life.in.Another.World.S01E02.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/extra/Farming.Life.in.Another.World.S01E02.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/extra/Farming.Life.in.Another.World.S01E02.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "Farming.Life.in.Another.World.S01E12.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/extra/Farming.Life.in.Another.World.S01E12.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/extra/Farming.Life.in.Another.World.S01E12.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E01.第一話.万能農具.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E01.第一話.万能農具.WEBRip.Amazon.ja-jp[sdh].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E01.%E7%AC%AC%E4%B8%80%E8%A9%B1.%E4%B8%87%E8%83%BD%E8%BE%B2%E5%85%B7.WEBRip.Amazon.ja-jp[sdh].srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E02.第二話.第一村人.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E02.第二話.第一村人.WEBRip.Amazon.ja-jp[sdh].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E02.%E7%AC%AC%E4%BA%8C%E8%A9%B1.%E7%AC%AC%E4%B8%80%E6%9D%91%E4%BA%BA.WEBRip.Amazon.ja-jp[sdh].srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E03.第三話.同居人.続々.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E03.第三話.同居人.続々.WEBRip.Amazon.ja-jp[sdh].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E03.%E7%AC%AC%E4%B8%89%E8%A9%B1.%E5%90%8C%E5%B1%85%E4%BA%BA.%E7%B6%9A%E3%80%85.WEBRip.Amazon.ja-jp[sdh].srt"
+    },
+    {
+      "name": "Farming.Life.in.Another.World.S01E05.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/extra/Farming.Life.in.Another.World.S01E05.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/extra/Farming.Life.in.Another.World.S01E05.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E11.第十一話.日々と始祖さまと.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E11.第十一話.日々と始祖さまと.WEBRip.Amazon.ja-jp[sdh].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E11.%E7%AC%AC%E5%8D%81%E4%B8%80%E8%A9%B1.%E6%97%A5%E3%80%85%E3%81%A8%E5%A7%8B%E7%A5%96%E3%81%95%E3%81%BE%E3%81%A8.WEBRip.Amazon.ja-jp[sdh].srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E05.カレーと越冬.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E05.カレーと越冬.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E05.%E3%82%AB%E3%83%AC%E3%83%BC%E3%81%A8%E8%B6%8A%E5%86%AC.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E11.日々と始祖さまと.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E11.日々と始祖さまと.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E11.%E6%97%A5%E3%80%85%E3%81%A8%E5%A7%8B%E7%A5%96%E3%81%95%E3%81%BE%E3%81%A8.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E08.研究者と二人のお嬢さま.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E08.研究者と二人のお嬢さま.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E08.%E7%A0%94%E7%A9%B6%E8%80%85%E3%81%A8%E4%BA%8C%E4%BA%BA%E3%81%AE%E3%81%8A%E5%AC%A2%E3%81%95%E3%81%BE.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "Farming.Life.in.Another.World.S01E01.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/extra/Farming.Life.in.Another.World.S01E01.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/extra/Farming.Life.in.Another.World.S01E01.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E02.第一村人.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E02.第一村人.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E02.%E7%AC%AC%E4%B8%80%E6%9D%91%E4%BA%BA.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E07.おもてなしの心.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E07.おもてなしの心.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E07.%E3%81%8A%E3%82%82%E3%81%A6%E3%81%AA%E3%81%97%E3%81%AE%E5%BF%83.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E09.第九話.商人とドラゴン.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E09.第九話.商人とドラゴン.WEBRip.Amazon.ja-jp[sdh].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E09.%E7%AC%AC%E4%B9%9D%E8%A9%B1.%E5%95%86%E4%BA%BA%E3%81%A8%E3%83%89%E3%83%A9%E3%82%B4%E3%83%B3.WEBRip.Amazon.ja-jp[sdh].srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E09.商人とドラゴン.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E09.商人とドラゴン.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E09.%E5%95%86%E4%BA%BA%E3%81%A8%E3%83%89%E3%83%A9%E3%82%B4%E3%83%B3.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E08.第八話.研究者と二人のお嬢さま.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E08.第八話.研究者と二人のお嬢さま.WEBRip.Amazon.ja-jp[sdh].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E08.%E7%AC%AC%E5%85%AB%E8%A9%B1.%E7%A0%94%E7%A9%B6%E8%80%85%E3%81%A8%E4%BA%8C%E4%BA%BA%E3%81%AE%E3%81%8A%E5%AC%A2%E3%81%95%E3%81%BE.WEBRip.Amazon.ja-jp[sdh].srt"
+    },
+    {
+      "name": "[YE] Isekai Nonbiri Nouka - 04 (BS-TX 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/[YE] Isekai Nonbiri Nouka - 04 (BS-TX 1280x720 x264 AAC).srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/[YE]%20Isekai%20Nonbiri%20Nouka%20-%2004%20(BS-TX%201280x720%20x264%20AAC).srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E12.第十二話.誕生.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E12.第十二話.誕生.WEBRip.Amazon.ja-jp[sdh].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E12.%E7%AC%AC%E5%8D%81%E4%BA%8C%E8%A9%B1.%E8%AA%95%E7%94%9F.WEBRip.Amazon.ja-jp[sdh].srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E06.第六話.村です.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E06.第六話.村です.WEBRip.Amazon.ja-jp[sdh].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E06.%E7%AC%AC%E5%85%AD%E8%A9%B1.%E6%9D%91%E3%81%A7%E3%81%99.WEBRip.Amazon.ja-jp[sdh].srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E10.第十話.王姫ユーリ.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E10.第十話.王姫ユーリ.WEBRip.Amazon.ja-jp[sdh].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E10.%E7%AC%AC%E5%8D%81%E8%A9%B1.%E7%8E%8B%E5%A7%AB%E3%83%A6%E3%83%BC%E3%83%AA.WEBRip.Amazon.ja-jp[sdh].srt"
+    },
+    {
+      "name": "[shincaps] Isekai Nonbiri Nouka - 03 (AT-X 1440x1080 MPEG2 AAC).srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/[shincaps] Isekai Nonbiri Nouka - 03 (AT-X 1440x1080 MPEG2 AAC).srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/[shincaps]%20Isekai%20Nonbiri%20Nouka%20-%2003%20(AT-X%201440x1080%20MPEG2%20AAC).srt"
+    },
+    {
+      "name": "Farming.Life.in.Another.World.S01E08.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/extra/Farming.Life.in.Another.World.S01E08.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/extra/Farming.Life.in.Another.World.S01E08.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "Farming.Life.in.Another.World.S01E03.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/extra/Farming.Life.in.Another.World.S01E03.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/extra/Farming.Life.in.Another.World.S01E03.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "Farming.Life.in.Another.World.S01E06.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/extra/Farming.Life.in.Another.World.S01E06.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/extra/Farming.Life.in.Another.World.S01E06.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "Farming.Life.in.Another.World.S01E04.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/extra/Farming.Life.in.Another.World.S01E04.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/extra/Farming.Life.in.Another.World.S01E04.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "Farming.Life.in.Another.World.S01E10.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/extra/Farming.Life.in.Another.World.S01E10.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/extra/Farming.Life.in.Another.World.S01E10.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E05.第五話.カレーと越冬.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E05.第五話.カレーと越冬.WEBRip.Amazon.ja-jp[sdh].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E05.%E7%AC%AC%E4%BA%94%E8%A9%B1.%E3%82%AB%E3%83%AC%E3%83%BC%E3%81%A8%E8%B6%8A%E5%86%AC.WEBRip.Amazon.ja-jp[sdh].srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E06.村です.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E06.村です.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E06.%E6%9D%91%E3%81%A7%E3%81%99.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E07.第七話.おもてなしの心.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E07.第七話.おもてなしの心.WEBRip.Amazon.ja-jp[sdh].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E07.%E7%AC%AC%E4%B8%83%E8%A9%B1.%E3%81%8A%E3%82%82%E3%81%A6%E3%81%AA%E3%81%97%E3%81%AE%E5%BF%83.WEBRip.Amazon.ja-jp[sdh].srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E01.万能農具.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E01.万能農具.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E01.%E4%B8%87%E8%83%BD%E8%BE%B2%E5%85%B7.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E10.王姫ユーリ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E10.王姫ユーリ.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E10.%E7%8E%8B%E5%A7%AB%E3%83%A6%E3%83%BC%E3%83%AA.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E03.同居人.続々.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E03.同居人.続々.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E03.%E5%90%8C%E5%B1%85%E4%BA%BA.%E7%B6%9A%E3%80%85.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E04.第四話.水路は暮らしを充実させる.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E04.第四話.水路は暮らしを充実させる.WEBRip.Amazon.ja-jp[sdh].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E04.%E7%AC%AC%E5%9B%9B%E8%A9%B1.%E6%B0%B4%E8%B7%AF%E3%81%AF%E6%9A%AE%E3%82%89%E3%81%97%E3%82%92%E5%85%85%E5%AE%9F%E3%81%95%E3%81%9B%E3%82%8B.WEBRip.Amazon.ja-jp[sdh].srt"
+    },
+    {
+      "name": "Farming.Life.in.Another.World.S01E07.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/extra/Farming.Life.in.Another.World.S01E07.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/extra/Farming.Life.in.Another.World.S01E07.WEBRip.Netflix.ja[cc].srt"
+    },
+    {
+      "name": "異世界のんびり農家.S01E04.水路は暮らしを充実させる.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Isekai Nonbiri Nouka/異世界のんびり農家.S01E04.水路は暮らしを充実させる.WEBRip.Netflix.ja[cc].srt",
+      "html_url": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/2d82cc318866bb3ce2cf4e598239cbeca77e48ce/subtitles/anime_tv/Isekai%20Nonbiri%20Nouka/%E7%95%B0%E4%B8%96%E7%95%8C%E3%81%AE%E3%82%93%E3%81%B3%E3%82%8A%E8%BE%B2%E5%AE%B6.S01E04.%E6%B0%B4%E8%B7%AF%E3%81%AF%E6%9A%AE%E3%82%89%E3%81%97%E3%82%92%E5%85%85%E5%AE%9F%E3%81%95%E3%81%9B%E3%82%8B.WEBRip.Netflix.ja[cc].srt"
+    }
+  ]
+}
