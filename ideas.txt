@@ -1,4 +1,6 @@
 To Do:
+add button to search new anime
+add extra function for searching movies
 download splash screen or info
 add settings button to change for example default start time and so on
 remember last used offset, phone mde ...
