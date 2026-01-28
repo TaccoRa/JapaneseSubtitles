@@ -1,0 +1,522 @@
+
+==================================================================================================================================
+SEARCH LOG
+==================================================================================================================================
+Time: 2026-01-28T19:52:56.043883
+Anime: Shingeki no Kyojin
+Current Episode: S1E15
+Search Filter: Season 1
+Total .srt files found: 226
+Files matching season filter: 50
+==================================================================================================================================
+
+ALL .SRT FILES FOUND (with parsing details):
+----------------------------------------------------------------------------------------------------------------------------------
+✗ EXCLUDED | UNPARSEABLE  | 4コマ!調査兵団【リヴァイ班】.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/4コマ!調査兵団【リヴァイ班】.srt
+✗ EXCLUDED | UNPARSEABLE  | Attack on Titan Crimson Bow and Arrow.CC.ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan Crimson Bow and Arrow.CC.ja.srt
+✗ EXCLUDED | UNPARSEABLE  | Attack on Titan The Wings of Freedom.CC.ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan The Wings of Freedom.CC.ja.srt
+✗ EXCLUDED | S?E60        | Attack on Titan-The Final Season_E60-The Other Side of the Ocean_ja[CC].srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan-The Final Season_E60-The Other Side of the Ocean_ja[CC].srt
+✗ EXCLUDED | S?E62        | Attack on Titan-The Final Season_E62-ja[CC].srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan-The Final Season_E62-ja[CC].srt
+✓ MATCHED  | S1E1         | Attack on Titan.S01E01.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E01.Netflix.JA.srt
+✓ MATCHED  | S1E2         | Attack on Titan.S01E02.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E02.Netflix.JA.srt
+✓ MATCHED  | S1E3         | Attack on Titan.S01E03.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E03.Netflix.JA.srt
+✓ MATCHED  | S1E4         | Attack on Titan.S01E04.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E04.Netflix.JA.srt
+✓ MATCHED  | S1E5         | Attack on Titan.S01E05.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E05.Netflix.JA.srt
+✓ MATCHED  | S1E6         | Attack on Titan.S01E06.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E06.Netflix.JA.srt
+✓ MATCHED  | S1E7         | Attack on Titan.S01E07.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E07.Netflix.JA.srt
+✓ MATCHED  | S1E8         | Attack on Titan.S01E08.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E08.Netflix.JA.srt
+✓ MATCHED  | S1E9         | Attack on Titan.S01E09.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E09.Netflix.JA.srt
+✓ MATCHED  | S1E10        | Attack on Titan.S01E10.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E10.Netflix.JA.srt
+✓ MATCHED  | S1E11        | Attack on Titan.S01E11.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E11.Netflix.JA.srt
+✓ MATCHED  | S1E12        | Attack on Titan.S01E12.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E12.Netflix.JA.srt
+✓ MATCHED  | S1E13        | Attack on Titan.S01E13.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E13.Netflix.JA.srt
+✓ MATCHED  | S1E14        | Attack on Titan.S01E14.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E14.Netflix.JA.srt
+✓ MATCHED  | S1E15        | Attack on Titan.S01E15.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E15.Netflix.JA.srt
+✓ MATCHED  | S1E16        | Attack on Titan.S01E16.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E16.Netflix.JA.srt
+✓ MATCHED  | S1E17        | Attack on Titan.S01E17.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E17.Netflix.JA.srt
+✓ MATCHED  | S1E18        | Attack on Titan.S01E18.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E18.Netflix.JA.srt
+✓ MATCHED  | S1E19        | Attack on Titan.S01E19.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E19.Netflix.JA.srt
+✓ MATCHED  | S1E20        | Attack on Titan.S01E20.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E20.Netflix.JA.srt
+✓ MATCHED  | S1E21        | Attack on Titan.S01E21.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E21.Netflix.JA.srt
+✓ MATCHED  | S1E22        | Attack on Titan.S01E22.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E22.Netflix.JA.srt
+✓ MATCHED  | S1E23        | Attack on Titan.S01E23.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E23.Netflix.JA.srt
+✓ MATCHED  | S1E24        | Attack on Titan.S01E24.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E24.Netflix.JA.srt
+✓ MATCHED  | S1E25        | Attack on Titan.S01E25.Netflix.JA.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E25.Netflix.JA.srt
+✗ EXCLUDED | S?E264       | Attack.On.Titan.2015.1080p.BluRay.x264.AAC5.1-[YTS.MX].srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack.On.Titan.2015.1080p.BluRay.x264.AAC5.1-[YTS.MX].srt
+✗ EXCLUDED | S?E64        | Attack.on.Titan.E64.WEBRip.Netflix.ja[cc].srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack.on.Titan.E64.WEBRip.Netflix.ja[cc].srt
+✗ EXCLUDED | S5E65        | Attack.on.Titan.S05E65.WEBRip.Netflix.ja[cc].srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack.on.Titan.S05E65.WEBRip.Netflix.ja[cc].srt
+✗ EXCLUDED | S5E66        | Attack.on.Titan.S05E66.WEBRip.Netflix.ja[cc].srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack.on.Titan.S05E66.WEBRip.Netflix.ja[cc].srt
+✗ EXCLUDED | S5E67        | Attack.on.Titan.S05E67.WEBRip.Netflix.ja[cc].srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack.on.Titan.S05E67.WEBRip.Netflix.ja[cc].srt
+✗ EXCLUDED | S5E68        | Attack.on.Titan.S05E68.WEBRip.Netflix.ja[cc].srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack.on.Titan.S05E68.WEBRip.Netflix.ja[cc].srt
+✗ EXCLUDED | S5E72        | Attack.on.Titan.S05E72.WEBRip.Netflix.ja[cc].srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack.on.Titan.S05E72.WEBRip.Netflix.ja[cc].srt
+✗ EXCLUDED | S5E73        | Attack.on.Titan.S05E73.WEBRip.Netflix.ja[cc].srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack.on.Titan.S05E73.WEBRip.Netflix.ja[cc].srt
+✗ EXCLUDED | S5E74        | Attack.on.Titan.S05E74.WEBRip.Netflix.ja[cc].srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack.on.Titan.S05E74.WEBRip.Netflix.ja[cc].srt
+✗ EXCLUDED | S?E61        | Attack.on.Titan.The.Final.Season.E61.ja[cc].srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack.on.Titan.The.Final.Season.E61.ja[cc].srt
+✗ EXCLUDED | S?E62        | Attack.on.Titan.The.Final.Season.E62.ja[cc].srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack.on.Titan.The.Final.Season.E62.ja[cc].srt
+✗ EXCLUDED | S?E63        | Attack.on.Titan.The.Final.Season.E63.ja[cc].srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Attack.on.Titan.The.Final.Season.E63.ja[cc].srt
+✗ EXCLUDED | S?E75        | Shingeki No Kyojin 075.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki No Kyojin 075.srt
+✗ EXCLUDED | S?E97        | Shingeki No Kyojin 097.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki No Kyojin 097.srt
+✗ EXCLUDED | S?E98        | Shingeki No Kyojin 098.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki No Kyojin 098.srt
+✗ EXCLUDED | S?E103       | Shingeki No Kyojin 103.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki No Kyojin 103.srt
+✗ EXCLUDED | S?E105       | Shingeki No Kyojin 105.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki No Kyojin 105.srt
+✗ EXCLUDED | S?E60        | Shingeki_No_Kyojin_060(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_060(1).srt
+✗ EXCLUDED | S?E61        | Shingeki_No_Kyojin_061(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_061(1).srt
+✗ EXCLUDED | S?E62        | Shingeki_No_Kyojin_062(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_062(1).srt
+✗ EXCLUDED | S?E63        | Shingeki_No_Kyojin_063(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_063(1).srt
+✗ EXCLUDED | S?E64        | Shingeki_No_Kyojin_064(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_064(1).srt
+✗ EXCLUDED | S?E65        | Shingeki_No_Kyojin_065(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_065(1).srt
+✗ EXCLUDED | S?E66        | Shingeki_No_Kyojin_066(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_066(1).srt
+✗ EXCLUDED | S?E67        | Shingeki_No_Kyojin_067(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_067(1).srt
+✗ EXCLUDED | S?E68        | Shingeki_No_Kyojin_068(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_068(1).srt
+✗ EXCLUDED | S?E69        | Shingeki_No_Kyojin_069(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_069(1).srt
+✗ EXCLUDED | S?E70        | Shingeki_No_Kyojin_070(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_070(1).srt
+✗ EXCLUDED | S?E71        | Shingeki_No_Kyojin_071(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_071(1).srt
+✗ EXCLUDED | S?E72        | Shingeki_No_Kyojin_072(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_072(1).srt
+✗ EXCLUDED | S?E73        | Shingeki_No_Kyojin_073(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_073(1).srt
+✗ EXCLUDED | S?E74        | Shingeki_No_Kyojin_074(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_074(1).srt
+✗ EXCLUDED | S?E75        | Shingeki_No_Kyojin_075(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_075(1).srt
+✗ EXCLUDED | S?E76        | Shingeki_No_Kyojin_076(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_076(1).srt
+✗ EXCLUDED | S?E77        | Shingeki_No_Kyojin_077(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_077(1).srt
+✗ EXCLUDED | S?E78        | Shingeki_No_Kyojin_078(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_078(1).srt
+✗ EXCLUDED | S?E79        | Shingeki_No_Kyojin_079(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_079(1).srt
+✗ EXCLUDED | S?E80        | Shingeki_No_Kyojin_080(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_080(1).srt
+✗ EXCLUDED | S?E81        | Shingeki_No_Kyojin_081(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_081(1).srt
+✗ EXCLUDED | S?E82        | Shingeki_No_Kyojin_082(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_082(1).srt
+✗ EXCLUDED | S?E82        | Shingeki_No_Kyojin_082.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_082.srt
+✗ EXCLUDED | S?E83        | Shingeki_No_Kyojin_083(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_083(1).srt
+✗ EXCLUDED | S?E83        | Shingeki_No_Kyojin_083.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_083.srt
+✗ EXCLUDED | S?E84        | Shingeki_No_Kyojin_084(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_084(1).srt
+✗ EXCLUDED | S?E84        | Shingeki_No_Kyojin_084.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_084.srt
+✗ EXCLUDED | S?E85        | Shingeki_No_Kyojin_085(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_085(1).srt
+✗ EXCLUDED | S?E85        | Shingeki_No_Kyojin_085.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_085.srt
+✗ EXCLUDED | S?E86        | Shingeki_No_Kyojin_086(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_086(1).srt
+✗ EXCLUDED | S?E86        | Shingeki_No_Kyojin_086.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_086.srt
+✗ EXCLUDED | S?E87        | Shingeki_No_Kyojin_087(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_087(1).srt
+✗ EXCLUDED | S?E87        | Shingeki_No_Kyojin_087.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_087.srt
+✗ EXCLUDED | S?E88        | Shingeki_No_Kyojin_088(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_088(1).srt
+✗ EXCLUDED | S?E88        | Shingeki_No_Kyojin_088.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_088.srt
+✗ EXCLUDED | S?E89        | Shingeki_No_Kyojin_089(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_089(1).srt
+✗ EXCLUDED | S?E89        | Shingeki_No_Kyojin_089.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_089.srt
+✗ EXCLUDED | S?E90        | Shingeki_No_Kyojin_090(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_090(1).srt
+✗ EXCLUDED | S?E90        | Shingeki_No_Kyojin_090.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_090.srt
+✗ EXCLUDED | S?E91        | Shingeki_No_Kyojin_091(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_091(1).srt
+✗ EXCLUDED | S?E91        | Shingeki_No_Kyojin_091.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_091.srt
+✗ EXCLUDED | S?E92        | Shingeki_No_Kyojin_092(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_092(1).srt
+✗ EXCLUDED | S?E92        | Shingeki_No_Kyojin_092.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_092.srt
+✗ EXCLUDED | S?E93        | Shingeki_No_Kyojin_093(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_093(1).srt
+✗ EXCLUDED | S?E93        | Shingeki_No_Kyojin_093.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_093.srt
+✗ EXCLUDED | S?E94        | Shingeki_No_Kyojin_094(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_094(1).srt
+✗ EXCLUDED | S?E94        | Shingeki_No_Kyojin_094.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_094.srt
+✗ EXCLUDED | S?E95        | Shingeki_No_Kyojin_095(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_095(1).srt
+✗ EXCLUDED | S?E95        | Shingeki_No_Kyojin_095.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_095.srt
+✗ EXCLUDED | S?E96        | Shingeki_No_Kyojin_096(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_096(1).srt
+✗ EXCLUDED | S?E96        | Shingeki_No_Kyojin_096.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_096.srt
+✗ EXCLUDED | S?E97        | Shingeki_No_Kyojin_097(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_097(1).srt
+✗ EXCLUDED | S?E98        | Shingeki_No_Kyojin_098.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_098.srt
+✗ EXCLUDED | S?E99        | Shingeki_No_Kyojin_099.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_099.srt
+✗ EXCLUDED | S?E100       | Shingeki_No_Kyojin_100.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_100.srt
+✗ EXCLUDED | S?E101       | Shingeki_No_Kyojin_101.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_101.srt
+✗ EXCLUDED | S?E102       | Shingeki_No_Kyojin_102.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_102.srt
+✗ EXCLUDED | S?E103       | Shingeki_No_Kyojin_103.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_103.srt
+✗ EXCLUDED | S?E104       | Shingeki_No_Kyojin_104.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_104.srt
+✗ EXCLUDED | S?E105       | Shingeki_No_Kyojin_105.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_105.srt
+✗ EXCLUDED | S?E106       | Shingeki_No_Kyojin_106.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_106.srt
+✗ EXCLUDED | S?E107       | Shingeki_No_Kyojin_107.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_107.srt
+✗ EXCLUDED | S?E108       | Shingeki_No_Kyojin_108.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_No_Kyojin_108.srt
+✗ EXCLUDED | S?E38        | Shingeki_no_Kyojin_S3 (38)(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (38)(1).srt
+✗ EXCLUDED | S?E38        | Shingeki_no_Kyojin_S3 (38).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (38).srt
+✗ EXCLUDED | S?E39        | Shingeki_no_Kyojin_S3 (39)(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (39)(1).srt
+✗ EXCLUDED | S?E39        | Shingeki_no_Kyojin_S3 (39).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (39).srt
+✗ EXCLUDED | S?E40        | Shingeki_no_Kyojin_S3 (40)(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (40)(1).srt
+✗ EXCLUDED | S?E40        | Shingeki_no_Kyojin_S3 (40).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (40).srt
+✗ EXCLUDED | S?E41        | Shingeki_no_Kyojin_S3 (41)(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (41)(1).srt
+✗ EXCLUDED | S?E41        | Shingeki_no_Kyojin_S3 (41).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (41).srt
+✗ EXCLUDED | S?E42        | Shingeki_no_Kyojin_S3 (42)(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (42)(1).srt
+✗ EXCLUDED | S?E42        | Shingeki_no_Kyojin_S3 (42).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (42).srt
+✗ EXCLUDED | S?E43        | Shingeki_no_Kyojin_S3 (43)(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (43)(1).srt
+✗ EXCLUDED | S?E43        | Shingeki_no_Kyojin_S3 (43).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (43).srt
+✗ EXCLUDED | S?E44        | Shingeki_no_Kyojin_S3 (44)(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (44)(1).srt
+✗ EXCLUDED | S?E44        | Shingeki_no_Kyojin_S3 (44).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (44).srt
+✗ EXCLUDED | S?E45        | Shingeki_no_Kyojin_S3 (45)(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (45)(1).srt
+✗ EXCLUDED | S?E45        | Shingeki_no_Kyojin_S3 (45).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (45).srt
+✗ EXCLUDED | S?E46        | Shingeki_no_Kyojin_S3 (46)(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (46)(1).srt
+✗ EXCLUDED | S?E46        | Shingeki_no_Kyojin_S3 (46).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (46).srt
+✗ EXCLUDED | S?E47        | Shingeki_no_Kyojin_S3 (47)(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (47)(1).srt
+✗ EXCLUDED | S?E47        | Shingeki_no_Kyojin_S3 (47).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (47).srt
+✗ EXCLUDED | S?E48        | Shingeki_no_Kyojin_S3 (48)(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (48)(1).srt
+✗ EXCLUDED | S?E48        | Shingeki_no_Kyojin_S3 (48).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (48).srt
+✗ EXCLUDED | S?E49        | Shingeki_no_Kyojin_S3 (49)(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (49)(1).srt
+✗ EXCLUDED | S?E49        | Shingeki_no_Kyojin_S3 (49).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (49).srt
+✗ EXCLUDED | S?E50        | Shingeki_no_Kyojin_S3 (50)(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (50)(1).srt
+✗ EXCLUDED | S?E51        | Shingeki_no_Kyojin_S3 (51)(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (51)(1).srt
+✗ EXCLUDED | S?E52        | Shingeki_no_Kyojin_S3 (52)(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (52)(1).srt
+✗ EXCLUDED | S?E53        | Shingeki_no_Kyojin_S3 (53)(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (53)(1).srt
+✗ EXCLUDED | S?E54        | Shingeki_no_Kyojin_S3 (54)(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (54)(1).srt
+✗ EXCLUDED | S?E55        | Shingeki_no_Kyojin_S3 (55)(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (55)(1).srt
+✗ EXCLUDED | S?E56        | Shingeki_no_Kyojin_S3 (56)(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (56)(1).srt
+✗ EXCLUDED | S?E57        | Shingeki_no_Kyojin_S3 (57).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (57).srt
+✗ EXCLUDED | S?E58        | Shingeki_no_Kyojin_S3 (58)(1).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (58)(1).srt
+✗ EXCLUDED | S?E59        | Shingeki_no_Kyojin_S3 (59).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/Shingeki_no_Kyojin_S3 (59).srt
+✗ EXCLUDED | S3E38        | [HorribleSubs] Shingeki no Kyojin S3 - 38 [1080p].ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/[HorribleSubs] Shingeki no Kyojin S3 - 38 [1080p].ja.srt
+✗ EXCLUDED | S3E39        | [HorribleSubs] Shingeki no Kyojin S3 - 39 [1080p].ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/[HorribleSubs] Shingeki no Kyojin S3 - 39 [1080p].ja.srt
+✗ EXCLUDED | S3E40        | [HorribleSubs] Shingeki no Kyojin S3 - 40 [1080p].ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/[HorribleSubs] Shingeki no Kyojin S3 - 40 [1080p].ja.srt
+✗ EXCLUDED | S3E41        | [HorribleSubs] Shingeki no Kyojin S3 - 41 [1080p].ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/[HorribleSubs] Shingeki no Kyojin S3 - 41 [1080p].ja.srt
+✗ EXCLUDED | S3E42        | [HorribleSubs] Shingeki no Kyojin S3 - 42 [1080p].ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/[HorribleSubs] Shingeki no Kyojin S3 - 42 [1080p].ja.srt
+✗ EXCLUDED | S3E43        | [HorribleSubs] Shingeki no Kyojin S3 - 43 [1080p].ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/[HorribleSubs] Shingeki no Kyojin S3 - 43 [1080p].ja.srt
+✗ EXCLUDED | S3E44        | [HorribleSubs] Shingeki no Kyojin S3 - 44 [1080p].ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/[HorribleSubs] Shingeki no Kyojin S3 - 44 [1080p].ja.srt
+✗ EXCLUDED | S3E45        | [HorribleSubs] Shingeki no Kyojin S3 - 45 [1080p].ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/[HorribleSubs] Shingeki no Kyojin S3 - 45 [1080p].ja.srt
+✗ EXCLUDED | S3E46        | [HorribleSubs] Shingeki no Kyojin S3 - 46 [1080p].ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/[HorribleSubs] Shingeki no Kyojin S3 - 46 [1080p].ja.srt
+✗ EXCLUDED | S3E47        | [HorribleSubs] Shingeki no Kyojin S3 - 47 [1080p].ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/[HorribleSubs] Shingeki no Kyojin S3 - 47 [1080p].ja.srt
+✗ EXCLUDED | S3E48        | [HorribleSubs] Shingeki no Kyojin S3 - 48 [1080p].ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/[HorribleSubs] Shingeki no Kyojin S3 - 48 [1080p].ja.srt
+✗ EXCLUDED | S3E49        | [HorribleSubs] Shingeki no Kyojin S3 - 49 [1080p].ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/[HorribleSubs] Shingeki no Kyojin S3 - 49 [1080p].ja.srt
+✗ EXCLUDED | S3E50        | [HorribleSubs] Shingeki no Kyojin S3 - 50 [1080p].ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/[HorribleSubs] Shingeki no Kyojin S3 - 50 [1080p].ja.srt
+✗ EXCLUDED | S3E51        | [HorribleSubs] Shingeki no Kyojin S3 - 51 [1080p].ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/[HorribleSubs] Shingeki no Kyojin S3 - 51 [1080p].ja.srt
+✗ EXCLUDED | S3E52        | [HorribleSubs] Shingeki no Kyojin S3 - 52 [1080p].ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/[HorribleSubs] Shingeki no Kyojin S3 - 52 [1080p].ja.srt
+✗ EXCLUDED | S3E53        | [HorribleSubs] Shingeki no Kyojin S3 - 53 [1080p].ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/[HorribleSubs] Shingeki no Kyojin S3 - 53 [1080p].ja.srt
+✗ EXCLUDED | S3E54        | [HorribleSubs] Shingeki no Kyojin S3 - 54 [1080p].ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/[HorribleSubs] Shingeki no Kyojin S3 - 54 [1080p].ja.srt
+✗ EXCLUDED | S3E55        | [HorribleSubs] Shingeki no Kyojin S3 - 55 [1080p].ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/[HorribleSubs] Shingeki no Kyojin S3 - 55 [1080p].ja.srt
+✗ EXCLUDED | S3E56        | [HorribleSubs] Shingeki no Kyojin S3 - 56 [1080p].ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/[HorribleSubs] Shingeki no Kyojin S3 - 56 [1080p].ja.srt
+✗ EXCLUDED | S3E57        | [HorribleSubs] Shingeki no Kyojin S3 - 57 [1080p].ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/[HorribleSubs] Shingeki no Kyojin S3 - 57 [1080p].ja.srt
+✗ EXCLUDED | S3E58        | [HorribleSubs] Shingeki no Kyojin S3 - 58 [1080p].ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/[HorribleSubs] Shingeki no Kyojin S3 - 58 [1080p].ja.srt
+✗ EXCLUDED | UNPARSEABLE  | [Saizen-Soldado]_Shingeki_no_Kyojin_OVA_4-5_(Kuinaki_Sentaku NO REGRATS).srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/[Saizen-Soldado]_Shingeki_no_Kyojin_OVA_4-5_(Kuinaki_Sentaku NO REGRATS).srt
+✓ MATCHED  | S1E1         | 進撃の巨人-シーズン1-1-二千年後の君へ～シガンシナ陥落1～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-1-二千年後の君へ～シガンシナ陥落1～_ja.srt
+✓ MATCHED  | S1E10        | 進撃の巨人-シーズン1-10-応える～トロスト区攻防戦6～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-10-応える～トロスト区攻防戦6～_ja.srt
+✓ MATCHED  | S1E11        | 進撃の巨人-シーズン1-11-偶像～トロスト区攻防戦7～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-11-偶像～トロスト区攻防戦7～_ja.srt
+✓ MATCHED  | S1E12        | 進撃の巨人-シーズン1-12-傷～トロスト区攻防戦8～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-12-傷～トロスト区攻防戦8～_ja.srt
+✓ MATCHED  | S1E13        | 進撃の巨人-シーズン1-13-原初的欲求～トロスト区攻防戦9～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-13-原初的欲求～トロスト区攻防戦9～_ja.srt
+✓ MATCHED  | S1E14        | 進撃の巨人-シーズン1-14-まだ目を見れない～反撃前夜1～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-14-まだ目を見れない～反撃前夜1～_ja.srt
+✓ MATCHED  | S1E15        | 進撃の巨人-シーズン1-15-特別作戦班～反撃前夜2～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-15-特別作戦班～反撃前夜2～_ja.srt
+✓ MATCHED  | S1E16        | 進撃の巨人-シーズン1-16-今、何をすべきか～反撃前夜3～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-16-今、何をすべきか～反撃前夜3～_ja.srt
+✓ MATCHED  | S1E17        | 進撃の巨人-シーズン1-17-女型の巨人～第57回壁外調査1～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-17-女型の巨人～第57回壁外調査1～_ja.srt
+✓ MATCHED  | S1E18        | 進撃の巨人-シーズン1-18-巨大樹の森～第57回壁外調査2～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-18-巨大樹の森～第57回壁外調査2～_ja.srt
+✓ MATCHED  | S1E19        | 進撃の巨人-シーズン1-19-噛みつく～第57回壁外調査3～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-19-噛みつく～第57回壁外調査3～_ja.srt
+✓ MATCHED  | S1E2         | 進撃の巨人-シーズン1-2-その日～シガンシナ陥落2～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-2-その日～シガンシナ陥落2～_ja.srt
+✓ MATCHED  | S1E20        | 進撃の巨人-シーズン1-20-エルヴィン・スミス～第57回壁外調査4～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-20-エルヴィン・スミス～第57回壁外調査4～_ja.srt
+✓ MATCHED  | S1E21        | 進撃の巨人-シーズン1-21-鉄槌～第57回壁外調査5～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-21-鉄槌～第57回壁外調査5～_ja.srt
+✓ MATCHED  | S1E22        | 進撃の巨人-シーズン1-22-敗者達～第57回壁外調査6～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-22-敗者達～第57回壁外調査6～_ja.srt
+✓ MATCHED  | S1E23        | 進撃の巨人-シーズン1-23-微笑み～ストヘス区急襲1～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-23-微笑み～ストヘス区急襲1～_ja.srt
+✓ MATCHED  | S1E24        | 進撃の巨人-シーズン1-24-慈悲～ストヘス区急襲2～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-24-慈悲～ストヘス区急襲2～_ja.srt
+✓ MATCHED  | S1E25        | 進撃の巨人-シーズン1-25-壁～ストヘス区急襲3～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-25-壁～ストヘス区急襲3～_ja.srt
+✓ MATCHED  | S1E3         | 進撃の巨人-シーズン1-3-絶望の中で鈍く光る～人類の再起1～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-3-絶望の中で鈍く光る～人類の再起1～_ja.srt
+✓ MATCHED  | S1E4         | 進撃の巨人-シーズン1-4-解散式の夜～人類の再起2～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-4-解散式の夜～人類の再起2～_ja.srt
+✓ MATCHED  | S1E5         | 進撃の巨人-シーズン1-5-初陣～トロスト区攻防戦1～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-5-初陣～トロスト区攻防戦1～_ja.srt
+✓ MATCHED  | S1E6         | 進撃の巨人-シーズン1-6-少女が見た世界～トロスト区攻防戦2～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-6-少女が見た世界～トロスト区攻防戦2～_ja.srt
+✓ MATCHED  | S1E7         | 進撃の巨人-シーズン1-7-小さな刃～トロスト区攻防戦3～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-7-小さな刃～トロスト区攻防戦3～_ja.srt
+✓ MATCHED  | S1E8         | 進撃の巨人-シーズン1-8-心臓の鼓動が聞こえる～トロスト区攻防戦4～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-8-心臓の鼓動が聞こえる～トロスト区攻防戦4～_ja.srt
+✓ MATCHED  | S1E9         | 進撃の巨人-シーズン1-9-左腕の行方～トロスト区攻防戦5～_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-9-左腕の行方～トロスト区攻防戦5～_ja.srt
+✗ EXCLUDED | S3E38        | 進撃の巨人-シーズン3-38-狼煙_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン3-38-狼煙_ja.srt
+✗ EXCLUDED | S3E39        | 進撃の巨人-シーズン3-39-痛み_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン3-39-痛み_ja.srt
+✗ EXCLUDED | S3E40        | 進撃の巨人-シーズン3-40-昔話_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン3-40-昔話_ja.srt
+✗ EXCLUDED | S3E41        | 進撃の巨人-シーズン3-41-信頼_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン3-41-信頼_ja.srt
+✗ EXCLUDED | S3E42        | 進撃の巨人-シーズン3-42-回答_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン3-42-回答_ja.srt
+✗ EXCLUDED | S3E43        | 進撃の巨人-シーズン3-43-罪_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン3-43-罪_ja.srt
+✗ EXCLUDED | S3E44        | 進撃の巨人-シーズン3-44-願い_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン3-44-願い_ja.srt
+✗ EXCLUDED | S3E45        | 進撃の巨人-シーズン3-45-オルブド区外壁_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン3-45-オルブド区外壁_ja.srt
+✗ EXCLUDED | S3E46        | 進撃の巨人-シーズン3-46-壁の王_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン3-46-壁の王_ja.srt
+✗ EXCLUDED | S3E47        | 進撃の巨人-シーズン3-47-友人_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン3-47-友人_ja.srt
+✗ EXCLUDED | S3E48        | 進撃の巨人-シーズン3-48-傍観者_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン3-48-傍観者_ja.srt
+✗ EXCLUDED | S3E49        | 進撃の巨人-シーズン3-49-奪還作戦の夜_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン3-49-奪還作戦の夜_ja.srt
+✗ EXCLUDED | S4E50        | 進撃の巨人-シーズン4-50-はじまりの街_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン4-50-はじまりの街_ja.srt
+✗ EXCLUDED | S4E51        | 進撃の巨人-シーズン4-51-雷槍_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン4-51-雷槍_ja.srt
+✗ EXCLUDED | S4E52        | 進撃の巨人-シーズン4-52-光臨_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン4-52-光臨_ja.srt
+✗ EXCLUDED | S4E53        | 進撃の巨人-シーズン4-53-完全試合 (パーフェクトゲーム)_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン4-53-完全試合 (パーフェクトゲーム)_ja.srt
+✗ EXCLUDED | S4E54        | 進撃の巨人-シーズン4-54-勇者_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン4-54-勇者_ja.srt
+✗ EXCLUDED | S4E55        | 進撃の巨人-シーズン4-55-白夜_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン4-55-白夜_ja.srt
+✗ EXCLUDED | S4E56        | 進撃の巨人-シーズン4-56-地下室_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン4-56-地下室_ja.srt
+✗ EXCLUDED | S4E57        | 進撃の巨人-シーズン4-57-あの日_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン4-57-あの日_ja.srt
+✗ EXCLUDED | S4E58        | 進撃の巨人-シーズン4-58-進撃の巨人_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン4-58-進撃の巨人_ja.srt
+✗ EXCLUDED | S4E59        | 進撃の巨人-シーズン4-59-壁の向こう側_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン4-59-壁の向こう側_ja.srt
+✗ EXCLUDED | S5E60        | 進撃の巨人-シーズン5-60-海の向こう側_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン5-60-海の向こう側_ja.srt
+✗ EXCLUDED | S5E61        | 進撃の巨人-シーズン5-61-闇夜の列車_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン5-61-闇夜の列車_ja.srt
+✗ EXCLUDED | S5E62        | 進撃の巨人-シーズン5-62-希望の扉_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン5-62-希望の扉_ja.srt
+✗ EXCLUDED | S5E63        | 進撃の巨人-シーズン5-63-手から手へ_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン5-63-手から手へ_ja.srt
+✗ EXCLUDED | S5E64        | 進撃の巨人-シーズン5-64-宣戦布告_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン5-64-宣戦布告_ja.srt
+✗ EXCLUDED | S5E65        | 進撃の巨人-シーズン5-65-戦鎚の巨人_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン5-65-戦鎚の巨人_ja.srt
+✗ EXCLUDED | S5E66        | 進撃の巨人-シーズン5-66-強襲_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン5-66-強襲_ja.srt
+✗ EXCLUDED | S5E67        | 進撃の巨人-シーズン5-67-凶弾_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン5-67-凶弾_ja.srt
+✗ EXCLUDED | S5E68        | 進撃の巨人-シーズン5-68-義勇兵_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン5-68-義勇兵_ja.srt
+✗ EXCLUDED | S5E69        | 進撃の巨人-シーズン5-69-正論_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン5-69-正論_ja.srt
+✗ EXCLUDED | S5E70        | 進撃の巨人-シーズン5-70-偽り者_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン5-70-偽り者_ja.srt
+✗ EXCLUDED | S5E71        | 進撃の巨人-シーズン5-71-導く者_ja.srt
+             Path: subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン5-71-導く者_ja.srt
+----------------------------------------------------------------------------------------------------------------------------------
+
+FILTERED RESULTS (matching Season 1):
+----------------------------------------------------------------------------------------------------------------------------------
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E01.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E02.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E03.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E04.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E05.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E06.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E07.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E08.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E09.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E10.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E11.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E12.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E13.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E14.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E15.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E16.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E17.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E18.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E19.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E20.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E21.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E22.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E23.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E24.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/Attack on Titan.S01E25.Netflix.JA.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-1-二千年後の君へ～シガンシナ陥落1～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-10-応える～トロスト区攻防戦6～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-11-偶像～トロスト区攻防戦7～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-12-傷～トロスト区攻防戦8～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-13-原初的欲求～トロスト区攻防戦9～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-14-まだ目を見れない～反撃前夜1～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-15-特別作戦班～反撃前夜2～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-16-今、何をすべきか～反撃前夜3～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-17-女型の巨人～第57回壁外調査1～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-18-巨大樹の森～第57回壁外調査2～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-19-噛みつく～第57回壁外調査3～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-2-その日～シガンシナ陥落2～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-20-エルヴィン・スミス～第57回壁外調査4～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-21-鉄槌～第57回壁外調査5～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-22-敗者達～第57回壁外調査6～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-23-微笑み～ストヘス区急襲1～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-24-慈悲～ストヘス区急襲2～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-25-壁～ストヘス区急襲3～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-3-絶望の中で鈍く光る～人類の再起1～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-4-解散式の夜～人類の再起2～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-5-初陣～トロスト区攻防戦1～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-6-少女が見た世界～トロスト区攻防戦2～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-7-小さな刃～トロスト区攻防戦3～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-8-心臓の鼓動が聞こえる～トロスト区攻防戦4～_ja.srt
+subtitles/anime_tv/Shingeki no Kyojin/extra/進撃の巨人-シーズン1-9-左腕の行方～トロスト区攻防戦5～_ja.srt
+----------------------------------------------------------------------------------------------------------------------------------
+

@@ -31,7 +31,7 @@ The `_build_comprehensive_episode_map()` method:
 
 3. **Parses every file** to extract:
    - Season and episode (SxxExx format)
-   - Global episode number (in parentheses like S3E01(38))
+   - Global episode number (in parentheses like S3E01(38) or When only episode and no season )
    - File path for direct access
 
 4. **Builds three maps**:

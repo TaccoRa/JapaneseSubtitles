@@ -22,19 +22,19 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class SubtitlePlayerApp:
-    DEBOUNCE_MS = 100 #for saving current window position not all the time
     def __init__(self):
         logger.info("Starting SubtitlePlayerApp")
 
         self._load_config()
         self._load_subtitle_metadata()
-        self._build_app_window()
-        self._build_ui()
-        self._build_model()
-        self._build_controller()
-        if self.config.get("REMOTE_FLAG"):
-            self._download_init_season_asynch()
-        self.root.after(self.config.get("UPDATE_INTERVAL_MS"), self.controller.update_loop)
+        # self._build_app_window()
+        # self._build_ui()
+        # self._build_model()
+        # self._build_controller()
+        # if self.config.get("REMOTE_FLAG"):
+        #     self._download_init_season_asynch()
+            
+        # self.root.after(self.config.get("UPDATE_INTERVAL_MS"), self.controller.update_loop)
 
 
     def _load_config(self):
@@ -61,8 +61,7 @@ class SubtitlePlayerApp:
         self.root.title(title)
         self.root.geometry(f"320x123")
         self.root.minsize(320, 123)
-        self._save_after_id = None #save after id really needed?
-        self.root.bind("<Configure>", self._on_root_configure)
+        self.root.protocol("WM_DELETE_WINDOW", self._on_root_close)
         self.root.deiconify()
 
     def _restore_window_position(self): #gets last saved position of settings window or centers it on the screen if out of bounds
@@ -75,18 +74,15 @@ class SubtitlePlayerApp:
         y = max(0, min(y, sh - h))
         self.root.geometry(f"+{x}+{y}")
 
-    def _on_root_configure(self, event):
-        if self._save_after_id is not None:
-            self.root.after_cancel(self._save_after_id)
-        self._save_after_id = self.root.after(self.DEBOUNCE_MS, self._save_settings_window_pos)
+    def _on_root_close(self):
+        try:
+            x = self.root.winfo_x()
+            y = self.root.winfo_y()
+            self.config.set("LAST_SETTINGS_WINDOW_X", x)
+            self.config.set("LAST_SETTINGS_WINDOW_Y", y)
+        finally:
+            self.root.destroy()
 
-    def _save_settings_window_pos(self):
-        x = self.root.winfo_x()
-        y = self.root.winfo_y()
-        self.config.set("LAST_SETTINGS_WINDOW_X", x)
-        self.config.set("LAST_SETTINGS_WINDOW_Y", y)
-        self._save_after_id = None
-       
 
     def _build_ui(self):
         # UI (View)
