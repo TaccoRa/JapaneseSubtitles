@@ -80,9 +80,9 @@ class SubtitleManager:
             self._register_cache_cleanup()
         else:
             local_srt_path = self.config.get("LAST_LOCAL_SRT_FILE")
-        self._load_local_and_process(local_srt_path)
+        # self._load_local_and_process(local_srt_path)
 
-        # self._search_subtitle_folders()
+        self._search_subtitle_folders()
 
     def _register_cache_cleanup(self) -> None:
         def _cleanup():
@@ -640,7 +640,7 @@ class SubtitleManager:
         self._extract_and_set_remote_episode_metadata(init_url)
         
         #create episode map
-        self.create_episode_map()
+        # self.create_episode_map()
         
         create_season_dir = self._season_cache_dir()
         self.file_name = os.path.basename(self.remote_path) #i dont think self.file_name is needed change later
@@ -674,11 +674,335 @@ class SubtitleManager:
 
 
     def _create_episode_map(self):
-        
+        logger.info(f"Building comprehensive episode map for {self.anime_folder_name}")
+        all_results_items: List[Dict] = []
+        stop_reason = None
+        last_rate_info = {}
+        api_url = "https://api.github.com/search/code"
+        headers = {
+            "Accept": "application/vnd.github.v3+json",
+            "Authorization": f"token {self.github_token}",
+            "User-Agent": "subtitle-searcher",
+        }
+        per_page = 100
+        params = {"q": q, "per_page": per_page}   
 
+        def _print_rate_info(hdr):
+            limit = hdr.get("X-RateLimit-Limit")
+            remaining = hdr.get("X-RateLimit-Remaining")
+            reset = hdr.get("X-RateLimit-Reset")
+            retry_after = hdr.get("Retry-After")
+            reset_time = None
+            if reset:
+                try:
+                    reset_time = datetime.datetime.utcfromtimestamp(int(reset)).isoformat() + "Z"
+                except Exception:
+                    reset_time = reset
+            print(f"Rate: limit={limit} remaining={remaining} reset={reset_time}")
+            return {"limit": limit, "remaining": remaining, "reset": reset, "retry_after": retry_after}
+
+        def _wait_until_reset(hdr_info):
+            # honor Retry-After first
+            ra = hdr_info.get("retry_after")
+            if ra:
+                try:
+                    wait = int(ra) + 1
+                except Exception:
+                    wait = 60
+                print(f"Server requested Retry-After {ra}s; sleeping {wait}s...")
+                time.sleep(wait)
+                return
+            # otherwise use X-RateLimit-Reset
+            reset = hdr_info.get("reset")
+            if reset:
+                try:
+                    reset_ts = int(reset)
+                    now_ts = int(time.time())
+                    wait = max(reset_ts - now_ts + 3, 3)
+                    reset_time = datetime.datetime.utcfromtimestamp(reset_ts).isoformat() + "Z"
+                    print(f"Sleeping {wait}s until rate reset at {reset_time}...")
+                    time.sleep(wait)
+                    return
+                except Exception:
+                    pass
+            # fallback
+            print("No reset info available; sleeping 60s as fallback...")
+            time.sleep(60)
+            return
+        
+        session = requests.Session()
+        session.headers.update(headers)
+        season = 1
+        while True:
+            search_query = f"{self.anime_folder_name} s{season:02d} Netflix"
+            #if 0 hits try amazon instead of netflix then without both and so on can add more fallbacks later
+            q = (
+                f'repo:{self.github_owner}/{self.github_repo}'# in:path {self.anime_folder_name}' #important " " at the end if not in:path used
+                f' path:subtitles/anime_tv extension:srt in:path {search_query}'
+            )
+            page = 1
+
+            while True:
+                params["page"] = page
+                try:
+                    resp = session.get(api_url, params=params, timeout=15)
+                except requests.RequestException as e:# network error: stop and return what we have
+                    stop_reason = f"network error: {e}"
+                    print("Network error during GitHub request, returning partial results:", e)
+                    break
+                # capture and print rate-limit headers for diagnostics
+                hdr = resp.headers
+                last_rate_info = _print_rate_info(hdr)
+                rem = last_rate_info.get("remaining")
+                try:
+                    if rem is not None and int(rem) <= 0:
+                        _wait_until_reset(last_rate_info)# after waiting, retry same page
+                        continue
+                except ValueError:# ignore parsing error and proceed
+                    pass
+                # Successful response
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if not isinstance(data, list):
+                        continue
+                    items = data.get("items", [])
+                    if not items and page == 1: #try again with different search query
+                        print(f"GitHub search returned 0 items for query: {q}")
+                    for it in items:
+                        results_items.append({
+                            "name": it.get("name"),
+                            "path": it.get("path"),
+                            "html_url": it.get("html_url"),
+                        })
+                    # stop when fewer than per_page items returned (no more pages)
+                    if len(items) < per_page:
+                        break
+                    page += 1
+                    # polite short sleep to avoid bursting
+                    time.sleep(0.1)
+                    continue
+
+                # Rate-limited or retryable responses: 403 / 429
+                if resp.status_code == 403 or resp.status_code == 429:
+                    # try to parse message
+                    try:
+                        msg = resp.json().get("message", "")
+                    except Exception:
+                        msg = resp.text or ""
+                    # honor Retry-After header if provided
+                    if hdr.get("Retry-After"):
+                        print("Retry-After header present; waiting as requested...")
+                        _wait_until_reset(last_rate_info)
+                        continue
+                    # if remaining==0 or message mentions rate limit -> wait until reset
+                    rem = last_rate_info.get("remaining")
+                    if rem == "0" or (rem is not None and int(rem) == 0) or "rate limit" in msg.lower():
+                        print("Rate limit reached; will wait until reset and then continue...")
+                        _wait_until_reset(last_rate_info)
+                        continue
+                    # abuse detection -> wait a longer time then retry
+                    if "abuse" in msg.lower():
+                        print(f"Abuse detection triggered: {msg}. Sleeping 120s then retrying...")
+                        time.sleep(120)
+                        continue
+                    raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
+                # Search API 1000-results cap
+                if resp.status_code == 422:
+                    print("Search API 422 (cannot access beyond the first 1000 results). Stopping and returning partial results.")
+                    break
+                raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
+
+            season += 1
+            break
 
         return
 
+ 
+    def _search_subtitle_folders(self, timeout: int = 15, stop_when_remaining: int = 0,) -> List[str]:
+
+        init_url = self.config.get("LAST_GITHUB_URL")
+        github_dict = self._parse_github_url(init_url)
+        self.github_owner = github_dict["owner"]
+        self.github_repo  = github_dict["repo"]
+        # self.anime_folder_name = self.config.get("LAST_ANIME_NAME")
+        self.anime_folder_name = "one piece s07 netflix" #for debugging
+        per_page = 100
+
+        api_url = "https://api.github.com/search/code"
+        headers = {
+            "Accept": "application/vnd.github.v3+json",
+            "Authorization": f"token {self.github_token}",
+            "User-Agent": "subtitle-searcher",
+        }
+
+        q = (
+            f'repo:{self.github_owner}/{self.github_repo}'# in:path {self.anime_folder_name}' #important " " at the end if not in:path used
+            f' path:subtitles/anime_tv extension:srt in:path {self.anime_folder_name}'
+        )
+        params = {"q": q, "per_page": per_page}
+        results_items: List[Dict] = []
+
+        session = requests.Session()
+        session.headers.update(headers)
+
+        page = 1
+        stop_reason = None
+        last_rate_info = {}
+
+        def _print_rate_info(hdr):
+            limit = hdr.get("X-RateLimit-Limit")
+            remaining = hdr.get("X-RateLimit-Remaining")
+            reset = hdr.get("X-RateLimit-Reset")
+            retry_after = hdr.get("Retry-After")
+            reset_time = None
+            if reset:
+                try:
+                    reset_time = datetime.datetime.utcfromtimestamp(int(reset)).isoformat() + "Z"
+                except Exception:
+                    reset_time = reset
+            print(f"Rate: limit={limit} remaining={remaining} reset={reset_time}")
+            return {"limit": limit, "remaining": remaining, "reset": reset, "retry_after": retry_after}
+
+        def _wait_until_reset(hdr_info):
+            # honor Retry-After first
+            ra = hdr_info.get("retry_after")
+            if ra:
+                try:
+                    wait = int(ra) + 1
+                except Exception:
+                    wait = 60
+                print(f"Server requested Retry-After {ra}s; sleeping {wait}s...")
+                time.sleep(wait)
+                return
+            # otherwise use X-RateLimit-Reset
+            reset = hdr_info.get("reset")
+            if reset:
+                try:
+                    reset_ts = int(reset)
+                    now_ts = int(time.time())
+                    wait = max(reset_ts - now_ts + 3, 3)
+                    reset_time = datetime.datetime.utcfromtimestamp(reset_ts).isoformat() + "Z"
+                    print(f"Sleeping {wait}s until rate reset at {reset_time}...")
+                    time.sleep(wait)
+                    return
+                except Exception:
+                    pass
+            # fallback
+            print("No reset info available; sleeping 60s as fallback...")
+            time.sleep(60)
+            return
+
+        while True:
+            params["page"] = page
+            try:
+                resp = session.get(api_url, params=params, timeout=timeout)
+            except requests.RequestException as e:# network error: stop and return what we have
+                stop_reason = f"network error: {e}"
+                print("Network error during GitHub request, returning partial results:", e)
+                break
+            # capture and print rate-limit headers for diagnostics
+            hdr = resp.headers
+            last_rate_info = _print_rate_info(hdr)
+
+            # If remaining header present and <= stop_when_remaining, wait then retry same page
+            rem = last_rate_info.get("remaining")
+            try:
+                if rem is not None and int(rem) <= stop_when_remaining:
+                    _wait_until_reset(last_rate_info)# after waiting, retry same page
+                    continue
+            except ValueError:# ignore parsing error and proceed
+                pass
+            # Successful response
+            if resp.status_code == 200:
+                data = resp.json()
+                items = data.get("items", [])
+                if not items and page == 1:
+                    print(f"GitHub search returned 0 items for query: {q}")
+                for it in items:
+                    results_items.append({
+                        "name": it.get("name"),
+                        "path": it.get("path"),
+                        "html_url": it.get("html_url"),
+                    })
+                # stop when fewer than per_page items returned (no more pages)
+                if len(items) < per_page:
+                    break
+                page += 1
+                # polite short sleep to avoid bursting
+                time.sleep(0.1)
+                continue
+
+            # Rate-limited or retryable responses: 403 / 429
+            if resp.status_code == 403 or resp.status_code == 429:
+                # try to parse message
+                try:
+                    msg = resp.json().get("message", "")
+                except Exception:
+                    msg = resp.text or ""
+                # honor Retry-After header if provided
+                if hdr.get("Retry-After"):
+                    print("Retry-After header present; waiting as requested...")
+                    _wait_until_reset(last_rate_info)
+                    continue
+                # if remaining==0 or message mentions rate limit -> wait until reset
+                rem = last_rate_info.get("remaining")
+                if rem == "0" or (rem is not None and int(rem) == 0) or "rate limit" in msg.lower():
+                    print("Rate limit reached; will wait until reset and then continue...")
+                    _wait_until_reset(last_rate_info)
+                    continue
+                # abuse detection -> wait a longer time then retry
+                if "abuse" in msg.lower():
+                    print(f"Abuse detection triggered: {msg}. Sleeping 120s then retrying...")
+                    time.sleep(120)
+                    continue
+                raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
+            # Search API 1000-results cap
+            if resp.status_code == 422:
+                print("Search API 422 (cannot access beyond the first 1000 results). Stopping and returning partial results.")
+                break
+            raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
+
+        # Extract parent folder paths and dedupe while preserving order
+        seen = set()
+        unique_folders: List[str] = []
+        for it in results_items:
+            path = it.get("path", "")
+            if not path:
+                continue
+            folder = os.path.dirname(path).strip("/")
+            if folder and folder.lower() not in seen:
+                seen.add(folder.lower())
+                unique_folders.append(folder)
+
+        # Print results
+        if unique_folders:
+            print(f"Found {len(unique_folders)} unique folder(s):")
+            for f in unique_folders:
+                print(" -", f)
+        else:
+            print("No matching .srt files found with that query.")
+
+        # diagnostics JSON
+        if True and unique_folders:
+            safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in (self.anime_folder_name or ""))[:200] or "result"
+            json_path = os.path.join(os.getcwd(), f"github_search_{safe_name}.json")
+            payload = {
+                "query": q,
+                "repo": f"{self.github_owner}/{self.github_repo}",
+                "created_at": datetime.datetime.utcnow().isoformat() + "Z",
+                "stop_reason": stop_reason,
+                "rate_info": last_rate_info,
+                "result_count": len(results_items),
+                "items": results_items,
+            }
+            try:
+                with open(json_path, "w", encoding="utf-8") as fh:
+                    json.dump(payload, fh, ensure_ascii=False, indent=2)
+                print(f"Wrote diagnostics to {json_path}")
+            except Exception as e:
+                print("Failed to write diagnostics JSON:", e)
+
+        return unique_folders
 
 
 
@@ -1095,192 +1419,6 @@ class SubtitleManager:
         # cache result (even empty) for the session
         self._remote_files_cache[season] = files
         return files
- 
-    def _search_subtitle_folders(self, timeout: int = 15, stop_when_remaining: int = 0,) -> List[str]:
-
-        init_url = self.config.get("LAST_GITHUB_URL")
-        github_dict = self._parse_github_url(init_url)
-        self.github_owner = github_dict["owner"]
-        self.github_repo  = github_dict["repo"]
-        # self.anime_folder_name = self.config.get("LAST_ANIME_NAME")
-        self.anime_folder_name = "one piece (?i)\be(18[0-9]|19[0-9]|200)\b netflix" #for debugging
-        per_page = 100
-
-        api_url = "https://api.github.com/search/code"
-        headers = {
-            "Accept": "application/vnd.github.v3+json",
-            "Authorization": f"token {self.github_token}",
-            "User-Agent": "subtitle-searcher",
-        }
-
-        q = (
-            f'repo:{self.github_owner}/{self.github_repo} in:path {self.anime_folder_name}' #important " " at the end if not in:path used
-            # f' path:subtitles/anime_tv extension:srt in:path "{self.anime_folder_name}"'
-        )
-        params = {"q": q, "per_page": per_page}
-        results_items: List[Dict] = []
-
-        session = requests.Session()
-        session.headers.update(headers)
-
-        page = 1
-        stop_reason = None
-        last_rate_info = {}
-
-        def _print_rate_info(hdr):
-            limit = hdr.get("X-RateLimit-Limit")
-            remaining = hdr.get("X-RateLimit-Remaining")
-            reset = hdr.get("X-RateLimit-Reset")
-            retry_after = hdr.get("Retry-After")
-            reset_time = None
-            if reset:
-                try:
-                    reset_time = datetime.datetime.utcfromtimestamp(int(reset)).isoformat() + "Z"
-                except Exception:
-                    reset_time = reset
-            print(f"Rate: limit={limit} remaining={remaining} reset={reset_time}")
-            return {"limit": limit, "remaining": remaining, "reset": reset, "retry_after": retry_after}
-
-        def _wait_until_reset(hdr_info):
-            # honor Retry-After first
-            ra = hdr_info.get("retry_after")
-            if ra:
-                try:
-                    wait = int(ra) + 1
-                except Exception:
-                    wait = 60
-                print(f"Server requested Retry-After {ra}s; sleeping {wait}s...")
-                time.sleep(wait)
-                return
-            # otherwise use X-RateLimit-Reset
-            reset = hdr_info.get("reset")
-            if reset:
-                try:
-                    reset_ts = int(reset)
-                    now_ts = int(time.time())
-                    wait = max(reset_ts - now_ts + 3, 3)
-                    reset_time = datetime.datetime.utcfromtimestamp(reset_ts).isoformat() + "Z"
-                    print(f"Sleeping {wait}s until rate reset at {reset_time}...")
-                    time.sleep(wait)
-                    return
-                except Exception:
-                    pass
-            # fallback
-            print("No reset info available; sleeping 60s as fallback...")
-            time.sleep(60)
-            return
-
-        while True:
-            params["page"] = page
-            try:
-                resp = session.get(api_url, params=params, timeout=timeout)
-            except requests.RequestException as e:# network error: stop and return what we have
-                stop_reason = f"network error: {e}"
-                print("Network error during GitHub request, returning partial results:", e)
-                break
-            # capture and print rate-limit headers for diagnostics
-            hdr = resp.headers
-            last_rate_info = _print_rate_info(hdr)
-
-            # If remaining header present and <= stop_when_remaining, wait then retry same page
-            rem = last_rate_info.get("remaining")
-            try:
-                if rem is not None and int(rem) <= stop_when_remaining:
-                    _wait_until_reset(last_rate_info)# after waiting, retry same page
-                    continue
-            except ValueError:# ignore parsing error and proceed
-                pass
-            # Successful response
-            if resp.status_code == 200:
-                data = resp.json()
-                items = data.get("items", [])
-                if not items and page == 1:
-                    print(f"GitHub search returned 0 items for query: {q}")
-                for it in items:
-                    results_items.append({
-                        "name": it.get("name"),
-                        "path": it.get("path"),
-                        "html_url": it.get("html_url"),
-                    })
-                # stop when fewer than per_page items returned (no more pages)
-                if len(items) < per_page:
-                    break
-                page += 1
-                # polite short sleep to avoid bursting
-                time.sleep(0.1)
-                continue
-
-            # Rate-limited or retryable responses: 403 / 429
-            if resp.status_code == 403 or resp.status_code == 429:
-                # try to parse message
-                try:
-                    msg = resp.json().get("message", "")
-                except Exception:
-                    msg = resp.text or ""
-                # honor Retry-After header if provided
-                if hdr.get("Retry-After"):
-                    print("Retry-After header present; waiting as requested...")
-                    _wait_until_reset(last_rate_info)
-                    continue
-                # if remaining==0 or message mentions rate limit -> wait until reset
-                rem = last_rate_info.get("remaining")
-                if rem == "0" or (rem is not None and int(rem) == 0) or "rate limit" in msg.lower():
-                    print("Rate limit reached; will wait until reset and then continue...")
-                    _wait_until_reset(last_rate_info)
-                    continue
-                # abuse detection -> wait a longer time then retry
-                if "abuse" in msg.lower():
-                    print(f"Abuse detection triggered: {msg}. Sleeping 120s then retrying...")
-                    time.sleep(120)
-                    continue
-                raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
-            # Search API 1000-results cap
-            if resp.status_code == 422:
-                print("Search API 422 (cannot access beyond the first 1000 results). Stopping and returning partial results.")
-                break
-            raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
-
-        # Extract parent folder paths and dedupe while preserving order
-        seen = set()
-        unique_folders: List[str] = []
-        for it in results_items:
-            path = it.get("path", "")
-            if not path:
-                continue
-            folder = os.path.dirname(path).strip("/")
-            if folder and folder.lower() not in seen:
-                seen.add(folder.lower())
-                unique_folders.append(folder)
-
-        # Print results
-        if unique_folders:
-            print(f"Found {len(unique_folders)} unique folder(s):")
-            for f in unique_folders:
-                print(" -", f)
-        else:
-            print("No matching .srt files found with that query.")
-
-        # diagnostics JSON
-        if True and unique_folders:
-            safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in (self.anime_folder_name or ""))[:200] or "result"
-            json_path = os.path.join(os.getcwd(), f"github_search_{safe_name}.json")
-            payload = {
-                "query": q,
-                "repo": f"{self.github_owner}/{self.github_repo}",
-                "created_at": datetime.datetime.utcnow().isoformat() + "Z",
-                "stop_reason": stop_reason,
-                "rate_info": last_rate_info,
-                "result_count": len(results_items),
-                "items": results_items,
-            }
-            try:
-                with open(json_path, "w", encoding="utf-8") as fh:
-                    json.dump(payload, fh, ensure_ascii=False, indent=2)
-                print(f"Wrote diagnostics to {json_path}")
-            except Exception as e:
-                print("Failed to write diagnostics JSON:", e)
-
-        return unique_folders
 
     def _search_srt_files_in_folders(self, folders: List[str], season: Optional[int] = None) -> List[str]:
         #only needed to find episode 1 of the new season. Then save the path to this episode and the other episodes should be in the same folder and download every episode of this season.
