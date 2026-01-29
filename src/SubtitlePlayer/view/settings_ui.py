@@ -259,8 +259,8 @@ class SettingsUI:
         self.control_window.bind("<Leave>", lambda ev: self._on_control_window_leave(ev))
         
     def _save_control_window_pos(self, x, y, w, h):
-        self.config.set("LAST_CONTROL_WINDOW_X", x)
-        self.config.set("LAST_CONTROL_WINDOW_Y", y)
+        self._control_win_x = x
+        self._control_win_y = y
 
     # ——— PUBLIC binders ——————————————————————————————————————
     # Settings window
