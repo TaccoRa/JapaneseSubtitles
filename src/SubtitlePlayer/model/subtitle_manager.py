@@ -10,7 +10,8 @@ import atexit
 from urllib.parse import urlparse, unquote
 from typing import List, Optional, Tuple, Dict
 import threading
-
+from collections import defaultdict
+import statistics
 
 import regex
 import srt
@@ -22,9 +23,9 @@ from tkinter import filedialog, messagebox
 from model.config_manager import ConfigManager
 from utils import format_time
 
+
 import logging
 logger = logging.getLogger(__name__)
-
 
 '''
 First run: depending on remote flag use last used github url or use local path to download current season
@@ -47,10 +48,15 @@ class SubtitleManager:
     EPISODE_PATTERN = re.compile(r'E(\d+)', re.IGNORECASE)
     RUBY_PATTERN = regex.compile(r'(\p{Han}+)\(([^)]+)\)')
 
+    RESOLUTION_RE = re.compile(r'^\d{3,4}p$', re.IGNORECASE)
+    RESOLUTION_X_RE = re.compile(r'^\d{3,4}x\d{3,4}$', re.IGNORECASE)
+    VIDEO_CODEC_RE = re.compile(r'^(x265|h264|av1|hevc|x264)$', re.IGNORECASE)
+    YEAR_RE = re.compile(r'^(19|20)\d{2}$')
+
     def __init__(self, config: ConfigManager) -> None:
         self.config = config
         self.github_token = os.environ.get("GITHUB_TOKEN")
-
+        self.i = 1
         self.total_duration = 0
         self.display_data = []
         self.raw_subtitles = None
@@ -75,12 +81,12 @@ class SubtitleManager:
         self.cached_folders: List[str] = []  # Cached folder list for the current anime
 
         # first check if last used remote or not then get path to local or download remote
-        self.remote_flag = self.config.get("REMOTE_FLAG")
-        if self.remote_flag:
-            local_srt_path = self._initialize_remote_path()
-            self._register_cache_cleanup()
-        else:
-            local_srt_path = self.config.get("LAST_LOCAL_SRT_FILE")
+        # self.remote_flag = self.config.get("REMOTE_FLAG")
+        # if self.remote_flag:
+        #     local_srt_path = self._initialize_remote_path()
+        #     self._register_cache_cleanup()
+        # else:
+        #     local_srt_path = self.config.get("LAST_LOCAL_SRT_FILE")
         # self._load_local_and_process(local_srt_path)
 
         self._search_subtitle_folders()
@@ -100,11 +106,11 @@ class SubtitleManager:
         #save all the variables to config on close:
         #LAST_LOCAL_SRT_FILE, LAST_ANIME_NAME, LAST_GITHUB_URL, 
         if self.srt_file != self.config.get("LAST_LOCAL_SRT_FILE"):
-            self.config.set("LAST_LOCAL_SRT_FILE", self.center_x)
+            self.config.set("LAST_LOCAL_SRT_FILE", self.srt_file)
         if self.anime_folder_name != self.config.get("LAST_ANIME_NAME"):
-            self.config.set("LAST_ANIME_NAME", self.center_x)
+            self.config.set("LAST_ANIME_NAME", self.anime_folder_name)
         if self.remote_url != self.config.get("LAST_GITHUB_URL"):
-            self.config.set("LAST_GITHUB_URL", self.center_x)
+            self.config.set("LAST_GITHUB_URL", self.remote_url)
             
 #region --------------------------------local handling-----------------------------------
     def _load_local_and_process(self, local_srt_path: str) -> bool:
@@ -656,7 +662,7 @@ class SubtitleManager:
         create_season_dir = self._season_cache_dir()
         self.file_name = os.path.basename(self.remote_path) #i dont think self.file_name is needed change later
         local_srt_path = os.path.join(create_season_dir, self.file_name)
-        self._download_file(init_url, local_srt_path)#or instead of init_url --> self._get_raw_url(init_url)
+        self._download_file(self._get_raw_url(self.remote_path), local_srt_path)
         #download other files later in app.py
         self._extract_and_set_local_episode_metadata(local_srt_path)
         return local_srt_path
@@ -678,13 +684,15 @@ class SubtitleManager:
 
         # Build comprehensive episode map for this anime
         logger.info(f"Building episode map for {self.anime_folder_name}...")
+        print(self.i)
+        self.i += 1
         try:
             self._build_comprehensive_episode_map()
         except Exception as ex:
             logger.exception("Failed to build comprehensive episode map")
 
 
-    def _create_episode_map(self):
+    def _create_episode_map(self, tries):
         logger.info(f"Building comprehensive episode map for {self.anime_folder_name}")
         all_results_items: List[Dict] = []
         stop_reason = None
@@ -695,8 +703,7 @@ class SubtitleManager:
             "Authorization": f"token {self.github_token}",
             "User-Agent": "subtitle-searcher",
         }
-        per_page = 100
-        params = {"q": q, "per_page": per_page}   
+        per_page = 100  
 
         def _print_rate_info(hdr):
             limit = hdr.get("X-RateLimit-Limit")
@@ -745,12 +752,18 @@ class SubtitleManager:
         session.headers.update(headers)
         season = 1
         while True:
-            search_query = f"{self.anime_folder_name} s{season:02d} Netflix"
+            if tries == 1:
+                search_query = f"{self.anime_folder_name} s{season:02d} Netflix"
+            elif tries == 2:
+                search_query = f"{self.anime_folder_name} s{season:02d} Amazon"
+            elif tries == 3:
+                search_query = f"{self.anime_folder_name} s{season:02d}"
             #if 0 hits try amazon instead of netflix then without both and so on can add more fallbacks later
             q = (
                 f'repo:{self.github_owner}/{self.github_repo}'# in:path {self.anime_folder_name}' #important " " at the end if not in:path used
                 f' path:subtitles/anime_tv extension:srt in:path {search_query}'
             )
+            params = {"q": q, "per_page": per_page} 
             page = 1
 
             while True:
@@ -778,9 +791,18 @@ class SubtitleManager:
                         continue
                     items = data.get("items", [])
                     if not items and page == 1: #try again with different search query
+                        tries += 1
+                        self._create_episode_map(tries = tries)
                         print(f"GitHub search returned 0 items for query: {q}")
                     for it in items:
-                        results_items.append({
+                        if it.get("type") != "file": #really needed?
+                            continue
+                        name = it.get("name", "")
+                        if not name.lower().endswith('.srt'): #really needed?
+                            continue
+                        s, e, global_e = self.extract_season_episode(name)
+
+                        all_results_items.append({
                             "name": it.get("name"),
                             "path": it.get("path"),
                             "html_url": it.get("html_url"),
@@ -836,7 +858,7 @@ class SubtitleManager:
         self.github_owner = github_dict["owner"]
         self.github_repo  = github_dict["repo"]
         # self.anime_folder_name = self.config.get("LAST_ANIME_NAME")
-        self.anime_folder_name = "one piece s07 netflix" #for debugging
+        self.anime_folder_name = "one piece e7 netflix" #for debugging
         per_page = 100
 
         api_url = "https://api.github.com/search/code"
@@ -1344,6 +1366,154 @@ class SubtitleManager:
 
 
 # ---------------------- Helpers: parsing ----------------------
+    def normalize_name(name: str) -> str:
+        # remove group-tags in [] and {} but keep parentheses (they often contain a useful number)
+        s = re.sub(r'\[.*?\]', ' ', name)
+        s = re.sub(r'\{.*?\}', ' ', s)
+        s = s.replace('\\', '/').split('/')[-1]
+        return s.strip()
+    
+    def infer_season_offsets(parsed_files: List[Dict]) -> Dict[int, int]:
+        # parsed_files entries have keys: season, episode, global
+        per_season_offsets = defaultdict(list)
+        for p in parsed_files:
+            s = p.get("season"); e = p.get("episode"); g = p.get("global")
+            if s is not None and e is not None and g is not None:
+                per_season_offsets[s].append(g - e)
+        season_offsets = {}
+        for s, offs in per_season_offsets.items():
+            if not offs:
+                continue
+            # require some agreement: use median and ensure spread small
+            med = int(statistics.median(offs))
+            if max(offs) - min(offs) <= 2:  # allow small noise
+                season_offsets[s] = med
+            else:
+                # ambiguous: choose median but mark ambiguous (you can log)
+                season_offsets[s] = med
+        return season_offsets
+
+    def apply_offsets(parsed_files, season_offsets):
+        # Build maps
+        episode_map = {}        # (s,e) -> path
+        global_episode_map = {} # g -> (s,e)
+        for p in parsed_files:
+            s, e, g, path = p.get("season"), p.get("episode"), p.get("global"), p.get("path")
+            if s is not None and e is not None:
+                episode_map[(s, e)] = path
+                if g is not None:
+                    global_episode_map[g] = (s, e)
+            elif g is not None:
+                # try infer season from offsets
+                for s_idx, offset in season_offsets.items():
+                    candidate_e = g - offset
+                    if candidate_e > 0:
+                        # optionally validate candidate exists or is reasonable
+                        global_episode_map[g] = (s_idx, candidate_e)
+                        break
+        return episode_map, global_episode_map
+
+    def extract_season_episode_global(name: str) -> Tuple[Optional[int], Optional[int], Optional[int], float, Dict]:
+        """
+        Return (season, episode, global_episode, confidence_score 0..1, info_dict)
+        """
+        raw = name
+        sname = normalize_name(raw)
+        info = {"normalized": sname}
+        
+        # parenthesized numbers and positions
+        par_iter = list(re.finditer(r'\(\s*(\d{1,4})\s*\)', sname))
+        par_nums = [int(m.group(1)) for m in par_iter]
+        par_positions = [m.start() for m in par_iter]
+        info["par_nums"] = par_nums
+        
+        # explicit "Global: N" marker
+        gm = re.search(r'Global[:\s]*#?\s*(\d{1,4})', sname, re.IGNORECASE)
+        if gm:
+            info["global_from_marker"] = int(gm.group(1))
+        
+        # 1) SxxExx (highest priority)
+        m_s_ex = re.search(r'(?i)\bS(\d{1,2})\D*[eE](\d{1,4})\b', sname)
+        if m_s_ex:
+            s = int(m_s_ex.group(1)); e = int(m_s_ex.group(2))
+            info["found_s_e"] = (s, e)
+            # parenthesized number after SxxExx is likely global
+            global_candidate = None
+            if par_iter:
+                for m in par_iter:
+                    if m.start() >= m_s_ex.end():
+                        global_candidate = int(m.group(1)); break
+            jp = re.search(r'第\s*(\d{1,4})\s*話', sname)
+            if jp:
+                return s, e, int(jp.group(1)), 0.995, info
+            if "global_from_marker" in info:
+                return s, e, info["global_from_marker"], 0.995, info
+            if global_candidate:
+                return s, e, global_candidate, 0.98, info
+            return s, e, None, 0.9, info
+        
+        # 2) Sx - yy pattern
+        m_s_dash = re.search(r'(?i)\bS(\d{1,2})\s*[-:]\s*(\d{1,4})\b', sname)
+        if m_s_dash:
+            s = int(m_s_dash.group(1)); e = int(m_s_dash.group(2))
+            info["found_s_e_dash"] = (s, e)
+            global_candidate = None
+            for m in par_iter:
+                if m.start() >= m_s_dash.end():
+                    global_candidate = int(m.group(1)); break
+            if global_candidate:
+                return s, e, global_candidate, 0.95, info
+            if "global_from_marker" in info:
+                return s, e, info["global_from_marker"], 0.95, info
+            return s, e, None, 0.85, info
+        
+        # 3) Japanese global marker (第NNN話)
+        jp = re.search(r'第\s*(\d{1,4})\s*話', sname)
+        if jp:
+            return None, None, int(jp.group(1)), 1.0, info
+        
+        # 4) hyphen-number then "(" or hyphen-number hyphen -> global candidate
+        m_hy_par = re.search(r'[-_]\s*(\d{1,4})\s*(?:\(|[-_])', sname)
+        if m_hy_par:
+            num = int(m_hy_par.group(1))
+            if not YEAR_RE.match(str(num)):
+                return None, None, num, 0.9, info
+        
+        # 5) E### token without Sxx -> likely global
+        m_e = re.search(r'(?i)(?:\b|^)[eE](\d{1,4})(?:\b|$)', sname)
+        if m_e:
+            num = int(m_e.group(1))
+            if num < 5000:
+                if "global_from_marker" in info:
+                    return None, None, info["global_from_marker"], 0.95, info
+                return None, None, num, 0.7, info
+        
+        # 6) duplicate marker like "095(1)" -> return main number as global
+        m_dup = re.search(r'(\d{1,4})\(\s*1\s*\)', sname)
+        if m_dup:
+            num = int(m_dup.group(1))
+            return None, None, num, 0.8, info
+        
+        # 7) fallback: last numeric token that is not noise
+        tokens = re.split(r'[.\s_\-()\[\]]+', sname)
+        tokens = [t for t in tokens if t]
+        nums = []
+        for t in tokens:
+            if t.isdigit() and not is_noise_token(t):
+                nums.append(int(t))
+        if nums:
+            if par_nums:
+                # prefer a paren number if it isn't clearly a duplicate marker
+                for i, n in enumerate(par_nums):
+                    par_pos = par_positions[i]
+                    before = sname[:par_pos].rstrip()
+                    if before and before[-1].isdigit() and n <= 3:
+                        continue
+                    return None, None, n, 0.85, info
+            return None, None, nums[-1], 0.5, info
+        
+        return None, None, None, 0.0, info
+
     def extract_season_episode(self, name: str) -> Tuple[Optional[int], Optional[int]]:
         # 1) Japanese format: シーズン1-10- (highest priority)
         m = re.search(r'シーズン\s*(\d{1,2})\s*[-_]\s*(\d{1,4})\s*[-_]', name)
@@ -1443,7 +1613,8 @@ class SubtitleManager:
             try:
                 resp = requests.get(url, headers=headers, timeout=15)
                 if resp.status_code != 200:
-                    logger.debug("Skipping folder %s (HTTP %s)", folder, resp.status_code)
+                    # logger.debug("Skipping folder %s (HTTP %s)", folder, resp.status_code)
+                    print("test")
                     continue
                 items = resp.json()
                 if not isinstance(items, list):
@@ -1654,8 +1825,11 @@ class SubtitleManager:
         if not os.path.exists(local_path):
             os.makedirs(os.path.dirname(local_path), exist_ok=True)
         try:
-            r = requests.get(remote_path)
+            r = requests.get(remote_path, timeout=15)
             r.raise_for_status()
+            content_type = r.headers.get("Content-Type", "")
+            if "text/html" in content_type.lower():
+                raise RuntimeError(f"Downloaded HTML instead of SRT from {remote_path}")
             with open(local_path, "wb") as f:
                 f.write(r.content)
         except Exception as e:

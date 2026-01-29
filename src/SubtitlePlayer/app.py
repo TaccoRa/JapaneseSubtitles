@@ -27,14 +27,14 @@ class SubtitlePlayerApp:
 
         self._load_config()
         self._load_subtitle_metadata()
-        # self._build_app_window()
-        # self._build_ui()
-        # self._build_model()
-        # self._build_controller()
-        # if self.config.get("REMOTE_FLAG"):
-        #     self._download_init_season_asynch()
+        self._build_app_window()
+        self._build_ui()
+        self._build_model()
+        self._build_controller()
+        if self.config.get("REMOTE_FLAG"):
+            self._download_init_season_asynch()
             
-        # self.root.after(self.config.get("UPDATE_INTERVAL_MS"), self.controller.update_loop)
+        self.root.after(self.config.get("UPDATE_INTERVAL_MS"), self.controller.update_loop)
 
 
     def _load_config(self):
