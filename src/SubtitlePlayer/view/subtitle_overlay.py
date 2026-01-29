@@ -106,10 +106,6 @@ class SubtitleOverlayUI:
         if self.subtitle_handle:
             self.subtitle_handle.attributes("-alpha", 0.0)
 
-    def _save_center_position(self, win_x, win_y, win_w, win_h):
-        cx = win_x + win_w / 2
-        cy = win_y + win_h / 2
-        self.config.set("LAST_SUB_CENTER_X", cx)
-        self.config.set("LAST_SUB_CENTER_Y", cy)
-        self.center_x = cx
-        self.center_y = cy
+    def _save_center_position(self, x, y, w, h):
+        self.center_x = x + w / 2
+        self.center_y = = y + h / 2
