@@ -66,7 +66,8 @@ class SubtitleManager:
         self.cache_dir = None
         self._remote_files_cache: Dict[int, List[str]] = {}
         self.local_episode_paths = {}
-
+        self.remote_url = ""
+        
         # Comprehensive episode map: (season, episode) -> path
         # Built on initialization and used for all navigation
         self.episode_map: Dict[Tuple[int, int], str] = {}
@@ -95,6 +96,16 @@ class SubtitleManager:
                 logger.exception("Failed to cleanup cache on exit")
         atexit.register(_cleanup)
 
+    def save_state(self):
+        #save all the variables to config on close:
+        #LAST_LOCAL_SRT_FILE, LAST_ANIME_NAME, LAST_GITHUB_URL, 
+        if self.srt_file != self.config.get("LAST_LOCAL_SRT_FILE"):
+            self.config.set("LAST_LOCAL_SRT_FILE", self.center_x)
+        if self.anime_folder_name != self.config.get("LAST_ANIME_NAME"):
+            self.config.set("LAST_ANIME_NAME", self.center_x)
+        if self.remote_url != self.config.get("LAST_GITHUB_URL"):
+            self.config.set("LAST_GITHUB_URL", self.center_x)
+            
 #region --------------------------------local handling-----------------------------------
     def _load_local_and_process(self, local_srt_path: str) -> bool:
         if not (local_srt_path and os.path.isfile(local_srt_path)):
@@ -108,7 +119,7 @@ class SubtitleManager:
     def _extract_and_set_local_episode_metadata(self, local_path):
         if not self.remote_flag: #hardcoded certain local folder
             self.anime_folder_name = local_path.replace("\\", "/").split("/")[local_path.replace("\\", "/").split("/").index("subs")+1]
-            self.config.set("LAST_LOCAL_SRT_FILE",local_path)
+            #self.config.set("LAST_LOCAL_SRT_FILE",local_path)
             self.current_season, self.current_episode = self.extract_season_episode(local_path)
         self.is_movie = self.current_season is None and self.current_episode is None
         self.local_srt_dir = os.path.dirname(local_path)
