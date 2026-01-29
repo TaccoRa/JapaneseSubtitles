@@ -109,3 +109,8 @@ class SubtitleOverlayUI:
     def _save_center_position(self, x, y, w, h):
         self.center_x = x + w / 2
         self.center_y = = y + h / 2
+        
+    def save_state(self):
+        if (self.center_x, self.center_y) != (self.config.get("LAST_SUB_CENTER_X"), self.config.get("LAST_SUB_CENTER_Y")):
+            self.config.set("LAST_SUB_CENTER_X", self.center_x)
+            self.config.set("LAST_SUB_CENTER_Y", self.center_y)
