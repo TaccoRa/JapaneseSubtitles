@@ -92,6 +92,7 @@ class SubtitlePlayerApp:
         '''
         self.control_ui.save_state()
         self.subtitle_ui.save_state()
+        self.sub_manager.save_state()
         self.root.destroy()
 
 
