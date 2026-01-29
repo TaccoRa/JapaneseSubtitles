@@ -78,8 +78,10 @@ class SubtitlePlayerApp:
         try:
             x = self.root.winfo_x()
             y = self.root.winfo_y()
-            self.config.set("LAST_SETTINGS_WINDOW_X", x)
-            self.config.set("LAST_SETTINGS_WINDOW_Y", y)
+            if (x, y) != (self.config.get("LAST_SETTINGS_WINDOW_X"),
+                          self.config.get("LAST_SETTINGS_WINDOW_Y")):
+                self.config.set("LAST_SETTINGS_WINDOW_X", x)
+                self.config.set("LAST_SETTINGS_WINDOW_Y", y)
         finally:
             self.root.destroy()
 
