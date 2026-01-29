@@ -261,7 +261,12 @@ class SettingsUI:
     def _save_control_window_pos(self, x, y, w, h):
         self._control_win_x = x
         self._control_win_y = y
-
+        
+    def save_state(self):
+        if (self._control_win_x, self._control_win_y) != (self.config.get("LAST_CONTROL_WINDOW_X"), self.config.get("LAST_CONTROL_WINDOW_Y")):
+            self.config.set("LAST_CONTROL_WINDOW_X", self._control_win_x)
+            self.config.set("LAST_CONTROL_WINDOW_Y", self._control_win_y)
+            
     # ——— PUBLIC binders ——————————————————————————————————————
     # Settings window
     def bind_episode_change(self, on_ent, on_inc, on_dec):
