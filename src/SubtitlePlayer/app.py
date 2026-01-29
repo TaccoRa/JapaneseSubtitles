@@ -75,15 +75,24 @@ class SubtitlePlayerApp:
         self.root.geometry(f"+{x}+{y}")
 
     def _on_root_close(self):
-        try:
-            x = self.root.winfo_x()
-            y = self.root.winfo_y()
-            if (x, y) != (self.config.get("LAST_SETTINGS_WINDOW_X"),
-                          self.config.get("LAST_SETTINGS_WINDOW_Y")):
-                self.config.set("LAST_SETTINGS_WINDOW_X", x)
-                self.config.set("LAST_SETTINGS_WINDOW_Y", y)
-        finally:
-            self.root.destroy()
+        x, y = self.root.winfo_x(), self.root.winfo_y()
+        if (x, y) != (self.config.get("LAST_SETTINGS_WINDOW_X"),
+                      self.config.get("LAST_SETTINGS_WINDOW_Y")):
+            self.config.set("LAST_SETTINGS_WINDOW_X", x)
+            self.config.set("LAST_SETTINGS_WINDOW_Y", y)
+        '''
+        if hasattr(self, "_control_win_x"):
+            self.config.set("LAST_CONTROL_WINDOW_X", self._control_win_x)
+            self.config.set("LAST_CONTROL_WINDOW_Y", self._control_win_y)
+
+        # Subtitle window (center-based)
+        if hasattr(self, "_subtitle_center_x"):
+            self.config.set("LAST_SUB_CENTER_X", self._subtitle_center_x)
+            self.config.set("LAST_SUB_CENTER_Y", self._subtitle_center_y)
+        '''
+        self.control_ui.save_state()
+        self.subtitle_ui.save_state()
+        self.root.destroy()
 
 
     def _build_ui(self):
