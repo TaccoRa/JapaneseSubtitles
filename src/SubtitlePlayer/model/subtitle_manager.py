@@ -26,6 +26,7 @@ from utils import format_time
 
 import logging
 logger = logging.getLogger(__name__)
+logging.Formatter.converter = time.gmtime
 
 '''
 First run: depending on remote flag use last used github url or use local path to download current season
@@ -51,7 +52,7 @@ class SubtitleManager:
     RESOLUTION_RE = re.compile(r'^\d{3,4}p$', re.IGNORECASE)
     RESOLUTION_X_RE = re.compile(r'^\d{3,4}x\d{3,4}$', re.IGNORECASE)
     VIDEO_CODEC_RE = re.compile(r'^(x265|h264|av1|hevc|x264)$', re.IGNORECASE)
-    YEAR_RE = re.compile(r'^(19|20)\d{2}$')
+
 
     def __init__(self, config: ConfigManager) -> None:
         self.config = config
@@ -81,16 +82,15 @@ class SubtitleManager:
         self.cached_folders: List[str] = []  # Cached folder list for the current anime
 
         # first check if last used remote or not then get path to local or download remote
-        # self.remote_flag = self.config.get("REMOTE_FLAG")
-        # if self.remote_flag:
-        #     local_srt_path = self._initialize_remote_path()
-        #     self._register_cache_cleanup()
-        # else:
-        #     local_srt_path = self.config.get("LAST_LOCAL_SRT_FILE")
-        # self._load_local_and_process(local_srt_path)
-
-        self._search_subtitle_folders()
-
+        self.remote_flag = self.config.get("REMOTE_FLAG")
+        if self.remote_flag:
+            local_srt_path = self._initialize_remote_path()#should download the last save github url and in a window of 10 episodes the others. (create remote episode map -> downloaded episodes -> load local path)
+            self._register_cache_cleanup()
+        else:
+            local_srt_path = self.config.get("LAST_LOCAL_SRT_FILE")
+        self._load_local_and_process(local_srt_path)
+        #have one remote episode map for downloads --> s,e,global --> github path
+        #and one local episode map for episode switching local (if remote and episode not found use above and download and update local episode map)
     def _register_cache_cleanup(self) -> None:
         def _cleanup():
             try:
@@ -125,14 +125,14 @@ class SubtitleManager:
     def _extract_and_set_local_episode_metadata(self, local_path):
         if not self.remote_flag: #hardcoded certain local folder
             self.anime_folder_name = local_path.replace("\\", "/").split("/")[local_path.replace("\\", "/").split("/").index("subs")+1]
-            #self.config.set("LAST_LOCAL_SRT_FILE",local_path)
-            self.current_season, self.current_episode = self.extract_season_episode(local_path)
+            self.config.set("LAST_LOCAL_SRT_FILE",local_path)
+            self.current_season, self.current_episode , _ = self.extract_season_episode_global(local_path)
         self.is_movie = self.current_season is None and self.current_episode is None
         self.local_srt_dir = os.path.dirname(local_path)
         srt_paths = [os.path.join(self.local_srt_dir, f) for f in os.listdir(self.local_srt_dir) if f.lower().endswith('.srt')]
         if not srt_paths: logger.error("No .srt files found in folder: %s", self.local_srt_dir)
         for srt_path in srt_paths:
-            s, e = self.extract_season_episode(srt_path)
+            s, e, global_e, conf, info = self.extract_season_episode_global(srt_path)
             if s is None and e is None: self.local_episode_paths["movie"] = srt_path
             else: self.local_episode_paths[(s,e)] = srt_path
 
@@ -205,12 +205,11 @@ class SubtitleManager:
             currentse_season, current_episode = self.change_episode_local(self, action, raw)
         return currentse_season, current_episode
 
-
     def change_episode_local(self, action: str, raw: Optional[int] = None) -> Tuple[Optional[int], Optional[int]]:
         #goal: change episode either with inc, dec, or set. Raw is the wished episode
         # Look for next episode in file_list if it is not there ask the user to save it and press select to select it. 
         # -> the file list is then updated and the new episode is loaded
-        s,e = self.extract_season_episode(raw) #does this work if it is just 12 --> E12?
+        s, e, global_e, conf, info = self.extract_season_episode_global(raw) #does this work if it is just 12 --> E12?
         # if action == "set":#manually written inside the settings episode entry raw only > 0
         #     if e in episode_map: #
         #         ...
@@ -231,7 +230,7 @@ class SubtitleManager:
         
         episodes = []
         for filename in self.local_file_list:
-            s, e = self.extract_season_episode(filename)
+            s, e, global_e, conf, info = self.extract_season_episode_global(filename)
             if e is not None: episodes.append(e)
         lowest_episode, highest_episode = min(episodes), max(episodes)
 
@@ -288,7 +287,7 @@ class SubtitleManager:
                         max_e = 0
                         chosen_remote = None
                         for fpath in files:
-                            s, e = self.extract_season_episode(os.path.basename(fpath))
+                            s, e, global_e, conf, info = self.extract_season_episode_global(os.path.basename(fpath))
                             if e and e > max_e:
                                 max_e = e
                                 chosen_remote = fpath
@@ -325,7 +324,7 @@ class SubtitleManager:
                         chosen_remote = None
                         min_e = None
                         for fpath in files:
-                            s, e = self.extract_season_episode(os.path.basename(fpath))
+                            s, e, global_e, conf, info = self.extract_season_episode_global(os.path.basename(fpath))
                             if e is None:
                                 continue
                             if min_e is None or e < min_e:
@@ -378,13 +377,13 @@ class SubtitleManager:
                 for fn in os.listdir(season_dir):
                     if not fn.lower().endswith(".srt"):
                         continue
-                    s, e = self.extract_season_episode(fn)
+                    s, e, global_e, conf, info = self.extract_season_episode_global(fn)
                     if e == target_episode:
                         chosen = os.path.join(season_dir, fn)
                         try:
                             self._load_local_and_process(chosen)
                             # Extract actual season/episode from the cached file
-                            actual_s, actual_e = self.extract_season_episode(fn)
+                            actual_s, actual_e, global_e, conf, info = self.extract_season_episode_global(fn)
                             if actual_s and actual_e:
                                 self.current_season = actual_s
                                 self.current_episode = actual_e
@@ -427,7 +426,7 @@ class SubtitleManager:
             # find file matching target_episode
             chosen_remote = None
             for fpath in files:
-                s, e = self.extract_season_episode(os.path.basename(fpath))
+                s, e, global_e, conf, info = self.extract_season_episode_global(os.path.basename(fpath))
                 if e == target_episode:
                     chosen_remote = fpath
                     break
@@ -446,7 +445,7 @@ class SubtitleManager:
                         logger.info("Episode map fallback found: S%dE%d", target_season, target_episode)
                         # Need to find this episode in the new files list
                         for fpath in files:
-                            s, e = self.extract_season_episode(os.path.basename(fpath))
+                            s, e, global_e, conf, info = self.extract_season_episode_global(os.path.basename(fpath))
                             if e == target_episode:
                                 chosen_remote = fpath
                                 break
@@ -457,7 +456,7 @@ class SubtitleManager:
                     # For 'set' or 'dec' action, pick closest available (legacy behavior)
                     max_e = 0
                     for fpath in files:
-                        s, e = self.extract_season_episode(os.path.basename(fpath))
+                        s, e, global_e, conf, info = self.extract_season_episode_global(os.path.basename(fpath))
                         if e and e > max_e:
                             max_e = e
                             chosen_remote = fpath
@@ -484,7 +483,7 @@ class SubtitleManager:
             # load and update state
             self._load_local_and_process(local_path)
             # Extract actual season/episode from the file we loaded to avoid display mismatch
-            actual_s, actual_e = self.extract_season_episode(os.path.basename(local_path))
+            actual_s, actual_e, global_e, conf, info = self.extract_season_episode_global(os.path.basename(local_path))
             if actual_s and actual_e:
                 self.current_season = actual_s
                 self.current_episode = actual_e
@@ -496,7 +495,7 @@ class SubtitleManager:
                 logger.warning("Could not extract actual episode from %s, using target S%dE%d", os.path.basename(local_path), target_season, target_episode)
             self.season_dir = season_dir
             self.srt_file = local_path
-            s_num, e_num = self.extract_season_episode(os.path.basename(remote_path))
+            s_num, e_num, global_e, conf, info = self.extract_season_episode_global(os.path.basename(remote_path))
             if s_num == 1:
                 # Extract anime folder name from the remote path (may include suffixes)
                 extracted = self._extract_anime_name_from_url(remote_path)
@@ -586,7 +585,7 @@ class SubtitleManager:
 
         def on_ok():
             u = url_entry.get().strip()
-            s,e = self.extract_season_episode(se_entry.get().strip().lower())
+            s, e, global_e, conf, info = self.extract_season_episode_global(se_entry.get().strip().lower())
             result["url"], result["season"], result["episode"] = (u or None, s, e)
             dlg.destroy()
         def on_cancel():
@@ -664,7 +663,6 @@ class SubtitleManager:
         local_srt_path = os.path.join(create_season_dir, self.file_name)
         self._download_file(self._get_raw_url(self.remote_path), local_srt_path)
         #download other files later in app.py
-        self._extract_and_set_local_episode_metadata(local_srt_path)
         return local_srt_path
     
     def _extract_and_set_remote_episode_metadata(self, remote_url):
@@ -675,27 +673,62 @@ class SubtitleManager:
         self.github_ref   = github_dict["ref"]
         self.remote_path = github_dict["path"]
         self.remote_folder = os.path.dirname(self.remote_path)
-        self.current_season, self.current_episode = self.extract_season_episode(self.remote_path)
+        self.current_season, self.current_episode, global_e, conf, info = self.extract_season_episode_global(self.remote_path)
         self.anime_folder_name = self.config.get("LAST_ANIME_NAME")
         url_anime_name = self._extract_anime_name_from_url(self.remote_path)
         if self.current_season == 1: #what if no seasons? change later doesnt make too much sense dont know how to do it. save last used github url will this be always s1? ...
             self.anime_folder_name = url_anime_name
             self.config.set("LAST_ANIME_NAME", url_anime_name)
+        self._create_remote_episode_map()
+    
+    def _specific_episode_search(self,s,e):
+        #season and episode must be in the format of the github s02e0001 or e01 and so on
+        api_url = "https://api.github.com/search/code"
+        headers = {"Accept": "application/vnd.github.v3+json",
+                   "Authorization": f"token {self.github_token}",
+                   "User-Agent": "subtitle-searcher"}
+        per_page = 100
+        if s is not None:
+            logger.info(f"Searching [S{s}E{e}] for {self.anime_folder_name}...")
+            search_query = f"{self.anime_folder_name} s{s} e{e}"
+        elif e is not None:
+            search_query = f"{self.anime_folder_name} e{e}"
+        else: search_query = f"{self.anime_folder_name}"
+        q = (f'repo:{self.github_owner}/{self.github_repo}'
+             f' path:subtitles/anime_tv extension:srt in:path {search_query}')
+        params = {"q": q, "per_page": per_page}
+        results: List[Dict] = []
+        while True:
+            params["page"] = page
+            resp = requests.get(api_url, headers=headers, params=params, timeout=15)
+            if resp.status_code != 200:
+                data = resp.json()
+                items = data.get("items", [])
+                if not items and page == 1:
+                    print(f"GitHub search returned 0 items for query: {q}")
+                for it in items:
+                    results.append({
+                        "name": it.get("name"),
+                        "path": it.get("path")
+                    })
+                if len(items) < per_page:
+                    break
+                page += 1
+                time.sleep(0.1)
+                continue
 
-        # Build comprehensive episode map for this anime
-        logger.info(f"Building episode map for {self.anime_folder_name}...")
-        print(self.i)
-        self.i += 1
-        try:
-            self._build_comprehensive_episode_map()
-        except Exception as ex:
-            logger.exception("Failed to build comprehensive episode map")
+    def _create_remote_episode_map(self, debug_url):
+        self.anime_folder_name = "Shingeki no Kyojin"
+        github_dict = self._parse_github_url(debug_url)
+        self.github_owner = github_dict["owner"]
+        self.github_repo  = github_dict["repo"]
 
 
-    def _create_episode_map(self, tries):
-        logger.info(f"Building comprehensive episode map for {self.anime_folder_name}")
+        logger.info(f"Building comprehensive episode map for {self.anime_folder_name}...")
         all_results_items: List[Dict] = []
         stop_reason = None
+        first_query_success_count = 0
+        consecutive_first_failures = 0
         last_rate_info = {}
         api_url = "https://api.github.com/search/code"
         headers = {
@@ -704,7 +737,7 @@ class SubtitleManager:
             "User-Agent": "subtitle-searcher",
         }
         per_page = 100  
-
+        
         def _print_rate_info(hdr):
             limit = hdr.get("X-RateLimit-Limit")
             remaining = hdr.get("X-RateLimit-Remaining")
@@ -751,272 +784,98 @@ class SubtitleManager:
         session = requests.Session()
         session.headers.update(headers)
         season = 1
-        while True:
-            if tries == 1:
-                search_query = f"{self.anime_folder_name} s{season:02d} Netflix"
-            elif tries == 2:
-                search_query = f"{self.anime_folder_name} s{season:02d} Amazon"
-            elif tries == 3:
-                search_query = f"{self.anime_folder_name} s{season:02d}"
-            #if 0 hits try amazon instead of netflix then without both and so on can add more fallbacks later
-            q = (
-                f'repo:{self.github_owner}/{self.github_repo}'# in:path {self.anime_folder_name}' #important " " at the end if not in:path used
-                f' path:subtitles/anime_tv extension:srt in:path {search_query}'
-            )
-            params = {"q": q, "per_page": per_page} 
-            page = 1
-
-            while True:
-                params["page"] = page
-                try:
-                    resp = session.get(api_url, params=params, timeout=15)
-                except requests.RequestException as e:# network error: stop and return what we have
-                    stop_reason = f"network error: {e}"
-                    print("Network error during GitHub request, returning partial results:", e)
-                    break
-                # capture and print rate-limit headers for diagnostics
-                hdr = resp.headers
-                last_rate_info = _print_rate_info(hdr)
-                rem = last_rate_info.get("remaining")
-                try:
+        while True: #search season until none found
+            logger.info(f"\nSearching season {season:02d}")
+            found_any_for_season = False
+            for tries in (1, 2, 3, 4):#if 0 hits try amazon instead of netflix then without both and so on can add more fallbacks later
+                if tries == 1:
+                    search_query = f"{self.anime_folder_name} s{season:02d} Netflix"
+                elif tries == 2:
+                    search_query = f"{self.anime_folder_name} s{season:02d} Amazon"
+                elif tries == 3:
+                    search_query = f"{self.anime_folder_name} s{season:02d} Hulu"
+                elif tries == 4:
+                    search_query = f"{self.anime_folder_name} s{season:02d}"
+                q = (f'repo:{self.github_owner}/{self.github_repo}'
+                     f' path:subtitles/anime_tv extension:srt in:path {search_query}')
+                params = {"q": q, "per_page": per_page} 
+                page = 1
+                provider_found = False
+                while True:
+                    params["page"] = page
+                    try: resp = session.get(api_url, params=params, timeout=15)
+                    except requests.RequestException as e:# network error: stop and return what we have
+                        logger.error(f"network error: {e}")
+                        return
+                    hdr = resp.headers
+                    last_rate_info = _print_rate_info(hdr)
+                    rem = last_rate_info.get("remaining")
                     if rem is not None and int(rem) <= 0:
                         _wait_until_reset(last_rate_info)# after waiting, retry same page
                         continue
-                except ValueError:# ignore parsing error and proceed
-                    pass
-                # Successful response
-                if resp.status_code == 200:
-                    data = resp.json()
-                    if not isinstance(data, list):
-                        continue
-                    items = data.get("items", [])
-                    if not items and page == 1: #try again with different search query
-                        tries += 1
-                        self._create_episode_map(tries = tries)
-                        print(f"GitHub search returned 0 items for query: {q}")
-                    for it in items:
-                        if it.get("type") != "file": #really needed?
-                            continue
-                        name = it.get("name", "")
-                        if not name.lower().endswith('.srt'): #really needed?
-                            continue
-                        s, e, global_e = self.extract_season_episode(name)
-
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        items = data.get("items", [])
+                        if not items and page == 1:
+                            print(f"GitHub search returned 0 items for query: {q}")
+                            break
+                        provider_found = True
+                        found_any_for_season = True
+                        for it in items:
+                            name = it.get("name", "")
+                            s, e, global_e = self.extract_season_episode_global(name)
                         all_results_items.append({
-                            "name": it.get("name"),
+                            "name": name,
                             "path": it.get("path"),
-                            "html_url": it.get("html_url"),
+                            "season": s,
+                            "episode": e,
+                            "global_episode": global_e,
                         })
-                    # stop when fewer than per_page items returned (no more pages)
-                    if len(items) < per_page:
+                        # stop when fewer than per_page items returned (no more pages)
+                        if len(items) < per_page:
+                            break
+                        page += 1
+                        time.sleep(0.1)
+                        continue
+                    # Rate-limited or retryable responses: 403 / 429
+                    if resp.status_code == 403 or resp.status_code == 429:
+                        # try to parse message
+                        try:
+                            msg = resp.json().get("message", "")
+                        except Exception:
+                            msg = resp.text or ""
+                        # honor Retry-After header if provided
+                        if hdr.get("Retry-After"):
+                            print("Retry-After header present; waiting as requested...")
+                            _wait_until_reset(last_rate_info)
+                            continue
+                        # if remaining==0 or message mentions rate limit -> wait until reset
+                        rem = last_rate_info.get("remaining")
+                        if rem == "0" or (rem is not None and int(rem) == 0) or "rate limit" in msg.lower():
+                            print("Rate limit reached; will wait until reset and then continue...")
+                            _wait_until_reset(last_rate_info)
+                            continue
+                        # abuse detection -> wait a longer time then retry
+                        if "abuse" in msg.lower():
+                            print(f"Abuse detection triggered: {msg}. Sleeping 120s then retrying...")
+                            time.sleep(120)
+                            continue
+                        raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
+                    # Search API 1000-results cap
+                    if resp.status_code == 422:
+                        print("Search API 422 (cannot access beyond the first 1000 results). Stopping and returning partial results.")
                         break
-                    page += 1
-                    # polite short sleep to avoid bursting
-                    time.sleep(0.1)
-                    continue
-
-                # Rate-limited or retryable responses: 403 / 429
-                if resp.status_code == 403 or resp.status_code == 429:
-                    # try to parse message
-                    try:
-                        msg = resp.json().get("message", "")
-                    except Exception:
-                        msg = resp.text or ""
-                    # honor Retry-After header if provided
-                    if hdr.get("Retry-After"):
-                        print("Retry-After header present; waiting as requested...")
-                        _wait_until_reset(last_rate_info)
-                        continue
-                    # if remaining==0 or message mentions rate limit -> wait until reset
-                    rem = last_rate_info.get("remaining")
-                    if rem == "0" or (rem is not None and int(rem) == 0) or "rate limit" in msg.lower():
-                        print("Rate limit reached; will wait until reset and then continue...")
-                        _wait_until_reset(last_rate_info)
-                        continue
-                    # abuse detection -> wait a longer time then retry
-                    if "abuse" in msg.lower():
-                        print(f"Abuse detection triggered: {msg}. Sleeping 120s then retrying...")
-                        time.sleep(120)
-                        continue
                     raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
-                # Search API 1000-results cap
-                if resp.status_code == 422:
-                    print("Search API 422 (cannot access beyond the first 1000 results). Stopping and returning partial results.")
+                if provider_found:
                     break
-                raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
-
+            if not found_any_for_season:
+                logger.info(f"No providers found results for season {season:02d}, stopping.")
+                break  # stop season loop entirely
             season += 1
-            break
+        final_items = all_results_items
 
-        return
 
- 
-    def _search_subtitle_folders(self, timeout: int = 15, stop_when_remaining: int = 0,) -> List[str]:
-
-        init_url = self.config.get("LAST_GITHUB_URL")
-        github_dict = self._parse_github_url(init_url)
-        self.github_owner = github_dict["owner"]
-        self.github_repo  = github_dict["repo"]
-        # self.anime_folder_name = self.config.get("LAST_ANIME_NAME")
-        self.anime_folder_name = "one piece e7 netflix" #for debugging
-        per_page = 100
-
-        api_url = "https://api.github.com/search/code"
-        headers = {
-            "Accept": "application/vnd.github.v3+json",
-            "Authorization": f"token {self.github_token}",
-            "User-Agent": "subtitle-searcher",
-        }
-
-        q = (
-            f'repo:{self.github_owner}/{self.github_repo}'# in:path {self.anime_folder_name}' #important " " at the end if not in:path used
-            f' path:subtitles/anime_tv extension:srt in:path {self.anime_folder_name}'
-        )
-        params = {"q": q, "per_page": per_page}
-        results_items: List[Dict] = []
-
-        session = requests.Session()
-        session.headers.update(headers)
-
-        page = 1
-        stop_reason = None
-        last_rate_info = {}
-
-        def _print_rate_info(hdr):
-            limit = hdr.get("X-RateLimit-Limit")
-            remaining = hdr.get("X-RateLimit-Remaining")
-            reset = hdr.get("X-RateLimit-Reset")
-            retry_after = hdr.get("Retry-After")
-            reset_time = None
-            if reset:
-                try:
-                    reset_time = datetime.datetime.utcfromtimestamp(int(reset)).isoformat() + "Z"
-                except Exception:
-                    reset_time = reset
-            print(f"Rate: limit={limit} remaining={remaining} reset={reset_time}")
-            return {"limit": limit, "remaining": remaining, "reset": reset, "retry_after": retry_after}
-
-        def _wait_until_reset(hdr_info):
-            # honor Retry-After first
-            ra = hdr_info.get("retry_after")
-            if ra:
-                try:
-                    wait = int(ra) + 1
-                except Exception:
-                    wait = 60
-                print(f"Server requested Retry-After {ra}s; sleeping {wait}s...")
-                time.sleep(wait)
-                return
-            # otherwise use X-RateLimit-Reset
-            reset = hdr_info.get("reset")
-            if reset:
-                try:
-                    reset_ts = int(reset)
-                    now_ts = int(time.time())
-                    wait = max(reset_ts - now_ts + 3, 3)
-                    reset_time = datetime.datetime.utcfromtimestamp(reset_ts).isoformat() + "Z"
-                    print(f"Sleeping {wait}s until rate reset at {reset_time}...")
-                    time.sleep(wait)
-                    return
-                except Exception:
-                    pass
-            # fallback
-            print("No reset info available; sleeping 60s as fallback...")
-            time.sleep(60)
-            return
-
-        while True:
-            params["page"] = page
-            try:
-                resp = session.get(api_url, params=params, timeout=timeout)
-            except requests.RequestException as e:# network error: stop and return what we have
-                stop_reason = f"network error: {e}"
-                print("Network error during GitHub request, returning partial results:", e)
-                break
-            # capture and print rate-limit headers for diagnostics
-            hdr = resp.headers
-            last_rate_info = _print_rate_info(hdr)
-
-            # If remaining header present and <= stop_when_remaining, wait then retry same page
-            rem = last_rate_info.get("remaining")
-            try:
-                if rem is not None and int(rem) <= stop_when_remaining:
-                    _wait_until_reset(last_rate_info)# after waiting, retry same page
-                    continue
-            except ValueError:# ignore parsing error and proceed
-                pass
-            # Successful response
-            if resp.status_code == 200:
-                data = resp.json()
-                items = data.get("items", [])
-                if not items and page == 1:
-                    print(f"GitHub search returned 0 items for query: {q}")
-                for it in items:
-                    results_items.append({
-                        "name": it.get("name"),
-                        "path": it.get("path"),
-                        "html_url": it.get("html_url"),
-                    })
-                # stop when fewer than per_page items returned (no more pages)
-                if len(items) < per_page:
-                    break
-                page += 1
-                # polite short sleep to avoid bursting
-                time.sleep(0.1)
-                continue
-
-            # Rate-limited or retryable responses: 403 / 429
-            if resp.status_code == 403 or resp.status_code == 429:
-                # try to parse message
-                try:
-                    msg = resp.json().get("message", "")
-                except Exception:
-                    msg = resp.text or ""
-                # honor Retry-After header if provided
-                if hdr.get("Retry-After"):
-                    print("Retry-After header present; waiting as requested...")
-                    _wait_until_reset(last_rate_info)
-                    continue
-                # if remaining==0 or message mentions rate limit -> wait until reset
-                rem = last_rate_info.get("remaining")
-                if rem == "0" or (rem is not None and int(rem) == 0) or "rate limit" in msg.lower():
-                    print("Rate limit reached; will wait until reset and then continue...")
-                    _wait_until_reset(last_rate_info)
-                    continue
-                # abuse detection -> wait a longer time then retry
-                if "abuse" in msg.lower():
-                    print(f"Abuse detection triggered: {msg}. Sleeping 120s then retrying...")
-                    time.sleep(120)
-                    continue
-                raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
-            # Search API 1000-results cap
-            if resp.status_code == 422:
-                print("Search API 422 (cannot access beyond the first 1000 results). Stopping and returning partial results.")
-                break
-            raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
-
-        # Extract parent folder paths and dedupe while preserving order
-        seen = set()
-        unique_folders: List[str] = []
-        for it in results_items:
-            path = it.get("path", "")
-            if not path:
-                continue
-            folder = os.path.dirname(path).strip("/")
-            if folder and folder.lower() not in seen:
-                seen.add(folder.lower())
-                unique_folders.append(folder)
-
-        # Print results
-        if unique_folders:
-            print(f"Found {len(unique_folders)} unique folder(s):")
-            for f in unique_folders:
-                print(" -", f)
-        else:
-            print("No matching .srt files found with that query.")
-
-        # diagnostics JSON
-        if True and unique_folders:
+        if final_items:
             safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in (self.anime_folder_name or ""))[:200] or "result"
             json_path = os.path.join(os.getcwd(), f"github_search_{safe_name}.json")
             payload = {
@@ -1025,8 +884,8 @@ class SubtitleManager:
                 "created_at": datetime.datetime.utcnow().isoformat() + "Z",
                 "stop_reason": stop_reason,
                 "rate_info": last_rate_info,
-                "result_count": len(results_items),
-                "items": results_items,
+                "result_count": len(final_items),
+                "items": final_items,
             }
             try:
                 with open(json_path, "w", encoding="utf-8") as fh:
@@ -1034,11 +893,194 @@ class SubtitleManager:
                 print(f"Wrote diagnostics to {json_path}")
             except Exception as e:
                 print("Failed to write diagnostics JSON:", e)
+        return
 
-        return unique_folders
+# # old
+#     def _search_subtitle_folders(self, timeout: int = 15, stop_when_remaining: int = 0,) -> List[str]:
 
+#         init_url = self.config.get("LAST_GITHUB_URL")
+#         github_dict = self._parse_github_url(init_url)
+#         self.github_owner = github_dict["owner"]
+#         self.github_repo  = github_dict["repo"]
+#         # self.anime_folder_name = self.config.get("LAST_ANIME_NAME")
+#         self.anime_folder_name = "one piece" #for debugging
+#         per_page = 100
 
+#         api_url = "https://api.github.com/search/code"
+#         headers = {
+#             "Accept": "application/vnd.github.v3+json",
+#             "Authorization": f"token {self.github_token}",
+#             "User-Agent": "subtitle-searcher",
+#         }
 
+#         q = (
+#             f'repo:{self.github_owner}/{self.github_repo}'# in:path {self.anime_folder_name}' #important " " at the end if not in:path used
+#             f' path:subtitles/anime_tv extension:srt in:path {self.anime_folder_name}'
+#         )
+#         params = {"q": q, "per_page": per_page}
+#         results_items: List[Dict] = []
+
+#         session = requests.Session()
+#         session.headers.update(headers)
+
+#         page = 1
+#         stop_reason = None
+#         last_rate_info = {}
+
+#         def _print_rate_info(hdr):
+#             limit = hdr.get("X-RateLimit-Limit")
+#             remaining = hdr.get("X-RateLimit-Remaining")
+#             reset = hdr.get("X-RateLimit-Reset")
+#             retry_after = hdr.get("Retry-After")
+#             reset_time = None
+#             if reset:
+#                 try:
+#                     reset_time = datetime.datetime.utcfromtimestamp(int(reset)).isoformat() + "Z"
+#                 except Exception:
+#                     reset_time = reset
+#             print(f"Rate: limit={limit} remaining={remaining} reset={reset_time}")
+#             return {"limit": limit, "remaining": remaining, "reset": reset, "retry_after": retry_after}
+
+#         def _wait_until_reset(hdr_info):
+#             # honor Retry-After first
+#             ra = hdr_info.get("retry_after")
+#             if ra:
+#                 try:
+#                     wait = int(ra) + 1
+#                 except Exception:
+#                     wait = 60
+#                 print(f"Server requested Retry-After {ra}s; sleeping {wait}s...")
+#                 time.sleep(wait)
+#                 return
+#             # otherwise use X-RateLimit-Reset
+#             reset = hdr_info.get("reset")
+#             if reset:
+#                 try:
+#                     reset_ts = int(reset)
+#                     now_ts = int(time.time())
+#                     wait = max(reset_ts - now_ts + 3, 3)
+#                     reset_time = datetime.datetime.utcfromtimestamp(reset_ts).isoformat() + "Z"
+#                     print(f"Sleeping {wait}s until rate reset at {reset_time}...")
+#                     time.sleep(wait)
+#                     return
+#                 except Exception:
+#                     pass
+#             # fallback
+#             print("No reset info available; sleeping 60s as fallback...")
+#             time.sleep(60)
+#             return
+
+#         while True:
+#             params["page"] = page
+#             try:
+#                 resp = session.get(api_url, params=params, timeout=timeout)
+#             except requests.RequestException as e:# network error: stop and return what we have
+#                 stop_reason = f"network error: {e}"
+#                 print("Network error during GitHub request, returning partial results:", e)
+#                 break
+#             # capture and print rate-limit headers for diagnostics
+#             hdr = resp.headers
+#             last_rate_info = _print_rate_info(hdr)
+
+#             # If remaining header present and <= stop_when_remaining, wait then retry same page
+#             rem = last_rate_info.get("remaining")
+#             try:
+#                 if rem is not None and int(rem) <= stop_when_remaining:
+#                     _wait_until_reset(last_rate_info)# after waiting, retry same page
+#                     continue
+#             except ValueError:# ignore parsing error and proceed
+#                 pass
+#             # Successful response
+#             if resp.status_code == 200:
+#                 data = resp.json()
+#                 items = data.get("items", [])
+#                 if not items and page == 1:
+#                     print(f"GitHub search returned 0 items for query: {q}")
+#                 for it in items:
+#                     results_items.append({
+#                         "name": it.get("name"),
+#                         "path": it.get("path"),
+#                         "html_url": it.get("html_url"),
+#                     })
+#                 # stop when fewer than per_page items returned (no more pages)
+#                 if len(items) < per_page:
+#                     break
+#                 page += 1
+#                 # polite short sleep to avoid bursting
+#                 time.sleep(0.1)
+#                 continue
+
+#             # Rate-limited or retryable responses: 403 / 429
+#             if resp.status_code == 403 or resp.status_code == 429:
+#                 # try to parse message
+#                 try:
+#                     msg = resp.json().get("message", "")
+#                 except Exception:
+#                     msg = resp.text or ""
+#                 # honor Retry-After header if provided
+#                 if hdr.get("Retry-After"):
+#                     print("Retry-After header present; waiting as requested...")
+#                     _wait_until_reset(last_rate_info)
+#                     continue
+#                 # if remaining==0 or message mentions rate limit -> wait until reset
+#                 rem = last_rate_info.get("remaining")
+#                 if rem == "0" or (rem is not None and int(rem) == 0) or "rate limit" in msg.lower():
+#                     print("Rate limit reached; will wait until reset and then continue...")
+#                     _wait_until_reset(last_rate_info)
+#                     continue
+#                 # abuse detection -> wait a longer time then retry
+#                 if "abuse" in msg.lower():
+#                     print(f"Abuse detection triggered: {msg}. Sleeping 120s then retrying...")
+#                     time.sleep(120)
+#                     continue
+#                 raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
+#             # Search API 1000-results cap
+#             if resp.status_code == 422:
+#                 print("Search API 422 (cannot access beyond the first 1000 results). Stopping and returning partial results.")
+#                 break
+#             raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
+
+#         # Extract parent folder paths and dedupe while preserving order
+#         seen = set()
+#         unique_folders: List[str] = []
+#         for it in results_items:
+#             path = it.get("path", "")
+#             if not path:
+#                 continue
+#             folder = os.path.dirname(path).strip("/")
+#             if folder and folder.lower() not in seen:
+#                 seen.add(folder.lower())
+#                 unique_folders.append(folder)
+
+#         # Print results
+#         if unique_folders:
+#             print(f"Found {len(unique_folders)} unique folder(s):")
+#             for f in unique_folders:
+#                 print(" -", f)
+#         else:
+#             print("No matching .srt files found with that query.")
+
+#         # # diagnostics JSON
+#         # if True and unique_folders:
+#         #     safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in (self.anime_folder_name or ""))[:200] or "result"
+#         #     json_path = os.path.join(os.getcwd(), f"github_search_{safe_name}.json")
+#         #     payload = {
+#         #         "query": q,
+#         #         "repo": f"{self.github_owner}/{self.github_repo}",
+#         #         "created_at": datetime.datetime.utcnow().isoformat() + "Z",
+#         #         "stop_reason": stop_reason,
+#         #         "rate_info": last_rate_info,
+#         #         "result_count": len(results_items),
+#         #         "items": results_items,
+#         #     }
+#         #     try:
+#         #         with open(json_path, "w", encoding="utf-8") as fh:
+#         #             json.dump(payload, fh, ensure_ascii=False, indent=2)
+#         #         print(f"Wrote diagnostics to {json_path}")
+#         #     except Exception as e:
+#         #         print("Failed to write diagnostics JSON:", e)
+
+#         return unique_folders
 
     def _parse_github_url(self, url: str) -> Dict[str, Optional[str]]:  
         p = urlparse(url)
@@ -1085,7 +1127,7 @@ class SubtitleManager:
         if s_e:
             wished_season, wished_episode = s_e
         else:
-            wished_season, wished_episode = self.extract_season_episode(url)
+            wished_season, wished_episodes, global_e, conf, info = self.extract_season_episode_global(url)
         
         # Find candidate subtitle folders for this anime
         candidate_folders = self._search_subtitle_folders()
@@ -1099,7 +1141,7 @@ class SubtitleManager:
         # find file matching requested episode
         wished_episode_file = None
         for f in files:#find wished episode
-            s, e = self.extract_season_episode(os.path.basename(f))
+            s, e, global_e, conf, info = self.extract_season_episode_global(os.path.basename(f))
             if e == wished_episode:
                 wished_episode_file = f
                 break
@@ -1108,7 +1150,7 @@ class SubtitleManager:
             logger.error("Could not locate remote file for season %s episode %s", wished_season, wished_episode)
             return False
 
-        self.current_season, self.current_episode = self.extract_season_episode(wished_episode_file)
+        self.current_season, self.current_episodes, global_e, conf, info = self.extract_season_episode_global(wished_episode_file)
         self.srt_file = self.download_current_episode(wished_episode_file)
         try:
             self._load_local_and_process(self.srt_file)
@@ -1129,7 +1171,7 @@ class SubtitleManager:
 # -------------------------Episode navigation map (comprehensive)-------------------------
     def _build_comprehensive_episode_map(self) -> None:
         """
-        Build a complete episode map from ALL files across all seasons.
+        Build a complete episode map from ALL files across all seasons using GitHub Search API.
         This includes:
         - episode_map: (season, episode) -> remote_path (for SxxExx format)
         - global_episode_map: global_episode -> (season, episode) (for global numbering)
@@ -1137,70 +1179,185 @@ class SubtitleManager:
         
         This should be called once during initialization to build a stable map for navigation.
         """
-        logger.info("Building comprehensive episode map from all files...")
+        self.anime_folder_name = "Naruto"
+        logger.info(f"Building comprehensive episode map for {self.anime_folder_name}")
         
-        # Search ALL folders and ALL files WITHOUT season filter
-        folders = self._search_subtitle_folders()
-        # logger.info(f"Found {len(folders)} subtitle folders for {self.anime_folder_name}:")
-        # for folder in folders:
-        #     logger.info(f"  - {folder}")
-        self.cached_folders = folders
+        all_results_items: List[Dict] = []
+        stop_reason = None
+        last_rate_info = {}
+        api_url = "https://api.github.com/search/code"
+        headers = {
+            "Accept": "application/vnd.github.v3+json",
+            "Authorization": f"token {self.github_token}",
+            "User-Agent": "subtitle-searcher",
+        }
+        per_page = 100  
+        def _print_rate_info(hdr):
+            limit = hdr.get("X-RateLimit-Limit")
+            remaining = hdr.get("X-RateLimit-Remaining")
+            reset = hdr.get("X-RateLimit-Reset")
+            retry_after = hdr.get("Retry-After")
+            reset_time = None
+            if reset:
+                try:
+                    reset_time = datetime.datetime.utcfromtimestamp(int(reset)).isoformat() + "Z"
+                except Exception:
+                    reset_time = reset
+            logger.info(f"Rate: limit={limit} remaining={remaining} reset={reset_time}")
+            return {"limit": limit, "remaining": remaining, "reset": reset, "retry_after": retry_after}
+        def _wait_until_reset(hdr_info):
+            # honor Retry-After first
+            ra = hdr_info.get("retry_after")
+            if ra:
+                try:
+                    wait = int(ra) + 1
+                except Exception:
+                    wait = 60
+                logger.warning(f"Server requested Retry-After {ra}s; sleeping {wait}s...")
+                time.sleep(wait)
+                return
+            # otherwise use X-RateLimit-Reset
+            reset = hdr_info.get("reset")
+            if reset:
+                try:
+                    reset_ts = int(reset)
+                    now_ts = int(time.time())
+                    wait = max(reset_ts - now_ts + 3, 3)
+                    reset_time = datetime.datetime.utcfromtimestamp(reset_ts).isoformat() + "Z"
+                    logger.warning(f"Sleeping {wait}s until rate reset at {reset_time}...")
+                    time.sleep(wait)
+                    return
+                except Exception:
+                    pass
+            # fallback
+            logger.warning("No reset info available; sleeping 60s as fallback...")
+            time.sleep(60)
+            return
         
-        headers = {"Accept": "application/vnd.github.v3+json", "Authorization": f"token {self.github_token}"}
-        all_files_data: List[Dict] = []  # (season, episode, global_ep, path)
-        
-        # Search all files in all folders (no season filter)
-        for folder in folders:
-            url = f"https://api.github.com/repos/{self.github_owner}/{self.github_repo}/contents/{folder}"
-            try:
-                resp = requests.get(url, headers=headers, timeout=15)
-                if resp.status_code != 200:
-                    continue
-                items = resp.json()
-                if not isinstance(items, list):
-                    continue
-                for it in items:
-                    if it.get("type") != "file":
+        session = requests.Session()
+        session.headers.update(headers)
+        tries = season = 1
+        while True: #search season until none found
+            logger.info(f"Searching season {season:02d}")
+            found_any_for_season = False
+            for tries in (1, 2, 3):#if 0 hits try amazon instead of netflix then without both and so on can add more fallbacks later
+                if tries == 1:
+                    search_query = f"{self.anime_folder_name} s{season:02d} Hulu"
+                elif tries == 2:
+                    search_query = f"{self.anime_folder_name} s{season:02d} Amazon"
+                elif tries == 3:
+                    search_query = f"{self.anime_folder_name} s{season:02d}"
+                q = (
+                    f'repo:{self.github_owner}/{self.github_repo}'# in:path {self.anime_folder_name}' #important " " at the end if not in:path used
+                    f' path:subtitles/anime_tv extension:srt in:path {search_query}'
+                )
+                params = {"q": q, "per_page": per_page}
+                page = 1
+                provider_found = False
+                while True:
+                    params["page"] = page
+                    try:
+                        resp = session.get(api_url, params=params, timeout=15)
+                    except requests.RequestException as e:# network error: stop and return what we have
+                        logger.error(f"network error: {e}")
+                        return
+                    # capture and print rate-limit headers for diagnostics
+                    hdr = resp.headers
+                    last_rate_info = _print_rate_info(hdr)
+                    rem = last_rate_info.get("remaining")
+                    if rem is not None and int(rem) <= 0:
+                        _wait_until_reset(last_rate_info)# after waiting, retry same page
                         continue
-                    name = it.get("name", "")
-                    if not name.lower().endswith('.srt'):
+                    # Successful response
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        if not isinstance(data, dict):#maybe list?
+                            continue
+                        items = data.get("items", [])
+                        if not items and page == 1:
+                            logger.info(f"GitHub search returned 0 items for query: {q}")
+                            break
+                        provider_found = True
+                        found_any_for_season = True
+                        for it in items:
+                            name = it.get("name", "")
+                            s, e, global_e, conf, info = self.extract_season_episode_global(name)
+                            all_results_items.append({
+                                "name": name,
+                                "path": it.get("path"),
+                                "season": s,
+                                "episode": e,
+                                "global_episode": global_e,
+                                "confidence": conf,
+                                "parse_info": info,
+                                "inferred_episode": None,
+                                "inferred_global": None
+                            })
+                        # stop when fewer than per_page items returned (no more pages)
+                        if len(items) < per_page:
+                            break
+                        page += 1
+                        time.sleep(0.1)
                         continue
-                    
-                    path = it.get("path")
-                    s, e = self.extract_season_episode(name)
-                    
-                    # Extract global episode if present (in parentheses)
-                    global_ep = None
-                    m = re.search(r'\((\d+)\)', name)
-                    if m:
-                        global_ep = int(m.group(1))
-                    
-                    all_files_data.append({
-                        'name': name,
-                        'path': path,
-                        'season': s,
-                        'episode': e,
-                        'global_episode': global_ep
-                    })
-                    
-                    # Build maps from this file
-                    if s and e:
-                        self.episode_map[(s, e)] = path
-                    if global_ep and s and e:
-                        self.global_episode_map[global_ep] = (s, e)
-            except Exception as ex:
-                logger.exception(f"Failed to search folder {folder}")
+                    # Rate-limited or retryable responses: 403 / 429
+                    if resp.status_code == 403 or resp.status_code == 429:
+                        # try to parse message
+                        try:
+                            msg = resp.json().get("message", "")
+                        except Exception:
+                            msg = resp.text or ""
+                        # honor Retry-After header if provided
+                        if hdr.get("Retry-After"):
+                            logger.warning("Retry-After header present; waiting as requested...")
+                            _wait_until_reset(last_rate_info)
+                            continue
+                        # if remaining==0 or message mentions rate limit -> wait until reset
+                        rem = last_rate_info.get("remaining")
+                        if rem == "0" or (rem is not None and int(rem) == 0) or "rate limit" in msg.lower():
+                            logger.warning("Rate limit reached; will wait until reset and then continue...")
+                            _wait_until_reset(last_rate_info)
+                            continue
+                        # abuse detection -> wait a longer time then retry
+                        if "abuse" in msg.lower():
+                            logger.warning(f"Abuse detection triggered: {msg}. Sleeping 120s then retrying...")
+                            time.sleep(120)
+                            continue
+                        raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
+                    # Search API 1000-results cap
+                    if resp.status_code == 422:
+                        logger.info("Search API 422 (cannot access beyond the first 1000 results). Stopping and returning partial results.")
+                        break
+                    raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
+                if provider_found:
+                    break
+            if not found_any_for_season:
+                logger.info(f"No providers found results for season {season:02d}, stopping.")
+                break  # stop season loop entirely
+            season += 1
+        
+        # New: Infer missing globals/episodes
+        all_results_items = self._infer_globals(all_results_items)
+        
+        # Build maps, using inferred if needed
+        for file_info in all_results_items:
+            s = file_info['season']
+            e = file_info['episode'] or file_info['inferred_episode']
+            g = file_info['global_episode'] or file_info['inferred_global']
+            path = file_info['path']
+            if s and e:
+                self.episode_map[(s, e)] = path
+            if g and s and e:
+                self.global_episode_map[g] = (s, e)
         
         logger.info(f"Built episode map with {len(self.episode_map)} SxxExx entries and {len(self.global_episode_map)} global episode mappings")
         
-        # Log comprehensive map for debugging
-        self._log_comprehensive_episodes(all_files_data)
-    
+        # Log comprehensive map for debugging (always call, even if empty)
+        self._log_comprehensive_episodes(all_results_items)
+
     def _log_comprehensive_episodes(self, files_data: List[Dict]) -> None:
-        """Log all discovered episodes to comprehensive_episodes.txt for reference."""
         try:
             log_file = os.path.join(self._get_cache_base_dir(), "comprehensive_episodes.txt")
-            timestamp = __import__('datetime').datetime.now().isoformat()
+            timestamp = datetime.datetime.now().isoformat()
             
             with open(log_file, 'w', encoding='utf-8') as f:
                 f.write("=" * 100 + "\n")
@@ -1211,52 +1368,71 @@ class SubtitleManager:
                 f.write(f"Total files found: {len(files_data)}\n")
                 f.write("=" * 100 + "\n\n")
                 
-                # Group by season
-                by_season = {}
+                by_season = defaultdict(list)
                 for file_info in files_data:
-                    s = file_info['season']
-                    if s not in by_season:
-                        by_season[s] = []
-                    by_season[s].append(file_info)
+                    by_season[file_info['season']].append(file_info)
                 
-                # Print by season (None first, then sorted integers)
                 sorted_seasons = sorted([k for k in by_season.keys() if k is not None])
                 if None in by_season:
                     sorted_seasons = [None] + sorted_seasons
                 
                 for season in sorted_seasons:
                     if season is None:
-                        continue  # Handle separately below
+                        continue
                     files_in_season = by_season[season]
+                    files_in_season.sort(key=lambda x: x['episode'] if x['episode'] else 9999)
                     f.write(f"\n{'─' * 100}\n")
                     f.write(f"SEASON {season} ({len(files_in_season)} files)\n")
                     f.write(f"{'─' * 100}\n")
-                    for file_info in sorted(files_in_season, key=lambda x: x['episode'] if x['episode'] else 9999):
-                        s, e = file_info['season'], file_info['episode']
+                    for file_info in files_in_season:
+                        s = file_info['season']
+                        e = file_info['episode']
                         g = file_info['global_episode']
+                        ie = file_info.get('inferred_episode')
+                        ig = file_info.get('inferred_global')
                         path = file_info['path']
                         name = file_info['name']
-                        global_str = f" [Global: {g}]" if g else ""
-                        f.write(f"S{s:02d}E{e:02d}{global_str:20s} | {name}\n")
-                        f.write(f"                        | {path}\n\n")
+                        conf = file_info['confidence']
+
+                        e_str = f"{e:02d}" if e is not None else "??"
+                        global_str = f" [Global: {g}]" if g is not None else ""
+                        inf_e_str = f" [Inf E: {ie}]" if ie is not None else ""
+                        inf_g_str = f" [Inf G: {ig}]" if ig is not None else ""
+                        conf_str = f" (Conf: {conf:.2f})"
+
+                        f.write(f"S{s:02d}E{e_str}{global_str:20s}{conf_str:15s}{inf_e_str}{inf_g_str} | {name}\n")
+                        f.write(f"                        | {path}\n")
+                        if conf < 0.7:
+                            f.write(f"                        | Parse Info: {file_info['parse_info']}\n")
+                        f.write("\n")
                 
-                # Print files without season number
-                no_season = [f for f in files_data if f['season'] is None]
+                no_season = by_season[None]
                 if no_season:
+                    no_season.sort(key=lambda x: (x['episode'] if x['episode'] else x['global_episode'] if x['global_episode'] else 9999))
                     f.write(f"\n{'─' * 100}\n")
                     f.write(f"FILES WITHOUT SEASON NUMBER ({len(no_season)} files)\n")
                     f.write(f"{'─' * 100}\n")
                     for file_info in no_season:
                         e = file_info['episode']
                         g = file_info['global_episode']
+                        ie = file_info.get('inferred_episode')
+                        ig = file_info.get('inferred_global')
                         path = file_info['path']
                         name = file_info['name']
-                        ep_str = f"E{e}" if e else "???"
-                        global_str = f" [Global: {g}]" if g else ""
-                        f.write(f"{ep_str:8s}{global_str:20s} | {name}\n")
-                        f.write(f"                        | {path}\n\n")
+                        conf = file_info['confidence']
+
+                        ep_str = f"E{e:02d}" if e is not None else "???"
+                        global_str = f" [Global: {g}]" if g is not None else ""
+                        inf_e_str = f" [Inf E: {ie}]" if ie is not None else ""
+                        inf_g_str = f" [Inf G: {ig}]" if ig is not None else ""
+                        conf_str = f" (Conf: {conf:.2f})"
+
+                        f.write(f"{ep_str:8s}{global_str:20s}{conf_str:15s}{inf_e_str}{inf_g_str} | {name}\n")
+                        f.write(f"                        | {path}\n")
+                        if conf < 0.7:
+                            f.write(f"                        | Parse Info: {file_info['parse_info']}\n")
+                        f.write("\n")
                 
-                # Print global episode map
                 if self.global_episode_map:
                     f.write(f"\n{'─' * 100}\n")
                     f.write(f"GLOBAL EPISODE MAPPING\n")
@@ -1264,8 +1440,12 @@ class SubtitleManager:
                     for global_ep in sorted(self.global_episode_map.keys()):
                         s, e = self.global_episode_map[global_ep]
                         f.write(f"Global E{global_ep} → S{s}E{e}\n")
+                
+                if not files_data:
+                    f.write("No episodes found. Check GitHub API access or search query.\n")
         except Exception as e:
             logger.exception("Failed to log comprehensive episodes")
+
 
 # -------------------------Episode navigation map (from found_srt_files.txt)-------------------------
     def _build_episode_map_from_log(self) -> Tuple[Dict[Tuple[int, int], str], List[Tuple[int, int]]]:
@@ -1310,6 +1490,35 @@ class SubtitleManager:
         available_episodes.sort()
         return episode_map, available_episodes
     
+
+    def _build_local_episode_map(self):
+        all_files_data = []
+        if self.local_srt_dir and os.path.isdir(self.local_srt_dir):
+            for fn in os.listdir(self.local_srt_dir):
+                if not fn.lower().endswith('.srt'): continue
+                path = os.path.join(self.local_srt_dir, fn)
+                s, e, global_e, conf, info = self.extract_season_episode_global(fn)
+                all_files_data.append({
+                    'name': fn, 'path': path, 'season': s, 'episode': e,
+                    'global_episode': global_e, 'confidence': conf, 'parse_info': info,
+                    'inferred_episode': None, 'inferred_global': None
+                })
+        
+        # New: Infer missing
+        all_files_data = self._infer_globals(all_files_data)
+        
+        # Build maps with inferred
+        for file_info in all_files_data:
+            s = file_info['season']
+            e = file_info['episode'] or file_info['inferred_episode']
+            g = file_info['global_episode'] or file_info['inferred_global']
+            path = file_info['path']
+            if s and e: self.episode_map[(s, e)] = path
+            if g and s and e: self.global_episode_map[g] = (s, e)
+        
+        self._log_comprehensive_episodes(all_files_data)
+
+
     def _find_next_from_map(self, current_season: int, current_episode: int) -> Optional[Tuple[int, int, str]]:
         """
         Find next available episode from the comprehensive episode map.
@@ -1366,59 +1575,31 @@ class SubtitleManager:
 
 
 # ---------------------- Helpers: parsing ----------------------
-    def normalize_name(name: str) -> str:
-        # remove group-tags in [] and {} but keep parentheses (they often contain a useful number)
-        s = re.sub(r'\[.*?\]', ' ', name)
-        s = re.sub(r'\{.*?\}', ' ', s)
+    def normalize_name(self, name: str) -> str:
+        s = re.sub(r'\[.*?\]', ' ', name)   # remove [group]
+        s = re.sub(r'\{.*?\}', ' ', s)      # remove {..}
         s = s.replace('\\', '/').split('/')[-1]
-        return s.strip()
+        s = re.sub(r'\.(mkv|mp4|srt|ass)$', '', s, flags=re.IGNORECASE)  # strip extension
+        s = s.replace('–', '-').replace('—', '-')
+        s = re.sub(r'\s+', ' ', s).strip()
+        return s
     
-    def infer_season_offsets(parsed_files: List[Dict]) -> Dict[int, int]:
-        # parsed_files entries have keys: season, episode, global
-        per_season_offsets = defaultdict(list)
-        for p in parsed_files:
-            s = p.get("season"); e = p.get("episode"); g = p.get("global")
-            if s is not None and e is not None and g is not None:
-                per_season_offsets[s].append(g - e)
-        season_offsets = {}
-        for s, offs in per_season_offsets.items():
-            if not offs:
-                continue
-            # require some agreement: use median and ensure spread small
-            med = int(statistics.median(offs))
-            if max(offs) - min(offs) <= 2:  # allow small noise
-                season_offsets[s] = med
-            else:
-                # ambiguous: choose median but mark ambiguous (you can log)
-                season_offsets[s] = med
-        return season_offsets
-
-    def apply_offsets(parsed_files, season_offsets):
-        # Build maps
-        episode_map = {}        # (s,e) -> path
-        global_episode_map = {} # g -> (s,e)
-        for p in parsed_files:
-            s, e, g, path = p.get("season"), p.get("episode"), p.get("global"), p.get("path")
-            if s is not None and e is not None:
-                episode_map[(s, e)] = path
-                if g is not None:
-                    global_episode_map[g] = (s, e)
-            elif g is not None:
-                # try infer season from offsets
-                for s_idx, offset in season_offsets.items():
-                    candidate_e = g - offset
-                    if candidate_e > 0:
-                        # optionally validate candidate exists or is reasonable
-                        global_episode_map[g] = (s_idx, candidate_e)
-                        break
-        return episode_map, global_episode_map
-
-    def extract_season_episode_global(name: str) -> Tuple[Optional[int], Optional[int], Optional[int], float, Dict]:
+    def is_noise_token(self, token: str) -> bool:
+        token = token.lower()
+        if re.match(r'^\d{3,4}p$', token): return True  # resolution
+        if re.match(r'^\d{3,4}x\d{3,4}$', token): return True
+        if token in ('bd', 'web', 'webrip', 'bluray', 'bdrip', 'dvd', 'x264', 'x265', 'av1', 'hevc', 'aac', 'flac'):
+            return True
+        if token.startswith('720') or token.startswith('1080'):
+            return True
+        return False
+    
+    def extract_season_episode_global(self, name: str) -> Tuple[Optional[int], Optional[int], Optional[int], float, Dict]:
         """
         Return (season, episode, global_episode, confidence_score 0..1, info_dict)
         """
         raw = name
-        sname = normalize_name(raw)
+        sname = self.normalize_name(raw)
         info = {"normalized": sname}
         
         # parenthesized numbers and positions
@@ -1432,78 +1613,315 @@ class SubtitleManager:
         if gm:
             info["global_from_marker"] = int(gm.group(1))
         
-        # 1) SxxExx (highest priority)
+        # 0) Japanese format: シーズンX-Y (from old pattern 1, highest priority)
+        m_jp_season = re.search(r'シーズン\s*(\d{1,2})\s*[-_]\s*(\d{1,4})\s*[-_]', sname)
+        if m_jp_season:
+            s = int(m_jp_season.group(1))
+            e = int(m_jp_season.group(2))
+            info["found_jp_season"] = (s, e)
+            # New: If e is large (>50), likely global misparsed as e
+            if e > 50:
+                g = e
+                e = None
+                conf = 0.92
+            else:
+                g = None
+                conf = 0.92
+            global_candidate = None
+            if par_iter:
+                for m in par_iter:
+                    if m.start() >= m_jp_season.end():
+                        global_candidate = int(m.group(1))
+                        break
+            if global_candidate and (global_candidate > (e or 0)):
+                g = global_candidate
+                conf += 0.03
+            jp = re.search(r'第\s*(\d{1,4})\s*話', sname)
+            if jp:
+                g = int(jp.group(1))
+                conf = 0.995
+            if "global_from_marker" in info:
+                g = info["global_from_marker"]
+                conf = 0.995
+            # If S1 and no g, assume g = e
+            if s == 1 and e is not None and g is None:
+                g = e
+                conf -= 0.01  # Slight penalty for assumption
+            return s, e, g, conf, info
+        
+        # 0.5) English "Season X - Y" (from old pattern 2)
+        m_en_season = re.search(r'(?i)season\s+(\d{1,2})\s*[-:]\s*(\d{1,4})', sname)
+        if m_en_season:
+            s = int(m_en_season.group(1))
+            e = int(m_en_season.group(2))
+            info["found_en_season"] = (s, e)
+            if e > 50:
+                g = e
+                e = None
+                conf = 0.91
+            else:
+                g = None
+                conf = 0.91
+            global_candidate = None
+            if par_iter:
+                for m in par_iter:
+                    if m.start() >= m_en_season.end():
+                        global_candidate = int(m.group(1))
+                        break
+            if global_candidate and (global_candidate > (e or 0)):
+                g = global_candidate
+                conf += 0.03
+            jp = re.search(r'第\s*(\d{1,4})\s*話', sname)
+            if jp:
+                g = int(jp.group(1))
+                conf = 0.995
+            if "global_from_marker" in info:
+                g = info["global_from_marker"]
+                conf = 0.995
+            if s == 1 and e is not None and g is None:
+                g = e
+                conf -= 0.01
+            return s, e, g, conf, info
+        
+        # 1) SxxExx (existing, with large e check)
         m_s_ex = re.search(r'(?i)\bS(\d{1,2})\D*[eE](\d{1,4})\b', sname)
         if m_s_ex:
-            s = int(m_s_ex.group(1)); e = int(m_s_ex.group(2))
+            s = int(m_s_ex.group(1))
+            e = int(m_s_ex.group(2))
             info["found_s_e"] = (s, e)
-            # parenthesized number after SxxExx is likely global
+            if e > 50:
+                g = e
+                e = None
+                conf = 0.9
+            else:
+                g = None
+                conf = 0.9
             global_candidate = None
             if par_iter:
                 for m in par_iter:
                     if m.start() >= m_s_ex.end():
-                        global_candidate = int(m.group(1)); break
+                        global_candidate = int(m.group(1))
+                        break
+            if global_candidate and (global_candidate > (e or 0)):
+                g = global_candidate
+                conf += 0.03
             jp = re.search(r'第\s*(\d{1,4})\s*話', sname)
             if jp:
-                return s, e, int(jp.group(1)), 0.995, info
+                g = int(jp.group(1))
+                conf = 0.995
             if "global_from_marker" in info:
-                return s, e, info["global_from_marker"], 0.995, info
-            if global_candidate:
-                return s, e, global_candidate, 0.98, info
-            return s, e, None, 0.9, info
+                g = info["global_from_marker"]
+                conf = 0.995
+            if s == 1 and e is not None and g is None:
+                g = e
+                conf -= 0.01
+            return s, e, g, conf, info
         
-        # 2) Sx - yy pattern
+        # 2) Sx - yy pattern (existing, with large e check)
         m_s_dash = re.search(r'(?i)\bS(\d{1,2})\s*[-:]\s*(\d{1,4})\b', sname)
         if m_s_dash:
-            s = int(m_s_dash.group(1)); e = int(m_s_dash.group(2))
+            s = int(m_s_dash.group(1))
+            e = int(m_s_dash.group(2))
             info["found_s_e_dash"] = (s, e)
+            if e > 50:
+                g = e
+                e = None
+                conf = 0.85
+            else:
+                g = None
+                conf = 0.85
             global_candidate = None
-            for m in par_iter:
-                if m.start() >= m_s_dash.end():
-                    global_candidate = int(m.group(1)); break
-            if global_candidate:
-                return s, e, global_candidate, 0.95, info
+            if par_iter:
+                for m in par_iter:
+                    if m.start() >= m_s_dash.end():
+                        global_candidate = int(m.group(1))
+                        break
+            if global_candidate and (global_candidate > (e or 0)):
+                g = global_candidate
+                conf += 0.03
             if "global_from_marker" in info:
-                return s, e, info["global_from_marker"], 0.95, info
-            return s, e, None, 0.85, info
+                g = info["global_from_marker"]
+                conf += 0.01
+            if s == 1 and e is not None and g is None:
+                g = e
+                conf -= 0.01
+            return s, e, g, conf, info
         
-        # 3) Japanese global marker (第NNN話)
+        # Integrate old pattern 3: "SX - Y" or "SXY" with optional E
+        m_sxy = re.search(r'[_\s]S(\d{1,2})\s*[-:\s]*E?(\d{1,4})', sname, re.IGNORECASE)
+        if m_sxy:
+            s = int(m_sxy.group(1))
+            e = int(m_sxy.group(2))
+            info["found_sxy"] = (s, e)
+            if e > 50:
+                g = e
+                e = None
+                conf = 0.84
+            else:
+                g = None
+                conf = 0.84
+            global_candidate = None
+            if par_iter:
+                for m in par_iter:
+                    if m.start() >= m_sxy.end():
+                        global_candidate = int(m.group(1))
+                        break
+            if global_candidate and (global_candidate > (e or 0)):
+                g = global_candidate
+                conf += 0.03
+            if "global_from_marker" in info:
+                g = info["global_from_marker"]
+                conf += 0.01
+            if s == 1 and e is not None and g is None:
+                g = e
+                conf -= 0.01
+            return s, e, g, conf, info
+        
+        # Integrate old pattern 4: "SX (Y)"
+        m_sx_par = re.search(r'\bS(\d{1,2})(?:\D*E)?\s*\(\s*(\d{1,4})\s*\)', sname, re.IGNORECASE)
+        if m_sx_par:
+            s = int(m_sx_par.group(1))
+            potential = int(m_sx_par.group(2))
+            info["found_sx_par"] = (s, potential)
+            if potential < 50:
+                e = potential
+                g = None
+            else:
+                e = None
+                g = potential
+            conf = 0.83
+            if "global_from_marker" in info:
+                g = info["global_from_marker"]
+                conf += 0.01
+            jp = re.search(r'第\s*(\d{1,4})\s*話', sname)
+            if jp:
+                g = int(jp.group(1))
+                conf = 0.995
+            if s == 1 and e is not None and g is None:
+                g = e
+                conf -= 0.01
+            return s, e, g, conf, info
+        
+        # 3) Japanese global marker (第NNN話) (existing)
         jp = re.search(r'第\s*(\d{1,4})\s*話', sname)
         if jp:
-            return None, None, int(jp.group(1)), 1.0, info
+            g = int(jp.group(1))
+            # Look for season
+            m_season = re.search(r'(?i)(season|シーズン|S)\s*(\d{1,2})', sname)
+            s = int(m_season.group(2)) if m_season else None
+            if s == 1:
+                e = g
+            else:
+                e = None
+            return s, e, g, 1.0, info
         
-        # 4) hyphen-number then "(" or hyphen-number hyphen -> global candidate
+        # Integrate old pattern 6: " - 01 - "
+        m_dash_ep = re.search(r'\s*-\s*(\d{1,4})\s*-', sname)
+        if m_dash_ep:
+            potential = int(m_dash_ep.group(1))
+            m_season = re.search(r'(?i)(season|シーズン|S)\s*(\d{1,2})', sname)
+            s = int(m_season.group(2)) if m_season else None
+            if potential > 50:
+                g = potential
+                e = None
+            else:
+                e = potential
+                g = None
+            conf = 0.80
+            global_candidate = par_nums[0] if par_nums and par_nums[0] > (e or 0) else None
+            if global_candidate:
+                g = global_candidate
+                conf += 0.03
+            if s == 1 and e is not None and g is None:
+                g = e
+                conf -= 0.01
+            return s, e, g, conf, info
+        
+        # 4) hyphen-number then "(" or hyphen-number hyphen (existing, with season look)
         m_hy_par = re.search(r'[-_]\s*(\d{1,4})\s*(?:\(|[-_])', sname)
+        YEAR_RE = re.compile(r'^(19|20)\d{2}$')
         if m_hy_par:
             num = int(m_hy_par.group(1))
             if not YEAR_RE.match(str(num)):
-                return None, None, num, 0.9, info
+                m_season = re.search(r'(?i)(season|シーズン|S)\s*(\d{1,2})', sname)
+                s = int(m_season.group(2)) if m_season else None
+                if num > 50:
+                    g = num
+                    e = None
+                else:
+                    e = num
+                    g = None
+                conf = 0.9
+                if s == 1 and e is not None and g is None:
+                    g = e
+                    conf -= 0.01
+                return s, e, g, conf, info
         
-        # 5) E### token without Sxx -> likely global
+        # 5) E### token without Sxx (existing, with season look)
         m_e = re.search(r'(?i)(?:\b|^)[eE](\d{1,4})(?:\b|$)', sname)
         if m_e:
             num = int(m_e.group(1))
             if num < 5000:
+                m_season = re.search(r'(?i)(season|シーズン|S)\s*(\d{1,2})', sname)
+                s = int(m_season.group(2)) if m_season else None
+                if num > 50:
+                    g = num
+                    e = None
+                else:
+                    e = num
+                    g = None
+                conf = 0.7
                 if "global_from_marker" in info:
-                    return None, None, info["global_from_marker"], 0.95, info
-                return None, None, num, 0.7, info
+                    g = info["global_from_marker"]
+                    conf += 0.01
+                if s == 1 and e is not None and g is None:
+                    g = e
+                    conf -= 0.01
+                return s, e, g, conf, info
         
-        # 6) duplicate marker like "095(1)" -> return main number as global
+        # 6) duplicate marker "095(1)" (existing)
         m_dup = re.search(r'(\d{1,4})\(\s*1\s*\)', sname)
         if m_dup:
             num = int(m_dup.group(1))
-            return None, None, num, 0.8, info
+            m_season = re.search(r'(?i)(season|シーズン|S)\s*(\d{1,2})', sname)
+            s = int(m_season.group(2)) if m_season else None
+            g = num
+            e = num if num <= 50 else None
+            conf = 0.8
+            if s == 1 and e is not None and g is None:
+                g = e
+            return s, e, g, conf, info
         
-        # 7) fallback: last numeric token that is not noise
+        # Integrate old pattern 9: LAST number (avoid year/res)
+        nums = re.findall(r'(?<!\d)(\d{2,4})(?![p\d])', sname)
+        if nums:
+            potential = int(nums[-1])
+            if 1500 <= potential <= 2100:  # year
+                potential = None
+            else:
+                m_season = re.search(r'(?i)(season|シーズン|S)\s*(\d{1,2})', sname)
+                s = int(m_season.group(2)) if m_season else None
+                if potential > 50:
+                    g = potential
+                    e = None
+                else:
+                    e = potential
+                    g = None
+                conf = 0.6
+                if s == 1 and e is not None and g is None:
+                    g = e
+                    conf -= 0.01
+                return s, e, g, conf, info
+        
+        # Existing fallback
         tokens = re.split(r'[.\s_\-()\[\]]+', sname)
         tokens = [t for t in tokens if t]
         nums = []
         for t in tokens:
-            if t.isdigit() and not is_noise_token(t):
+            if t.isdigit() and not self.is_noise_token(t):
                 nums.append(int(t))
         if nums:
             if par_nums:
-                # prefer a paren number if it isn't clearly a duplicate marker
                 for i, n in enumerate(par_nums):
                     par_pos = par_positions[i]
                     before = sname[:par_pos].rstrip()
@@ -1514,58 +1932,161 @@ class SubtitleManager:
         
         return None, None, None, 0.0, info
 
-    def extract_season_episode(self, name: str) -> Tuple[Optional[int], Optional[int]]:
-        # 1) Japanese format: シーズン1-10- (highest priority)
-        m = re.search(r'シーズン\s*(\d{1,2})\s*[-_]\s*(\d{1,4})\s*[-_]', name)
-        if m:
-            return int(m.group(1)), int(m.group(2))
+#     def extract_season_episode_global(self, name: str) -> Tuple[Optional[int], Optional[int], Optional[int], float, Dict]:
+#         """
+#         Return (season, episode, global_episode, confidence_score 0..1, info_dict)
+#         """
+#         raw = name
+#         sname = self.normalize_name(raw)
+#         info = {"normalized": sname}
         
-        # 2) English "Season X - Y" pattern (high priority to avoid picking up numbers)
-        m = re.search(r'(?i)season\s+(\d{1,2})\s*[-:]\s*(\d{1,4})', name)
-        if m:
-            return int(m.group(1)), int(m.group(2))
+#         # parenthesized numbers and positions
+#         par_iter = list(re.finditer(r'\(\s*(\d{1,4})\s*\)', sname))
+#         par_nums = [int(m.group(1)) for m in par_iter]
+#         par_positions = [m.start() for m in par_iter]
+#         info["par_nums"] = par_nums
         
-        # 3) "SX - Y" or "SXY" with optional E: [Judas] Shingeki no Kyojin S3 - 19.srt
-        # Also matches with underscore: Shingeki_no_Kyojin_S3 (38).srt
-        m = re.search(r'[_\s]S(\d{1,2})\s*[-:\s]*E?(\d{1,4})', name, re.IGNORECASE)
-        if m:
-            return int(m.group(1)), int(m.group(2))
+#         # explicit "Global: N" marker
+#         gm = re.search(r'Global[:\s]*#?\s*(\d{1,4})', sname, re.IGNORECASE)
+#         if gm:
+#             info["global_from_marker"] = int(gm.group(1))
         
-        # 4) "SX (Y)" pattern with optional global: Shingeki_no_Kyojin_S3 (38)(1).srt or S3E01 (38)
-        # Match S# followed by numbers in parentheses (can be multiple)
-        m = re.search(r'\bS(\d{1,2})(?:\D*E)?\s*(\d{1,4})\s*(?:\(\d+\))*', name, re.IGNORECASE)
-        if m:
-            return int(m.group(1)), int(m.group(2))
+#         # 1) SxxExx (highest priority)
+#         m_s_ex = re.search(r'(?i)\bS(\d{1,2})\D*[eE](\d{1,4})\b', sname)
+#         if m_s_ex:
+#             s = int(m_s_ex.group(1)); e = int(m_s_ex.group(2))
+#             info["found_s_e"] = (s, e)
+#             # parenthesized number after SxxExx is likely global
+#             global_candidate = None
+#             if par_iter:
+#                 for m in par_iter:
+#                     if m.start() >= m_s_ex.end():
+#                         global_candidate = int(m.group(1)); break
+#             jp = re.search(r'第\s*(\d{1,4})\s*話', sname)
+#             if jp:
+#                 return s, e, int(jp.group(1)), 0.995, info
+#             if "global_from_marker" in info:
+#                 return s, e, info["global_from_marker"], 0.995, info
+#             if global_candidate:
+#                 return s, e, global_candidate, 0.98, info
+#             return s, e, None, 0.9, info
+        
+#         # 2) Sx - yy pattern
+#         m_s_dash = re.search(r'(?i)\bS(\d{1,2})\s*[-:]\s*(\d{1,4})\b', sname)
+#         if m_s_dash:
+#             s = int(m_s_dash.group(1)); e = int(m_s_dash.group(2))
+#             info["found_s_e_dash"] = (s, e)
+#             global_candidate = None
+#             for m in par_iter:
+#                 if m.start() >= m_s_dash.end():
+#                     global_candidate = int(m.group(1)); break
+#             if global_candidate:
+#                 return s, e, global_candidate, 0.95, info
+#             if "global_from_marker" in info:
+#                 return s, e, info["global_from_marker"], 0.95, info
+#             return s, e, None, 0.85, info
+        
+#         # 3) Japanese global marker (第NNN話)
+#         jp = re.search(r'第\s*(\d{1,4})\s*話', sname)
+#         if jp:
+#             return None, None, int(jp.group(1)), 1.0, info
+        
+#         # 4) hyphen-number then "(" or hyphen-number hyphen -> global candidate
+#         m_hy_par = re.search(r'[-_]\s*(\d{1,4})\s*(?:\(|[-_])', sname)
+#         YEAR_RE = re.compile(r'^(19|20)\d{2}$')
+#         if m_hy_par:
+#             num = int(m_hy_par.group(1))
+#             if not YEAR_RE.match(str(num)):
+#                 return None, None, num, 0.9, info
+        
+#         # 5) E### token without Sxx -> likely global
+#         m_e = re.search(r'(?i)(?:\b|^)[eE](\d{1,4})(?:\b|$)', sname)
+#         if m_e:
+#             num = int(m_e.group(1))
+#             if num < 5000:
+#                 if "global_from_marker" in info:
+#                     return None, None, info["global_from_marker"], 0.95, info
+#                 return None, None, num, 0.7, info
+        
+#         # 6) duplicate marker like "095(1)" -> return main number as global
+#         m_dup = re.search(r'(\d{1,4})\(\s*1\s*\)', sname)
+#         if m_dup:
+#             num = int(m_dup.group(1))
+#             return None, None, num, 0.8, info
+        
+#         # 7) fallback: last numeric token that is not noise
+#         tokens = re.split(r'[.\s_\-()\[\]]+', sname)
+#         tokens = [t for t in tokens if t]
+#         nums = []
+#         for t in tokens:
+#             if t.isdigit() and not self.is_noise_token(t):
+#                 nums.append(int(t))
+#         if nums:
+#             if par_nums:
+#                 # prefer a paren number if it isn't clearly a duplicate marker
+#                 for i, n in enumerate(par_nums):
+#                     par_pos = par_positions[i]
+#                     before = sname[:par_pos].rstrip()
+#                     if before and before[-1].isdigit() and n <= 3:
+#                         continue
+#                     return None, None, n, 0.85, info
+#             return None, None, nums[-1], 0.5, info
+        
+#         return None, None, None, 0.0, info
 
-        # 5) Standard SxxExx format
-        m = re.search(r'(?i)[sS](\d{1,2})\D*[eE](\d{1,4})', name)
-        if m:
-            return int(m.group(1)), int(m.group(2))
+# # old
+#     def extract_season_episode(self, name: str) -> Tuple[Optional[int], Optional[int]]:
+#         # 1) Japanese format: シーズン1-10- (highest priority)
+#         m = re.search(r'シーズン\s*(\d{1,2})\s*[-_]\s*(\d{1,4})\s*[-_]', name)
+#         if m:
+#             return int(m.group(1)), int(m.group(2))
+        
+#         # 2) English "Season X - Y" pattern (high priority to avoid picking up numbers)
+#         m = re.search(r'(?i)season\s+(\d{1,2})\s*[-:]\s*(\d{1,4})', name)
+#         if m:
+#             return int(m.group(1)), int(m.group(2))
+        
+#         # 3) "SX - Y" or "SXY" with optional E: [Judas] Shingeki no Kyojin S3 - 19.srt
+#         # Also matches with underscore: Shingeki_no_Kyojin_S3 (38).srt
+#         m = re.search(r'[_\s]S(\d{1,2})\s*[-:\s]*E?(\d{1,4})', name, re.IGNORECASE)
+#         if m:
+#             return int(m.group(1)), int(m.group(2))
+        
+#         # 4) "SX (Y)" pattern with optional global: Shingeki_no_Kyojin_S3 (38)(1).srt or S3E01 (38)
+#         # Match S# followed by numbers in parentheses (can be multiple)
+#         m = re.search(r'\bS(\d{1,2})(?:\D*E)?\s*(\d{1,4})\s*(?:\(\d+\))*', name, re.IGNORECASE)
+#         if m:
+#             return int(m.group(1)), int(m.group(2))
 
-        # 6) Japanese style "進撃の巨人 - 01 -" (Judas format, just episode)
-        m = re.search(r'\s*-\s*(\d{1,4})\s*-', name)
-        if m:
-            return None, int(m.group(1))
+#         # 5) Standard SxxExx format
+#         m = re.search(r'(?i)[sS](\d{1,2})\D*[eE](\d{1,4})', name)
+#         if m:
+#             return int(m.group(1)), int(m.group(2))
 
-        # 7) Exx (episode only, no season)
-        m = re.search(r'(?i)\b[eE](\d{1,4})\b', name)
-        if m:
-            return None, int(m.group(1))
+#         # 6) Japanese style "進撃の巨人 - 01 -" (Judas format, just episode)
+#         m = re.search(r'\s*-\s*(\d{1,4})\s*-', name)
+#         if m:
+#             return None, int(m.group(1))
 
-        # 8) After dash with season context
-        m = re.search(r'シーズン|S\d+.*?-\s*(\d{1,4})\s*-', name, re.IGNORECASE)
-        if m:
-            return None, int(m.group(1))
+#         # 7) Exx (episode only, no season)
+#         m = re.search(r'(?i)\b[eE](\d{1,4})\b', name)
+#         if m:
+#             return None, int(m.group(1))
 
-        # 9) LAST number (but NOT if followed by 'p' like "720p", "1080p")
-        # Avoid matching resolution numbers
-        nums = re.findall(r'(?<!\d)(\d{2,4})(?![p\d])', name)
-        if nums:
-            ep = int(nums[-1])
-            if 1500 <= ep <= 2100:  # year
-                return None, None
-            return None, ep
-        return None, None
+#         # 8) After dash with season context
+#         m = re.search(r'シーズン|S\d+.*?-\s*(\d{1,4})\s*-', name, re.IGNORECASE)
+#         if m:
+#             return None, int(m.group(1))
+
+#         # 9) LAST number (but NOT if followed by 'p' like "720p", "1080p")
+#         # Avoid matching resolution numbers
+#         nums = re.findall(r'(?<!\d)(\d{2,4})(?![p\d])', name)
+#         if nums:
+#             ep = int(nums[-1])
+#             if 1500 <= ep <= 2100:  # year
+#                 return None, None
+#             return None, ep
+#         return None, None
 
     def _extract_anime_name_from_url(self, remote_path: str) -> Optional[str]:
         parts = remote_path.split("/")
@@ -1579,7 +2100,74 @@ class SubtitleManager:
         return f"https://raw.githubusercontent.com/{self.github_owner}/{self.github_repo}/{self.github_ref}/{filename}"
 # ---------------------- Helpers: parsing ----------------------
 
-
+    def _infer_globals(self, all_files_data: List[Dict]) -> List[Dict]:
+        """
+        Infer missing globals/episodes per season based on anchored offsets.
+        Add 'inferred_global' and 'inferred_episode' to each dict if inferred.
+        """
+        by_season = defaultdict(list)
+        for file_info in all_files_data:
+            if file_info['season'] is not None:
+                by_season[file_info['season']].append(file_info)
+        
+        sorted_seasons = sorted(by_season.keys())
+        
+        prev_max_global = 0
+        
+        for season in sorted_seasons:
+            files_in_season = by_season[season]
+            if not files_in_season:
+                continue
+            
+            # Sort by min(e, g) or extracted num from name
+            def sort_key(f):
+                nums = [n for n in [f['episode'], f['global_episode']] if n is not None]
+                return min(nums) if nums else (re.findall(r'\d+', f['name']) and int(re.findall(r'\d+', f['name'])[-1]) or float('inf'))
+            files_in_season.sort(key=sort_key)
+            
+            # Check capabilities
+            has_e = any(f['episode'] is not None for f in files_in_season)
+            has_g = any(f['global_episode'] is not None for f in files_in_season)
+            has_anchor = any(f['episode'] is not None and f['global_episode'] is not None for f in files_in_season)
+            
+            avg_offset = None
+            if has_anchor:
+                # Use median offset from anchored files
+                anchored_offsets = [f['global_episode'] - f['episode'] for f in files_in_season if f['episode'] is not None and f['global_episode'] is not None]
+                avg_offset = statistics.median(anchored_offsets)
+            elif has_g:
+                # No anchor, but has g: assume min_g is for E1
+                min_g = min(f['global_episode'] for f in files_in_season if f['global_episode'] is not None)
+                avg_offset = min_g - 1
+            elif has_e:
+                # No g, infer from prev_max_global +1 for min_e
+                min_e = min(f['episode'] for f in files_in_season if f['episode'] is not None)
+                avg_offset = (prev_max_global + 1) - min_e
+            else:
+                # Nothing, use prev for potential inference later
+                avg_offset = prev_max_global
+            
+            if avg_offset is not None:
+                for f in files_in_season:
+                    if f['global_episode'] is None and f['episode'] is not None:
+                        f['inferred_global'] = int(f['episode'] + avg_offset)
+                    if f['episode'] is None and f['global_episode'] is not None:
+                        f['inferred_episode'] = int(f['global_episode'] - avg_offset)
+            
+            # Update prev_max_global with known or inferred
+            all_g = [f['global_episode'] or f.get('inferred_global', 0) for f in files_in_season]
+            if all_g:
+                prev_max_global = max(prev_max_global, max(all_g))
+        
+        # Handle no-season files (assume S1-like)
+        no_season = [f for f in all_files_data if f['season'] is None]
+        for f in no_season:
+            if f['global_episode'] is None and f['episode'] is not None:
+                f['inferred_global'] = f['episode']
+            if f['episode'] is None and f['global_episode'] is not None:
+                f['inferred_episode'] = f['global_episode']
+        
+        return all_files_data
 
 # ---------------------- GitHub searching / downloading ----------------------
     def _get_remote_files_for_season(self, season: int) -> List[str]:
@@ -1627,7 +2215,7 @@ class SubtitleManager:
                         continue
                     
                     path = it.get("path")
-                    s, e = self.extract_season_episode(name)
+                    s, e, global_e, conf, info = self.extract_season_episode_global(name)
                     
                     # Log ALL .srt files with their parsed info
                     all_files_found.append({
@@ -1660,12 +2248,12 @@ class SubtitleManager:
                 # logger.exception("Failed to inspect folder: %s", folder)
         
         # Sort results by episode number and cap at max 50 to prevent massive downloads
-        if results and season is not None:
-            # Try to sort by episode number
-            results_with_ep = [(r, self.extract_season_episode(os.path.basename(r))[1]) for r in results]
-            results_with_ep = [(r, e if e is not None else 9999) for r, e in results_with_ep]
-            results_with_ep.sort(key=lambda x: x[1])
-            results = [r for r, _ in results_with_ep[:50]]  # Cap at 50 files
+        # if results and season is not None:
+        #     # Try to sort by episode number
+        #     results_with_ep = [(r, self.extract_season_episode(os.path.basename(r))[1]) for r in results]
+        #     results_with_ep = [(r, e if e is not None else 9999) for r, e in results_with_ep]
+        #     results_with_ep.sort(key=lambda x: x[1])
+        #     results = [r for r, _ in results_with_ep[:50]]  # Cap at 50 files
         
         # Log found files to a text file with detailed info
         if all_files_found:
@@ -1738,7 +2326,7 @@ class SubtitleManager:
 
         for file in season_files:
             fname = self.sanitize_filename(os.path.basename(file))
-            s, e = self.extract_season_episode(os.path.basename(file))
+            s, e, global_e, conf, info = self.extract_season_episode_global(os.path.basename(file))
             if e is None:
                 unknowns.append((fname, file))
                 continue
@@ -1849,7 +2437,7 @@ class SubtitleManager:
                 for fn in os.listdir(self.local_srt_dir):
                     if not fn.lower().endswith(".srt"):
                         continue
-                    s, e = self.extract_season_episode(fn)
+                    s, e, global_e, conf, info = self.extract_season_episode_global(fn)
                     if e:
                         eps.append(e)
                 print(eps)
