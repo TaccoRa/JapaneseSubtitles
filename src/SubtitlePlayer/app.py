@@ -31,8 +31,8 @@ class SubtitlePlayerApp:
         self._build_ui()
         self._build_model()
         self._build_controller()
-        if self.config.get("REMOTE_FLAG"):
-            self._download_init_season_asynch()
+        # if self.config.get("REMOTE_FLAG"):
+        #     self._download_init_season_asynch()
             
         self.root.after(self.config.get("UPDATE_INTERVAL_MS"), self.controller.update_loop)
 
@@ -128,13 +128,12 @@ class SubtitlePlayerApp:
             config=self.config,
             total_duration=self.total_duration)
 
-    def _download_init_season_asynch(self):
-        init_url = self.sub_manager._parse_github_url(self.config.get("LAST_GITHUB_URL"))
-        (owner, repo, ref, path, remote_folder, anime_folder_name,
-        file_name, season_num, episode_num) = self.sub_manager.get_episode_metadata()
-        season_dir = self.sub_manager._season_cache_dir()
-        season_files = self.sub_manager._search_srt_files_in_folders([remote_folder], season_num)
-        self.sub_manager.download_remaining_season_async(season_files, file_name, season_dir, window = 15)
+    # def _download_init_season_asynch(self):
+    #     init_url = self.sub_manager._parse_github_url(self.config.get("LAST_GITHUB_URL"))
+    #     (owner, repo, ref, path, remote_folder, anime_folder_name,
+    #     file_name, season_num, episode_num) = self.sub_manager.get_episode_metadata()
+    #     season_dir = self.sub_manager._season_cache_dir()
+    #     self.sub_manager.download_remaining_season_async(season_files, file_name, season_dir, window = 15)
  
     def run(self):
         self.root.mainloop()
