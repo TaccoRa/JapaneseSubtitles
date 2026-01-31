@@ -874,7 +874,9 @@ class SubtitleManager:
 
         if final_items:
             safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in (self.anime_folder_name or ""))[:200] or "result"
-            json_path = os.path.join(os.getcwd(), f"github_search_{safe_name}.json")
+            folder_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),"github_search")
+            os.makedirs(folder_dir, exist_ok=True)
+            json_path = os.path.join(folder_dir, f"github_search_{safe_name}.json")
             payload = {
                 "query": q,
                 "repo": f"{self.github_owner}/{self.github_repo}",
