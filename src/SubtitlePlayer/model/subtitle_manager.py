@@ -91,6 +91,7 @@ class SubtitleManager:
         self._load_local_and_process(local_srt_path)
         #have one remote episode map for downloads --> s,e,global --> github path
         #and one local episode map for episode switching local (if remote and episode not found use above and download and update local episode map)
+    
     def _register_cache_cleanup(self) -> None:
         def _cleanup():
             try:
@@ -206,7 +207,7 @@ class SubtitleManager:
         #goal: change episode either with inc, dec, or set. Raw is the wished episode
         # Look for next episode in file_list if it is not there ask the user to save it and press select to select it. 
         # -> the file list is then updated and the new episode is loaded
-        s, e, global_e, conf, info = self.extract_season_episode_global(raw) #does this work if it is just 12 --> E12?
+        s, e, global_e = self.extract_season_episode_global(raw) #does this work if it is just 12 --> E12?
         # if action == "set":#manually written inside the settings episode entry raw only > 0
         #     if e in episode_map: #
         #         ...
@@ -227,7 +228,7 @@ class SubtitleManager:
         
         episodes = []
         for filename in self.local_file_list:
-            s, e, global_e, conf, info = self.extract_season_episode_global(filename)
+            s, e, global_e = self.extract_season_episode_global(filename)
             if e is not None: episodes.append(e)
         lowest_episode, highest_episode = min(episodes), max(episodes)
 
@@ -284,7 +285,7 @@ class SubtitleManager:
                         max_e = 0
                         chosen_remote = None
                         for fpath in files:
-                            s, e, global_e, conf, info = self.extract_season_episode_global(os.path.basename(fpath))
+                            s, e, global_e = self.extract_season_episode_global(os.path.basename(fpath))
                             if e and e > max_e:
                                 max_e = e
                                 chosen_remote = fpath
@@ -321,7 +322,7 @@ class SubtitleManager:
                         chosen_remote = None
                         min_e = None
                         for fpath in files:
-                            s, e, global_e, conf, info = self.extract_season_episode_global(os.path.basename(fpath))
+                            s, e, global_e = self.extract_season_episode_global(os.path.basename(fpath))
                             if e is None:
                                 continue
                             if min_e is None or e < min_e:
@@ -374,13 +375,13 @@ class SubtitleManager:
                 for fn in os.listdir(season_dir):
                     if not fn.lower().endswith(".srt"):
                         continue
-                    s, e, global_e, conf, info = self.extract_season_episode_global(fn)
+                    s, e, global_e = self.extract_season_episode_global(fn)
                     if e == target_episode:
                         chosen = os.path.join(season_dir, fn)
                         try:
                             self._load_local_and_process(chosen)
                             # Extract actual season/episode from the cached file
-                            actual_s, actual_e, global_e, conf, info = self.extract_season_episode_global(fn)
+                            actual_s, actual_e, global_e = self.extract_season_episode_global(fn)
                             if actual_s and actual_e:
                                 self.current_season = actual_s
                                 self.current_episode = actual_e
@@ -423,7 +424,7 @@ class SubtitleManager:
             # find file matching target_episode
             chosen_remote = None
             for fpath in files:
-                s, e, global_e, conf, info = self.extract_season_episode_global(os.path.basename(fpath))
+                s, e, global_e = self.extract_season_episode_global(os.path.basename(fpath))
                 if e == target_episode:
                     chosen_remote = fpath
                     break
@@ -442,7 +443,7 @@ class SubtitleManager:
                         logger.info("Episode map fallback found: S%dE%d", target_season, target_episode)
                         # Need to find this episode in the new files list
                         for fpath in files:
-                            s, e, global_e, conf, info = self.extract_season_episode_global(os.path.basename(fpath))
+                            s, e, global_e = self.extract_season_episode_global(os.path.basename(fpath))
                             if e == target_episode:
                                 chosen_remote = fpath
                                 break
@@ -453,7 +454,7 @@ class SubtitleManager:
                     # For 'set' or 'dec' action, pick closest available (legacy behavior)
                     max_e = 0
                     for fpath in files:
-                        s, e, global_e, conf, info = self.extract_season_episode_global(os.path.basename(fpath))
+                        s, e, global_e = self.extract_season_episode_global(os.path.basename(fpath))
                         if e and e > max_e:
                             max_e = e
                             chosen_remote = fpath
@@ -480,7 +481,7 @@ class SubtitleManager:
             # load and update state
             self._load_local_and_process(local_path)
             # Extract actual season/episode from the file we loaded to avoid display mismatch
-            actual_s, actual_e, global_e, conf, info = self.extract_season_episode_global(os.path.basename(local_path))
+            actual_s, actual_e, global_e = self.extract_season_episode_global(os.path.basename(local_path))
             if actual_s and actual_e:
                 self.current_season = actual_s
                 self.current_episode = actual_e
@@ -492,7 +493,7 @@ class SubtitleManager:
                 logger.warning("Could not extract actual episode from %s, using target S%dE%d", os.path.basename(local_path), target_season, target_episode)
             self.season_dir = season_dir
             self.srt_file = local_path
-            s_num, e_num, global_e, conf, info = self.extract_season_episode_global(os.path.basename(remote_path))
+            s_num, e_num, global_e = self.extract_season_episode_global(os.path.basename(remote_path))
             if s_num == 1:
                 # Extract anime folder name from the remote path (may include suffixes)
                 extracted = self._extract_anime_name_from_url(remote_path)
@@ -582,7 +583,7 @@ class SubtitleManager:
 
         def on_ok():
             u = url_entry.get().strip()
-            s, e, global_e, conf, info = self.extract_season_episode_global(se_entry.get().strip().lower())
+            s, e, global_e = self.extract_season_episode_global(se_entry.get().strip().lower())
             result["url"], result["season"], result["episode"] = (u or None, s, e)
             dlg.destroy()
         def on_cancel():
@@ -670,7 +671,7 @@ class SubtitleManager:
         self.github_ref   = github_dict["ref"]
         self.remote_path = github_dict["path"]
         self.remote_folder = os.path.dirname(self.remote_path)
-        self.current_season, self.current_episode, global_e, conf, info = self.extract_season_episode_global(self.remote_path)
+        self.current_season, self.current_episode, global_e = self.extract_season_episode_global(self.remote_path)
         self.anime_folder_name = self.config.get("LAST_ANIME_NAME")
         url_anime_name = self._extract_anime_name_from_url(self.remote_path)
         if self.current_season == 1: #what if no seasons? change later doesnt make too much sense dont know how to do it. save last used github url will this be always s1? ...
@@ -714,13 +715,8 @@ class SubtitleManager:
                 time.sleep(0.1)
                 continue
 
-    def _create_remote_episode_map(self, debug_url):
-        self.anime_folder_name = "Shingeki no Kyojin"
-        github_dict = self._parse_github_url(debug_url)
-        self.github_owner = github_dict["owner"]
-        self.github_repo  = github_dict["repo"]
-
-
+    def _create_remote_episode_map(self):
+        # self.anime_folder_name = "Shingeki no Kyojin"
         logger.info(f"Building comprehensive episode map for {self.anime_folder_name}...")
         all_results_items: List[Dict] = []
         stop_reason = None
@@ -1126,7 +1122,7 @@ class SubtitleManager:
         if s_e:
             wished_season, wished_episode = s_e
         else:
-            wished_season, wished_episodes, global_e, conf, info = self.extract_season_episode_global(url)
+            wished_season, wished_episodes, global_e = self.extract_season_episode_global(url)
         
         # Find candidate subtitle folders for this anime
         candidate_folders = self._search_subtitle_folders()
@@ -1140,7 +1136,7 @@ class SubtitleManager:
         # find file matching requested episode
         wished_episode_file = None
         for f in files:#find wished episode
-            s, e, global_e, conf, info = self.extract_season_episode_global(os.path.basename(f))
+            s, e, global_e = self.extract_season_episode_global(os.path.basename(f))
             if e == wished_episode:
                 wished_episode_file = f
                 break
@@ -1149,7 +1145,7 @@ class SubtitleManager:
             logger.error("Could not locate remote file for season %s episode %s", wished_season, wished_episode)
             return False
 
-        self.current_season, self.current_episodes, global_e, conf, info = self.extract_season_episode_global(wished_episode_file)
+        self.current_season, self.current_episodes, global_e = self.extract_season_episode_global(wished_episode_file)
         self.srt_file = self.download_current_episode(wished_episode_file)
         try:
             self._load_local_and_process(self.srt_file)
@@ -1280,7 +1276,7 @@ class SubtitleManager:
                         found_any_for_season = True
                         for it in items:
                             name = it.get("name", "")
-                            s, e, global_e, conf, info = self.extract_season_episode_global(name)
+                            s, e, global_e = self.extract_season_episode_global(name)
                             all_results_items.append({
                                 "name": name,
                                 "path": it.get("path"),
@@ -1581,7 +1577,7 @@ class SubtitleManager:
     
     def extract_season_episode_global(self, name: str) -> Tuple[Optional[int], Optional[int], Optional[int], float, Dict]:
         """
-        Return (season, episode, global_episode, confidence_score 0..1, info_dict)
+        Return (season, episode, global_episode)
         """
         raw = name
         sname = self.normalize_name(raw)
@@ -1632,7 +1628,7 @@ class SubtitleManager:
             if s == 1 and e is not None and g is None:
                 g = e
                 conf -= 0.01  # Slight penalty for assumption
-            return s, e, g, conf, info
+            return s, e, g
         
         # 0.5) English "Season X - Y" (from old pattern 2)
         m_en_season = re.search(r'(?i)season\s+(\d{1,2})\s*[-:]\s*(\d{1,4})', sname)
@@ -1666,7 +1662,7 @@ class SubtitleManager:
             if s == 1 and e is not None and g is None:
                 g = e
                 conf -= 0.01
-            return s, e, g, conf, info
+            return s, e, g
         
         # 1) SxxExx (existing, with large e check)
         m_s_ex = re.search(r'(?i)\bS(\d{1,2})\D*[eE](\d{1,4})\b', sname)
@@ -1700,7 +1696,7 @@ class SubtitleManager:
             if s == 1 and e is not None and g is None:
                 g = e
                 conf -= 0.01
-            return s, e, g, conf, info
+            return s, e, g
         
         # 2) Sx - yy pattern (existing, with large e check)
         m_s_dash = re.search(r'(?i)\bS(\d{1,2})\s*[-:]\s*(\d{1,4})\b', sname)
@@ -1730,7 +1726,7 @@ class SubtitleManager:
             if s == 1 and e is not None and g is None:
                 g = e
                 conf -= 0.01
-            return s, e, g, conf, info
+            return s, e, g
         
         # Integrate old pattern 3: "SX - Y" or "SXY" with optional E
         m_sxy = re.search(r'[_\s]S(\d{1,2})\s*[-:\s]*E?(\d{1,4})', sname, re.IGNORECASE)
@@ -1760,7 +1756,7 @@ class SubtitleManager:
             if s == 1 and e is not None and g is None:
                 g = e
                 conf -= 0.01
-            return s, e, g, conf, info
+            return s, e, g
         
         # Integrate old pattern 4: "SX (Y)"
         m_sx_par = re.search(r'\bS(\d{1,2})(?:\D*E)?\s*\(\s*(\d{1,4})\s*\)', sname, re.IGNORECASE)
@@ -1785,7 +1781,7 @@ class SubtitleManager:
             if s == 1 and e is not None and g is None:
                 g = e
                 conf -= 0.01
-            return s, e, g, conf, info
+            return s, e, g
         
         # 3) Japanese global marker (第NNN話) (existing)
         jp = re.search(r'第\s*(\d{1,4})\s*話', sname)
@@ -1798,7 +1794,7 @@ class SubtitleManager:
                 e = g
             else:
                 e = None
-            return s, e, g, 1.0, info
+            return s, e, g
         
         # Integrate old pattern 6: " - 01 - "
         m_dash_ep = re.search(r'\s*-\s*(\d{1,4})\s*-', sname)
@@ -1820,7 +1816,7 @@ class SubtitleManager:
             if s == 1 and e is not None and g is None:
                 g = e
                 conf -= 0.01
-            return s, e, g, conf, info
+            return s, e, g
         
         # 4) hyphen-number then "(" or hyphen-number hyphen (existing, with season look)
         m_hy_par = re.search(r'[-_]\s*(\d{1,4})\s*(?:\(|[-_])', sname)
@@ -1840,7 +1836,7 @@ class SubtitleManager:
                 if s == 1 and e is not None and g is None:
                     g = e
                     conf -= 0.01
-                return s, e, g, conf, info
+                return s, e, g
         
         # 5) E### token without Sxx (existing, with season look)
         m_e = re.search(r'(?i)(?:\b|^)[eE](\d{1,4})(?:\b|$)', sname)
@@ -1862,7 +1858,7 @@ class SubtitleManager:
                 if s == 1 and e is not None and g is None:
                     g = e
                     conf -= 0.01
-                return s, e, g, conf, info
+                return s, e, g
         
         # 6) duplicate marker "095(1)" (existing)
         m_dup = re.search(r'(\d{1,4})\(\s*1\s*\)', sname)
@@ -1875,7 +1871,7 @@ class SubtitleManager:
             conf = 0.8
             if s == 1 and e is not None and g is None:
                 g = e
-            return s, e, g, conf, info
+            return s, e, g
         
         # Integrate old pattern 9: LAST number (avoid year/res)
         nums = re.findall(r'(?<!\d)(\d{2,4})(?![p\d])', sname)
@@ -1896,7 +1892,7 @@ class SubtitleManager:
                 if s == 1 and e is not None and g is None:
                     g = e
                     conf -= 0.01
-                return s, e, g, conf, info
+                return s, e, g
         
         # Existing fallback
         tokens = re.split(r'[.\s_\-()\[\]]+', sname)
@@ -1912,10 +1908,10 @@ class SubtitleManager:
                     before = sname[:par_pos].rstrip()
                     if before and before[-1].isdigit() and n <= 3:
                         continue
-                    return None, None, n, 0.85, info
-            return None, None, nums[-1], 0.5, info
+                    return None, None, n
+            return None, None, nums[-1]
         
-        return None, None, None, 0.0, info
+        return None, None, None
 
 #     def extract_season_episode_global(self, name: str) -> Tuple[Optional[int], Optional[int], Optional[int], float, Dict]:
 #         """
@@ -2200,7 +2196,7 @@ class SubtitleManager:
                         continue
                     
                     path = it.get("path")
-                    s, e, global_e, conf, info = self.extract_season_episode_global(name)
+                    s, e, global_e = self.extract_season_episode_global(name)
                     
                     # Log ALL .srt files with their parsed info
                     all_files_found.append({
@@ -2311,7 +2307,7 @@ class SubtitleManager:
 
         for file in season_files:
             fname = self.sanitize_filename(os.path.basename(file))
-            s, e, global_e, conf, info = self.extract_season_episode_global(os.path.basename(file))
+            s, e, global_e = self.extract_season_episode_global(os.path.basename(file))
             if e is None:
                 unknowns.append((fname, file))
                 continue
@@ -2422,7 +2418,7 @@ class SubtitleManager:
                 for fn in os.listdir(self.local_srt_dir):
                     if not fn.lower().endswith(".srt"):
                         continue
-                    s, e, global_e, conf, info = self.extract_season_episode_global(fn)
+                    s, e, global_e = self.extract_season_episode_global(fn)
                     if e:
                         eps.append(e)
                 print(eps)
