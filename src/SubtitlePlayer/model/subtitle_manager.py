@@ -131,10 +131,7 @@ class SubtitleManager:
         self.local_srt_dir = os.path.dirname(local_path)
         srt_paths = [os.path.join(self.local_srt_dir, f) for f in os.listdir(self.local_srt_dir) if f.lower().endswith('.srt')]
         if not srt_paths: logger.error("No .srt files found in folder: %s", self.local_srt_dir)
-        for srt_path in srt_paths:
-            s, e, global_e, conf, info = self.extract_season_episode_global(srt_path)
-            if s is None and e is None: self.local_episode_paths["movie"] = srt_path
-            else: self.local_episode_paths[(s,e)] = srt_path
+        self._build_local_episode_map()
 
     def set_subtitle_display_data(self, local_path):
         with open(local_path, 'rb') as f:
@@ -1492,31 +1489,17 @@ class SubtitleManager:
     
 
     def _build_local_episode_map(self):
-        all_files_data = []
+        all_local_files_data = []
         if self.local_srt_dir and os.path.isdir(self.local_srt_dir):
             for fn in os.listdir(self.local_srt_dir):
                 if not fn.lower().endswith('.srt'): continue
                 path = os.path.join(self.local_srt_dir, fn)
-                s, e, global_e, conf, info = self.extract_season_episode_global(fn)
-                all_files_data.append({
-                    'name': fn, 'path': path, 'season': s, 'episode': e,
-                    'global_episode': global_e, 'confidence': conf, 'parse_info': info,
-                    'inferred_episode': None, 'inferred_global': None
-                })
-        
-        # New: Infer missing
-        all_files_data = self._infer_globals(all_files_data)
-        
-        # Build maps with inferred
-        for file_info in all_files_data:
-            s = file_info['season']
-            e = file_info['episode'] or file_info['inferred_episode']
-            g = file_info['global_episode'] or file_info['inferred_global']
-            path = file_info['path']
-            if s and e: self.episode_map[(s, e)] = path
-            if g and s and e: self.global_episode_map[g] = (s, e)
-        
-        self._log_comprehensive_episodes(all_files_data)
+                s, e, global_e = self.extract_season_episode_global(fn)
+                all_local_files_data.append({
+                    'name': fn, 'path': path, 
+                    'season': s, 'episode': e,
+                    'global_episode': global_e})
+        return all_local_files_data
 
 
     def _find_next_from_map(self, current_season: int, current_episode: int) -> Optional[Tuple[int, int, str]]:
