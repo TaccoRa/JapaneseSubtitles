@@ -121,16 +121,61 @@ class SubtitleManager:
         logger.info(f"Loaded subtitle: S{self.current_season}E{self.current_episode} | {local_srt_path}")#what if movie?
 
 # -------------------------helpers-----------------------------
+    # def _extract_and_set_local_episode_metadata(self, local_path):
+    #     if not self.remote_flag: #hardcoded certain local folder
+    #         self.anime_folder_name = local_path.replace("\\", "/").split("/")[local_path.replace("\\", "/").split("/").index("subs")+1]
+    #         self.config.set("LAST_LOCAL_SRT_FILE",local_path)
+    #         self.current_season, self.current_episode , _ = self.extract_season_episode_global(local_path)
+    #     self.is_movie = self.current_season is None and self.current_episode is None
+    #     self.local_srt_dir = os.path.dirname(local_path)
+    #     srt_paths = [os.path.join(self.local_srt_dir, f) for f in os.listdir(self.local_srt_dir) if f.lower().endswith('.srt')]
+    #     if not srt_paths: logger.error("No .srt files found in folder: %s", self.local_srt_dir)
+    #     self._build_local_episode_map()
+
     def _extract_and_set_local_episode_metadata(self, local_path):
+        """
+        Initialize metadata for a local SRT file/folder.
+        - set anime_folder_name (when running in local mode)
+        - set LAST_LOCAL_SRT_FILE in config
+        - set current_season/current_episode if not already set
+        - set local_srt_dir and build local_srt_files index
+        """
         if not self.remote_flag: #hardcoded certain local folder
             self.anime_folder_name = local_path.replace("\\", "/").split("/")[local_path.replace("\\", "/").split("/").index("subs")+1]
             self.config.set("LAST_LOCAL_SRT_FILE",local_path)
             self.current_season, self.current_episode , _ = self.extract_season_episode_global(local_path)
-        self.is_movie = self.current_season is None and self.current_episode is None
-        self.local_srt_dir = os.path.dirname(local_path)
-        srt_paths = [os.path.join(self.local_srt_dir, f) for f in os.listdir(self.local_srt_dir) if f.lower().endswith('.srt')]
-        if not srt_paths: logger.error("No .srt files found in folder: %s", self.local_srt_dir)
-        self._build_local_episode_map()
+
+            # Only set season/episode from the provided local_path if they are not already known.
+            # Remote initialization may have set these before local initialization; do not overwrite
+            # an existing valid value.
+            if not getattr(self, "current_season", None) and not getattr(self, "current_episode", None):
+                try:
+                    # extract from filename (basename) for more robust parsing
+                    base = os.path.basename(local_path)
+                    s, e, g = self.extract_season_episode_global(base)
+                    if s is not None and e is not None:
+                        self.current_season, self.current_episode = s, e
+                    elif g is not None:
+                        # if only a global index is present, try to map it to season/episode later
+                        self.current_season, self.current_episode = None, None
+                except Exception:
+                    logger.exception("Failed to extract season/episode from local path: %s", local_path)
+
+        # set movie flag (unchanged)
+        self.is_movie = (self.current_season is None and self.current_episode is None)
+
+        # set directory and build the local episode index so switching works immediately
+        try:
+            self.local_srt_dir = os.path.dirname(local_path)
+        except Exception:
+            self.local_srt_dir = None
+        if not self.local_srt_dir or not os.path.isdir(self.local_srt_dir):
+            logger.error("Local SRT directory not found: %s", self.local_srt_dir)
+        # Build the index (populates self.local_srt_files and self.local_file_list)
+        try:
+            self._build_local_episode_map()
+        except Exception:
+            logger.exception("Failed to build local episode map for %s", self.local_srt_dir)
 
     def set_subtitle_display_data(self, local_path):
         with open(local_path, 'rb') as f:
@@ -191,333 +236,261 @@ class SubtitleManager:
 #endregion ------------------------------local handling-----------------------------------
 
 #region -------------------------episode / season switching-----------------------------
+    def _load_local_record(self, rec: dict) -> bool:
+        """
+        Given a rec from self.local_srt_files, load it and update current state.
+        Returns True on success.
+        """
+        if not rec or not rec.get("path") or not os.path.isfile(rec["path"]):
+            return False
+        try:
+            self._load_local_and_process(rec["path"])
+            self.current_season = rec.get("season")
+            self.current_episode = rec.get("episode")
+            self.srt_file = rec["path"]
+            return True
+        except Exception:
+            logger.exception("Failed to load local subtitle: %s", rec.get("path"))
+            return False
+
     def change_episode(self, action: str, raw: Optional[int] = None) -> Tuple[Optional[int], Optional[int]]:
-        #all episodes should be either locally saved or the paths to the remote saved in the episode map
         if self.remote_flag:
-            current_season, current_episode = self.change_episode_remote(action, raw)
-        else:
-            currentse_season, current_episode = self.change_episode_local(action, raw)
-        return currentse_season, current_episode
+            return self.change_episode_remote(action, raw)
+        return self.change_episode_local(action, raw)
 
     def change_episode_local(self, action: str, raw: Optional[int] = None) -> Tuple[Optional[int], Optional[int]]:
-        #goal: change episode either with inc, dec, or set. Raw is the wished episode
-        # Look for next episode in file_list if it is not there ask the user to save it and press select to select it. 
-        # -> the file list is then updated and the new episode is loaded
-        s, e, global_e = self.extract_season_episode_global(str(raw)) #does this work if it is just 12 --> E12?
-        # if action == "set":#manually written inside the settings episode entry raw only > 0
-        #     if e in episode_map: #
-        #         ...
+        if not getattr(self, "local_srt_files", None):
+            self._build_local_episode_map()
 
+        cur_s = getattr(self, "current_season", None)
+        cur_e = getattr(self, "current_episode", None)
+        cur_g = None
+        try:
+            cur_g = self.get_current_global()
+        except Exception:
+            # fallback parsing from filename
+            if getattr(self, "srt_file", None):
+                _, _, cur_g = self.extract_season_episode_global(os.path.basename(self.srt_file))
+
+        # helper to find by global or by (s,e)
+        def find_by_global(g):
+            if g is None:
+                return None
+            for rec in self.local_srt_files:
+                if rec.get("global") == g:
+                    return rec
+            return None
+
+        def find_by_local(s, e):
+            for rec in self.local_srt_files:
+                if rec.get("season") == s and rec.get("episode") == e:
+                    return rec
+            return None
+
+        target_rec = None
+        if action == "inc":
+            # prefer global step if available
+            if cur_g is not None:
+                target_rec = find_by_global(cur_g + 1)
+            if target_rec is None and cur_s is not None and cur_e is not None:
+                target_rec = find_by_local(cur_s, cur_e + 1)
+
+        elif action == "dec":
+            if cur_g is not None and cur_g > 1:
+                target_rec = find_by_global(cur_g - 1)
+            if target_rec is None and cur_s is not None and cur_e is not None and cur_e > 1:
+                target_rec = find_by_local(cur_s, cur_e - 1)
+
+        elif action == "set":
+            if not (isinstance(raw, int) and raw > 0):
+                return self.current_season, self.current_episode
+            # interpret as local episode in current season first
+            if cur_s is not None:
+                target_rec = find_by_local(cur_s, raw)
+            # if that failed, also check whether raw matches a global index
+            if target_rec is None:
+                target_rec = find_by_global(raw)
+
+        else:
+            return self.current_season, self.current_episode
+
+        if target_rec:
+            if self._load_local_record(target_rec):
+                return self.current_season, self.current_episode
+            # if load fails, fall through to warn
+
+        # not found locally -> warn user (no downloads in local mode)
+        try:
+            message = f"Episode not found in local folder: action={action}, value={raw}"
+            logger.warning(message)
+            # show user-visible warning
+            messagebox.showwarning("Episode not found", message)
+        except Exception:
+            logger.warning("Could not show messagebox (episode not found).")
 
         return self.current_season, self.current_episode
 
     def change_episode_remote(self, action: str, raw: Optional[int] = None) -> Tuple[Optional[int], Optional[int]]:
-        #action: "dec","inc","set"; raw: if user set episode(int); sets new episode and returns target
-        cur_season = self.current_season
-        cur_episode = self.current_episode
-        
-        # Initialize variables that may be set in branches
-        remote_path = None
-        season_files = []
-        target_season = cur_season
-        target_episode = cur_episode
-        
-        episodes = []
-        for filename in self.local_file_list:
-            s, e, global_e = self.extract_season_episode_global(filename)
-            if e is not None: episodes.append(e)
-        lowest_episode, highest_episode = min(episodes), max(episodes)
+        """
+        Remote switching: first try to find the file in the local index. If missing, trigger a
+        focused windowed download around the target/global (synchronously), refresh local index,
+        then load if available. If still missing, show a warning.
+        """
+        # ensure local index exists (might be empty on startup)
+        if not getattr(self, "local_srt_files", None):
+            # if we have a local folder (e.g., from a previous run) build it
+            self._build_local_episode_map()
 
-        if action == 'dec':#decrease episode if episdoe 1 search for new season (only remote for now)
-            if cur_season <= 1:
-                if cur_episode <= 1:  # cannot go below S1E1
+        # ensure remote maps exist (for global<->local mapping and download lists)
+        if not getattr(self, "remote_episode_map_global", None):
+            try:
+                if not getattr(self, "all_results_items", None):
+                    self._create_remote_episode_map_per_season()
+                self.build_remote_episode_maps()
+            except Exception:
+                logger.exception("Failed to build remote maps in change_episode_remote")
+
+        cur_s = getattr(self, "current_season", None)
+        cur_e = getattr(self, "current_episode", None)
+        cur_g = self.get_current_global()
+
+        # helpers to locate rec
+        def find_by_global(g):
+            for rec in self.local_srt_files:
+                if rec.get("global") == g:
+                    return rec
+            return None
+
+        def find_by_local(s, e):
+            for rec in self.local_srt_files:
+                if rec.get("season") == s and rec.get("episode") == e:
+                    return rec
+            return None
+
+        # resolve intended target global/season/episode similar to local function
+        target_global = None
+        target_s = None
+        target_e = None
+
+        if action == "inc":
+            if cur_g is not None:
+                target_global = cur_g + 1
+                target_rec = find_by_global(target_global)
+                if target_rec:
+                    if self._load_local_record(target_rec):
+                        return self.current_season, self.current_episode
+                # not found locally: compute target season/episode from remote map
+                ts, te = self.global_to_local(target_global)
+                target_s, target_e = ts, te
+            else:
+                if cur_s is None or cur_e is None:
                     return None, None
-                target_episode = cur_episode - 1
-            else:
-                # go to previous season, prefer cached last-episode if that season is cached
-                target_season = cur_season - 1
-                lc = self._last_cached(target_season)
-                # lc > 0 only when that specific season is cached
-                if lc:
-                    target_episode = lc
-                else:
-                    # Not cached: find remote files for previous season (cached per-session)
-                    files = self._get_remote_files_for_season(target_season)
-                    if not files:
-                        # season likely not released, try episode map fallback
-                        logger.info("No season %d files found, trying episode map fallback for 'dec'", target_season)
-                        result = self._find_next_from_map(cur_season, cur_episode)
-                        if result:
-                            # For 'dec', we need to go backward, so find_next won't help
-                            # Instead, get the map and find the previous episode
-                            episode_map, available_episodes = self._build_episode_map_from_log()
-                            cur_key = (cur_season, cur_episode)
-                            if cur_key in episode_map:
-                                try:
-                                    idx = available_episodes.index(cur_key)
-                                    if idx > 0:
-                                        prev_s, prev_e = available_episodes[idx - 1]
-                                        remote_path = episode_map[(prev_s, prev_e)]
-                                        target_season = prev_s
-                                        target_episode = prev_e
-                                        folders = self._search_subtitle_folders()
-                                        files = self._search_srt_files_in_folders(folders, target_season)
-                                        season_files = files if files else []
-                                        logger.info("Episode map fallback (dec) found: S%dE%d", target_season, target_episode)
-                                    else:
-                                        logger.warning("No previous episode available in map")
-                                        return cur_season, cur_episode
-                                except ValueError:
-                                    logger.warning("Current episode not in map")
-                                    return cur_season, cur_episode
-                            else:
-                                logger.warning("Current episode S%dE%d not in map", cur_season, cur_episode)
-                                return cur_season, cur_episode
-                        else:
-                            # season likely not released
-                            return cur_season, cur_episode
-                    else:
-                        # pick file with highest episode number
-                        max_e = 0
-                        chosen_remote = None
-                        for fpath in files:
-                            s, e, global_e = self.extract_season_episode_global(os.path.basename(fpath))
-                            if e and e > max_e:
-                                max_e = e
-                                chosen_remote = fpath
-                        if not chosen_remote:
-                            return cur_season, cur_episode
-                        target_episode = max_e
-                        remote_path = chosen_remote
-                        season_files = files
+                # attempt local step
+                target_rec = find_by_local(cur_s, cur_e + 1)
+                if target_rec:
+                    if self._load_local_record(target_rec):
+                        return self.current_season, self.current_episode
+                # map local->global if possible and fall through to download
+                target_global = self.local_to_global(cur_s, cur_e + 1)
+                target_s, target_e = cur_s, cur_e + 1
 
-        elif action == 'inc': #increase episode if end of season search for new season (only remote for now)
-            # check in-cache
-            lc = self._last_cached(cur_season)
-            if cur_episode + 1 <= lc:
-                target_episode = cur_episode + 1
-                target_season = cur_season
+        elif action == "dec":
+            if cur_g is not None and cur_g > 1:
+                target_global = cur_g - 1
+                target_rec = find_by_global(target_global)
+                if target_rec:
+                    if self._load_local_record(target_rec):
+                        return self.current_season, self.current_episode
+                ts, te = self.global_to_local(target_global)
+                target_s, target_e = ts, te
             else:
-                # try next season (remote or cached)
-                target_season = cur_season + 1
-                lc_next = self._last_cached(target_season)
-                if lc_next:
-                    # if cached and contains ep1, use that
-                    if 1 in self.local_file_list:
-                        target_episode = 1
-                    else:
-                        # cached but doesn't have ep1, find the lowest episode
-                        eps = self.local_file_list
-                        target_episode = min(eps) if eps else 1
-                else:
-                    # not cached, search remote for season+1
-                    folders = self._search_subtitle_folders()
-                    files = self._search_srt_files_in_folders(folders, target_season)
-                    if files:
-                        # choose ep1 if present, else smallest episode
-                        chosen_remote = None
-                        min_e = None
-                        for fpath in files:
-                            s, e, global_e = self.extract_season_episode_global(os.path.basename(fpath))
-                            if e is None:
-                                continue
-                            if min_e is None or e < min_e:
-                                min_e = e
-                                chosen_remote = fpath
-                        if chosen_remote:
-                            target_episode = min_e
-                            remote_path = chosen_remote
-                            season_files = files
-                    else:
-                        # search failed, try episode map fallback
-                        logger.info("No season %d files found, trying episode map fallback", target_season)
-                        result = self._find_next_from_map(cur_season, cur_episode)
-                        if result:
-                            target_season, target_episode, remote_path = result
-                            folders = self._search_subtitle_folders()
-                            files = self._search_srt_files_in_folders(folders, target_season)
-                            season_files = files if files else []
-                            logger.info("Episode map fallback found: S%dE%d", target_season, target_episode)
-                        else:
-                            # fallback also failed
-                            logger.warning("No next episode available (season %d not found, map fallback failed)", target_season)
-                            return None, None
+                if cur_s is None or cur_e is None:
+                    return None, None
+                target_rec = find_by_local(cur_s, cur_e - 1) if cur_e > 1 else None
+                if target_rec:
+                    if self._load_local_record(target_rec):
+                        return self.current_season, self.current_episode
+                target_global = self.local_to_global(cur_s, cur_e - 1) if cur_e > 1 else None
+                target_s, target_e = cur_s, cur_e - 1
 
-        elif action == 'set': #manually written inside the settings episode entry raw only > 0
-            lc = self._last_cached(cur_season) #change if specific episode is wished
-            if raw > lc:
-                logger.warning("Episode %d is beyond cached episodes for season %d (max: %d)", raw, cur_season, lc)
-                return None, None
-            target_season = cur_season
-            target_episode = raw
+        elif action == "set":
+            if not (isinstance(raw, int) and raw > 0):
+                return self.current_season, self.current_episode
+            # prefer local interpretation: current season + episode raw
+            if cur_s is not None:
+                target_rec = find_by_local(cur_s, raw)
+                if target_rec:
+                    if self._load_local_record(target_rec):
+                        return self.current_season, self.current_episode
+                # try to map to global if possible
+                g = self.local_to_global(cur_s, raw)
+                if g:
+                    target_global = g
+                    target_s, target_e = cur_s, raw
+                else:
+                    # treat raw as global if present in remote map
+                    if raw in getattr(self, "remote_episode_map_global", {}):
+                        target_global = raw
+                        target_s, target_e = self.global_to_local(raw)
+                    else:
+                        # build remote maps and retry
+                        try:
+                            if not getattr(self, "all_results_items", None):
+                                self._create_remote_episode_map_per_season()
+                            self.build_remote_episode_maps()
+                        except Exception:
+                            logger.exception("Failed to build remote maps for 'set'")
+                        if raw in getattr(self, "remote_episode_map_global", {}):
+                            target_global = raw
+                            target_s, target_e = self.global_to_local(raw)
+                        else:
+                            # fall back to trying a local file with that episode number
+                            for rec in self.local_srt_files:
+                                if rec.get("season") == cur_s and rec.get("episode") == raw:
+                                    if self._load_local_record(rec):
+                                        return self.current_season, self.current_episode
+                            messagebox.showwarning("Episode not found", f"Episode {raw} not found locally or remotely.")
+                            return self.current_season, self.current_episode
+            else:
+                # no cur season known -> try treat raw as global
+                if raw in getattr(self, "remote_episode_map_global", {}):
+                    target_global = raw
+                    target_s, target_e = self.global_to_local(raw)
+                else:
+                    messagebox.showwarning("Episode not found", f"Episode {raw} not found.")
+                    return self.current_season, self.current_episode
         else:
-            # unknown action
-            return cur_season, cur_episode
-
-        # If the target is the same as current and it exists cached, do nothing
-        if target_season == self.current_season and target_episode == self.current_episode:
             return self.current_season, self.current_episode
 
-        # Try to load from cache if available and we don't already have a remote_path
-        if remote_path is None:
-            # If we're in local mode, look in the local folder; otherwise look in cache_github
-            if not self.remote_flag and self.local_srt_dir:
-                season_dir = self.local_srt_dir
-            else:
-                season_dir = self._season_cache_dir(target_season)  #Should not be needed because after download the local dir should be updated
-           
-           # find matching file in season_dir
-            if season_dir and os.path.isdir(season_dir):
-                for fn in os.listdir(season_dir):
-                    if not fn.lower().endswith(".srt"):
-                        continue
-                    s, e, global_e = self.extract_season_episode_global(fn)
-                    if e == target_episode:
-                        chosen = os.path.join(season_dir, fn)
-                        try:
-                            self._load_local_and_process(chosen)
-                            # Extract actual season/episode from the cached file
-                            actual_s, actual_e, global_e = self.extract_season_episode_global(fn)
-                            if actual_s and actual_e:
-                                self.current_season = actual_s
-                                self.current_episode = actual_e
-                                logger.info("Cache hit for S%dE%d (requested S%dE%d)", actual_s, actual_e, target_season, target_episode)
-                            else:
-                                # Fallback if parsing failed
-                                self.current_season = target_season
-                                self.current_episode = target_episode
-                            self.season_dir = season_dir
-                            self.srt_file = chosen
-                            return self.current_season, self.current_episode
-                        except Exception:
-                            # logger.exception("Failed to load cached subtitle: %s", chosen)
-                            break  # fall back to remote if available
+        # At this point we have target_global (maybe None) and/or target_s/target_e
+        # If the file is still not local, request windowed download around target_global (or current global)
+        if target_global is None and target_s is not None and target_e is not None:
+            target_global = self.local_to_global(target_s, target_e)
 
-        # If we reach here we need to fetch remote_path (either was found above or we need to locate it)
-        if remote_path is None:
-            # Find remote path for target season/episode
-            logger.info(f"Searching for S{target_season}E{target_episode} (current: S{cur_season}E{cur_episode}, action: {action})")
-            folders = self._search_subtitle_folders()
-            logger.info(f"Found {len(folders)} folders to search")
-            files = self._search_srt_files_in_folders(folders, target_season)
-            logger.info(f"Found {len(files)} files for season {target_season}")
-            if not files:
-                logger.warning("No remote files found for season %s", target_season)
-                # Try episode map fallback when no season files found
-                if action == 'inc':
-                    result = self._find_next_from_map(cur_season, cur_episode)
-                    if result:
-                        target_season, target_episode, remote_path = result
-                        folders = self._search_subtitle_folders()
-                        files = self._search_srt_files_in_folders(folders, target_season)
-                        season_files = files if files else []
-                        logger.info("Episode map fallback found: S%dE%d", target_season, target_episode)
-                    else:
-                        return None, None
-                else:
-                    return None, None
-            
-            # find file matching target_episode
-            chosen_remote = None
-            for fpath in files:
-                s, e, global_e = self.extract_season_episode_global(os.path.basename(fpath))
-                if e == target_episode:
-                    chosen_remote = fpath
-                    break
-            
-            if chosen_remote is None:
-                # Exact episode not found
-                if action == 'inc':
-                    # For 'inc' action, don't pick max - use episode map fallback instead
-                    logger.info("Episode S%dE%d not found in remote files, trying episode map fallback", target_season, target_episode)
-                    result = self._find_next_from_map(cur_season, cur_episode)
-                    if result:
-                        target_season, target_episode, remote_path = result
-                        folders = self._search_subtitle_folders()
-                        files = self._search_srt_files_in_folders(folders, target_season)
-                        season_files = files if files else []
-                        logger.info("Episode map fallback found: S%dE%d", target_season, target_episode)
-                        # Need to find this episode in the new files list
-                        for fpath in files:
-                            s, e, global_e = self.extract_season_episode_global(os.path.basename(fpath))
-                            if e == target_episode:
-                                chosen_remote = fpath
-                                break
-                    if not chosen_remote:
-                        logger.warning("No next episode available via map fallback")
-                        return None, None
-                else:
-                    # For 'set' or 'dec' action, pick closest available (legacy behavior)
-                    max_e = 0
-                    for fpath in files:
-                        s, e, global_e = self.extract_season_episode_global(os.path.basename(fpath))
-                        if e and e > max_e:
-                            max_e = e
-                            chosen_remote = fpath
-                    if chosen_remote is None:
-                        logger.warning("No matching remote file found for episode %s", target_episode)
-                        return None, None
-            remote_path = chosen_remote
-            season_files = files
+        if target_global is None:
+            # If we still cannot derive a global index, warn user
+            messagebox.showwarning("Episode not found", f"Could not determine global index for requested episode.")
+            return self.current_season, self.current_episode
 
-        # download the remote_path into season cache
-        # Only create directory after confirming we have a valid remote_path with files
-        season_dir = self._season_cache_dir(target_season, create=True)  # Explicit create=True here
-        filename = self.sanitize_filename(os.path.basename(remote_path))
-        local_path = os.path.join(season_dir, filename)
-
-        # blocking download of the required episode (so UI can show it)
+        # Request a synchronous windowed download centered on target_global, so the immediate next episodes are available
         try:
-            raw_url = self._get_raw_url(remote_path)
-            self._download_file(raw_url, local_path)
-            # verify file exists
-            # if not os.path.isfile(local_path):
-            #     logger.error("Downloaded file missing: %s", local_path)
-            #     return cur_season, cur_episode
-            # load and update state
-            self._load_local_and_process(local_path)
-            # Extract actual season/episode from the file we loaded to avoid display mismatch
-            actual_s, actual_e, global_e = self.extract_season_episode_global(os.path.basename(local_path))
-            if actual_s and actual_e:
-                self.current_season = actual_s
-                self.current_episode = actual_e
-                logger.info("Remote download loaded: S%dE%d (requested S%dE%d)", actual_s, actual_e, target_season, target_episode)
-            else:
-                # Fallback if parsing failed
-                self.current_season = target_season
-                self.current_episode = target_episode
-                logger.warning("Could not extract actual episode from %s, using target S%dE%d", os.path.basename(local_path), target_season, target_episode)
-            self.season_dir = season_dir
-            self.srt_file = local_path
-            s_num, e_num, global_e = self.extract_season_episode_global(os.path.basename(remote_path))
-            if s_num == 1:
-                # Extract anime folder name from the remote path (may include suffixes)
-                extracted = self._extract_anime_name_from_url(remote_path)
-                if extracted:
-                    # strip trailing Roman numerals or "Season N" suffixes to get base name
-                    cleaned = re.sub(r'\s+(?:Season\s*\d+|\bI{1,3}\b|I{1,3}V?I{0,3})\s*$', '', extracted, flags=re.IGNORECASE).strip()
-                    if cleaned:
-                        self.anime_folder_name = cleaned
-                        self.config.set("LAST_ANIME_NAME", self.anime_folder_name)
+            # synchronous download so that we can load right afterwards
+            self.download_window_around_global(target_global, window=20, async_download=False)
+            # refresh local index
+            self._build_local_episode_map()
         except Exception:
-            logger.exception("Failed to download or load remote episode: %s", remote_path)
-            return None, None
+            logger.exception("Failed to download window around global %s", target_global)
 
-        # kick off background downloads for remaining season files (if we have file list)
-        try:
-            if season_files:
-                # convert remote paths to filenames to tell the async downloader which is current
-                current_file = filename
-                # Larger window for initial season download (50 episodes), smaller for mid-season (15)
-                window_size = 50 if not self.local_file_list else 15
-                self.download_remaining_season_async(season_files, current_file, season_dir, window=window_size)
-        except Exception:
-            logger.exception("Failed to start async season download")
+        # After download attempt, try to find and load the file
+        rec_after = find_by_global(target_global)
+        if rec_after:
+            if self._load_local_record(rec_after):
+                return self.current_season, self.current_episode
 
-
-        # update: new github url to current episode to config, update github metadata?, ...
+        # still not found -> warn
+        messagebox.showwarning("Episode not found", f"Requested episode not available after download attempt (global {target_global}).")
         return self.current_season, self.current_episode
-    
+
     def set_new_file(self):
         popup = tk.Toplevel()
         popup.title("Choose Source")
@@ -650,14 +623,49 @@ class SubtitleManager:
         self._extract_and_set_remote_episode_metadata(init_url)
         
         #create episode map
-        # self.create_episode_map()
+        self.build_remote_episode_maps()
         
         create_season_dir = self._season_cache_dir()
         self.file_name = os.path.basename(self.remote_path) #i dont think self.file_name is needed change later
         local_srt_path = os.path.join(create_season_dir, self.file_name)
         self._download_file(self._get_raw_url(self.remote_path), local_srt_path)
         #download other files later in app.py
+
+        try:
+            # build lookup maps from the github search results (this is cheap if all_results_items already exists)
+            if not getattr(self, "all_results_items", None):
+                # if not yet built, attempt to create it (may perform heavy github searches)
+                self._create_remote_episode_map_per_season()
+            self.build_remote_episode_maps()
+
+            # determine center global index for windowing
+            center_global = None
+            # prefer the explicit global parsed from the just-downloaded file
+            try:
+                _, _, g = self.extract_season_episode_global(os.path.basename(local_srt_path))
+                if g:
+                    center_global = int(g)
+            except Exception:
+                pass
+            if center_global is None:
+                center_global = self.get_current_global()
+
+            # schedule window download around current global (background threads)
+            if center_global is not None:
+                self.center_global = center_global
+                # window_size is +/-20 (user request). Use async threads for non-blocking behavior.
+                self.download_window_around_global(center_global, window=20, async_download=True)
+            # refresh local_srt_files now (some downloads may still be in progress)
+            self.update_local_srt_files()
+        except Exception:
+            logger.exception("Failed to schedule initial windowed downloads")
+
         return local_srt_path
+    
+
+
+
+
     
     def _extract_and_set_remote_episode_metadata(self, remote_url):
         self.config.set("LAST_GITHUB_URL", remote_url)
@@ -674,7 +682,6 @@ class SubtitleManager:
             self.anime_folder_name = url_anime_name
             self.config.set("LAST_ANIME_NAME", url_anime_name)
         self._create_remote_episode_map_per_season()
-        # self._create_remote_episode_map_all()
     
     def _specific_episode_search(self,s,e):
         #season and episode must be in the format of the github s02e0001 or e01 and so on
@@ -715,338 +722,6 @@ class SubtitleManager:
             else:
                 logger.error("GitHub search failed: %s", resp.text)
                 break
-
-    # def _create_remote_episode_map_all(self):
-    #     # self.anime_folder_name = "Shingeki no Kyojin" #debugging
-    #     logger.info(f"Building comprehensive episode map for {self.anime_folder_name}...")
-    #     all_results_items: List[Dict] = []
-    #     stop_reason = None
-    #     last_rate_info = {}
-    #     api_url = "https://api.github.com/search/code"
-    #     headers = {
-    #         "Accept": "application/vnd.github.v3+json",
-    #         "Authorization": f"token {self.github_token}",
-    #         "User-Agent": "subtitle-searcher",
-    #     }
-    #     per_page = 100  
-        
-    #     def _print_rate_info(hdr):
-    #         limit = hdr.get("X-RateLimit-Limit")
-    #         remaining = hdr.get("X-RateLimit-Remaining")
-    #         reset = hdr.get("X-RateLimit-Reset")
-    #         retry_after = hdr.get("Retry-After")
-    #         reset_time = None
-    #         if reset:
-    #             try:
-    #                 reset_time = datetime.datetime.utcfromtimestamp(int(reset)).isoformat() + "Z"
-    #             except Exception:
-    #                 reset_time = reset
-    #         print(f"Rate: limit={limit} remaining={remaining} reset={reset_time}")
-    #         return {"limit": limit, "remaining": remaining, "reset": reset, "retry_after": retry_after}
-
-    #     def _wait_until_reset(hdr_info):
-    #         # honor Retry-After first
-    #         ra = hdr_info.get("retry_after")
-    #         if ra:
-    #             try:
-    #                 wait = int(ra) + 1
-    #             except Exception:
-    #                 wait = 60
-    #             print(f"Server requested Retry-After {ra}s; sleeping {wait}s...")
-    #             time.sleep(wait)
-    #             return
-    #         # otherwise use X-RateLimit-Reset
-    #         reset = hdr_info.get("reset")
-    #         if reset:
-    #             try:
-    #                 reset_ts = int(reset)
-    #                 now_ts = int(time.time())
-    #                 wait = max(reset_ts - now_ts + 3, 3)
-    #                 reset_time = datetime.datetime.utcfromtimestamp(reset_ts).isoformat() + "Z"
-    #                 print(f"Sleeping {wait}s until rate reset at {reset_time}...")
-    #                 time.sleep(wait)
-    #                 return
-    #             except Exception:
-    #                 pass
-    #         # fallback
-    #         print("No reset info available; sleeping 60s as fallback...")
-    #         time.sleep(60)
-    #         return
-        
-    #     session = requests.Session()
-    #     session.headers.update(headers)
-    #     search_query = f"{self.anime_folder_name}"
-    #     q = (f'repo:{self.github_owner}/{self.github_repo}'
-    #                 f' path:subtitles/anime_tv extension:srt in:path {search_query}')
-    #     params = {"q": q, "per_page": per_page} 
-    #     page = 1
-    #     while True:
-    #         params["page"] = page
-    #         try: resp = session.get(api_url, params=params, timeout=15)
-    #         except requests.RequestException as e:# network error: stop and return what we have
-    #             logger.error(f"network error: {e}")
-    #             return
-    #         hdr = resp.headers
-    #         last_rate_info = _print_rate_info(hdr)
-    #         rem = last_rate_info.get("remaining")
-    #         if rem is not None and int(rem) <= 0:
-    #             _wait_until_reset(last_rate_info)# after waiting, retry same page
-    #             continue
-    #         if resp.status_code == 200:
-    #             data = resp.json()
-    #             items = data.get("items", [])
-    #             if not items and page == 1:
-    #                 print(f"GitHub search returned 0 items for query: {q}")
-    #                 break
-    #             provider_found = True
-    #             found_any_for_season = True
-    #             for it in items:
-    #                 name = os.path.basename(it.get("path") or it.get("name") or "")
-    #                 s, e, global_e = self.extract_season_episode_global(name)
-    #                 all_results_items.append({
-    #                     "name": name,
-    #                     "path": it.get("path"),
-    #                     "season": s,
-    #                     "episode": e,
-    #                     "global": global_e,
-    #                 })
-    #             # stop when fewer than per_page items returned (no more pages)
-    #             if len(items) < per_page:
-    #                 break
-    #             page += 1
-    #             time.sleep(0.1)
-    #             continue
-    #         # Rate-limited or retryable responses: 403 / 429
-    #         if resp.status_code == 403 or resp.status_code == 429:
-    #             # try to parse message
-    #             try:
-    #                 msg = resp.json().get("message", "")
-    #             except Exception:
-    #                 msg = resp.text or ""
-    #             # honor Retry-After header if provided
-    #             if hdr.get("Retry-After"):
-    #                 print("Retry-After header present; waiting as requested...")
-    #                 _wait_until_reset(last_rate_info)
-    #                 continue
-    #             # if remaining==0 or message mentions rate limit -> wait until reset
-    #             rem = last_rate_info.get("remaining")
-    #             if rem == "0" or (rem is not None and int(rem) == 0) or "rate limit" in msg.lower():
-    #                 print("Rate limit reached; will wait until reset and then continue...")
-    #                 _wait_until_reset(last_rate_info)
-    #                 continue
-    #             # abuse detection -> wait a longer time then retry
-    #             if "abuse" in msg.lower():
-    #                 print(f"Abuse detection triggered: {msg}. Sleeping 120s then retrying...")
-    #                 time.sleep(120)
-    #                 continue
-    #             raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
-    #         # Search API 1000-results cap
-    #         if resp.status_code == 422:
-    #             print("Search API 422 (cannot access beyond the first 1000 results). Stopping and returning partial results.")
-    #             break
-    #         raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
-            
-    #     season_offset, local_numbering = self.compute_season_offsets(all_results_items)
-    #     self.assign_globals(all_results_items, season_offset, local_numbering)
-    #     all_results_items.sort(key=self.sort_key)
-
-        
-    #     # Build flat SxxEyy -> Gzz map, ordered by global
-    #     episode_map = {}
-
-    #     # Collect (global, SxxEyy) pairs first
-    #     pairs = []
-    #     for it in all_results_items:
-    #         g = it.get("global")
-    #         s = it.get("season")
-    #         e = it.get("episode")
-    #         if g is None or s is None or e is None:
-    #             continue
-    #         pairs.append((int(g), int(s), int(e)))
-
-    #     # Sort by global, then season, then episode (stable & readable)
-    #     pairs.sort(key=lambda x: (x[0], x[1], x[2]))
-
-    #     for g, s, e in pairs:
-    #         key = f"S{s:02d}E{e:02d}"
-    #         # keep first occurrence only (avoid overwrite spam)
-    #         if key not in episode_map:
-    #             episode_map[key] = g
-
-    #     if all_results_items:
-    #         safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in (self.anime_folder_name or ""))[:200] or "result"
-    #         folder_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),"github_search")
-    #         os.makedirs(folder_dir, exist_ok=True)
-    #         json_path = os.path.join(folder_dir, f"github_search_{safe_name}.json")
-    #         payload = {
-    #             "last search": q,
-    #             "repo": f"{self.github_owner}/{self.github_repo}",
-    #             "created_at": datetime.datetime.utcnow().isoformat() + "Z",
-    #             "stop_reason": stop_reason,
-    #             "rate_info": last_rate_info,
-    #             "result_count": len(all_results_items),
-    #             "items": all_results_items,
-    #             "episode_map": episode_map
-    #         }
-    #         try:
-    #             with open(json_path, "w", encoding="utf-8") as fh:
-    #                 json.dump(payload, fh, ensure_ascii=False, indent=2)
-    #             print(f"Wrote diagnostics to {json_path}")
-    #         except Exception as e:
-    #             print("Failed to write diagnostics JSON:", e)
-    #     self.all_results_items = all_results_items
-    #     return
-    
-    # def compute_season_offsets(self, items: List[Dict]):
-    #     season_eps = defaultdict(set)
-    #     pairs = defaultdict(lambda: defaultdict(Counter))  # season -> episode -> Counter(globals)
-
-    #     for it in items:
-    #         s = it.get("season"); e = it.get("episode"); g = it.get("global")
-    #         if s is None or s <= 0 or e is None:
-    #             if s is not None and e is None and g is not None:
-    #                 season_eps[s].add(None)
-    #             continue
-    #         season_eps[s].add(int(e))
-    #         if g is not None:
-    #             pairs[s][int(e)][int(g)] += 1
-
-    #     # decide local numbering by presence of episode 1
-    #     local_numbering = {s: (1 in eps) for s, eps in season_eps.items()}
-
-    #     # compute offset votes: for (s,e) choose most-common global -> vote for (g - e)
-    #     offsets_votes = defaultdict(list)
-    #     for s, ep_map in pairs.items():
-    #         for e, counter in ep_map.items():
-    #             if not counter:
-    #                 continue
-    #             most_common_g, _ = counter.most_common(1)[0]
-    #             offsets_votes[s].append(int(most_common_g) - int(e))
-
-    #     season_offset = {}
-    #     for s, votes in offsets_votes.items():
-    #         if not votes:
-    #             continue
-    #         cnt = Counter(votes)
-    #         most_common, count = cnt.most_common(1)[0]
-    #         # require >=50% agreement to accept offset
-    #         if count >= max(1, int(len(votes) * 0.5)):
-    #             season_offset[s] = most_common
-
-    #     if 1 in season_eps:
-    #         local_numbering[1] = False
-    #         season_offset[1] = 0
-
-    #     # Fill fallback cumulative offsets for seasons that appear local-numbered and missing offsets:
-    #     ordered = sorted(season_eps.keys())
-    #     running = 0
-    #     for s in ordered:
-    #         if local_numbering.get(s, True):
-    #             if s not in season_offset:
-    #                 season_offset[s] = running
-    #             running = season_offset[s] + (max([x for x in season_eps[s] if x is not None]) if season_eps[s] and any(x is not None for x in season_eps[s]) else running)
-    #         else:
-    #             # global-numbered: make running at least the max explicit global seen (if any)
-    #             max_g = running
-    #             for e, counter in pairs.get(s, {}).items():
-    #                 if counter:
-    #                     mostg, _ = counter.most_common(1)[0]
-    #                     max_g = max(max_g, mostg)
-    #             running = max(running, max_g)
-    #     return season_offset, local_numbering
-
-    # def sort_key(self,it):
-    #     if it["season"] is not None and it["episode"] is not None:
-    #         return (it["season"], it["episode"], it["name"])
-    #     return (999, it["name"])
-    
-    # def assign_globals(self, items: List[Dict], season_offset: Dict[int,int], local_numbering: Dict[int,bool]):
-    #     # Build explicit global -> (s,e) counters so we only reserve globals that have a clear majority mapping
-    #     explicit_global_map = defaultdict(Counter)  # g -> Counter((s,e))
-    #     for it in items:
-    #         g = it.get('global'); s = it.get('season'); e = it.get('episode')
-    #         if g is None:
-    #             continue
-    #         explicit_global_map[int(g)][(s, e)] += 1
-
-    #     # Reserve globals that map with a majority to a specific (s,e)
-    #     reserved_by_pair = {}  # (s,e) -> g
-    #     used_globals = set()
-    #     for g, cnt in explicit_global_map.items():
-    #         most_pair, count = cnt.most_common(1)[0]
-    #         total = sum(cnt.values())
-    #         if count >= max(1, int(total * 0.5)):
-    #             # reserve if majority of uses agree on the same pair
-    #             reserved_by_pair[most_pair] = int(g)
-    #             used_globals.add(int(g))
-
-    #     # Group by (season,episode)
-    #     groups = defaultdict(list)
-    #     for it in items:
-    #         s = it.get('season'); e = it.get('episode')
-    #         if s is None or e is None:
-    #             continue
-    #         groups[(int(s), int(e))].append(it)
-
-    #     # Process groups in stable order
-    #     for (s, e) in sorted(groups.keys()):
-    #         group_items = groups[(s, e)]
-
-    #         # First see if group already has explicit globals (and prefer most common)
-    #         explicit_gs = [int(x['global']) for x in group_items if x.get('global') is not None]
-    #         chosen_g = None
-    #         if explicit_gs:
-    #             c = Counter(explicit_gs)
-    #             chosen_g = c.most_common(1)[0][0]
-    #         elif s ==1:
-    #             chosen_g = int(e)
-    #         elif (s, e) in reserved_by_pair:
-    #             chosen_g = reserved_by_pair[(s, e)]
-    #         else:
-    #             # Compute according to local/global season rule
-    #             if not local_numbering.get(s, True):
-    #                 # season is global-numbered -> episode value is already global
-    #                 chosen_g = int(e)
-    #             else:
-    #                 # local numbering -> apply offset (default offset 0)
-    #                 chosen_g = int(season_offset.get(s, 0)) + int(e)
-
-    #         # If chosen_g collides with a different (s2,e2) already assigned, search upward for next free
-    #         if chosen_g in used_globals:
-    #             # If the current group already had that global explicitly, it's okay
-    #             if explicit_gs and chosen_g in explicit_gs:
-    #                 pass  # keep it
-    #             else:
-    #                 original = int(chosen_g)
-    #                 found = None
-    #                 # search upward first (prefer increasing)
-    #                 for delta in range(1, 2000):
-    #                     cand = original + delta
-    #                     if cand not in used_globals:
-    #                         found = cand
-    #                         break
-    #                 if found is None:
-    #                     # fallback downward search
-    #                     for delta in range(1, original):
-    #                         cand = original - delta
-    #                         if cand > 0 and cand not in used_globals:
-    #                             found = cand
-    #                             break
-    #                 if found is not None:
-    #                     chosen_g = found
-    #                     for it in group_items:
-    #                         it.setdefault('conflicts', []).append('global_collision_resolved')
-    #                 else:
-    #                     # mark conflict but still assign original
-    #                     for it in group_items:
-    #                         it.setdefault('conflicts', []).append('global_collision')
-
-    #         # Assign chosen global to all items in this group
-    #         for it in group_items:
-    #             it['global'] = int(chosen_g)
-    #         used_globals.add(int(chosen_g))
-
-
 
     def _create_remote_episode_map_per_season(self):
         #add end_season and anime name searches in the gui
@@ -1335,6 +1010,156 @@ class SubtitleManager:
                 it.setdefault('conflicts', []).append('global_collision')
             used_globals.add(it['global'])
 
+    def build_remote_episode_maps(self):
+        """
+        Build convenient lookup maps from self.all_results_items:
+        - self.remote_episode_map_global: global_index -> item
+        - self.remote_episode_map_season: season -> list[item]
+        Each item contains: season, episode, global, path, name.
+        """
+        self.remote_episode_map_global = {}
+        self.remote_episode_map_season = defaultdict(list)
+        if not getattr(self, "all_results_items", None):
+            return
+        for it in self.all_results_items:
+            s = it.get("season")
+            e = it.get("episode")
+            g = it.get("global")
+            path = it.get("path") or it.get("name")
+            name = it.get("name")
+            entry = {"season": s, "episode": e, "global": g, "path": path, "name": name}
+            if g is not None:
+                try:
+                    self.remote_episode_map_global[int(g)] = entry
+                except Exception:
+                    pass
+            if s is not None:
+                try:
+                    self.remote_episode_map_season[int(s)].append(entry)
+                except Exception:
+                    pass
+        # sort season lists by episode (fallback to global)
+        for s, lst in self.remote_episode_map_season.items():
+            lst.sort(key=lambda x: (x.get("episode") or 0, x.get("global") or 0))
+
+    def global_to_local(self, global_idx: int) -> Tuple[Optional[int], Optional[int]]:
+        """Return (season, episode) for a given global index, or (None, None)."""
+        if global_idx is None:
+            return None, None
+        if not hasattr(self, "remote_episode_map_global"):
+            self.build_remote_episode_maps()
+        it = self.remote_episode_map_global.get(int(global_idx))
+        if not it:
+            return None, None
+        return (int(it["season"]) if it.get("season") is not None else None,
+                int(it["episode"]) if it.get("episode") is not None else None)
+
+    def local_to_global(self, season: Optional[int], episode: Optional[int]) -> Optional[int]:
+        """Return global index for given local season/episode if known, else None."""
+        if season is None or episode is None:
+            return None
+        if not hasattr(self, "remote_episode_map_season"):
+            self.build_remote_episode_maps()
+        for it in self.remote_episode_map_season.get(int(season), []):
+            if it.get("episode") == int(episode) and it.get("global") is not None:
+                return int(it["global"])
+        return None
+
+    def get_current_global(self) -> Optional[int]:
+        """Try to determine a global index for the currently loaded subtitle."""
+        # 1) try to parse from the current filename
+        if getattr(self, "srt_file", None):
+            _, _, g = self.extract_season_episode_global(os.path.basename(self.srt_file))
+            if g:
+                return int(g)
+        # 2) try mapping from current season/episode
+        if getattr(self, "current_season", None) and getattr(self, "current_episode", None):
+            g = self.local_to_global(self.current_season, self.current_episode)
+            if g:
+                return g
+        # 3) last-resort: if remote path corresponds to an item with global
+        if getattr(self, "remote_path", None) and getattr(self, "all_results_items", None):
+            basename = os.path.basename(self.remote_path)
+            for it in self.all_results_items:
+                if it.get("name") == basename or it.get("path") == self.remote_path:
+                    if it.get("global") is not None:
+                        return int(it["global"])
+        return None
+
+    def download_window_around_global(self, center_global: int, window: int = 20, async_download: bool = True):
+        """
+        Download files with global indices in [center_global - window, center_global + window].
+        Creates season cache dirs and downloads missing .srt files. If async_download is True,
+        other files are downloaded in daemon threads (current file can be downloaded synchronously).
+        """
+        if center_global is None:
+            return []
+        if not hasattr(self, "remote_episode_map_global"):
+            self.build_remote_episode_maps()
+        got = []
+        lo = max(1, int(center_global) - int(window))
+        hi = int(center_global) + int(window)
+        for g in range(lo, hi + 1):
+            item = self.remote_episode_map_global.get(g)
+            if not item or not item.get("path"):
+                continue
+            season = item.get("season") or self.current_season
+            season_dir = self._season_cache_dir(season)
+            filename = self.sanitize_filename(os.path.basename(item["path"]))
+            local_path = os.path.join(season_dir, filename)
+            if os.path.exists(local_path):
+                got.append(local_path)
+                continue
+            raw_url = self._get_raw_url(item["path"])
+            if not async_download:
+                try:
+                    self._download_file(raw_url, local_path)
+                    got.append(local_path)
+                except Exception:
+                    pass
+            else:
+                # spawn thread
+                def _dl(url, lp):
+                    try:
+                        self._download_file(url, lp)
+                    except Exception:
+                        logger.exception("Background download failed for %s", url)
+                t = threading.Thread(target=_dl, args=(raw_url, local_path), daemon=True)
+                t.start()
+                got.append(local_path)
+        # update local_srt_files map after scheduling downloads (some may still be in progress)
+        try:
+            self.update_local_srt_files()
+        except Exception:
+            logger.exception("Failed to refresh local_srt_files after scheduling downloads")
+        return got
+
+    def update_local_srt_files(self):
+        """
+        Scan cache and build self.local_srt_files: list of dicts with keys:
+        'season','episode','global','path','name'
+        """
+        self.local_srt_files = []
+        base = self._get_cache_base_dir()
+        anime_dir = os.path.join(base, self.anime_folder_name) if self.anime_folder_name else base
+        if not os.path.isdir(anime_dir):
+            return self.local_srt_files
+        for root, _dirs, files in os.walk(anime_dir):
+            for fn in files:
+                if not fn.lower().endswith(".srt"):
+                    continue
+                full = os.path.join(root, fn)
+                s, e, g = self.extract_season_episode_global(fn)
+                # if file name had no explicit global, try to map via remote maps
+                if g is None and s is not None and e is not None:
+                    g = self.local_to_global(s, e)
+                rec = {"season": s, "episode": e, "global": g, "path": full, "name": fn}
+                self.local_srt_files.append(rec)
+        # optionally sort by global or season/episode
+        self.local_srt_files.sort(key=lambda x: (x.get("global") if x.get("global") is not None else (x.get("season") or 0, x.get("episode") or 0)))
+        return self.local_srt_files
+
+
 
     def _parse_github_url(self, url: str) -> Dict[str, Optional[str]]:  
         p = urlparse(url)
@@ -1424,15 +1249,23 @@ class SubtitleManager:
 # -------------------------Episode navigation map (from found_srt_files.txt)-------------------------
     def _build_local_episode_map(self):
         all_local_files_data = []
-        if self.local_srt_dir and os.path.isdir(self.local_srt_dir):
-            for fn in os.listdir(self.local_srt_dir):
-                if not fn.lower().endswith('.srt'): continue
-                path = os.path.join(self.local_srt_dir, fn)
-                s, e, global_e = self.extract_season_episode_global(fn)
-                all_local_files_data.append({
-                    'name': fn, 'path': path, 
-                    'season': s, 'episode': e,
-                    'global': global_e})
+        self.local_srt_files = []
+        if not (self.local_srt_dir and os.path.isdir(self.local_srt_dir)):
+            return all_local_files_data
+
+        for fn in os.listdir(self.local_srt_dir):
+            if not fn.lower().endswith('.srt'):
+                continue
+            path = os.path.join(self.local_srt_dir, fn)
+            s, e, g = self.extract_season_episode_global(fn)
+            rec = {"name": fn, "path": path, "season": s, "episode": e, "global": g}
+            all_local_files_data.append(rec)
+
+        # sort: prefer global, otherwise season/episode
+        all_local_files_data.sort(key=lambda x: (x.get("global") if x.get("global") is not None else (x.get("season") or 0, x.get("episode") or 0)))
+        self.local_srt_files = all_local_files_data
+        # helper quick-lookup lists (some older code may rely on these)
+        self.local_file_list = [r["name"] for r in all_local_files_data]
         return all_local_files_data
 
 # ---------------------- helpers: cache dirs ----------------------base
@@ -1450,8 +1283,6 @@ class SubtitleManager:
         os.makedirs(base, exist_ok=True)
         return base
 # ---------------------- helpers: cache dirs ----------------------
-
-
 
 # ---------------------- Helpers: parsing ----------------------
     def normalize_name(self, name: str) -> str:
@@ -1628,211 +1459,6 @@ class SubtitleManager:
 
         # nothing confident
         return None, None, None
-
-
-
-    # def extract_season_episode_global(self, name: str) -> Tuple[Optional[int], Optional[int], Optional[int]]:
-    #     """
-    #     Clean extractor with NO 第N話 handling.
-
-    #     Rules:
-    #     - If SxxEyy (or equivalent) exists:
-    #         -> season = xx
-    #         -> episode = yy
-    #         -> global = None (assigned later by season logic)
-    #     - If no season but an episode-like number exists:
-    #         -> treat that number as GLOBAL
-    #     - Explicit 'Global: N' is still respected
-    #     - No guessing, no anime-specific behavior
-    #     """
-
-    #     sname = self.normalize_name(name)
-
-    #     s = None
-    #     e = None
-    #     g = None
-
-    #     # 1) Explicit Global marker (rare but trustworthy)
-    #     m = re.search(r'(?i)\bglobal[:\s]*#?\s*(\d{1,4})\b', sname)
-    #     if m:
-    #         g = int(m.group(1))
-
-    #     # 2) Strong season+episode patterns (ordered by confidence)
-    #     patterns = [
-    #         r'(?i)\bS(\d{1,2})[^\dA-Za-z]{0,3}E(\d{1,4})\b',   # S01E02
-    #         r'(?i)\bSeason\s*(\d{1,2})[^\dA-Za-z]{0,3}(\d{1,4})\b',  # Season 2 03
-    #         r'シーズン\s*(\d{1,2})\s*[-_]\s*(\d{1,4})',       # シーズン1-17
-    #         r'(?i)\bS(\d{1,2})\s*[-:]\s*(\d{1,4})\b',          # S2-26
-    #         r'(?i)\bS(\d{1,2})\s+(\d{1,4})\b',                 # S2 26
-    #     ]
-
-    #     for p in patterns:
-    #         m = re.search(p, sname)
-    #         if m:
-    #             s = int(m.group(1))
-    #             e = int(m.group(2))
-    #             return s, e, g  # global assigned later
-
-    #     # 3) Episode-only patterns (no season → treat as GLOBAL)
-    #     m = re.search(r'(?i)\b[Ee][pP]?\.?\s*(\d{1,4})\b', sname)
-    #     if m:
-    #         num = int(m.group(1))
-    #         return None, None, num
-
-    #     # 4) Loose fallback: first sensible number (not a year)
-    #     nums = [int(x) for x in re.findall(r'(?<!\d)(\d{1,4})(?!\d)', sname)]
-    #     for n in nums:
-    #         if 1500 <= n <= 2100:
-    #             continue
-    #         return None, None, n
-
-    #     return None, None, None
-
-    # def extract_season_episode_global(self, name: str) -> Tuple[Optional[int], Optional[int], Optional[int]]:
-    #     sname = self.normalize_name(name)
-    #     global_num = None
-    #     nums = [int(x) for x in re.findall(r'(?<!\d)(\d{1,4})(?!\d)', sname)]
-    #     gm = re.search(r'Global[:\s]*#?\s*(\d{1,4})', sname, re.IGNORECASE)
-    #     if gm:
-    #         global_num = int(gm.group(1))
-    #     else:
-    #         jp = re.search(r'第\s*(\d{1,4})\s*話', sname)
-    #         global_num = int(jp.group(1)) if jp else None
-    #     s = None; e = None
-    #     patterns = [
-    #         r'(?i)\bS(\d{1,2})[^\dA-Za-z]{0,3}E(\d{1,4})\b',
-    #         r'(?i)\bSeason\s+(\d{1,2})[^\dA-Za-z]{0,3}(\d{1,4})\b',
-    #         r'(?i)\bS(\d{1,2})\s*[-:]\s*(\d{1,4})\b',
-    #         r'(?i)\bS(\d{1,2})\s*(\d{1,4})\b',
-    #     ]
-    #     match_pos = -1
-    #     for p in patterns:
-    #         m = re.search(p, sname)
-    #         if m:
-    #             s = int(m.group(1)); e = int(m.group(2)); match_pos = m.end()
-    #             break
-    #     def find_par_after(pos):
-    #         for m in re.finditer(r'\(\s*(\d{1,4})\s*\)', sname):
-    #             if m.start() >= pos:
-    #                 return int(m.group(1))
-    #         return None
-    #     if s is not None:
-    #         par = find_par_after(match_pos)
-    #         if par and par > (e or 0):
-    #             global_num = par
-    #     if s is None:
-    #         m = re.search(r'(?i)\b[Ee][pP]?\.?\s*(\d{1,4})\b', sname)
-    #         if m:
-    #             e = int(m.group(1))
-    #         if e is None:
-    #             m2 = re.search(r'[-\s](\d{1,4})(?:\s*\(|$)', sname)
-    #             if m2:
-    #                 cand = int(m2.group(1))
-    #                 if not re.match(r'^(19|20)\d{2}$', str(cand)):
-    #                     e = cand
-    #         if e is None and nums:
-    #             for n in nums:
-    #                 if 1500 <= n <= 2100:
-    #                     continue
-    #                 e = n
-    #                 break
-    #     return s, e, global_num
-
-    # def extract_season_episode_global(self, name: str) -> Tuple[Optional[int], Optional[int], Optional[int]]:
-    #         sname = self.normalize_name(name)
-            
-    #         # Helper to find first parenthesized number after a position
-    #         def find_par_after(pos: int) -> Optional[int]:
-    #             for m in re.finditer(r'\(\s*(\d{1,4})\s*\)', sname):
-    #                 if m.start() >= pos:
-    #                     return int(m.group(1))
-    #             return None
-            
-    #         # Helper for explicit global or Japanese global
-    #         def get_global_extra() -> Optional[int]:
-    #             gm = re.search(r'Global[:\s]*#?\s*(\d{1,4})', sname, re.IGNORECASE)
-    #             if gm:
-    #                 return int(gm.group(1))
-    #             jp = re.search(r'第\s*(\d{1,4})\s*話', sname)
-    #             if jp:
-    #                 return int(jp.group(1))
-    #             return None
-            
-    #         # Patterns for s and labeled number (which could be e or g)
-    #         patterns = [
-    #             (r'シーズン\s*(\d{1,2})\s*[-_]\s*(\d{1,4})\s*[-_]', 'jp_season'),
-    #             (r'(?i)season\s+(\d{1,2})\s*[-:]\s*(\d{1,4})', 'en_season'),
-    #             (r'(?i)\bS(\d{1,2})\D*[eE](\d{1,4})\b', 's_e'),
-    #             (r'(?i)\bS(\d{1,2})\s*[-:]\s*(\d{1,4})\b', 's_dash'),
-    #             (r'[_\s]S(\d{1,2})\s*[-:\s]*E?(\d{1,4})', 'sxy', re.IGNORECASE),
-    #             (r'\bS(\d{1,2})(?:\D*E)?\s*\(\s*(\d{1,4})\s*\)', 'sx_par', re.IGNORECASE),
-    #         ]
-            
-    #         s, labeled_num, g = None, None, None
-    #         match_pos = -1
-    #         for p, _ in patterns:
-    #             m = re.search(p, sname)
-    #             if m:
-    #                 s = int(m.group(1))
-    #                 labeled_num = int(m.group(2))
-    #                 match_pos = m.end()
-    #                 break
-            
-    #         # If s found, determine if labeled_num is e or g
-    #         if s is not None:
-    #             if labeled_num > 50:
-    #                 g = labeled_num
-    #                 labeled_num = None  # e=None
-    #             # Look for par after
-    #             par = find_par_after(match_pos)
-    #             if par and par > (labeled_num or 0):
-    #                 g = par
-    #             # Explicit global
-    #             extra_g = get_global_extra()
-    #             if extra_g:
-    #                 g = extra_g
-    #             # For s=1, if no g and e present
-    #             if s == 1 and labeled_num is not None and g is None:
-    #                 g = labeled_num
-            
-    #         # No s patterns matched, try no-s patterns for labeled_num (likely g)
-    #         if s is None:
-    #             no_s_patterns = [
-    #                 (r'(?i)(?:\b|^)[eE](\d{1,4})(?:\b|$)', 'e_only'),
-    #                 (r'\s*-\s*(\d{1,4})\s*-', 'dash_ep'),
-    #                 (r'[-_]\s*(\d{1,4})\s*(?:\(|[-_])', 'hy_par'),
-    #                 (r'(\d{1,4})\(\s*1\s*\)', 'dup'),
-    #             ]
-    #             for p, _ in no_s_patterns:
-    #                 m = re.search(p, sname)
-    #                 if m:
-    #                     num = int(m.group(1))
-    #                     if re.match(r'^(19|20)\d{2}$', str(num)):
-    #                         continue  # skip years
-    #                     labeled_num = num
-    #                     break
-    #             # Explicit global
-    #             extra_g = get_global_extra()
-    #             if extra_g:
-    #                 g = extra_g
-    #             # Fallback last suitable num
-    #             if labeled_num is None:
-    #                 nums = re.findall(r'(?<!\d)(\d{2,4})(?![p\d])', sname)
-    #                 candidates = []
-    #                 for n_str in nums:
-    #                     n = int(n_str)
-    #                     if 1500 <= n <= 2100:
-    #                         continue  # year
-    #                     candidates.append(n)
-    #                 if candidates:
-    #                     labeled_num = candidates[-1]  # last non-year
-            
-    #         # If no s, treat labeled_num as g
-    #         if s is None and labeled_num is not None:
-    #             g = labeled_num if g is None else max(labeled_num, g)
-    #             labeled_num = None  # no local e
-            
-    #         return s, labeled_num, g
 
     def _extract_anime_name_from_url(self, remote_path: str) -> Optional[str]:
         parts = remote_path.split("/")
