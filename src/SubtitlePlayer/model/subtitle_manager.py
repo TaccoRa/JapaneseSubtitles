@@ -673,8 +673,8 @@ class SubtitleManager:
         if self.current_season == 1: #what if no seasons? change later doesnt make too much sense dont know how to do it. save last used github url will this be always s1? ...
             self.anime_folder_name = url_anime_name
             self.config.set("LAST_ANIME_NAME", url_anime_name)
-        # self._create_remote_episode_map_per_season()
-        self._create_remote_episode_map_all()
+        self._create_remote_episode_map_per_season()
+        # self._create_remote_episode_map_all()
     
     def _specific_episode_search(self,s,e):
         #season and episode must be in the format of the github s02e0001 or e01 and so on
@@ -716,176 +716,337 @@ class SubtitleManager:
                 logger.error("GitHub search failed: %s", resp.text)
                 break
 
-    def _create_remote_episode_map_all(self):
-        # self.anime_folder_name = "Shingeki no Kyojin" #debugging
-        logger.info(f"Building comprehensive episode map for {self.anime_folder_name}...")
-        all_results_items: List[Dict] = []
-        stop_reason = None
-        last_rate_info = {}
-        api_url = "https://api.github.com/search/code"
-        headers = {
-            "Accept": "application/vnd.github.v3+json",
-            "Authorization": f"token {self.github_token}",
-            "User-Agent": "subtitle-searcher",
-        }
-        per_page = 100  
+    # def _create_remote_episode_map_all(self):
+    #     # self.anime_folder_name = "Shingeki no Kyojin" #debugging
+    #     logger.info(f"Building comprehensive episode map for {self.anime_folder_name}...")
+    #     all_results_items: List[Dict] = []
+    #     stop_reason = None
+    #     last_rate_info = {}
+    #     api_url = "https://api.github.com/search/code"
+    #     headers = {
+    #         "Accept": "application/vnd.github.v3+json",
+    #         "Authorization": f"token {self.github_token}",
+    #         "User-Agent": "subtitle-searcher",
+    #     }
+    #     per_page = 100  
         
-        def _print_rate_info(hdr):
-            limit = hdr.get("X-RateLimit-Limit")
-            remaining = hdr.get("X-RateLimit-Remaining")
-            reset = hdr.get("X-RateLimit-Reset")
-            retry_after = hdr.get("Retry-After")
-            reset_time = None
-            if reset:
-                try:
-                    reset_time = datetime.datetime.utcfromtimestamp(int(reset)).isoformat() + "Z"
-                except Exception:
-                    reset_time = reset
-            print(f"Rate: limit={limit} remaining={remaining} reset={reset_time}")
-            return {"limit": limit, "remaining": remaining, "reset": reset, "retry_after": retry_after}
+    #     def _print_rate_info(hdr):
+    #         limit = hdr.get("X-RateLimit-Limit")
+    #         remaining = hdr.get("X-RateLimit-Remaining")
+    #         reset = hdr.get("X-RateLimit-Reset")
+    #         retry_after = hdr.get("Retry-After")
+    #         reset_time = None
+    #         if reset:
+    #             try:
+    #                 reset_time = datetime.datetime.utcfromtimestamp(int(reset)).isoformat() + "Z"
+    #             except Exception:
+    #                 reset_time = reset
+    #         print(f"Rate: limit={limit} remaining={remaining} reset={reset_time}")
+    #         return {"limit": limit, "remaining": remaining, "reset": reset, "retry_after": retry_after}
 
-        def _wait_until_reset(hdr_info):
-            # honor Retry-After first
-            ra = hdr_info.get("retry_after")
-            if ra:
-                try:
-                    wait = int(ra) + 1
-                except Exception:
-                    wait = 60
-                print(f"Server requested Retry-After {ra}s; sleeping {wait}s...")
-                time.sleep(wait)
-                return
-            # otherwise use X-RateLimit-Reset
-            reset = hdr_info.get("reset")
-            if reset:
-                try:
-                    reset_ts = int(reset)
-                    now_ts = int(time.time())
-                    wait = max(reset_ts - now_ts + 3, 3)
-                    reset_time = datetime.datetime.utcfromtimestamp(reset_ts).isoformat() + "Z"
-                    print(f"Sleeping {wait}s until rate reset at {reset_time}...")
-                    time.sleep(wait)
-                    return
-                except Exception:
-                    pass
-            # fallback
-            print("No reset info available; sleeping 60s as fallback...")
-            time.sleep(60)
-            return
+    #     def _wait_until_reset(hdr_info):
+    #         # honor Retry-After first
+    #         ra = hdr_info.get("retry_after")
+    #         if ra:
+    #             try:
+    #                 wait = int(ra) + 1
+    #             except Exception:
+    #                 wait = 60
+    #             print(f"Server requested Retry-After {ra}s; sleeping {wait}s...")
+    #             time.sleep(wait)
+    #             return
+    #         # otherwise use X-RateLimit-Reset
+    #         reset = hdr_info.get("reset")
+    #         if reset:
+    #             try:
+    #                 reset_ts = int(reset)
+    #                 now_ts = int(time.time())
+    #                 wait = max(reset_ts - now_ts + 3, 3)
+    #                 reset_time = datetime.datetime.utcfromtimestamp(reset_ts).isoformat() + "Z"
+    #                 print(f"Sleeping {wait}s until rate reset at {reset_time}...")
+    #                 time.sleep(wait)
+    #                 return
+    #             except Exception:
+    #                 pass
+    #         # fallback
+    #         print("No reset info available; sleeping 60s as fallback...")
+    #         time.sleep(60)
+    #         return
         
-        session = requests.Session()
-        session.headers.update(headers)
-        search_query = f"{self.anime_folder_name}"
-        q = (f'repo:{self.github_owner}/{self.github_repo}'
-                    f' path:subtitles/anime_tv extension:srt in:path {search_query}')
-        params = {"q": q, "per_page": per_page} 
-        page = 1
-        while True:
-            params["page"] = page
-            try: resp = session.get(api_url, params=params, timeout=15)
-            except requests.RequestException as e:# network error: stop and return what we have
-                logger.error(f"network error: {e}")
-                return
-            hdr = resp.headers
-            last_rate_info = _print_rate_info(hdr)
-            rem = last_rate_info.get("remaining")
-            if rem is not None and int(rem) <= 0:
-                _wait_until_reset(last_rate_info)# after waiting, retry same page
-                continue
-            if resp.status_code == 200:
-                data = resp.json()
-                items = data.get("items", [])
-                if not items and page == 1:
-                    print(f"GitHub search returned 0 items for query: {q}")
-                    break
-                provider_found = True
-                found_any_for_season = True
-                for it in items:
-                    name = os.path.basename(it.get("path") or it.get("name") or "")
-                    s, e, global_e = self.extract_season_episode_global(name)
-                    all_results_items.append({
-                        "name": name,
-                        "path": it.get("path"),
-                        "season": s,
-                        "episode": e,
-                        "global": global_e,
-                    })
-                # stop when fewer than per_page items returned (no more pages)
-                if len(items) < per_page:
-                    break
-                page += 1
-                time.sleep(0.1)
-                continue
-            # Rate-limited or retryable responses: 403 / 429
-            if resp.status_code == 403 or resp.status_code == 429:
-                # try to parse message
-                try:
-                    msg = resp.json().get("message", "")
-                except Exception:
-                    msg = resp.text or ""
-                # honor Retry-After header if provided
-                if hdr.get("Retry-After"):
-                    print("Retry-After header present; waiting as requested...")
-                    _wait_until_reset(last_rate_info)
-                    continue
-                # if remaining==0 or message mentions rate limit -> wait until reset
-                rem = last_rate_info.get("remaining")
-                if rem == "0" or (rem is not None and int(rem) == 0) or "rate limit" in msg.lower():
-                    print("Rate limit reached; will wait until reset and then continue...")
-                    _wait_until_reset(last_rate_info)
-                    continue
-                # abuse detection -> wait a longer time then retry
-                if "abuse" in msg.lower():
-                    print(f"Abuse detection triggered: {msg}. Sleeping 120s then retrying...")
-                    time.sleep(120)
-                    continue
-                raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
-            # Search API 1000-results cap
-            if resp.status_code == 422:
-                print("Search API 422 (cannot access beyond the first 1000 results). Stopping and returning partial results.")
-                break
-            raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
+    #     session = requests.Session()
+    #     session.headers.update(headers)
+    #     search_query = f"{self.anime_folder_name}"
+    #     q = (f'repo:{self.github_owner}/{self.github_repo}'
+    #                 f' path:subtitles/anime_tv extension:srt in:path {search_query}')
+    #     params = {"q": q, "per_page": per_page} 
+    #     page = 1
+    #     while True:
+    #         params["page"] = page
+    #         try: resp = session.get(api_url, params=params, timeout=15)
+    #         except requests.RequestException as e:# network error: stop and return what we have
+    #             logger.error(f"network error: {e}")
+    #             return
+    #         hdr = resp.headers
+    #         last_rate_info = _print_rate_info(hdr)
+    #         rem = last_rate_info.get("remaining")
+    #         if rem is not None and int(rem) <= 0:
+    #             _wait_until_reset(last_rate_info)# after waiting, retry same page
+    #             continue
+    #         if resp.status_code == 200:
+    #             data = resp.json()
+    #             items = data.get("items", [])
+    #             if not items and page == 1:
+    #                 print(f"GitHub search returned 0 items for query: {q}")
+    #                 break
+    #             provider_found = True
+    #             found_any_for_season = True
+    #             for it in items:
+    #                 name = os.path.basename(it.get("path") or it.get("name") or "")
+    #                 s, e, global_e = self.extract_season_episode_global(name)
+    #                 all_results_items.append({
+    #                     "name": name,
+    #                     "path": it.get("path"),
+    #                     "season": s,
+    #                     "episode": e,
+    #                     "global": global_e,
+    #                 })
+    #             # stop when fewer than per_page items returned (no more pages)
+    #             if len(items) < per_page:
+    #                 break
+    #             page += 1
+    #             time.sleep(0.1)
+    #             continue
+    #         # Rate-limited or retryable responses: 403 / 429
+    #         if resp.status_code == 403 or resp.status_code == 429:
+    #             # try to parse message
+    #             try:
+    #                 msg = resp.json().get("message", "")
+    #             except Exception:
+    #                 msg = resp.text or ""
+    #             # honor Retry-After header if provided
+    #             if hdr.get("Retry-After"):
+    #                 print("Retry-After header present; waiting as requested...")
+    #                 _wait_until_reset(last_rate_info)
+    #                 continue
+    #             # if remaining==0 or message mentions rate limit -> wait until reset
+    #             rem = last_rate_info.get("remaining")
+    #             if rem == "0" or (rem is not None and int(rem) == 0) or "rate limit" in msg.lower():
+    #                 print("Rate limit reached; will wait until reset and then continue...")
+    #                 _wait_until_reset(last_rate_info)
+    #                 continue
+    #             # abuse detection -> wait a longer time then retry
+    #             if "abuse" in msg.lower():
+    #                 print(f"Abuse detection triggered: {msg}. Sleeping 120s then retrying...")
+    #                 time.sleep(120)
+    #                 continue
+    #             raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
+    #         # Search API 1000-results cap
+    #         if resp.status_code == 422:
+    #             print("Search API 422 (cannot access beyond the first 1000 results). Stopping and returning partial results.")
+    #             break
+    #         raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
             
-        season_offset, local_numbering = self.compute_season_offsets(all_results_items)
-        self.assign_globals(all_results_items, season_offset, local_numbering)
-        
-        all_results_items.sort(key=self.sort_key)
-        # Build SxxEyy -> Gzz map for diagnostics (first seen mapping per pair)
-        sxexx_to_gxx = {}
-        for it in all_results_items:
-            s = it.get("season")
-            e = it.get("episode")
-            g = it.get("global")
-            if s is not None and e is not None and g is not None:
-                key = f"S{int(s):02d}E{int(e):02d}"
-                # prefer lowest conflict-free mapping (but if duplicates exist we keep the first seen)
-                if key not in sxexx_to_gxx:
-                    sxexx_to_gxx[key] = int(g)
+    #     season_offset, local_numbering = self.compute_season_offsets(all_results_items)
+    #     self.assign_globals(all_results_items, season_offset, local_numbering)
+    #     all_results_items.sort(key=self.sort_key)
 
-        if all_results_items:
-            safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in (self.anime_folder_name or ""))[:200] or "result"
-            folder_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),"github_search")
-            os.makedirs(folder_dir, exist_ok=True)
-            json_path = os.path.join(folder_dir, f"github_search_{safe_name}.json")
-            payload = {
-                "last search": q,
-                "repo": f"{self.github_owner}/{self.github_repo}",
-                "created_at": datetime.datetime.utcnow().isoformat() + "Z",
-                "stop_reason": stop_reason,
-                "rate_info": last_rate_info,
-                "result_count": len(all_results_items),
-                "items": all_results_items,
-                "sxexx_to_gxx": sxexx_to_gxx
-            }
-            try:
-                with open(json_path, "w", encoding="utf-8") as fh:
-                    json.dump(payload, fh, ensure_ascii=False, indent=2)
-                print(f"Wrote diagnostics to {json_path}")
-            except Exception as e:
-                print("Failed to write diagnostics JSON:", e)
-        self.all_results_items = all_results_items
-        return
+        
+    #     # Build flat SxxEyy -> Gzz map, ordered by global
+    #     episode_map = {}
+
+    #     # Collect (global, SxxEyy) pairs first
+    #     pairs = []
+    #     for it in all_results_items:
+    #         g = it.get("global")
+    #         s = it.get("season")
+    #         e = it.get("episode")
+    #         if g is None or s is None or e is None:
+    #             continue
+    #         pairs.append((int(g), int(s), int(e)))
+
+    #     # Sort by global, then season, then episode (stable & readable)
+    #     pairs.sort(key=lambda x: (x[0], x[1], x[2]))
+
+    #     for g, s, e in pairs:
+    #         key = f"S{s:02d}E{e:02d}"
+    #         # keep first occurrence only (avoid overwrite spam)
+    #         if key not in episode_map:
+    #             episode_map[key] = g
+
+    #     if all_results_items:
+    #         safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in (self.anime_folder_name or ""))[:200] or "result"
+    #         folder_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),"github_search")
+    #         os.makedirs(folder_dir, exist_ok=True)
+    #         json_path = os.path.join(folder_dir, f"github_search_{safe_name}.json")
+    #         payload = {
+    #             "last search": q,
+    #             "repo": f"{self.github_owner}/{self.github_repo}",
+    #             "created_at": datetime.datetime.utcnow().isoformat() + "Z",
+    #             "stop_reason": stop_reason,
+    #             "rate_info": last_rate_info,
+    #             "result_count": len(all_results_items),
+    #             "items": all_results_items,
+    #             "episode_map": episode_map
+    #         }
+    #         try:
+    #             with open(json_path, "w", encoding="utf-8") as fh:
+    #                 json.dump(payload, fh, ensure_ascii=False, indent=2)
+    #             print(f"Wrote diagnostics to {json_path}")
+    #         except Exception as e:
+    #             print("Failed to write diagnostics JSON:", e)
+    #     self.all_results_items = all_results_items
+    #     return
     
+    # def compute_season_offsets(self, items: List[Dict]):
+    #     season_eps = defaultdict(set)
+    #     pairs = defaultdict(lambda: defaultdict(Counter))  # season -> episode -> Counter(globals)
+
+    #     for it in items:
+    #         s = it.get("season"); e = it.get("episode"); g = it.get("global")
+    #         if s is None or s <= 0 or e is None:
+    #             if s is not None and e is None and g is not None:
+    #                 season_eps[s].add(None)
+    #             continue
+    #         season_eps[s].add(int(e))
+    #         if g is not None:
+    #             pairs[s][int(e)][int(g)] += 1
+
+    #     # decide local numbering by presence of episode 1
+    #     local_numbering = {s: (1 in eps) for s, eps in season_eps.items()}
+
+    #     # compute offset votes: for (s,e) choose most-common global -> vote for (g - e)
+    #     offsets_votes = defaultdict(list)
+    #     for s, ep_map in pairs.items():
+    #         for e, counter in ep_map.items():
+    #             if not counter:
+    #                 continue
+    #             most_common_g, _ = counter.most_common(1)[0]
+    #             offsets_votes[s].append(int(most_common_g) - int(e))
+
+    #     season_offset = {}
+    #     for s, votes in offsets_votes.items():
+    #         if not votes:
+    #             continue
+    #         cnt = Counter(votes)
+    #         most_common, count = cnt.most_common(1)[0]
+    #         # require >=50% agreement to accept offset
+    #         if count >= max(1, int(len(votes) * 0.5)):
+    #             season_offset[s] = most_common
+
+    #     if 1 in season_eps:
+    #         local_numbering[1] = False
+    #         season_offset[1] = 0
+
+    #     # Fill fallback cumulative offsets for seasons that appear local-numbered and missing offsets:
+    #     ordered = sorted(season_eps.keys())
+    #     running = 0
+    #     for s in ordered:
+    #         if local_numbering.get(s, True):
+    #             if s not in season_offset:
+    #                 season_offset[s] = running
+    #             running = season_offset[s] + (max([x for x in season_eps[s] if x is not None]) if season_eps[s] and any(x is not None for x in season_eps[s]) else running)
+    #         else:
+    #             # global-numbered: make running at least the max explicit global seen (if any)
+    #             max_g = running
+    #             for e, counter in pairs.get(s, {}).items():
+    #                 if counter:
+    #                     mostg, _ = counter.most_common(1)[0]
+    #                     max_g = max(max_g, mostg)
+    #             running = max(running, max_g)
+    #     return season_offset, local_numbering
+
+    # def sort_key(self,it):
+    #     if it["season"] is not None and it["episode"] is not None:
+    #         return (it["season"], it["episode"], it["name"])
+    #     return (999, it["name"])
+    
+    # def assign_globals(self, items: List[Dict], season_offset: Dict[int,int], local_numbering: Dict[int,bool]):
+    #     # Build explicit global -> (s,e) counters so we only reserve globals that have a clear majority mapping
+    #     explicit_global_map = defaultdict(Counter)  # g -> Counter((s,e))
+    #     for it in items:
+    #         g = it.get('global'); s = it.get('season'); e = it.get('episode')
+    #         if g is None:
+    #             continue
+    #         explicit_global_map[int(g)][(s, e)] += 1
+
+    #     # Reserve globals that map with a majority to a specific (s,e)
+    #     reserved_by_pair = {}  # (s,e) -> g
+    #     used_globals = set()
+    #     for g, cnt in explicit_global_map.items():
+    #         most_pair, count = cnt.most_common(1)[0]
+    #         total = sum(cnt.values())
+    #         if count >= max(1, int(total * 0.5)):
+    #             # reserve if majority of uses agree on the same pair
+    #             reserved_by_pair[most_pair] = int(g)
+    #             used_globals.add(int(g))
+
+    #     # Group by (season,episode)
+    #     groups = defaultdict(list)
+    #     for it in items:
+    #         s = it.get('season'); e = it.get('episode')
+    #         if s is None or e is None:
+    #             continue
+    #         groups[(int(s), int(e))].append(it)
+
+    #     # Process groups in stable order
+    #     for (s, e) in sorted(groups.keys()):
+    #         group_items = groups[(s, e)]
+
+    #         # First see if group already has explicit globals (and prefer most common)
+    #         explicit_gs = [int(x['global']) for x in group_items if x.get('global') is not None]
+    #         chosen_g = None
+    #         if explicit_gs:
+    #             c = Counter(explicit_gs)
+    #             chosen_g = c.most_common(1)[0][0]
+    #         elif s ==1:
+    #             chosen_g = int(e)
+    #         elif (s, e) in reserved_by_pair:
+    #             chosen_g = reserved_by_pair[(s, e)]
+    #         else:
+    #             # Compute according to local/global season rule
+    #             if not local_numbering.get(s, True):
+    #                 # season is global-numbered -> episode value is already global
+    #                 chosen_g = int(e)
+    #             else:
+    #                 # local numbering -> apply offset (default offset 0)
+    #                 chosen_g = int(season_offset.get(s, 0)) + int(e)
+
+    #         # If chosen_g collides with a different (s2,e2) already assigned, search upward for next free
+    #         if chosen_g in used_globals:
+    #             # If the current group already had that global explicitly, it's okay
+    #             if explicit_gs and chosen_g in explicit_gs:
+    #                 pass  # keep it
+    #             else:
+    #                 original = int(chosen_g)
+    #                 found = None
+    #                 # search upward first (prefer increasing)
+    #                 for delta in range(1, 2000):
+    #                     cand = original + delta
+    #                     if cand not in used_globals:
+    #                         found = cand
+    #                         break
+    #                 if found is None:
+    #                     # fallback downward search
+    #                     for delta in range(1, original):
+    #                         cand = original - delta
+    #                         if cand > 0 and cand not in used_globals:
+    #                             found = cand
+    #                             break
+    #                 if found is not None:
+    #                     chosen_g = found
+    #                     for it in group_items:
+    #                         it.setdefault('conflicts', []).append('global_collision_resolved')
+    #                 else:
+    #                     # mark conflict but still assign original
+    #                     for it in group_items:
+    #                         it.setdefault('conflicts', []).append('global_collision')
+
+    #         # Assign chosen global to all items in this group
+    #         for it in group_items:
+    #             it['global'] = int(chosen_g)
+    #         used_globals.add(int(chosen_g))
+
+
 
     def _create_remote_episode_map_per_season(self):
         #add end_season and anime name searches in the gui
@@ -1048,10 +1209,10 @@ class SubtitleManager:
             if self.anime_folder_name == "One Piece" and season == 40:
                 break
             
-        season_offset, local_numbering = self.compute_season_offsets(all_results_items)
-        self.assign_globals(all_results_items, season_offset, local_numbering)
+        season_offset, local_numbering = self.compute_season_offsets_per_season(all_results_items)
+        self.assign_globals_per_season(all_results_items, season_offset, local_numbering)
         
-        all_results_items.sort(key=self.sort_key)
+        all_results_items.sort(key=self.sort_key_per_season)
         # Build SxxEyy -> Gzz map for diagnostics (first seen mapping per pair)
         sxexx_to_gxx = {}
         for it in all_results_items:
@@ -1088,7 +1249,7 @@ class SubtitleManager:
         self.all_results_items = all_results_items
         return
     
-    def sort_key(self, it):
+    def sort_key_per_season(self, it):
         # 1) items with global first
         if it.get("global") is not None:
             return (0, it["global"])
@@ -1098,7 +1259,7 @@ class SubtitleManager:
         # 3) unknowns last
         return (2, it.get("name", ""))
 
-    def compute_season_offsets(self, items):
+    def compute_season_offsets_per_season(self, items):
         """
         Returns (season_offset, local_numbering)
         - season_offset: dict season -> offset (used when season uses local numbering)
@@ -1154,7 +1315,7 @@ class SubtitleManager:
 
         return season_offset, local_numbering
 
-    def assign_globals(self, items, season_offset, local_numbering):
+    def assign_globals_per_season(self, items, season_offset, local_numbering):
         used_globals = set(it['global'] for it in items if it.get('global') is not None)
 
         for it in items:
@@ -1325,55 +1486,257 @@ class SubtitleManager:
         if re.match(r'^(19|20)\d{2}$', t):
             return True
         return False
-    
-    def extract_season_episode_global(self, name: str) -> Tuple[Optional[int], Optional[int], Optional[int]]:
-        sname = self.normalize_name(name)
-        nums = [int(x) for x in re.findall(r'(?<!\d)(\d{1,4})(?!\d)', sname)]
-        gm = re.search(r'Global[:\s]*#?\s*(\d{1,4})', sname, re.IGNORECASE)
-        if gm:
-            global_num = int(gm.group(1))
-        else:
-            jp = re.search(r'第\s*(\d{1,4})\s*話', sname)
-            global_num = int(jp.group(1)) if jp else None
-        s = None; e = None
-        patterns = [
-            r'(?i)\bS(\d{1,2})[^\dA-Za-z]{0,3}E(\d{1,4})\b',
-            r'(?i)\bSeason\s+(\d{1,2})[^\dA-Za-z]{0,3}(\d{1,4})\b',
-            r'(?i)\bS(\d{1,2})\s*[-:]\s*(\d{1,4})\b',
-            r'(?i)\bS(\d{1,2})\s*(\d{1,4})\b',
-        ]
-        match_pos = -1
-        for p in patterns:
-            m = re.search(p, sname)
-            if m:
-                s = int(m.group(1)); e = int(m.group(2)); match_pos = m.end()
-                break
-        def find_par_after(pos):
-            for m in re.finditer(r'\(\s*(\d{1,4})\s*\)', sname):
-                if m.start() >= pos:
-                    return int(m.group(1))
-            return None
-        if s is not None:
-            par = find_par_after(match_pos)
-            if par and par > (e or 0):
-                global_num = par
-        if s is None:
-            m = re.search(r'(?i)\b[Ee][pP]?\.?\s*(\d{1,4})\b', sname)
-            if m:
-                e = int(m.group(1))
-            if e is None:
-                m2 = re.search(r'[-\s](\d{1,4})(?:\s*\(|$)', sname)
-                if m2:
-                    cand = int(m2.group(1))
-                    if not re.match(r'^(19|20)\d{2}$', str(cand)):
-                        e = cand
-            if e is None and nums:
-                for n in nums:
-                    if 1500 <= n <= 2100:
-                        continue
-                    e = n
-                    break
-        return s, e, global_num
+
+    def extract_season_episode_global(self, filename: str, folder_path: Optional[str] = None) -> Tuple[Optional[int], Optional[int], Optional[int]]:
+        name = filename or ""
+        s = e = g = None
+
+        # Normalize
+        n = name.replace('\u2013', '-').replace('\u2014', '-')
+
+        # Helper: plausible episode/global number
+        def is_probable_episode_number(num: int) -> bool:
+            if num <= 0:
+                return False
+            if 1900 <= num <= 2099:  # years
+                return False
+            if num > 10000:
+                return False
+            return True
+
+        # Regexes
+        re_s_e_paren = re.compile(r'(?xi)\bS(?P<s>\d{1,2})[ ._\-]*E(?P<e>\d{1,3})\b[^()\[\]]*[\(\[]\s*(?P<g>\d{1,4})\s*[\)\]]')
+        re_s_e = re.compile(r'(?xi)\bS(?P<s>\d{1,2})[ ._\-]*E(?P<e>\d{1,3})\b')
+        re_s_paren = re.compile(r'(?xi)\bS(?P<s>\d{1,2})[ ._\-]*[\(\[]\s*(?P<g>\d{1,4})\s*[\)\]]')
+        re_episode_number = re.compile(r'(?xi)\b(?:ep|episode|ep\.)[ ._\-#]*(?P<num>\d{1,4})\b')
+        re_bracket_number = re.compile(r'[\(\[]\s*(\d{1,4})\s*[\)\]]')
+        re_trailing_number = re.compile(r'(?xi)(?:[_\-. ]|^)(?P<num>\d{1,4})(?:\.[a-z0-9]{1,6})?$')
+
+        # 1) SxxEyy (GGG) -> explicit local + bracketed global
+        m = re_s_e_paren.search(n)
+        if m:
+            try:
+                s = int(m.group('s')); e = int(m.group('e')); gnum = int(m.group('g'))
+                if is_probable_episode_number(gnum):
+                    g = gnum
+                else:
+                    g = None
+            except Exception:
+                pass
+            if s == 1 and e is not None:
+                g = e
+            return s, e, g
+
+        # 2) SxxEyy -> local episode (conservative: do not treat as global)
+        m = re_s_e.search(n)
+        if m:
+            try:
+                s = int(m.group('s')); e = int(m.group('e'))
+            except Exception:
+                return None, None, None
+            if s == 1:
+                return s, e, e
+            return s, e, None
+
+        # 3) Sxx (GGG) -> season present, bracket likely a global index (no E present)
+        m = re_s_paren.search(n)
+        if m:
+            try:
+                s = int(m.group('s')); gnum = int(m.group('g'))
+                if is_probable_episode_number(gnum):
+                    g = gnum
+            except Exception:
+                pass
+            if s == 1 and g is not None:
+                return s, g, g
+            return s, None, g
+
+        # 4) textual "Season X Episode Y"
+        re_season_episode_words = re.compile(r'(?xi)\bseason[ ._\-]*(?P<s>\d{1,2})[^\d]{0,12}episode[ ._\-]*(?P<e>\d{1,3})\b')
+        m = re_season_episode_words.search(n)
+        if m:
+            try:
+                s = int(m.group('s')); e = int(m.group('e'))
+            except Exception:
+                return None, None, None
+            if s == 1:
+                return s, e, e
+            return s, e, None
+
+        # 5) "Ep 38" or "Episode 38" - if a season exists elsewhere treat as local episode; else treat as global
+        m = re_episode_number.search(n)
+        if m:
+            try:
+                num = int(m.group('num'))
+                if not is_probable_episode_number(num):
+                    raise ValueError
+            except Exception:
+                return None, None, None
+
+            s_m = re.search(r"(?xi)\bS(?P<s>\d{1,2})\b", n)
+            if s_m:
+                s = int(s_m.group("s"))
+                if s == 1:
+                    return s, num, num
+                return s, num, None
+
+            return None, None, num
+
+        # 6) bracketed numbers (general). If season present and no E present: bracket likely global.
+        #    If season+E present we would have returned earlier; if both S and E exist earlier we prefer E as local and bracket as global.
+        for br in re_bracket_number.findall(n):
+            try:
+                num = int(br)
+                if not is_probable_episode_number(num):
+                    continue
+            except Exception:
+                continue
+            s_m = re.search(r'(?xi)\bS(?P<s>\d{1,2})\b', n)
+            e_m = re.search(r'(?xi)\bS(?P<s2>\d{1,2})[ ._\-]*E(?P<e>\d{1,3})\b', n)
+            if s_m and e_m:
+                # filename contains SxxEyy and also bracket: treat bracket as global and return both
+                s = int(s_m.group('s')); e = int(e_m.group('e')); g = num
+                if s == 1:
+                    return s, e, e
+                return s, e, num
+            if s_m:
+                # season present but no explicit E -> bracket is probably the global index
+                s = int(s_m.group('s'))
+                if s == 1:
+                    return s, num, num
+                return s, None, num
+            return None, None, num
+
+        # 7) trailing number heuristics:
+        m = re_trailing_number.search(n)
+        if m:
+            try:
+                num = int(m.group("num"))
+                if not is_probable_episode_number(num):
+                    raise ValueError
+            except Exception:
+                return None, None, None
+
+            s_m = re.search(r"(?xi)\bS(?P<s>\d{1,2})\b", n)
+            if s_m:
+                s = int(s_m.group("s"))
+                if s == 1:
+                    return s, num, num
+                return s, num, None
+
+            return None, None, num
+
+        # nothing confident
+        return None, None, None
+
+
+
+    # def extract_season_episode_global(self, name: str) -> Tuple[Optional[int], Optional[int], Optional[int]]:
+    #     """
+    #     Clean extractor with NO 第N話 handling.
+
+    #     Rules:
+    #     - If SxxEyy (or equivalent) exists:
+    #         -> season = xx
+    #         -> episode = yy
+    #         -> global = None (assigned later by season logic)
+    #     - If no season but an episode-like number exists:
+    #         -> treat that number as GLOBAL
+    #     - Explicit 'Global: N' is still respected
+    #     - No guessing, no anime-specific behavior
+    #     """
+
+    #     sname = self.normalize_name(name)
+
+    #     s = None
+    #     e = None
+    #     g = None
+
+    #     # 1) Explicit Global marker (rare but trustworthy)
+    #     m = re.search(r'(?i)\bglobal[:\s]*#?\s*(\d{1,4})\b', sname)
+    #     if m:
+    #         g = int(m.group(1))
+
+    #     # 2) Strong season+episode patterns (ordered by confidence)
+    #     patterns = [
+    #         r'(?i)\bS(\d{1,2})[^\dA-Za-z]{0,3}E(\d{1,4})\b',   # S01E02
+    #         r'(?i)\bSeason\s*(\d{1,2})[^\dA-Za-z]{0,3}(\d{1,4})\b',  # Season 2 03
+    #         r'シーズン\s*(\d{1,2})\s*[-_]\s*(\d{1,4})',       # シーズン1-17
+    #         r'(?i)\bS(\d{1,2})\s*[-:]\s*(\d{1,4})\b',          # S2-26
+    #         r'(?i)\bS(\d{1,2})\s+(\d{1,4})\b',                 # S2 26
+    #     ]
+
+    #     for p in patterns:
+    #         m = re.search(p, sname)
+    #         if m:
+    #             s = int(m.group(1))
+    #             e = int(m.group(2))
+    #             return s, e, g  # global assigned later
+
+    #     # 3) Episode-only patterns (no season → treat as GLOBAL)
+    #     m = re.search(r'(?i)\b[Ee][pP]?\.?\s*(\d{1,4})\b', sname)
+    #     if m:
+    #         num = int(m.group(1))
+    #         return None, None, num
+
+    #     # 4) Loose fallback: first sensible number (not a year)
+    #     nums = [int(x) for x in re.findall(r'(?<!\d)(\d{1,4})(?!\d)', sname)]
+    #     for n in nums:
+    #         if 1500 <= n <= 2100:
+    #             continue
+    #         return None, None, n
+
+    #     return None, None, None
+
+    # def extract_season_episode_global(self, name: str) -> Tuple[Optional[int], Optional[int], Optional[int]]:
+    #     sname = self.normalize_name(name)
+    #     global_num = None
+    #     nums = [int(x) for x in re.findall(r'(?<!\d)(\d{1,4})(?!\d)', sname)]
+    #     gm = re.search(r'Global[:\s]*#?\s*(\d{1,4})', sname, re.IGNORECASE)
+    #     if gm:
+    #         global_num = int(gm.group(1))
+    #     else:
+    #         jp = re.search(r'第\s*(\d{1,4})\s*話', sname)
+    #         global_num = int(jp.group(1)) if jp else None
+    #     s = None; e = None
+    #     patterns = [
+    #         r'(?i)\bS(\d{1,2})[^\dA-Za-z]{0,3}E(\d{1,4})\b',
+    #         r'(?i)\bSeason\s+(\d{1,2})[^\dA-Za-z]{0,3}(\d{1,4})\b',
+    #         r'(?i)\bS(\d{1,2})\s*[-:]\s*(\d{1,4})\b',
+    #         r'(?i)\bS(\d{1,2})\s*(\d{1,4})\b',
+    #     ]
+    #     match_pos = -1
+    #     for p in patterns:
+    #         m = re.search(p, sname)
+    #         if m:
+    #             s = int(m.group(1)); e = int(m.group(2)); match_pos = m.end()
+    #             break
+    #     def find_par_after(pos):
+    #         for m in re.finditer(r'\(\s*(\d{1,4})\s*\)', sname):
+    #             if m.start() >= pos:
+    #                 return int(m.group(1))
+    #         return None
+    #     if s is not None:
+    #         par = find_par_after(match_pos)
+    #         if par and par > (e or 0):
+    #             global_num = par
+    #     if s is None:
+    #         m = re.search(r'(?i)\b[Ee][pP]?\.?\s*(\d{1,4})\b', sname)
+    #         if m:
+    #             e = int(m.group(1))
+    #         if e is None:
+    #             m2 = re.search(r'[-\s](\d{1,4})(?:\s*\(|$)', sname)
+    #             if m2:
+    #                 cand = int(m2.group(1))
+    #                 if not re.match(r'^(19|20)\d{2}$', str(cand)):
+    #                     e = cand
+    #         if e is None and nums:
+    #             for n in nums:
+    #                 if 1500 <= n <= 2100:
+    #                     continue
+    #                 e = n
+    #                 break
+    #     return s, e, global_num
 
     # def extract_season_episode_global(self, name: str) -> Tuple[Optional[int], Optional[int], Optional[int]]:
     #         sname = self.normalize_name(name)
