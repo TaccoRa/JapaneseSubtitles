@@ -1266,28 +1266,15 @@ class SubtitleManager:
     def extract_season_episode_global(self, filename: str, folder_path: Optional[str] = None) -> Tuple[Optional[int], Optional[int], Optional[int]]:
         name = filename or ""
         s = e = g = None
-
-        # Normalize
         n = name.replace('\u2013', '-').replace('\u2014', '-')
-
-        # Helper: plausible episode/global number
         def is_probable_episode_number(num: int) -> bool:
-            if num <= 0:
-                return False
-            if 1900 <= num <= 2099:  # years
-                return False
-            if num > 10000:
-                return False
-            return True
-
+            if 1 <= num <= 1600:
+                return True
         # Regexes
-        re_s_e_paren = re.compile(r'(?xi)\bS(?P<s>\d{1,2})[ ._\-]*E(?P<e>\d{1,4})\b[^()\[\]]*[\(\[]\s*(?P<g>\d{1,4})\s*[\)\]]')
-        re_s_e = re.compile(r'(?xi)\bS(?P<s>\d{1,2})[ ._\-]*E(?P<e>\d{1,4})\b')
-        re_s_dash_e = re.compile(r'(?xi)\bS(?P<s>\d{1,2})\s*[-._ ]+\s*(?P<e>\d{1,4})\b')
+        re_s_e_paren = re.compile(r'(?xi)\bS(?P<s>\d{1,2})[ ._\-]*E(?P<e>\d{1,3})\b[^()\[\]]*[\(\[]\s*(?P<g>\d{1,4})\s*[\)\]]')
+        re_s_e = re.compile(r'(?xi)\bS(?P<s>\d{1,2})[ ._\-]*E(?P<e>\d{1,3})\b')
         re_s_paren = re.compile(r'(?xi)\bS(?P<s>\d{1,2})[ ._\-]*[\(\[]\s*(?P<g>\d{1,4})\s*[\)\]]')
         re_episode_number = re.compile(r'(?xi)\b(?:ep|episode|ep\.)[ ._\-#]*(?P<num>\d{1,4})\b')
-        re_e_only = re.compile(r'(?xi)(?:^|[\s._-])E(?P<e>\d{1,4})\b')
-        re_dash_number = re.compile(r'(?xi)\s-\s*(?P<num>\d{1,4})\b')
         re_bracket_number = re.compile(r'[\(\[]\s*(\d{1,4})\s*[\)\]]')
         re_trailing_number = re.compile(r'(?xi)(?:[_\-. ]|^)(?P<num>\d{1,4})(?:\.[a-z0-9]{1,6})?$')
 
@@ -1317,20 +1304,7 @@ class SubtitleManager:
                 return s, e, e
             return s, e, None
 
-        # 3) Sxx - yy -> common fansub format
-        m = re_s_dash_e.search(n)
-        if m:
-            try:
-                s = int(m.group('s')); e = int(m.group('e'))
-                if not is_probable_episode_number(e):
-                    raise ValueError
-            except Exception:
-                return None, None, None
-            if s == 1:
-                return s, e, e
-            return s, e, None
-
-        # 4) Sxx (GGG) -> season present, bracket likely a global index (no E present)
+        # 3) Sxx (GGG) -> season present, bracket likely a global index (no E present)
         m = re_s_paren.search(n)
         if m:
             try:
@@ -1343,8 +1317,8 @@ class SubtitleManager:
                 return s, g, g
             return s, None, g
 
-        # 5) textual "Season X Episode Y"
-        re_season_episode_words = re.compile(r'(?xi)\bseason[ ._\-]*(?P<s>\d{1,2})[^\d]{0,12}episode[ ._\-]*(?P<e>\d{1,4})\b')
+        # 4) textual "Season X Episode Y"
+        re_season_episode_words = re.compile(r'(?xi)\bseason[ ._\-]*(?P<s>\d{1,2})[^\d]{0,12}episode[ ._\-]*(?P<e>\d{1,3})\b')
         m = re_season_episode_words.search(n)
         if m:
             try:
@@ -1355,25 +1329,7 @@ class SubtitleManager:
                 return s, e, e
             return s, e, None
 
-        # 6) Standalone "E38" - if a season exists elsewhere treat as local episode; else treat as global
-        m = re_e_only.search(n)
-        if m:
-            try:
-                num = int(m.group('e'))
-                if not is_probable_episode_number(num):
-                    raise ValueError
-            except Exception:
-                return None, None, None
-
-            s_m = re.search(r"(?xi)\bS(?P<s>\d{1,2})\b", n)
-            if s_m:
-                s = int(s_m.group("s"))
-                if s == 1:
-                    return s, num, num
-                return s, num, None
-            return None, None, num
-
-        # 7) "Ep 38" or "Episode 38" - if a season exists elsewhere treat as local episode; else treat as global
+        # 5) "Ep 38" or "Episode 38" - if a season exists elsewhere treat as local episode; else treat as global
         m = re_episode_number.search(n)
         if m:
             try:
@@ -1392,27 +1348,7 @@ class SubtitleManager:
 
             return None, None, num
 
-        # 8) " - 07 " style fansub numbering (no S/E). If season exists elsewhere treat as local episode; else global.
-        m = re_dash_number.search(n)
-        if m:
-            try:
-                num = int(m.group('num'))
-                if not is_probable_episode_number(num):
-                    raise ValueError
-            except Exception:
-                return None, None, None
-
-            s_m = re.search(r'(?xi)\bS(?P<s>\d{1,2})\b', n)
-            if not s_m:
-                s_m = re.search(r'(?xi)\bseason[ ._\-]*(?P<s>\d{1,2})\b', n)
-            if s_m:
-                s = int(s_m.group("s"))
-                if s == 1:
-                    return s, num, num
-                return s, num, None
-            return None, None, num
-
-        # 9) bracketed numbers (general). If season present and no E present: bracket likely global.
+        # 6) bracketed numbers (general). If season present and no E present: bracket likely global.
         #    If season+E present we would have returned earlier; if both S and E exist earlier we prefer E as local and bracket as global.
         for br in re_bracket_number.findall(n):
             try:
@@ -1422,7 +1358,7 @@ class SubtitleManager:
             except Exception:
                 continue
             s_m = re.search(r'(?xi)\bS(?P<s>\d{1,2})\b', n)
-            e_m = re.search(r'(?xi)\bS(?P<s2>\d{1,2})[ ._\-]*E(?P<e>\d{1,4})\b', n)
+            e_m = re.search(r'(?xi)\bS(?P<s2>\d{1,2})[ ._\-]*E(?P<e>\d{1,3})\b', n)
             if s_m and e_m:
                 # filename contains SxxEyy and also bracket: treat bracket as global and return both
                 s = int(s_m.group('s')); e = int(e_m.group('e')); g = num
@@ -1437,7 +1373,7 @@ class SubtitleManager:
                 return s, None, num
             return None, None, num
 
-        # 10) trailing number heuristics:
+        # 7) trailing number heuristics:
         m = re_trailing_number.search(n)
         if m:
             try:
