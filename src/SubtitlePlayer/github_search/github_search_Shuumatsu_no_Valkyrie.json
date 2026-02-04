@@ -1,12 +1,12 @@
 {
   "last search": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles/anime_tv extension:srt in:path Shuumatsu no Valkyrie s04",
   "repo": "Ajatt-Tools/kitsunekko-mirror",
-  "created_at": "2026-02-01T21:46:08.262775Z",
+  "created_at": "2026-02-02T21:14:22.752884Z",
   "stop_reason": null,
   "rate_info": {
     "limit": "10",
     "remaining": "3",
-    "reset": "1769982425",
+    "reset": "1770066920",
     "retry_after": null
   },
   "result_count": 69,
