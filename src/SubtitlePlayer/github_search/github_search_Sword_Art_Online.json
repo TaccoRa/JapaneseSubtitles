@@ -1,0 +1,4705 @@
+{
+  "last search": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles/anime_tv extension:srt in:path Sword Art Online",
+  "repo": "Ajatt-Tools/kitsunekko-mirror",
+  "created_at": "2026-02-06T18:38:48.459199Z",
+  "stop_reason": null,
+  "rate_info": {
+    "limit": "10",
+    "remaining": "8",
+    "reset": "1770403187",
+    "retry_after": null
+  },
+  "result_count": 602,
+  "items": [
+    {
+      "name": "ソードアート・オンライン.S01E01.剣の世界.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E01.剣の世界.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E01.スクワッド・ジャム.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E01.スクワッド・ジャム.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 01 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 01 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 1
+    },
+    {
+      "name": "Sword Art Online II.S01E01.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E01.CC.ja.srt",
+      "season": 1,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "Sword Art Online.S01E01.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E01.CC.ja.srt",
+      "season": 1,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "Sword Art Online Alicization - S01E01.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization - S01E01.ja.srt",
+      "season": 1,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "Sword Art Online Alternative Gun Gale Online II - 01 「二度あることは三度ある」 (AT-X 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/Sword Art Online Alternative Gun Gale Online II - 01 「二度あることは三度ある」 (AT-X 1280x720 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 1
+    },
+    {
+      "name": "Sword Art Online Alicization E01.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E01.srt",
+      "season": null,
+      "episode": null,
+      "global": 1
+    },
+    {
+      "name": "Sword Art Online Alternative Gun Gale Online - 01 「スクワッド・ジャム」 (AT-X 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/Sword Art Online Alternative Gun Gale Online - 01 「スクワッド・ジャム」 (AT-X 1280x720 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 1
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E01.スクワッド・ジャム.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E01.スクワッド・ジャム.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "[NanakoRaws] Sword Art Online Alternative Gun Gale Online - 01 (AT-X 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/[NanakoRaws] Sword Art Online Alternative Gun Gale Online - 01 (AT-X 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 1
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E01.第01話.「銃の世界」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E01.第01話.「銃の世界」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 01 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 01 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 1
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E01.JA.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E01.JA.srt",
+      "season": 1,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "ソードアート・オンライン.S01E01.剣の世界.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E01.剣の世界.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "ソードアート・オンライン.S01E01.剣の世界.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E01.剣の世界.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "[Moozzi2] Sword Art Online Alternative Gun Gale Online E01.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/[Moozzi2] Sword Art Online Alternative Gun Gale Online E01.srt",
+      "season": null,
+      "episode": null,
+      "global": 1
+    },
+    {
+      "name": "Sword Art Online Alternative “Gun Gale Online”.S01E01.JA.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/extra/Sword Art Online Alternative “Gun Gale Online”.S01E01.JA.srt",
+      "season": 1,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 01 (AT-X 1920x1080 x265 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 01 (AT-X 1920x1080 x265 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 1
+    },
+    {
+      "name": "[Refrain] Sword Art Online Alternative- Gun Gale Online - 01 [720p] [Japanese] [Japanese Subs].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/[Refrain] Sword Art Online Alternative- Gun Gale Online - 01 [720p] [Japanese] [Japanese Subs].srt",
+      "season": null,
+      "episode": null,
+      "global": 1
+    },
+    {
+      "name": "ソードアート・オンライン.S01E02.ビーター.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E02.ビーター.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 2,
+      "global": 2
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E02.GGO.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E02.GGO.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 2,
+      "global": 2
+    },
+    {
+      "name": "Sword Art Online.S01E02.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E02.CC.ja.srt",
+      "season": 1,
+      "episode": 2,
+      "global": 2
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 02 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 02 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 2
+    },
+    {
+      "name": "Sword Art Online II.S01E02.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E02.CC.ja.srt",
+      "season": 1,
+      "episode": 2,
+      "global": 2
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 02 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 02 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 2
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E02.JA.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E02.JA.srt",
+      "season": 1,
+      "episode": 2,
+      "global": 2
+    },
+    {
+      "name": "ソードアート・オンライン.S01E02.ビーター.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E02.ビーター.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 2,
+      "global": 2
+    },
+    {
+      "name": "Sword Art Online Alternative Gun Gale Online II - 02 「大貨車作戦」 (AT-X 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/Sword Art Online Alternative Gun Gale Online II - 02 「大貨車作戦」 (AT-X 1280x720 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 2
+    },
+    {
+      "name": "ソードアート・オンライン.S01E02.ビーター.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E02.ビーター.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 2,
+      "global": 2
+    },
+    {
+      "name": "Sword Art Online Alicization E02.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E02.srt",
+      "season": null,
+      "episode": null,
+      "global": 2
+    },
+    {
+      "name": "[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 02 (AT-X 1920x1080 x265 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 02 (AT-X 1920x1080 x265 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 2
+    },
+    {
+      "name": "Sword Art Online Alicization - S01E02.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization - S01E02.ja.srt",
+      "season": 1,
+      "episode": 2,
+      "global": 2
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E02.第02話.「氷の狙撃手」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E02.第02話.「氷の狙撃手」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 2,
+      "global": 2
+    },
+    {
+      "name": "Sword Art Online Alternative Gun Gale Online - 02 「GGO」 (AT-X 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/Sword Art Online Alternative Gun Gale Online - 02 「GGO」 (AT-X 1280x720 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 2
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E02.GGO.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E02.GGO.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 2,
+      "global": 2
+    },
+    {
+      "name": "[Moozzi2] Sword Art Online Alternative Gun Gale Online E02.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/[Moozzi2] Sword Art Online Alternative Gun Gale Online E02.srt",
+      "season": null,
+      "episode": null,
+      "global": 2
+    },
+    {
+      "name": "Sword Art Online Alternative “Gun Gale Online”.S01E02.JA.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/extra/Sword Art Online Alternative “Gun Gale Online”.S01E02.JA.srt",
+      "season": 1,
+      "episode": 2,
+      "global": 2
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E03.ファンレター.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E03.ファンレター.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 3,
+      "global": 3
+    },
+    {
+      "name": "ソードアート・オンライン.S01E03.赤鼻のトナカイ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E03.赤鼻のトナカイ.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 3,
+      "global": 3
+    },
+    {
+      "name": "Sword Art Online.S01E03.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E03.CC.ja.srt",
+      "season": 1,
+      "episode": 3,
+      "global": 3
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 03 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 03 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 3
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 03 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 03 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 3
+    },
+    {
+      "name": "Sword Art Online II.S01E03.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E03.CC.ja.srt",
+      "season": 1,
+      "episode": 3,
+      "global": 3
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E03.JA.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E03.JA.srt",
+      "season": 1,
+      "episode": 3,
+      "global": 3
+    },
+    {
+      "name": "Sword Art Online Alternative “Gun Gale Online”.S01E03.JA.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/extra/Sword Art Online Alternative “Gun Gale Online”.S01E03.JA.srt",
+      "season": 1,
+      "episode": 3,
+      "global": 3
+    },
+    {
+      "name": "Sword Art Online Alicization E03.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E03.srt",
+      "season": null,
+      "episode": null,
+      "global": 3
+    },
+    {
+      "name": "ソードアート・オンライン.S01E03.赤鼻のトナカイ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E03.赤鼻のトナカイ.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 3,
+      "global": 3
+    },
+    {
+      "name": "[Moozzi2] Sword Art Online Alternative Gun Gale Online E03.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/[Moozzi2] Sword Art Online Alternative Gun Gale Online E03.srt",
+      "season": null,
+      "episode": null,
+      "global": 3
+    },
+    {
+      "name": "[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 03 (AT-X 1920x1080 x265 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 03 (AT-X 1920x1080 x265 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 3
+    },
+    {
+      "name": "Sword Art Online Alternative Gun Gale Online - 03 「ファンレター」 (AT-X 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/Sword Art Online Alternative Gun Gale Online - 03 「ファンレター」 (AT-X 1280x720 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 3
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E03.ファンレター.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E03.ファンレター.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 3,
+      "global": 3
+    },
+    {
+      "name": "Sword Art Online Alicization - S01E03.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization - S01E03.ja.srt",
+      "season": 1,
+      "episode": 3,
+      "global": 3
+    },
+    {
+      "name": "ソードアート・オンライン.S01E03.赤鼻のトナカイ.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E03.赤鼻のトナカイ.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 3,
+      "global": 3
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E03.第03話.「鮮血の記憶」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E03.第03話.「鮮血の記憶」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 3,
+      "global": 3
+    },
+    {
+      "name": "Sword Art Online Alternative Gun Gale Online II - 03 「クラレンスとシャーリー」 (AT-X 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/Sword Art Online Alternative Gun Gale Online II - 03 「クラレンスとシャーリー」 (AT-X 1280x720 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 3
+    },
+    {
+      "name": "ソードアート・オンライン.S01E04.黒の剣士.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E04.黒の剣士.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 4,
+      "global": 4
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E04.デスゲーム.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E04.デスゲーム.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 4,
+      "global": 4
+    },
+    {
+      "name": "Sword Art Online.S01E04.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E04.CC.ja.srt",
+      "season": 1,
+      "episode": 4,
+      "global": 4
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 04 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 04 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 4
+    },
+    {
+      "name": "Sword Art Online II.S01E04.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E04.CC.ja.srt",
+      "season": 1,
+      "episode": 4,
+      "global": 4
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 04 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 04 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 4
+    },
+    {
+      "name": "ソードアート・オンライン.S01E04.黒の剣士.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E04.黒の剣士.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 4,
+      "global": 4
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E04.第04話.「GGO」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E04.第04話.「GGO」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 4,
+      "global": 4
+    },
+    {
+      "name": "Sword Art Online Alternative Gun Gale Online - 04 「デスゲーム」 (AT-X 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/Sword Art Online Alternative Gun Gale Online - 04 「デスゲーム」 (AT-X 1280x720 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 4
+    },
+    {
+      "name": "Sword Art Online Alternative Gun Gale Online II - 04 「特別ルール、発動」 (AT-X 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/Sword Art Online Alternative Gun Gale Online II - 04 「特別ルール、発動」 (AT-X 1280x720 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 4
+    },
+    {
+      "name": "[Moozzi2] Sword Art Online Alternative Gun Gale Online E04.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/[Moozzi2] Sword Art Online Alternative Gun Gale Online E04.srt",
+      "season": null,
+      "episode": null,
+      "global": 4
+    },
+    {
+      "name": "[NanakoRaws] Sword Art Online Alternative Gun Gale Online - 04 (AT-X 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/[NanakoRaws] Sword Art Online Alternative Gun Gale Online - 04 (AT-X 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 4
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E04.デスゲーム.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E04.デスゲーム.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 4,
+      "global": 4
+    },
+    {
+      "name": "Sword Art Online Alicization E04.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E04.srt",
+      "season": null,
+      "episode": null,
+      "global": 4
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E04.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E04.CC.ja.srt",
+      "season": 1,
+      "episode": 4,
+      "global": 4
+    },
+    {
+      "name": "Sword Art Online Alternative “Gun Gale Online”.S01E04.JA.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/extra/Sword Art Online Alternative “Gun Gale Online”.S01E04.JA.srt",
+      "season": 1,
+      "episode": 4,
+      "global": 4
+    },
+    {
+      "name": "[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 04 (AT-X 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 04 (AT-X 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 4
+    },
+    {
+      "name": "Sword Art Online Alicization - S01E04.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization - S01E04.ja.srt",
+      "season": 1,
+      "episode": 4,
+      "global": 4
+    },
+    {
+      "name": "ソードアート・オンライン.S01E04.黒の剣士.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E04.黒の剣士.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 4,
+      "global": 4
+    },
+    {
+      "name": "ソードアート・オンライン.S01E05.圏内事件.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E05.圏内事件.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 5,
+      "global": 5
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E05.ラストバトルは私に.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E05.ラストバトルは私に.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 5,
+      "global": 5
+    },
+    {
+      "name": "Sword Art Online.S01E05.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E05.CC.ja.srt",
+      "season": 1,
+      "episode": 5,
+      "global": 5
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 05 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 05 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 5
+    },
+    {
+      "name": "Sword Art Online II.S01E05.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E05.CC.ja.srt",
+      "season": 1,
+      "episode": 5,
+      "global": 5
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 05 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 05 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 5
+    },
+    {
+      "name": "Sword Art Online Alicization E05.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E05.srt",
+      "season": null,
+      "episode": null,
+      "global": 5
+    },
+    {
+      "name": "[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 05 (AT-X 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 05 (AT-X 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 5
+    },
+    {
+      "name": "Sword Art Online Alternative “Gun Gale Online”.S01E05.JA.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/extra/Sword Art Online Alternative “Gun Gale Online”.S01E05.JA.srt",
+      "season": 1,
+      "episode": 5,
+      "global": 5
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E05.ラストバトルは私に.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E05.ラストバトルは私に.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 5,
+      "global": 5
+    },
+    {
+      "name": "Sword Art Online Alicization - S01E05.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization - S01E05.ja.srt",
+      "season": 1,
+      "episode": 5,
+      "global": 5
+    },
+    {
+      "name": "ソードアート・オンライン.S01E05.圏内事件.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E05.圏内事件.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 5,
+      "global": 5
+    },
+    {
+      "name": "ソードアート・オンライン.S01E05.圏内事件.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E05.圏内事件.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 5,
+      "global": 5
+    },
+    {
+      "name": "[Moozzi2] Sword Art Online Alternative Gun Gale Online E05.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/[Moozzi2] Sword Art Online Alternative Gun Gale Online E05.srt",
+      "season": null,
+      "episode": null,
+      "global": 5
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E05.第05話.「銃と剣」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E05.第05話.「銃と剣」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 5,
+      "global": 5
+    },
+    {
+      "name": "[NanakoRaws] Sword Art Online Alternative Gun Gale Online - 05 (AT-X 1920x1080 x265 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/[NanakoRaws] Sword Art Online Alternative Gun Gale Online - 05 (AT-X 1920x1080 x265 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 5
+    },
+    {
+      "name": "Sword Art Online Alternative Gun Gale Online - 05 「ラストバトルは私に」 (AT-X 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/Sword Art Online Alternative Gun Gale Online - 05 「ラストバトルは私に」 (AT-X 1280x720 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 5
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E05.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E05.CC.ja.srt",
+      "season": 1,
+      "episode": 5,
+      "global": 5
+    },
+    {
+      "name": "ソードアート・オンライン.S01E06.幻の復讐者.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E06.幻の復讐者.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 6,
+      "global": 6
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E06.SAO失敗者.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E06.SAO失敗者.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 6,
+      "global": 6
+    },
+    {
+      "name": "Sword Art Online.S01E06.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E06.CC.ja.srt",
+      "season": 1,
+      "episode": 6,
+      "global": 6
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 06 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 06 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 6
+    },
+    {
+      "name": "Sword Art Online II.S01E06.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E06.CC.ja.srt",
+      "season": 1,
+      "episode": 6,
+      "global": 6
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 06 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 06 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 6
+    },
+    {
+      "name": "ソードアート・オンライン.S01E06.幻の復讐者.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E06.幻の復讐者.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 6,
+      "global": 6
+    },
+    {
+      "name": "ソードアート・オンライン.S01E06.幻の復讐者.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E06.幻の復讐者.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 6,
+      "global": 6
+    },
+    {
+      "name": "Sword Art Online Alternative Gun Gale Online II - 06 「まだ時間はある攻防戦」 (AT-X 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/Sword Art Online Alternative Gun Gale Online II - 06 「まだ時間はある攻防戦」 (AT-X 1280x720 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 6
+    },
+    {
+      "name": "Sword Art Online Alternative “Gun Gale Online”.S01E06.JA.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/extra/Sword Art Online Alternative “Gun Gale Online”.S01E06.JA.srt",
+      "season": 1,
+      "episode": 6,
+      "global": 6
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E06.第06話.「曠野の決闘」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E06.第06話.「曠野の決闘」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 6,
+      "global": 6
+    },
+    {
+      "name": "[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 06 (AT-X 1920x1080 x265 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 06 (AT-X 1920x1080 x265 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 6
+    },
+    {
+      "name": "Sword Art Online Alternative Gun Gale Online - 06 「SAO失敗者(ルーザー)」 (AT-X 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/Sword Art Online Alternative Gun Gale Online - 06 「SAO失敗者(ルーザー)」 (AT-X 1280x720 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 6
+    },
+    {
+      "name": "[Moozzi2] Sword Art Online Alternative Gun Gale Online E06.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/[Moozzi2] Sword Art Online Alternative Gun Gale Online E06.srt",
+      "season": null,
+      "episode": null,
+      "global": 6
+    },
+    {
+      "name": "Sword Art Online Alicization E06.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E06.srt",
+      "season": null,
+      "episode": null,
+      "global": 6
+    },
+    {
+      "name": "[NanakoRaws] Sword Art Online Alternative Gun Gale Online - 06 (AT-X 1920x1080 x265 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/[NanakoRaws] Sword Art Online Alternative Gun Gale Online - 06 (AT-X 1920x1080 x265 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 6
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E06.SAO失敗者.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E06.SAO失敗者.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 6,
+      "global": 6
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E06.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E06.CC.ja.srt",
+      "season": 1,
+      "episode": 6,
+      "global": 6
+    },
+    {
+      "name": "Sword Art Online Alicization - S01E06.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization - S01E06.ja.srt",
+      "season": 1,
+      "episode": 6,
+      "global": 6
+    },
+    {
+      "name": "ソードアート・オンライン.S01E07.心の温度.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E07.心の温度.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 7,
+      "global": 7
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E07.セカンド・スクワッド・ジャム.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E07.セカンド・スクワッド・ジャム.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 7,
+      "global": 7
+    },
+    {
+      "name": "Sword Art Online.S01E07.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E07.CC.ja.srt",
+      "season": 1,
+      "episode": 7,
+      "global": 7
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 07 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 07 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 7
+    },
+    {
+      "name": "Sword Art Online II.S01E07.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E07.CC.ja.srt",
+      "season": 1,
+      "episode": 7,
+      "global": 7
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 07 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 07 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 7
+    },
+    {
+      "name": "Sword Art Online Alicization - S01E07.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization - S01E07.ja.srt",
+      "season": 1,
+      "episode": 7,
+      "global": 7
+    },
+    {
+      "name": "ソードアート・オンライン.S01E07.心の温度.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E07.心の温度.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 7,
+      "global": 7
+    },
+    {
+      "name": "Sword Art Online Alternative Gun Gale Online - 07 「セカンド・スクワッド・ジャム」 (AT-X 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/Sword Art Online Alternative Gun Gale Online - 07 「セカンド・スクワッド・ジャム」 (AT-X 1280x720 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 7
+    },
+    {
+      "name": "Sword Art Online Alicization E07.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E07.srt",
+      "season": null,
+      "episode": null,
+      "global": 7
+    },
+    {
+      "name": "ソードアート・オンライン.S01E07.心の温度.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E07.心の温度.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 7,
+      "global": 7
+    },
+    {
+      "name": "[Moozzi2] Sword Art Online Alternative Gun Gale Online E07.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/[Moozzi2] Sword Art Online Alternative Gun Gale Online E07.srt",
+      "season": null,
+      "episode": null,
+      "global": 7
+    },
+    {
+      "name": "[NanakoRaws] Sword Art Online Alternative Gun Gale Online - 07 (AT-X 1920x1080 x265 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/[NanakoRaws] Sword Art Online Alternative Gun Gale Online - 07 (AT-X 1920x1080 x265 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 7
+    },
+    {
+      "name": "[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 07 (AT-X 1920x1080 x265 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 07 (AT-X 1920x1080 x265 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 7
+    },
+    {
+      "name": "Sword Art Online Alternative “Gun Gale Online”.S01E07.JA.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/extra/Sword Art Online Alternative “Gun Gale Online”.S01E07.JA.srt",
+      "season": 1,
+      "episode": 7,
+      "global": 7
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E07.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E07.CC.ja.srt",
+      "season": 1,
+      "episode": 7,
+      "global": 7
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E07.第07話.「紅の記憶」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E07.第07話.「紅の記憶」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 7,
+      "global": 7
+    },
+    {
+      "name": "Sword Art Online Alternative Gun Gale Online II - 07 「ターン・オーバー」 (AT-X 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/Sword Art Online Alternative Gun Gale Online II - 07 「ターン・オーバー」 (AT-X 1280x720 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 7
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E07.セカンド・スクワッド・ジャム.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E07.セカンド・スクワッド・ジャム.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 7,
+      "global": 7
+    },
+    {
+      "name": "ソードアート・オンライン.S01E08.黒と白の剣舞.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E08.黒と白の剣舞.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 8,
+      "global": 8
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E08.ブービートラップ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E08.ブービートラップ.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 8,
+      "global": 8
+    },
+    {
+      "name": "Sword Art Online.S01E08.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E08.CC.ja.srt",
+      "season": 1,
+      "episode": 8,
+      "global": 8
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 08 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 08 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 8
+    },
+    {
+      "name": "Sword Art Online II.S01E08.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E08.CC.ja.srt",
+      "season": 1,
+      "episode": 8,
+      "global": 8
+    },
+    {
+      "name": "Sword Art Online Alicization E08.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E08.srt",
+      "season": null,
+      "episode": null,
+      "global": 8
+    },
+    {
+      "name": "Sword Art Online Alicization - S01E08.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization - S01E08.ja.srt",
+      "season": 1,
+      "episode": 8,
+      "global": 8
+    },
+    {
+      "name": "ソードアート・オンライン.S01E08.黒と白の剣舞.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E08.黒と白の剣舞.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 8,
+      "global": 8
+    },
+    {
+      "name": "Sword Art Online Alternative “Gun Gale Online”.S01E08.JA.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/extra/Sword Art Online Alternative “Gun Gale Online”.S01E08.JA.srt",
+      "season": 1,
+      "episode": 8,
+      "global": 8
+    },
+    {
+      "name": "[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 08 (AT-X 1920x1080 x265 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 08 (AT-X 1920x1080 x265 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 8
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 08 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 08 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 8
+    },
+    {
+      "name": "Sword Art Online Alternative Gun Gale Online - 08 「ブービートラップ」 (AT-X 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/Sword Art Online Alternative Gun Gale Online - 08 「ブービートラップ」 (AT-X 1280x720 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 8
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E08.ブービートラップ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E08.ブービートラップ.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 8,
+      "global": 8
+    },
+    {
+      "name": "ソードアート・オンライン.S01E08.黒と白の剣舞.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E08.黒と白の剣舞.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 8,
+      "global": 8
+    },
+    {
+      "name": "[Moozzi2] Sword Art Online Alternative Gun Gale Online E08.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/[Moozzi2] Sword Art Online Alternative Gun Gale Online E08.srt",
+      "season": null,
+      "episode": null,
+      "global": 8
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E08.第08話.「バレット・オブ・バレッツ」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E08.第08話.「バレット・オブ・バレッツ」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 8,
+      "global": 8
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E08.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E08.CC.ja.srt",
+      "season": 1,
+      "episode": 8,
+      "global": 8
+    },
+    {
+      "name": "[NanakoRaws] Sword Art Online Alternative Gun Gale Online - 08 (AT-X 1920x1080 x265 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/[NanakoRaws] Sword Art Online Alternative Gun Gale Online - 08 (AT-X 1920x1080 x265 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 8
+    },
+    {
+      "name": "Sword Art Online Alternative Gun Gale Online II - 08 「決闘」 (AT-X 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/Sword Art Online Alternative Gun Gale Online II - 08 「決闘」 (AT-X 1280x720 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 8
+    },
+    {
+      "name": "ソードアート・オンライン.S01E09.青眼の悪魔.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E09.青眼の悪魔.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 9,
+      "global": 9
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E09.十分間の鏖殺.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E09.十分間の鏖殺.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 9,
+      "global": 9
+    },
+    {
+      "name": "Sword Art Online.S01E09.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E09.CC.ja.srt",
+      "season": 1,
+      "episode": 9,
+      "global": 9
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 09 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 09 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 9
+    },
+    {
+      "name": "Sword Art Online II.S01E09.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E09.CC.ja.srt",
+      "season": 1,
+      "episode": 9,
+      "global": 9
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 09 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 09 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 9
+    },
+    {
+      "name": "Sword Art Online Alternative “Gun Gale Online”.S01E09.JA.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/extra/Sword Art Online Alternative “Gun Gale Online”.S01E09.JA.srt",
+      "season": 1,
+      "episode": 9,
+      "global": 9
+    },
+    {
+      "name": "Sword Art Online Alternative Gun Gale Online - 09 「十分間の鏖殺」 (AT-X 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/Sword Art Online Alternative Gun Gale Online - 09 「十分間の鏖殺」 (AT-X 1280x720 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 9
+    },
+    {
+      "name": "Sword Art Online Alternative Gun Gale Online II - 09 「戦場への招待」 (AT-X 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/Sword Art Online Alternative Gun Gale Online II - 09 「戦場への招待」 (AT-X 1280x720 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 9
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E09.十分間の鏖殺.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E09.十分間の鏖殺.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 9,
+      "global": 9
+    },
+    {
+      "name": "Sword Art Online Alicization E09.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E09.srt",
+      "season": null,
+      "episode": null,
+      "global": 9
+    },
+    {
+      "name": "Sword Art Online Alicization - S01E09.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization - S01E09.ja.srt",
+      "season": 1,
+      "episode": 9,
+      "global": 9
+    },
+    {
+      "name": "[Moozzi2] Sword Art Online Alternative Gun Gale Online E09.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/[Moozzi2] Sword Art Online Alternative Gun Gale Online E09.srt",
+      "season": null,
+      "episode": null,
+      "global": 9
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E09.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E09.CC.ja.srt",
+      "season": 1,
+      "episode": 9,
+      "global": 9
+    },
+    {
+      "name": "ソードアート・オンライン.S01E09.青眼の悪魔.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E09.青眼の悪魔.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 9,
+      "global": 9
+    },
+    {
+      "name": "ソードアート・オンライン.S01E09.青眼の悪魔.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E09.青眼の悪魔.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 9,
+      "global": 9
+    },
+    {
+      "name": "[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 09 (AT-X 1920x1080 x265 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 09 (AT-X 1920x1080 x265 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 9
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E09.第09話.「デス・ガン」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E09.第09話.「デス・ガン」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 9,
+      "global": 9
+    },
+    {
+      "name": "ソードアート・オンライン.S01E10.紅の殺意.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E10.紅の殺意.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 10,
+      "global": 10
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E10.魔王復活.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E10.魔王復活.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 10,
+      "global": 10
+    },
+    {
+      "name": "Sword Art Online.S01E10.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E10.CC.ja.srt",
+      "season": 1,
+      "episode": 10,
+      "global": 10
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 10 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 10 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 10
+    },
+    {
+      "name": "Sword Art Online II.S01E10.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E10.CC.ja.srt",
+      "season": 1,
+      "episode": 10,
+      "global": 10
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E10.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E10.CC.ja.srt",
+      "season": 1,
+      "episode": 10,
+      "global": 10
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E10.第10話.「死の追撃者」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E10.第10話.「死の追撃者」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 10,
+      "global": 10
+    },
+    {
+      "name": "Sword Art Online Alternative “Gun Gale Online”.S01E10.JA.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/extra/Sword Art Online Alternative “Gun Gale Online”.S01E10.JA.srt",
+      "season": 1,
+      "episode": 10,
+      "global": 10
+    },
+    {
+      "name": "Sword Art Online Alicization - S01E10.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization - S01E10.ja.srt",
+      "season": 1,
+      "episode": 10,
+      "global": 10
+    },
+    {
+      "name": "[Moozzi2] Sword Art Online Alternative Gun Gale Online E10.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/[Moozzi2] Sword Art Online Alternative Gun Gale Online E10.srt",
+      "season": null,
+      "episode": null,
+      "global": 10
+    },
+    {
+      "name": "[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 10 (AT-X 1920x1080 x265 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 10 (AT-X 1920x1080 x265 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 10
+    },
+    {
+      "name": "ソードアート・オンライン.S01E10.紅の殺意.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E10.紅の殺意.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 10,
+      "global": 10
+    },
+    {
+      "name": "Sword Art Online Alternative Gun Gale Online - 10 「魔王復活」 (AT-X 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/Sword Art Online Alternative Gun Gale Online - 10 「魔王復活」 (AT-X 1280x720 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 10
+    },
+    {
+      "name": "Sword Art Online Alternative Gun Gale Online II - 10 「悪魔の城」 (AT-X 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/Sword Art Online Alternative Gun Gale Online II - 10 「悪魔の城」 (AT-X 1280x720 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 10
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E10.魔王復活.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E10.魔王復活.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 10,
+      "global": 10
+    },
+    {
+      "name": "Sword Art Online Alicization E10.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E10.srt",
+      "season": null,
+      "episode": null,
+      "global": 10
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 10 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 10 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 10
+    },
+    {
+      "name": "ソードアート・オンライン.S01E10.紅の殺意.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E10.紅の殺意.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 10,
+      "global": 10
+    },
+    {
+      "name": "ソードアート・オンライン.S01E11.朝露の少女.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E11.朝露の少女.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 11,
+      "global": 11
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E11.イカれたレン.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E11.イカれたレン.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 11,
+      "global": 11
+    },
+    {
+      "name": "Sword Art Online.S01E11.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E11.CC.ja.srt",
+      "season": 1,
+      "episode": 11,
+      "global": 11
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 11 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 11 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 11
+    },
+    {
+      "name": "Sword Art Online II.S01E11.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E11.CC.ja.srt",
+      "season": 1,
+      "episode": 11,
+      "global": 11
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 11 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 11 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 11
+    },
+    {
+      "name": "Sword Art Online Alicization - S01E11.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization - S01E11.ja.srt",
+      "season": 1,
+      "episode": 11,
+      "global": 11
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E11.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E11.CC.ja.srt",
+      "season": 1,
+      "episode": 11,
+      "global": 11
+    },
+    {
+      "name": "Sword Art Online Alternative “Gun Gale Online”.S01E11.JA.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/extra/Sword Art Online Alternative “Gun Gale Online”.S01E11.JA.srt",
+      "season": 1,
+      "episode": 11,
+      "global": 11
+    },
+    {
+      "name": "ソードアート・オンライン.S01E11.朝露の少女.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E11.朝露の少女.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 11,
+      "global": 11
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E11.第11話.「強さの意味」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E11.第11話.「強さの意味」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 11,
+      "global": 11
+    },
+    {
+      "name": "[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 11 (AT-X 1920x1080 x265 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 11 (AT-X 1920x1080 x265 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 11
+    },
+    {
+      "name": "Sword Art Online Alternative Gun Gale Online - 11 「イカれたレン」 (AT-X 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/Sword Art Online Alternative Gun Gale Online - 11 「イカれたレン」 (AT-X 1280x720 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 11
+    },
+    {
+      "name": "Sword Art Online Alicization E11.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E11.srt",
+      "season": null,
+      "episode": null,
+      "global": 11
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E11.イカれたレン.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E11.イカれたレン.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 11,
+      "global": 11
+    },
+    {
+      "name": "ソードアート・オンライン.S01E11.朝露の少女.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E11.朝露の少女.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 11,
+      "global": 11
+    },
+    {
+      "name": "[Moozzi2] Sword Art Online Alternative Gun Gale Online E11.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/[Moozzi2] Sword Art Online Alternative Gun Gale Online E11.srt",
+      "season": null,
+      "episode": null,
+      "global": 11
+    },
+    {
+      "name": "ソードアート・オンライン.S01E12.ユイの心.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E12.ユイの心.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 12,
+      "global": 12
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E12.拍手.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E12.拍手.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 12,
+      "global": 12
+    },
+    {
+      "name": "Sword Art Online.S01E12.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E12.CC.ja.srt",
+      "season": 1,
+      "episode": 12,
+      "global": 12
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 12 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 12 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 12
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 12 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 12 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 12
+    },
+    {
+      "name": "ソードアート・オンライン.S01E12.ユイの心.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E12.ユイの心.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 12,
+      "global": 12
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E12.第12話.「幻の銃弾」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E12.第12話.「幻の銃弾」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 12,
+      "global": 12
+    },
+    {
+      "name": "Sword Art Online Alternative “Gun Gale Online”.S01E12.JA.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/extra/Sword Art Online Alternative “Gun Gale Online”.S01E12.JA.srt",
+      "season": 1,
+      "episode": 12,
+      "global": 12
+    },
+    {
+      "name": "Sword Art Online II.S01E12.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E12.CC.ja.srt",
+      "season": 1,
+      "episode": 12,
+      "global": 12
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E12.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E12.CC.ja.srt",
+      "season": 1,
+      "episode": 12,
+      "global": 12
+    },
+    {
+      "name": "[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 12 END (AT-X 1920x1080 x265 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/[NanakoRaws] Sword Art Online Alternative Gun Gale Online II - 12 END (AT-X 1920x1080 x265 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 12
+    },
+    {
+      "name": "[Moozzi2] Sword Art Online Alternative Gun Gale Online E12.srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/[Moozzi2] Sword Art Online Alternative Gun Gale Online E12.srt",
+      "season": null,
+      "episode": null,
+      "global": 12
+    },
+    {
+      "name": "Sword Art Online Alternative Gun Gale Online - 12 「拍手」 (AT-X 1280x720 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/Sword Art Online Alternative Gun Gale Online - 12 「拍手」 (AT-X 1280x720 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 12
+    },
+    {
+      "name": "ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E12.拍手.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online/ソードアート・オンライン オルタナティブ ガンゲイル・オンライン.S01E12.拍手.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 12,
+      "global": 12
+    },
+    {
+      "name": "Sword Art Online Alicization E12.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E12.srt",
+      "season": null,
+      "episode": null,
+      "global": 12
+    },
+    {
+      "name": "Sword Art Online Alicization - S01E12.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization - S01E12.ja.srt",
+      "season": 1,
+      "episode": 12,
+      "global": 12
+    },
+    {
+      "name": "ソードアート・オンライン.S01E12.ユイの心.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E12.ユイの心.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 12,
+      "global": 12
+    },
+    {
+      "name": "ソードアート・オンライン.S01E13.奈落の淵.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E13.奈落の淵.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 13,
+      "global": 13
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 13 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 13 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 13
+    },
+    {
+      "name": "Sword Art Online.S01E13.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E13.CC.ja.srt",
+      "season": 1,
+      "episode": 13,
+      "global": 13
+    },
+    {
+      "name": "Sword Art Online II.S01E13.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E13.CC.ja.srt",
+      "season": 1,
+      "episode": 13,
+      "global": 13
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 13 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 13 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 13
+    },
+    {
+      "name": "Sword Art Online Alicization E13.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E13.srt",
+      "season": null,
+      "episode": null,
+      "global": 13
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E13.第13話.「ファントム・バレット」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E13.第13話.「ファントム・バレット」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 13,
+      "global": 13
+    },
+    {
+      "name": "Sword Art Online Alicization - S01E13.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization - S01E13.ja.srt",
+      "season": 1,
+      "episode": 13,
+      "global": 13
+    },
+    {
+      "name": "ソードアート・オンライン.S01E13.奈落の淵.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E13.奈落の淵.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 13,
+      "global": 13
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E13.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E13.CC.ja.srt",
+      "season": 1,
+      "episode": 13,
+      "global": 13
+    },
+    {
+      "name": "ソードアート・オンライン.S01E14.世界の終焉.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E14.世界の終焉.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 14,
+      "global": 14
+    },
+    {
+      "name": "Sword Art Online.S01E14.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E14.CC.ja.srt",
+      "season": 1,
+      "episode": 14,
+      "global": 14
+    },
+    {
+      "name": "Sword Art Online II.S01E14.5.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/Sword Art Online II.S01E14.5.CC.ja.srt",
+      "season": 1,
+      "episode": 14,
+      "global": 14
+    },
+    {
+      "name": "Sword Art Online II.S01E14.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E14.CC.ja.srt",
+      "season": 1,
+      "episode": 14,
+      "global": 14
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 14 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 14 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 14
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 14.5 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 14.5 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 14
+    },
+    {
+      "name": "ソードアート・オンライン.S01E14.世界の終焉.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E14.世界の終焉.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 14,
+      "global": 14
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 14 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 14 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 14
+    },
+    {
+      "name": "Sword Art Online Alicization E14.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E14.srt",
+      "season": null,
+      "episode": null,
+      "global": 14
+    },
+    {
+      "name": "Sword Art Online Alicization - S01E14.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization - S01E14.ja.srt",
+      "season": 1,
+      "episode": 14,
+      "global": 14
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E14.第14話.「小さな一歩」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E14.第14話.「小さな一歩」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 14,
+      "global": 14
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E14.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E14.CC.ja.srt",
+      "season": 1,
+      "episode": 14,
+      "global": 14
+    },
+    {
+      "name": "ソードアート・オンライン.S01E14.世界の終焉.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E14.世界の終焉.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 14,
+      "global": 14
+    },
+    {
+      "name": "ソードアート・オンライン.S01E15.帰還.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E15.帰還.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 15,
+      "global": 15
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 15 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 15 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 15
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 15 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 15 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 15
+    },
+    {
+      "name": "ソードアート・オンライン.S01E15.帰還.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E15.帰還.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 15,
+      "global": 15
+    },
+    {
+      "name": "Sword Art Online.S01E15.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E15.CC.ja.srt",
+      "season": 1,
+      "episode": 15,
+      "global": 15
+    },
+    {
+      "name": "ソードアート・オンライン.S01E15.帰還.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E15.帰還.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 15,
+      "global": 15
+    },
+    {
+      "name": "Sword Art Online Alicization E15.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E15.srt",
+      "season": null,
+      "episode": null,
+      "global": 15
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E15.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E15.CC.ja.srt",
+      "season": 1,
+      "episode": 15,
+      "global": 15
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E15.第14.5話.「Debriefing」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E15.第14.5話.「Debriefing」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 15,
+      "global": 15
+    },
+    {
+      "name": "Sword Art Online Alicization - S01E15.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization - S01E15.ja.srt",
+      "season": 1,
+      "episode": 15,
+      "global": 15
+    },
+    {
+      "name": "ソードアート・オンライン.S01E16.妖精たちの国.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E16.妖精たちの国.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 16,
+      "global": 16
+    },
+    {
+      "name": "Sword Art Online.S01E16.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E16.CC.ja.srt",
+      "season": 1,
+      "episode": 16,
+      "global": 16
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 16 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 16 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 16
+    },
+    {
+      "name": "Sword Art Online II.S01E16.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E16.CC.ja.srt",
+      "season": 1,
+      "episode": 16,
+      "global": 16
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 16 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 16 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 16
+    },
+    {
+      "name": "Sword Art Online Alicization - S01E16.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization - S01E16.ja.srt",
+      "season": 1,
+      "episode": 16,
+      "global": 16
+    },
+    {
+      "name": "ソードアート・オンライン.S01E16.妖精たちの国.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E16.妖精たちの国.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 16,
+      "global": 16
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E16.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E16.CC.ja.srt",
+      "season": 1,
+      "episode": 16,
+      "global": 16
+    },
+    {
+      "name": "Sword Art Online Alicization E16.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E16.srt",
+      "season": null,
+      "episode": null,
+      "global": 16
+    },
+    {
+      "name": "ソードアート・オンライン.S01E16.妖精たちの国.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E16.妖精たちの国.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 16,
+      "global": 16
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E16.第15話.「湖の女王」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E16.第15話.「湖の女王」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 16,
+      "global": 16
+    },
+    {
+      "name": "ソードアート・オンライン.S01E17.囚われの女王.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E17.囚われの女王.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 17,
+      "global": 17
+    },
+    {
+      "name": "Sword Art Online.S01E17.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E17.CC.ja.srt",
+      "season": 1,
+      "episode": 17,
+      "global": 17
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 17 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 17 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 17
+    },
+    {
+      "name": "Sword Art Online II.S01E17.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E17.CC.ja.srt",
+      "season": 1,
+      "episode": 17,
+      "global": 17
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 17 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 17 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 17
+    },
+    {
+      "name": "Sword Art Online Alicization E17.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E17.srt",
+      "season": null,
+      "episode": null,
+      "global": 17
+    },
+    {
+      "name": "Sword Art Online Alicization - S01E17.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization - S01E17.ja.srt",
+      "season": 1,
+      "episode": 17,
+      "global": 17
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E17.第16話.「巨人の王」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E17.第16話.「巨人の王」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 17,
+      "global": 17
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E17.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E17.CC.ja.srt",
+      "season": 1,
+      "episode": 17,
+      "global": 17
+    },
+    {
+      "name": "ソードアート・オンライン.S01E17.囚われの女王.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E17.囚われの女王.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 17,
+      "global": 17
+    },
+    {
+      "name": "ソードアート・オンライン.S01E17.囚われの女王.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E17.囚われの女王.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 17,
+      "global": 17
+    },
+    {
+      "name": "ソードアート・オンライン.S01E18.世界樹へ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E18.世界樹へ.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 18,
+      "global": 18
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 18 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 18 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 18
+    },
+    {
+      "name": "Sword Art Online II.S01E18.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E18.CC.ja.srt",
+      "season": 1,
+      "episode": 18,
+      "global": 18
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 18 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 18 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 18
+    },
+    {
+      "name": "Sword Art Online.S01E18.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E18.CC.ja.srt",
+      "season": 1,
+      "episode": 18,
+      "global": 18
+    },
+    {
+      "name": "Sword Art Online Alicization E18.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E18.srt",
+      "season": null,
+      "episode": null,
+      "global": 18
+    },
+    {
+      "name": "Sword Art Online Alicization - S01E18.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization - S01E18.ja.srt",
+      "season": 1,
+      "episode": 18,
+      "global": 18
+    },
+    {
+      "name": "ソードアート・オンライン.S01E18.世界樹へ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E18.世界樹へ.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 18,
+      "global": 18
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E18.第17話.「エクスキャリバー」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E18.第17話.「エクスキャリバー」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 18,
+      "global": 18
+    },
+    {
+      "name": "ソードアート・オンライン.S01E18.世界樹へ.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E18.世界樹へ.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 18,
+      "global": 18
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E18.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E18.CC.ja.srt",
+      "season": 1,
+      "episode": 18,
+      "global": 18
+    },
+    {
+      "name": "ソードアート・オンライン.S01E19.ルグルー回廊.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E19.ルグルー回廊.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 19,
+      "global": 19
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 19 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 19 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 19
+    },
+    {
+      "name": "Sword Art Online II.S01E19.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E19.CC.ja.srt",
+      "season": 1,
+      "episode": 19,
+      "global": 19
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 19 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 19 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 19
+    },
+    {
+      "name": "ソードアート・オンライン.S01E19.ルグルー回廊.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E19.ルグルー回廊.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 19,
+      "global": 19
+    },
+    {
+      "name": "Sword Art Online.S01E19.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E19.CC.ja.srt",
+      "season": 1,
+      "episode": 19,
+      "global": 19
+    },
+    {
+      "name": "Sword Art Online Alicization E19.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E19.srt",
+      "season": null,
+      "episode": null,
+      "global": 19
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E19.第18話.「森の家」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E19.第18話.「森の家」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 19,
+      "global": 19
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E19.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E19.CC.ja.srt",
+      "season": 1,
+      "episode": 19,
+      "global": 19
+    },
+    {
+      "name": "ソードアート・オンライン.S01E19.ルグルー回廊.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E19.ルグルー回廊.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 19,
+      "global": 19
+    },
+    {
+      "name": "Sword Art Online Alicization - S01E19.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization - S01E19.ja.srt",
+      "season": 1,
+      "episode": 19,
+      "global": 19
+    },
+    {
+      "name": "ソードアート・オンライン.S01E20.猛炎の将.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E20.猛炎の将.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 20,
+      "global": 20
+    },
+    {
+      "name": "Sword Art Online.S01E20.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E20.CC.ja.srt",
+      "season": 1,
+      "episode": 20,
+      "global": 20
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 20 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 20 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 20
+    },
+    {
+      "name": "Sword Art Online II.S01E20.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E20.CC.ja.srt",
+      "season": 1,
+      "episode": 20,
+      "global": 20
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 20 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 20 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 20
+    },
+    {
+      "name": "Sword Art Online Alicization E20.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E20.srt",
+      "season": null,
+      "episode": null,
+      "global": 20
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E20.第19話.「絶剣」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E20.第19話.「絶剣」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 20,
+      "global": 20
+    },
+    {
+      "name": "Sword Art Online Alicization - S01E20.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization - S01E20.ja.srt",
+      "season": 1,
+      "episode": 20,
+      "global": 20
+    },
+    {
+      "name": "ソードアート・オンライン.S01E20.猛炎の将.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E20.猛炎の将.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 20,
+      "global": 20
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E20.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E20.CC.ja.srt",
+      "season": 1,
+      "episode": 20,
+      "global": 20
+    },
+    {
+      "name": "ソードアート・オンライン.S01E20.猛炎の将.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E20.猛炎の将.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 20,
+      "global": 20
+    },
+    {
+      "name": "ソードアート・オンライン.S01E21.アルヴヘイムの真実.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E21.アルヴヘイムの真実.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 21,
+      "global": 21
+    },
+    {
+      "name": "Sword Art Online.S01E21.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E21.CC.ja.srt",
+      "season": 1,
+      "episode": 21,
+      "global": 21
+    },
+    {
+      "name": "Sword Art Online II.S01E21.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E21.CC.ja.srt",
+      "season": 1,
+      "episode": 21,
+      "global": 21
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 21 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 21 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 21
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E21.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E21.CC.ja.srt",
+      "season": 1,
+      "episode": 21,
+      "global": 21
+    },
+    {
+      "name": "Sword Art Online Alicization E21.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E21.srt",
+      "season": null,
+      "episode": null,
+      "global": 21
+    },
+    {
+      "name": "ソードアート・オンライン.S01E21.アルヴヘイムの真実.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E21.アルヴヘイムの真実.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 21,
+      "global": 21
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E21.第20話.「スリーピング・ナイツ」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E21.第20話.「スリーピング・ナイツ」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 21,
+      "global": 21
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 21 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 21 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 21
+    },
+    {
+      "name": "Sword Art Online Alicization - S01E21.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization - S01E21.ja.srt",
+      "season": 1,
+      "episode": 21,
+      "global": 21
+    },
+    {
+      "name": "ソードアート・オンライン.S01E21.アルヴヘイムの真実.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E21.アルヴヘイムの真実.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 21,
+      "global": 21
+    },
+    {
+      "name": "ソードアート・オンライン.S01E22.グランド・クエスト.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E22.グランド・クエスト.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 22,
+      "global": 22
+    },
+    {
+      "name": "Sword Art Online.S01E22.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E22.CC.ja.srt",
+      "season": 1,
+      "episode": 22,
+      "global": 22
+    },
+    {
+      "name": "Sword Art Online II.S01E22.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E22.CC.ja.srt",
+      "season": 1,
+      "episode": 22,
+      "global": 22
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 22 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 22 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 22
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 22 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 22 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 22
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E22.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E22.CC.ja.srt",
+      "season": 1,
+      "episode": 22,
+      "global": 22
+    },
+    {
+      "name": "ソードアート・オンライン.S01E22.グランド・クエスト.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E22.グランド・クエスト.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 22,
+      "global": 22
+    },
+    {
+      "name": "Sword Art Online Alicization E22.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E22.srt",
+      "season": null,
+      "episode": null,
+      "global": 22
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E22.第21話.「剣士の碑」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E22.第21話.「剣士の碑」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 22,
+      "global": 22
+    },
+    {
+      "name": "ソードアート・オンライン.S01E22.グランド・クエスト.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E22.グランド・クエスト.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 22,
+      "global": 22
+    },
+    {
+      "name": "ソードアート・オンライン.S01E23.絆.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E23.絆.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 23,
+      "global": 23
+    },
+    {
+      "name": "Sword Art Online.S01E23.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E23.CC.ja.srt",
+      "season": 1,
+      "episode": 23,
+      "global": 23
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 23 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 23 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 23
+    },
+    {
+      "name": "Sword Art Online II.S01E23.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E23.CC.ja.srt",
+      "season": 1,
+      "episode": 23,
+      "global": 23
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 23 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 23 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 23
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E23.第22話.「旅路の果て」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E23.第22話.「旅路の果て」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 23,
+      "global": 23
+    },
+    {
+      "name": "ソードアート・オンライン.S01E23.絆.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E23.絆.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 23,
+      "global": 23
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E23.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E23.CC.ja.srt",
+      "season": 1,
+      "episode": 23,
+      "global": 23
+    },
+    {
+      "name": "Sword Art Online Alicization E23.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E23.srt",
+      "season": null,
+      "episode": null,
+      "global": 23
+    },
+    {
+      "name": "ソードアート・オンライン.S01E24.鍍金(メッキ)の勇者.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E24.鍍金(メッキ)の勇者.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 24,
+      "global": 24
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 24 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 24 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 24
+    },
+    {
+      "name": "Sword Art Online II.S01E24.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E24.CC.ja.srt",
+      "season": 1,
+      "episode": 24,
+      "global": 24
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online II - 24 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/[HorribleSubs] Sword Art Online II - 24 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 24
+    },
+    {
+      "name": "Sword Art Online.S01E24.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E24.CC.ja.srt",
+      "season": 1,
+      "episode": 24,
+      "global": 24
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E24.第23話.「夢の始まり」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E24.第23話.「夢の始まり」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 24,
+      "global": 24
+    },
+    {
+      "name": "Sword Art Online Alicization E24.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization E24.srt",
+      "season": null,
+      "episode": null,
+      "global": 24
+    },
+    {
+      "name": "Sword Art Online Alicization.S01E24.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online Alicization.S01E24.CC.ja.srt",
+      "season": 1,
+      "episode": 24,
+      "global": 24
+    },
+    {
+      "name": "ソードアート・オンライン.S01E24.鍍金(メッキ)の勇者.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E24.鍍金(メッキ)の勇者.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 24,
+      "global": 24
+    },
+    {
+      "name": "ソードアート・オンライン.S01E24.鍍金(メッキ)の勇者.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E24.鍍金(メッキ)の勇者.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 24,
+      "global": 24
+    },
+    {
+      "name": "ソードアート・オンライン.S01E25.世界の種子.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E25.世界の種子.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 25,
+      "global": 25
+    },
+    {
+      "name": "Sword Art Online.S01E25.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online.S01E25.CC.ja.srt",
+      "season": 1,
+      "episode": 25,
+      "global": 25
+    },
+    {
+      "name": "[HorribleSubs] Sword Art Online - 25 [1080p].ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/[HorribleSubs] Sword Art Online - 25 [1080p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 25
+    },
+    {
+      "name": "Sword Art Online II.S01E25.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/Sword Art Online II.S01E25.CC.ja.srt",
+      "season": 1,
+      "episode": 25,
+      "global": 25
+    },
+    {
+      "name": "ソードアート・オンライン.S01E25.世界の種子.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E25.世界の種子.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 25,
+      "global": 25
+    },
+    {
+      "name": "ソードアート・オンライン.S01E25.世界の種子.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online/ソードアート・オンライン.S01E25.世界の種子.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 25,
+      "global": 25
+    },
+    {
+      "name": "ソードアート・オンラインII.S01E25.第24話.「マザーズ・ロザリオ」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンラインII.S01E25.第24話.「マザーズ・ロザリオ」.WEBRip.Amazon.ja-jp[sdh].srt",
+      "season": 1,
+      "episode": 25,
+      "global": 25
+    },
+    {
+      "name": "ソードアート・オンライン.S02E01.銃の世界.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E01.銃の世界.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 1,
+      "global": 26
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E01.二度あることは三度ある.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E01.二度あることは三度ある.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 1,
+      "global": 26,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E01.二度あることは三度ある.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E01.二度あることは三度ある.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 1,
+      "global": 26,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E01.銃の世界.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E01.銃の世界.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 1,
+      "global": 26,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E02.氷の狙撃手.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E02.氷の狙撃手.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 2,
+      "global": 27
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E02.大貨車作戦.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E02.大貨車作戦.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 2,
+      "global": 27,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E02.大貨車作戦.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E02.大貨車作戦.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 2,
+      "global": 27,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E02.氷の狙撃手.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E02.氷の狙撃手.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 2,
+      "global": 27,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E03.鮮血の記憶.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E03.鮮血の記憶.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 3,
+      "global": 28
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E03.クラレンスとシャーリー.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E03.クラレンスとシャーリー.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 3,
+      "global": 28,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E03.鮮血の記憶.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E03.鮮血の記憶.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 3,
+      "global": 28,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E03.クラレンスとシャーリー.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E03.クラレンスとシャーリー.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 3,
+      "global": 28,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E04.GGO.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E04.GGO.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 4,
+      "global": 29
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E04.特別ルール、発動.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E04.特別ルール、発動.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 4,
+      "global": 29,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E04.GGO.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E04.GGO.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 4,
+      "global": 29,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E04.特別ルール、発動.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E04.特別ルール、発動.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 4,
+      "global": 29,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E05.銃と剣.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E05.銃と剣.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 5,
+      "global": 30
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E05.ビトレイヤーズ・チョイス.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E05.ビトレイヤーズ・チョイス.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 5,
+      "global": 30,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E05.ビトレイヤーズ・チョイス.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E05.ビトレイヤーズ・チョイス.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 5,
+      "global": 30,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E05.銃と剣.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E05.銃と剣.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 5,
+      "global": 30,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E06.曠野の決闘.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E06.曠野の決闘.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 6,
+      "global": 31
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E06.まだ時間はある攻防戦.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E06.まだ時間はある攻防戦.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 6,
+      "global": 31,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E06.曠野の決闘.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E06.曠野の決闘.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 6,
+      "global": 31,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E06.まだ時間はある攻防戦.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E06.まだ時間はある攻防戦.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 6,
+      "global": 31,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E07.紅の記憶.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E07.紅の記憶.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 7,
+      "global": 32
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E07.ターン・オーバー.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E07.ターン・オーバー.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 7,
+      "global": 32,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E07.紅の記憶.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E07.紅の記憶.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 7,
+      "global": 32,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E07.ターン・オーバー.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E07.ターン・オーバー.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 7,
+      "global": 32,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E08.バレット・オブ・バレッツ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E08.バレット・オブ・バレッツ.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 8,
+      "global": 33
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E08.決闘.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E08.決闘.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 8,
+      "global": 33,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E08.決闘.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E08.決闘.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 8,
+      "global": 33,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E08.バレット・オブ・バレッツ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E08.バレット・オブ・バレッツ.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 8,
+      "global": 33,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E09.デス・ガン.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E09.デス・ガン.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 9,
+      "global": 34
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E09.戦場への招待.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E09.戦場への招待.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 9,
+      "global": 34,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E09.戦場への招待.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E09.戦場への招待.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 9,
+      "global": 34,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E09.デス・ガン.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E09.デス・ガン.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 9,
+      "global": 34,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E10.死の追撃者.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E10.死の追撃者.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 10,
+      "global": 35
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E10.悪魔の城.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E10.悪魔の城.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 10,
+      "global": 35,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E10.死の追撃者.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E10.死の追撃者.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 10,
+      "global": 35,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E10.悪魔の城.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E10.悪魔の城.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 10,
+      "global": 35,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E11.強さの意味.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E11.強さの意味.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 11,
+      "global": 36
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E11.ピトフーイの突撃.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E11.ピトフーイの突撃.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 11,
+      "global": 36,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E11.ピトフーイの突撃.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E11.ピトフーイの突撃.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 11,
+      "global": 36,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E11.強さの意味.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E11.強さの意味.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 11,
+      "global": 36,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E12.幻の銃弾.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E12.幻の銃弾.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 12,
+      "global": 37
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E12.戦う理由は.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E12.戦う理由は.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 12,
+      "global": 37,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E12.幻の銃弾.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E12.幻の銃弾.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 12,
+      "global": 37,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E12.戦う理由は.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online Alternative. Gun Gale Online II/ソードアート・オンライン.オルタナティブ.ガンゲイル・オンライン.S02E12.戦う理由は.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 12,
+      "global": 37,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E13.ファントム・バレット.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E13.ファントム・バレット.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 13,
+      "global": 38
+    },
+    {
+      "name": "ソードアート・オンライン.S02E13.ファントム・バレット.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E13.ファントム・バレット.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 13,
+      "global": 38,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E14.小さな一歩.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E14.小さな一歩.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 14,
+      "global": 39
+    },
+    {
+      "name": "ソードアート・オンライン.S02E14.小さな一歩.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E14.小さな一歩.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 14,
+      "global": 39,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E15.湖の女王.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E15.湖の女王.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 15,
+      "global": 40
+    },
+    {
+      "name": "ソードアート・オンライン.S02E15.湖の女王.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E15.湖の女王.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 15,
+      "global": 40,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E16.巨人の王.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E16.巨人の王.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 16,
+      "global": 41
+    },
+    {
+      "name": "ソードアート・オンライン.S02E16.巨人の王.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E16.巨人の王.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 16,
+      "global": 41,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E17.エクスキャリバー.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E17.エクスキャリバー.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 17,
+      "global": 42
+    },
+    {
+      "name": "ソードアート・オンライン.S02E17.エクスキャリバー.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E17.エクスキャリバー.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 17,
+      "global": 42,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E18.森の家.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E18.森の家.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 18,
+      "global": 43
+    },
+    {
+      "name": "ソードアート・オンライン.S02E18.森の家.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E18.森の家.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 18,
+      "global": 43,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E19.絶剣.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E19.絶剣.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 19,
+      "global": 44
+    },
+    {
+      "name": "ソードアート・オンライン.S02E19.絶剣.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E19.絶剣.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 19,
+      "global": 44,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E20.スリーピング・ナイツ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E20.スリーピング・ナイツ.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 20,
+      "global": 45
+    },
+    {
+      "name": "ソードアート・オンライン.S02E20.スリーピング・ナイツ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E20.スリーピング・ナイツ.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 20,
+      "global": 45,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E21.剣士の碑.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E21.剣士の碑.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 21,
+      "global": 46
+    },
+    {
+      "name": "ソードアート・オンライン.S02E21.剣士の碑.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E21.剣士の碑.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 21,
+      "global": 46,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E22.旅路の果て.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E22.旅路の果て.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 22,
+      "global": 47
+    },
+    {
+      "name": "ソードアート・オンライン.S02E22.旅路の果て.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E22.旅路の果て.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 22,
+      "global": 47,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E23.夢の始まり.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E23.夢の始まり.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 23,
+      "global": 48
+    },
+    {
+      "name": "ソードアート・オンライン.S02E23.夢の始まり.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E23.夢の始まり.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 23,
+      "global": 48,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S02E24.マザーズ・ロザリオ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E24.マザーズ・ロザリオ.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 24,
+      "global": 49
+    },
+    {
+      "name": "ソードアート・オンライン.S02E24.マザーズ・ロザリオ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/ソードアート・オンライン.S02E24.マザーズ・ロザリオ.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 24,
+      "global": 49,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E01.アンダーワールド.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E01.アンダーワールド.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 1,
+      "global": 50
+    },
+    {
+      "name": "ソードアート・オンライン.S03E01.アンダーワールド.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E01.アンダーワールド.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 1,
+      "global": 50,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E02.悪魔の樹.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E02.悪魔の樹.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 2,
+      "global": 51
+    },
+    {
+      "name": "ソードアート・オンライン.S03E02.悪魔の樹.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E02.悪魔の樹.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 2,
+      "global": 51,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E03.果ての山脈.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E03.果ての山脈.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 3,
+      "global": 52
+    },
+    {
+      "name": "ソードアート・オンライン.S03E03.果ての山脈.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E03.果ての山脈.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 3,
+      "global": 52,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E04.旅立ち.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E04.旅立ち.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 4,
+      "global": 53
+    },
+    {
+      "name": "ソードアート・オンライン.S03E04.旅立ち.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E04.旅立ち.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 4,
+      "global": 53,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E05.オーシャン・タートル.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E05.オーシャン・タートル.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 5,
+      "global": 54
+    },
+    {
+      "name": "ソードアート・オンライン.S03E05.オーシャン・タートル.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E05.オーシャン・タートル.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 5,
+      "global": 54,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E06.アリシゼーション計画.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E06.アリシゼーション計画.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 6,
+      "global": 55
+    },
+    {
+      "name": "ソードアート・オンライン.S03E06.アリシゼーション計画.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E06.アリシゼーション計画.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 6,
+      "global": 55,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E07.剣の学び舎.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E07.剣の学び舎.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 7,
+      "global": 56
+    },
+    {
+      "name": "ソードアート・オンライン.S03E07.剣の学び舎.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E07.剣の学び舎.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 7,
+      "global": 56,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E08.剣士の矜持.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E08.剣士の矜持.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 8,
+      "global": 57
+    },
+    {
+      "name": "ソードアート・オンライン.S03E08.剣士の矜持.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E08.剣士の矜持.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 8,
+      "global": 57,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E09.貴族の責務.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E09.貴族の責務.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 9,
+      "global": 58
+    },
+    {
+      "name": "ソードアート・オンライン.S03E09.貴族の責務.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E09.貴族の責務.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 9,
+      "global": 58,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E10.禁忌目録.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E10.禁忌目録.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 10,
+      "global": 59
+    },
+    {
+      "name": "ソードアート・オンライン.S03E10.禁忌目録.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E10.禁忌目録.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 10,
+      "global": 59,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E11.セントラル・カセドラル.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E11.セントラル・カセドラル.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 11,
+      "global": 60
+    },
+    {
+      "name": "ソードアート・オンライン.S03E11.セントラル・カセドラル.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E11.セントラル・カセドラル.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 11,
+      "global": 60,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E12.図書室の賢者.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E12.図書室の賢者.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 12,
+      "global": 61
+    },
+    {
+      "name": "ソードアート・オンライン.S03E12.図書室の賢者.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E12.図書室の賢者.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 12,
+      "global": 61,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E13.支配者と調停者.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E13.支配者と調停者.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 13,
+      "global": 62
+    },
+    {
+      "name": "ソードアート・オンライン.S03E13.支配者と調停者.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E13.支配者と調停者.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 13,
+      "global": 62,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E14.紅蓮の騎士.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E14.紅蓮の騎士.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 14,
+      "global": 63
+    },
+    {
+      "name": "ソードアート・オンライン.S03E14.紅蓮の騎士.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E14.紅蓮の騎士.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 14,
+      "global": 63,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E15.烈日の騎士.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E15.烈日の騎士.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 15,
+      "global": 64
+    },
+    {
+      "name": "ソードアート・オンライン.S03E15.烈日の騎士.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E15.烈日の騎士.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 15,
+      "global": 64,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E16.金木犀の騎士.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E16.金木犀の騎士.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 16,
+      "global": 65
+    },
+    {
+      "name": "ソードアート・オンライン.S03E16.金木犀の騎士.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E16.金木犀の騎士.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 16,
+      "global": 65,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E17.休戦協定.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E17.休戦協定.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 17,
+      "global": 66
+    },
+    {
+      "name": "ソードアート・オンライン.S03E17.休戦協定.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E17.休戦協定.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 17,
+      "global": 66,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E18.伝説の英雄.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E18.伝説の英雄.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 18,
+      "global": 67
+    },
+    {
+      "name": "ソードアート・オンライン.S03E18.伝説の英雄.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E18.伝説の英雄.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 18,
+      "global": 67,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E19.右目の封印.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E19.右目の封印.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 19,
+      "global": 68
+    },
+    {
+      "name": "ソードアート・オンライン.S03E19.右目の封印.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E19.右目の封印.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 19,
+      "global": 68,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E20.シンセサイズ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E20.シンセサイズ.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 20,
+      "global": 69
+    },
+    {
+      "name": "ソードアート・オンライン.S03E20.シンセサイズ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E20.シンセサイズ.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 20,
+      "global": 69,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E21.三十二番目の騎士.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E21.三十二番目の騎士.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 21,
+      "global": 70
+    },
+    {
+      "name": "ソードアート・オンライン.S03E21.三十二番目の騎士.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E21.三十二番目の騎士.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 21,
+      "global": 70,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E22.剣の巨人.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E22.剣の巨人.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 22,
+      "global": 71
+    },
+    {
+      "name": "ソードアート・オンライン.S03E22.剣の巨人.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E22.剣の巨人.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 22,
+      "global": 71,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E23.アドミニストレータ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E23.アドミニストレータ.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 23,
+      "global": 72
+    },
+    {
+      "name": "ソードアート・オンライン.S03E23.アドミニストレータ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E23.アドミニストレータ.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 23,
+      "global": 72,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S03E24.ぼくの英雄.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E24.ぼくの英雄.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 24,
+      "global": 73
+    },
+    {
+      "name": "ソードアート・オンライン.S03E24.ぼくの英雄.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/ソードアート・オンライン.S03E24.ぼくの英雄.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 24,
+      "global": 73,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E01.北の地にて.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E01.北の地にて.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 1,
+      "global": 74
+    },
+    {
+      "name": "Sword Art Online.S04E01.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online.S04E01.CC.ja.srt",
+      "season": 4,
+      "episode": 1,
+      "global": 74,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E01.北の地にて.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E01.北の地にて.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 1,
+      "global": 74,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E02.襲撃.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E02.襲撃.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 2,
+      "global": 75
+    },
+    {
+      "name": "ソードアート・オンライン.S04E02.襲撃.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E02.襲撃.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 2,
+      "global": 75,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Sword Art Online.S04E02.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online.S04E02.CC.ja.srt",
+      "season": 4,
+      "episode": 2,
+      "global": 75,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E03.最終負荷実験.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E03.最終負荷実験.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 3,
+      "global": 76
+    },
+    {
+      "name": "ソードアート・オンライン.S04E03.最終負荷実験.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E03.最終負荷実験.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 3,
+      "global": 76,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Sword Art Online.S04E03.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online.S04E03.CC.ja.srt",
+      "season": 4,
+      "episode": 3,
+      "global": 76,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E04.ダークテリトリー.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E04.ダークテリトリー.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 4,
+      "global": 77
+    },
+    {
+      "name": "Sword Art Online.S04E04.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online.S04E04.CC.ja.srt",
+      "season": 4,
+      "episode": 4,
+      "global": 77,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E04.ダークテリトリー.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E04.ダークテリトリー.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 4,
+      "global": 77,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E05.開戦前夜.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E05.開戦前夜.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 5,
+      "global": 78
+    },
+    {
+      "name": "ソードアート・オンライン.S04E05.開戦前夜.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E05.開戦前夜.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 5,
+      "global": 78,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Sword Art Online.S04E05.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online.S04E05.CC.ja.srt",
+      "season": 4,
+      "episode": 5,
+      "global": 78,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E06.騎士たちの戦い.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E06.騎士たちの戦い.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 6,
+      "global": 79
+    },
+    {
+      "name": "ソードアート・オンライン.S04E06.騎士たちの戦い.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E06.騎士たちの戦い.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 6,
+      "global": 79,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Sword Art Online.S04E06.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online.S04E06.CC.ja.srt",
+      "season": 4,
+      "episode": 6,
+      "global": 79,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E07.失格者の烙印.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E07.失格者の烙印.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 7,
+      "global": 80
+    },
+    {
+      "name": "Sword Art Online.S04E07.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online.S04E07.CC.ja.srt",
+      "season": 4,
+      "episode": 7,
+      "global": 80,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E07.失格者の烙印.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E07.失格者の烙印.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 7,
+      "global": 80,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E08.血と命.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E08.血と命.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 8,
+      "global": 81
+    },
+    {
+      "name": "Sword Art Online.S04E08.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online.S04E08.CC.ja.srt",
+      "season": 4,
+      "episode": 8,
+      "global": 81,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E08.血と命.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E08.血と命.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 8,
+      "global": 81,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E09.剣と拳.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E09.剣と拳.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 9,
+      "global": 82
+    },
+    {
+      "name": "Sword Art Online.S04E09.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online.S04E09.CC.ja.srt",
+      "season": 4,
+      "episode": 9,
+      "global": 82,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E09.剣と拳.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E09.剣と拳.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 9,
+      "global": 82,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E10.創世神ステイシア.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E10.創世神ステイシア.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 10,
+      "global": 83
+    },
+    {
+      "name": "Sword Art Online.S04E10.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online.S04E10.CC.ja.srt",
+      "season": 4,
+      "episode": 10,
+      "global": 83,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E10.創世神ステイシア.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E10.創世神ステイシア.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 10,
+      "global": 83,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E11.非情の選択.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E11.非情の選択.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 11,
+      "global": 84
+    },
+    {
+      "name": "Sword Art Online.S04E11.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online.S04E11.CC.ja.srt",
+      "season": 4,
+      "episode": 11,
+      "global": 84,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E11.非情の選択.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E11.非情の選択.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 11,
+      "global": 84,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E12.一筋の光.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E12.一筋の光.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 12,
+      "global": 85
+    },
+    {
+      "name": "Sword Art Online.S04E12.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online.S04E12.CC.ja.srt",
+      "season": 4,
+      "episode": 12,
+      "global": 85,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E12.一筋の光.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/ソードアート・オンライン.S04E12.一筋の光.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 12,
+      "global": 85,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E13.アンダーワールド大戦.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/ソードアート・オンライン.S04E13.アンダーワールド大戦.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 13,
+      "global": 86
+    },
+    {
+      "name": "Sword Art Online-S4_E13.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online-S4_E13.srt",
+      "season": 4,
+      "episode": 13,
+      "global": 86,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Sword Art Online.S04E13.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online.S04E13.CC.ja.srt",
+      "season": 4,
+      "episode": 13,
+      "global": 86,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E13.アンダーワールド大戦.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/ソードアート・オンライン.S04E13.アンダーワールド大戦.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 13,
+      "global": 86,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E14.無限の果て.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/ソードアート・オンライン.S04E14.無限の果て.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 14,
+      "global": 87
+    },
+    {
+      "name": "Sword Art Online-S4_E14.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online-S4_E14.srt",
+      "season": 4,
+      "episode": 14,
+      "global": 87,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Sword Art Online.S04E14.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online.S04E14.CC.ja.srt",
+      "season": 4,
+      "episode": 14,
+      "global": 87,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E14.無限の果て.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/ソードアート・オンライン.S04E14.無限の果て.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 14,
+      "global": 87,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E15.扇動.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/ソードアート・オンライン.S04E15.扇動.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 15,
+      "global": 88
+    },
+    {
+      "name": "Sword Art Online-S4_E15-Instigation_ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online-S4_E15-Instigation_ja.srt",
+      "season": 4,
+      "episode": 15,
+      "global": 88,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Sword Art Online.S04E15.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online.S04E15.CC.ja.srt",
+      "season": 4,
+      "episode": 15,
+      "global": 88,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E15.扇動.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/ソードアート・オンライン.S04E15.扇動.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 15,
+      "global": 88,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E16.コード871.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/ソードアート・オンライン.S04E16.コード871.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 16,
+      "global": 89
+    },
+    {
+      "name": "Sword Art Online-S4_E16.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online-S4_E16.srt",
+      "season": 4,
+      "episode": 16,
+      "global": 89,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Sword Art Online.S04E16.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online.S04E16.CC.ja.srt",
+      "season": 4,
+      "episode": 16,
+      "global": 89,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E16.コード871.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/ソードアート・オンライン.S04E16.コード871.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 16,
+      "global": 89,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E17.悪魔の子.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/ソードアート・オンライン.S04E17.悪魔の子.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 17,
+      "global": 90
+    },
+    {
+      "name": "ソードアート・オンライン.S04E17.悪魔の子.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/ソードアート・オンライン.S04E17.悪魔の子.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 17,
+      "global": 90,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Sword Art Online.S04E17.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online.S04E17.CC.ja.srt",
+      "season": 4,
+      "episode": 17,
+      "global": 90,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E18.記憶.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/ソードアート・オンライン.S04E18.記憶.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 18,
+      "global": 91
+    },
+    {
+      "name": "Sword Art Online.S04E18.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online.S04E18.CC.ja.srt",
+      "season": 4,
+      "episode": 18,
+      "global": 91,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E18.記憶.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/ソードアート・オンライン.S04E18.記憶.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 18,
+      "global": 91,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E19.覚醒.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/ソードアート・オンライン.S04E19.覚醒.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 19,
+      "global": 92
+    },
+    {
+      "name": "Sword Art Online.S04E19.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword Art Online.S04E19.CC.ja.srt",
+      "season": 4,
+      "episode": 19,
+      "global": 92,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E19.覚醒.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/ソードアート・オンライン.S04E19.覚醒.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 19,
+      "global": 92,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Sword.Art.Online.S04E20.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.S04E20.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 20,
+      "global": 93
+    },
+    {
+      "name": "ソードアート・オンライン.S04E20.夜空の剣.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/ソードアート・オンライン.S04E20.夜空の剣.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 20,
+      "global": 93,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E20.夜空の剣.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/ソードアート・オンライン.S04E20.夜空の剣.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 20,
+      "global": 93,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Sword.Art.Online.S04E20.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.S04E20.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 20,
+      "global": 93,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Sword.Art.Online.S04E21.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.S04E21.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 21,
+      "global": 94
+    },
+    {
+      "name": "ソードアート・オンライン.S04E21.時の彼方.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/ソードアート・オンライン.S04E21.時の彼方.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 21,
+      "global": 94,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Sword.Art.Online.S04E21.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.S04E21.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 21,
+      "global": 94,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E21.時の彼方.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/ソードアート・オンライン.S04E21.時の彼方.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 21,
+      "global": 94,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Sword.Art.Online.S04E22.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.S04E22.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 22,
+      "global": 95
+    },
+    {
+      "name": "ソードアート・オンライン.S04E22.アリス.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/ソードアート・オンライン.S04E22.アリス.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 22,
+      "global": 95,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E22.アリス.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/ソードアート・オンライン.S04E22.アリス.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 22,
+      "global": 95,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Sword.Art.Online.S04E22.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.S04E22.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 22,
+      "global": 95,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Sword.Art.Online.S04E23.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.S04E23.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 23,
+      "global": 96
+    },
+    {
+      "name": "ソードアート・オンライン.S04E23.ニューワールド.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/ソードアート・オンライン.S04E23.ニューワールド.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 23,
+      "global": 96,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "ソードアート・オンライン.S04E23.ニューワールド.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/ソードアート・オンライン.S04E23.ニューワールド.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 23,
+      "global": 96,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Sword.Art.Online.S04E23.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.S04E23.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 23,
+      "global": 96,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Sword Art Online Extra Edition.CC.ja.srt",
+      "path": "subtitles/anime_tv/Sword Art Online/extra/Sword Art Online Extra Edition.CC.ja.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.01.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.01.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.02.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.02.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.03.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.03.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.04.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.04.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.05.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.05.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.06.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.06.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.07.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.07.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.08.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.08.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.09.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.09.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.10.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.10.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.11.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.11.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.12.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.12.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.13.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.13.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.14.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.14.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.15.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.15.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.16.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.16.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.17.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.17.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.18.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.18.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.19.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.19.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.20.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.20.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.21.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.21.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.22.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.22.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.23.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.23.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.24.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization/extra/Sword.Art.Online.Alicization.24.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.01.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/Sword.Art.Online.Alicization.War.of.Underworld.01.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.02.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/Sword.Art.Online.Alicization.War.of.Underworld.02.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.03.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/Sword.Art.Online.Alicization.War.of.Underworld.03.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.04.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/Sword.Art.Online.Alicization.War.of.Underworld.04.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.05.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/Sword.Art.Online.Alicization.War.of.Underworld.05.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.06.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/Sword.Art.Online.Alicization.War.of.Underworld.06.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.07.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/Sword.Art.Online.Alicization.War.of.Underworld.07.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.08.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/Sword.Art.Online.Alicization.War.of.Underworld.08.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.09.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/Sword.Art.Online.Alicization.War.of.Underworld.09.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.10.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/Sword.Art.Online.Alicization.War.of.Underworld.10.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.11.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/Sword.Art.Online.Alicization.War.of.Underworld.11.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.12.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld/Sword.Art.Online.Alicization.War.of.Underworld.12.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.13.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/Sword.Art.Online.Alicization.War.of.Underworld.13.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.14.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/Sword.Art.Online.Alicization.War.of.Underworld.14.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.15.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/Sword.Art.Online.Alicization.War.of.Underworld.15.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.16.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/Sword.Art.Online.Alicization.War.of.Underworld.16.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.17.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/Sword.Art.Online.Alicization.War.of.Underworld.17.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.18.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/Sword.Art.Online.Alicization.War.of.Underworld.18.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.19.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/Sword.Art.Online.Alicization.War.of.Underworld.19.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.20.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/Sword.Art.Online.Alicization.War.of.Underworld.20.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.21.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/Sword.Art.Online.Alicization.War.of.Underworld.21.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.22.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/Sword.Art.Online.Alicization.War.of.Underworld.22.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Sword.Art.Online.Alicization.War.of.Underworld.23.Retimed.srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Alicization - War of Underworld Part 2/Sword.Art.Online.Alicization.War.of.Underworld.23.Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "filename.en_US.srt.srt",
+      "path": "subtitles/anime_tv/Sword Art Online II/extra/filename.en_US.srt.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "ソードアート・オンライン.Extra.Edition.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Sword Art Online. Extra Edition/ソードアート・オンライン.Extra.Edition.WEBRip.Netflix.ja[cc].srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    }
+  ],
+  "sxexx_to_gxx": {
+    "S01E01": 1,
+    "S01E02": 2,
+    "S01E03": 3,
+    "S01E04": 4,
+    "S01E05": 5,
+    "S01E06": 6,
+    "S01E07": 7,
+    "S01E08": 8,
+    "S01E09": 9,
+    "S01E10": 10,
+    "S01E11": 11,
+    "S01E12": 12,
+    "S01E13": 13,
+    "S01E14": 14,
+    "S01E15": 15,
+    "S01E16": 16,
+    "S01E17": 17,
+    "S01E18": 18,
+    "S01E19": 19,
+    "S01E20": 20,
+    "S01E21": 21,
+    "S01E22": 22,
+    "S01E23": 23,
+    "S01E24": 24,
+    "S01E25": 25,
+    "S02E01": 26,
+    "S02E02": 27,
+    "S02E03": 28,
+    "S02E04": 29,
+    "S02E05": 30,
+    "S02E06": 31,
+    "S02E07": 32,
+    "S02E08": 33,
+    "S02E09": 34,
+    "S02E10": 35,
+    "S02E11": 36,
+    "S02E12": 37,
+    "S02E13": 38,
+    "S02E14": 39,
+    "S02E15": 40,
+    "S02E16": 41,
+    "S02E17": 42,
+    "S02E18": 43,
+    "S02E19": 44,
+    "S02E20": 45,
+    "S02E21": 46,
+    "S02E22": 47,
+    "S02E23": 48,
+    "S02E24": 49,
+    "S03E01": 50,
+    "S03E02": 51,
+    "S03E03": 52,
+    "S03E04": 53,
+    "S03E05": 54,
+    "S03E06": 55,
+    "S03E07": 56,
+    "S03E08": 57,
+    "S03E09": 58,
+    "S03E10": 59,
+    "S03E11": 60,
+    "S03E12": 61,
+    "S03E13": 62,
+    "S03E14": 63,
+    "S03E15": 64,
+    "S03E16": 65,
+    "S03E17": 66,
+    "S03E18": 67,
+    "S03E19": 68,
+    "S03E20": 69,
+    "S03E21": 70,
+    "S03E22": 71,
+    "S03E23": 72,
+    "S03E24": 73,
+    "S04E01": 74,
+    "S04E02": 75,
+    "S04E03": 76,
+    "S04E04": 77,
+    "S04E05": 78,
+    "S04E06": 79,
+    "S04E07": 80,
+    "S04E08": 81,
+    "S04E09": 82,
+    "S04E10": 83,
+    "S04E11": 84,
+    "S04E12": 85,
+    "S04E13": 86,
+    "S04E14": 87,
+    "S04E15": 88,
+    "S04E16": 89,
+    "S04E17": 90,
+    "S04E18": 91,
+    "S04E19": 92,
+    "S04E20": 93,
+    "S04E21": 94,
+    "S04E22": 95,
+    "S04E23": 96
+  }
+}

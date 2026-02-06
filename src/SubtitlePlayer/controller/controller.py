@@ -455,6 +455,28 @@ class SubtitleController:
             self.overlay.hide_handle()
 
     def _on_app_close(self):
+        # Persist window positions/state before destroying any windows.
+        try:
+            x, y = self.settings.root.winfo_x(), self.settings.root.winfo_y()
+            if (x, y) != (self.config.get("LAST_SETTINGS_WINDOW_X"),
+                          self.config.get("LAST_SETTINGS_WINDOW_Y")):
+                self.config.set("LAST_SETTINGS_WINDOW_X", x)
+                self.config.set("LAST_SETTINGS_WINDOW_Y", y)
+        except Exception:
+            pass
+        try:
+            self.settings.save_state()  # control window position
+        except Exception:
+            pass
+        try:
+            self.overlay.save_state()   # subtitle overlay center position
+        except Exception:
+            pass
+        try:
+            self.sub_manager.save_state()
+        except Exception:
+            pass
+
         for job in ("subtitle_timeout_job", "_con_hide_job"):
             handle = getattr(self, job, None)
             if handle is not None:

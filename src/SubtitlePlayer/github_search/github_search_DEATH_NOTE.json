@@ -1,0 +1,1127 @@
+{
+  "last search": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles/anime_tv extension:srt in:path \"DEATH NOTE\"",
+  "repo": "Ajatt-Tools/kitsunekko-mirror",
+  "created_at": "2026-02-06T22:53:11.193325Z",
+  "stop_reason": null,
+  "rate_info": {
+    "limit": "10",
+    "remaining": "6",
+    "reset": "1770418449",
+    "retry_after": null
+  },
+  "result_count": 153,
+  "items": [
+    {
+      "name": "[Moozzi2] Death Note - 01 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 01 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 1
+    },
+    {
+      "name": "Death.Note.S01E01.Rebirth.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E01.Rebirth.jpn.srt",
+      "season": 1,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "DEATH NOTE - 01 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 01 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 1
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E01.STORY.01「新生」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E01.STORY.01「新生」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "DEATH NOTE-シーズン1-1-Rebirth en.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/DEATH NOTE-シーズン1-1-Rebirth en.srt",
+      "season": 1,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "[Moozzi2] Death Note - 02 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 02 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 2
+    },
+    {
+      "name": "Death.Note.S01E02.Confrontation.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E02.Confrontation.jpn.srt",
+      "season": 1,
+      "episode": 2,
+      "global": 2
+    },
+    {
+      "name": "DEATH NOTE - 02 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 02 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 2
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E02.STORY.02.「対決」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E02.STORY.02.「対決」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 2,
+      "global": 2
+    },
+    {
+      "name": "[Moozzi2] Death Note - 03 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 03 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 3
+    },
+    {
+      "name": "Death.Note.S01E03.Dealings.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E03.Dealings.jpn.srt",
+      "season": 1,
+      "episode": 3,
+      "global": 3
+    },
+    {
+      "name": "DEATH NOTE - 03 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 03 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 3
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E03.STORY.03.「取引」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E03.STORY.03.「取引」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 3,
+      "global": 3
+    },
+    {
+      "name": "[Moozzi2] Death Note - 04 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 04 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 4
+    },
+    {
+      "name": "Death.Note.S01E04.Pursuit.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E04.Pursuit.jpn.srt",
+      "season": 1,
+      "episode": 4,
+      "global": 4
+    },
+    {
+      "name": "DEATH NOTE - 04 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 04 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 4
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E04.STORY.04.「追跡」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E04.STORY.04.「追跡」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 4,
+      "global": 4
+    },
+    {
+      "name": "[Moozzi2] Death Note - 05 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 05 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 5
+    },
+    {
+      "name": "Death.Note.S01E05.Tactics.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E05.Tactics.jpn.srt",
+      "season": 1,
+      "episode": 5,
+      "global": 5
+    },
+    {
+      "name": "DEATH NOTE - 05 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 05 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 5
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E05.STORY.05.「駆引」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E05.STORY.05.「駆引」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 5,
+      "global": 5
+    },
+    {
+      "name": "[Moozzi2] Death Note - 06 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 06 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 6
+    },
+    {
+      "name": "Death.Note.S01E06.Unraveling.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E06.Unraveling.jpn.srt",
+      "season": 1,
+      "episode": 6,
+      "global": 6
+    },
+    {
+      "name": "DEATH NOTE - 06 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 06 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 6
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E06.STORY.06.「綻び」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E06.STORY.06.「綻び」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 6,
+      "global": 6
+    },
+    {
+      "name": "[Moozzi2] Death Note - 07 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 07 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 7
+    },
+    {
+      "name": "Death.Note.S01E07.Overcast.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E07.Overcast.jpn.srt",
+      "season": 1,
+      "episode": 7,
+      "global": 7
+    },
+    {
+      "name": "DEATH NOTE - 07 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 07 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 7
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E07.STORY.07.「曇天」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E07.STORY.07.「曇天」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 7,
+      "global": 7
+    },
+    {
+      "name": "Death.Note.S01E08.Glare.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E08.Glare.jpn.srt",
+      "season": 1,
+      "episode": 8,
+      "global": 8
+    },
+    {
+      "name": "[Moozzi2] Death Note - 08 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 08 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 8
+    },
+    {
+      "name": "DEATH NOTE - 08 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 08 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 8
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E08.STORY.08.「目線」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E08.STORY.08.「目線」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 8,
+      "global": 8
+    },
+    {
+      "name": "[Moozzi2] Death Note - 09 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 09 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 9
+    },
+    {
+      "name": "Death.Note.S01E09.Encounter.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E09.Encounter.jpn.srt",
+      "season": 1,
+      "episode": 9,
+      "global": 9
+    },
+    {
+      "name": "DEATH NOTE - 09 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 09 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 9
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E09.STORY.09.「接触」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E09.STORY.09.「接触」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 9,
+      "global": 9
+    },
+    {
+      "name": "Death.Note.S01E10.Doubt.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E10.Doubt.jpn.srt",
+      "season": 1,
+      "episode": 10,
+      "global": 10
+    },
+    {
+      "name": "[Moozzi2] Death Note - 10 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 10 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 10
+    },
+    {
+      "name": "DEATH NOTE - 10 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 10 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 10
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E10.STORY.10.「疑惑」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E10.STORY.10.「疑惑」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 10,
+      "global": 10
+    },
+    {
+      "name": "[Moozzi2] Death Note - 11 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 11 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 11
+    },
+    {
+      "name": "Death.Note.S01E11.Assault.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E11.Assault.jpn.srt",
+      "season": 1,
+      "episode": 11,
+      "global": 11
+    },
+    {
+      "name": "DEATH NOTE - 11 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 11 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 11
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E11.STORY.11.「突入」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E11.STORY.11.「突入」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 11,
+      "global": 11
+    },
+    {
+      "name": "Death.Note.S01E12.Love.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E12.Love.jpn.srt",
+      "season": 1,
+      "episode": 12,
+      "global": 12
+    },
+    {
+      "name": "[Moozzi2] Death Note - 12 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 12 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 12
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E12.STORY.12.「恋心」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E12.STORY.12.「恋心」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 12,
+      "global": 12
+    },
+    {
+      "name": "DEATH NOTE - 12 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 12 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 12
+    },
+    {
+      "name": "[Moozzi2] Death Note - 13 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 13 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 13
+    },
+    {
+      "name": "Death.Note.S01E13.Confession.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E13.Confession.jpn.srt",
+      "season": 1,
+      "episode": 13,
+      "global": 13
+    },
+    {
+      "name": "DEATH NOTE - 13 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 13 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 13
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E13.STORY.13.「告白」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E13.STORY.13.「告白」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 13,
+      "global": 13
+    },
+    {
+      "name": "[Moozzi2] Death Note - 14 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 14 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 14
+    },
+    {
+      "name": "Death.Note.S01E14.Friend.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E14.Friend.jpn.srt",
+      "season": 1,
+      "episode": 14,
+      "global": 14
+    },
+    {
+      "name": "DEATH NOTE - 14 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 14 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 14
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E14.STORY.14.「友達」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E14.STORY.14.「友達」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 14,
+      "global": 14
+    },
+    {
+      "name": "Death.Note.S01E15.Wager.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E15.Wager.jpn.srt",
+      "season": 1,
+      "episode": 15,
+      "global": 15
+    },
+    {
+      "name": "[Moozzi2] Death Note - 15 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 15 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 15
+    },
+    {
+      "name": "DEATH NOTE - 15 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 15 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 15
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E15.STORY.15.「賭け」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E15.STORY.15.「賭け」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 15,
+      "global": 15
+    },
+    {
+      "name": "[Moozzi2] Death Note - 16 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 16 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 16
+    },
+    {
+      "name": "Death.Note.S01E16.Decision.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E16.Decision.jpn.srt",
+      "season": 1,
+      "episode": 16,
+      "global": 16
+    },
+    {
+      "name": "DEATH NOTE - 16 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 16 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 16
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E16.STORY.16.「決断」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E16.STORY.16.「決断」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 16,
+      "global": 16
+    },
+    {
+      "name": "[Moozzi2] Death Note - 17 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 17 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 17
+    },
+    {
+      "name": "Death.Note.S01E17.Execution.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E17.Execution.jpn.srt",
+      "season": 1,
+      "episode": 17,
+      "global": 17
+    },
+    {
+      "name": "DEATH NOTE - 17 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 17 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 17
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E17.STORY.17.「執行」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E17.STORY.17.「執行」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 17,
+      "global": 17
+    },
+    {
+      "name": "Death.Note.S01E18.Ally.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E18.Ally.jpn.srt",
+      "season": 1,
+      "episode": 18,
+      "global": 18
+    },
+    {
+      "name": "[Moozzi2] Death Note - 18 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 18 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 18
+    },
+    {
+      "name": "DEATH NOTE - 18 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 18 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 18
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E18.STORY.18.「仲間」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E18.STORY.18.「仲間」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 18,
+      "global": 18
+    },
+    {
+      "name": "[Moozzi2] Death Note - 19 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 19 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 19
+    },
+    {
+      "name": "Death.Note.S01E19.Matsuda.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E19.Matsuda.jpn.srt",
+      "season": 1,
+      "episode": 19,
+      "global": 19
+    },
+    {
+      "name": "DEATH NOTE - 19 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 19 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 19
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E19.STORY.19.「松田｣.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E19.STORY.19.「松田｣.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 19,
+      "global": 19
+    },
+    {
+      "name": "[Moozzi2] Death Note - 20 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 20 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 20
+    },
+    {
+      "name": "Death.Note.S01E20.Makeshift.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E20.Makeshift.jpn.srt",
+      "season": 1,
+      "episode": 20,
+      "global": 20
+    },
+    {
+      "name": "DEATH NOTE - 20 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 20 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 20
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E20.STORY.20.「姑息｣.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E20.STORY.20.「姑息｣.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 20,
+      "global": 20
+    },
+    {
+      "name": "[Moozzi2] Death Note - 21 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 21 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 21
+    },
+    {
+      "name": "Death.Note.S01E21.Performance.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E21.Performance.jpn.srt",
+      "season": 1,
+      "episode": 21,
+      "global": 21
+    },
+    {
+      "name": "DEATH NOTE - 21 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 21 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 21
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E21.STORY.21.「活躍｣.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E21.STORY.21.「活躍｣.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 21,
+      "global": 21
+    },
+    {
+      "name": "[Moozzi2] Death Note - 22 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 22 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 22
+    },
+    {
+      "name": "Death.Note.S01E22.Guidance.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E22.Guidance.jpn.srt",
+      "season": 1,
+      "episode": 22,
+      "global": 22
+    },
+    {
+      "name": "DEATH NOTE - 22 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 22 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 22
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E22.STORY.22.「誘導｣.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E22.STORY.22.「誘導｣.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 22,
+      "global": 22
+    },
+    {
+      "name": "[Moozzi2] Death Note - 23 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 23 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 23
+    },
+    {
+      "name": "Death.Note.S01E23.Frenzy.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E23.Frenzy.jpn.srt",
+      "season": 1,
+      "episode": 23,
+      "global": 23
+    },
+    {
+      "name": "DEATH NOTE - 23 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 23 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 23
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E23.STORY.23.「狂騒｣.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E23.STORY.23.「狂騒｣.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 23,
+      "global": 23
+    },
+    {
+      "name": "[Moozzi2] Death Note - 24 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 24 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 24
+    },
+    {
+      "name": "Death.Note.S01E24.Revival.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E24.Revival.jpn.srt",
+      "season": 1,
+      "episode": 24,
+      "global": 24
+    },
+    {
+      "name": "DEATH NOTE - 24 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 24 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 24
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E24.STORY.24.「復活｣.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E24.STORY.24.「復活｣.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 24,
+      "global": 24
+    },
+    {
+      "name": "[Moozzi2] Death Note - 25 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 25 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 25
+    },
+    {
+      "name": "Death.Note.S01E25.Silence.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E25.Silence.jpn.srt",
+      "season": 1,
+      "episode": 25,
+      "global": 25
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E25.STORY.25.「沈黙｣.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E25.STORY.25.「沈黙｣.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 25,
+      "global": 25
+    },
+    {
+      "name": "DEATH NOTE - 25 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 25 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 25
+    },
+    {
+      "name": "[Moozzi2] Death Note - 26 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 26 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 26
+    },
+    {
+      "name": "Death.Note.S01E26.Renewal.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E26.Renewal.jpn.srt",
+      "season": 1,
+      "episode": 26,
+      "global": 26
+    },
+    {
+      "name": "DEATH NOTE - 26 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 26 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 26
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E26.STORY.26.「再生｣.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E26.STORY.26.「再生｣.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 26,
+      "global": 26
+    },
+    {
+      "name": "[Moozzi2] Death Note - 27 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 27 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 27
+    },
+    {
+      "name": "Death.Note.S01E27.Abduction.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E27.Abduction.jpn.srt",
+      "season": 1,
+      "episode": 27,
+      "global": 27
+    },
+    {
+      "name": "DEATH NOTE - 27 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 27 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 27
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E27.STORY.27.「誘拐｣.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E27.STORY.27.「誘拐｣.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 27,
+      "global": 27
+    },
+    {
+      "name": "[Moozzi2] Death Note - 28 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 28 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 28
+    },
+    {
+      "name": "Death.Note.S01E28.Impatience.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E28.Impatience.jpn.srt",
+      "season": 1,
+      "episode": 28,
+      "global": 28
+    },
+    {
+      "name": "DEATH NOTE - 28 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 28 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 28
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E28.STORY.28.「焦燥｣.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E28.STORY.28.「焦燥｣.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 28,
+      "global": 28
+    },
+    {
+      "name": "Death.Note.S01E29.Father.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E29.Father.jpn.srt",
+      "season": 1,
+      "episode": 29,
+      "global": 29
+    },
+    {
+      "name": "[Moozzi2] Death Note - 29 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 29 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 29
+    },
+    {
+      "name": "DEATH NOTE - 29 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 29 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 29
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E29.STORY.29.「父親｣.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E29.STORY.29.「父親｣.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 29,
+      "global": 29
+    },
+    {
+      "name": "[Moozzi2] Death Note - 30 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 30 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 30
+    },
+    {
+      "name": "Death.Note.S01E30.Justice.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E30.Justice.jpn.srt",
+      "season": 1,
+      "episode": 30,
+      "global": 30
+    },
+    {
+      "name": "DEATH NOTE - 30 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 30 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 30
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E30.STORY.30.「正義｣.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E30.STORY.30.「正義｣.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 30,
+      "global": 30
+    },
+    {
+      "name": "[Moozzi2] Death Note - 31 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 31 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 31
+    },
+    {
+      "name": "Death.Note.S01E31.Transfer.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E31.Transfer.jpn.srt",
+      "season": 1,
+      "episode": 31,
+      "global": 31
+    },
+    {
+      "name": "DEATH NOTE - 31 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 31 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 31
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E31.STORY.31.「移譲」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E31.STORY.31.「移譲」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 31,
+      "global": 31
+    },
+    {
+      "name": "[Moozzi2] Death Note - 32 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 32 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 32
+    },
+    {
+      "name": "Death.Note.S01E32.Selection.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E32.Selection.jpn.srt",
+      "season": 1,
+      "episode": 32,
+      "global": 32
+    },
+    {
+      "name": "DEATH NOTE - 32 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 32 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 32
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E32.STORY.32.「選択」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E32.STORY.32.「選択」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 32,
+      "global": 32
+    },
+    {
+      "name": "Death.Note.S01E33.Scorn.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E33.Scorn.jpn.srt",
+      "season": 1,
+      "episode": 33,
+      "global": 33
+    },
+    {
+      "name": "[Moozzi2] Death Note - 33 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 33 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 33
+    },
+    {
+      "name": "DEATH NOTE - 33 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 33 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 33
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E33.STORY.33.「嘲笑」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E33.STORY.33.「嘲笑」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 33,
+      "global": 33
+    },
+    {
+      "name": "[Moozzi2] Death Note - 34 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 34 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 34
+    },
+    {
+      "name": "Death.Note.S01E34.Vigilance.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E34.Vigilance.jpn.srt",
+      "season": 1,
+      "episode": 34,
+      "global": 34
+    },
+    {
+      "name": "DEATH NOTE - 34 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 34 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 34
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E34.STORY.34.「虎視」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E34.STORY.34.「虎視」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 34,
+      "global": 34
+    },
+    {
+      "name": "[Moozzi2] Death Note - 35 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 35 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 35
+    },
+    {
+      "name": "Death.Note.S01E35.Malice.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E35.Malice.jpn.srt",
+      "season": 1,
+      "episode": 35,
+      "global": 35
+    },
+    {
+      "name": "DEATH NOTE - 35 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 35 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 35
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E35.STORY.35.「殺意」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E35.STORY.35.「殺意」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 35,
+      "global": 35
+    },
+    {
+      "name": "Death.Note.S01E36.1.28.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E36.1.28.jpn.srt",
+      "season": 1,
+      "episode": 36,
+      "global": 36
+    },
+    {
+      "name": "[Moozzi2] Death Note - 36 (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 36 (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 36
+    },
+    {
+      "name": "DEATH NOTE - 36 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 36 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 36
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E36.STORY.36.「1.28」.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E36.STORY.36.「1.28」.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 36,
+      "global": 36
+    },
+    {
+      "name": "[Moozzi2] Death Note - 37 END (BD 1920x1080 x.264 Flac).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/[Moozzi2] Death Note - 37 END (BD 1920x1080 x.264 Flac).srt",
+      "season": null,
+      "episode": null,
+      "global": 37
+    },
+    {
+      "name": "Death.Note.S01E37.New.World.jpn.srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death.Note.S01E37.New.World.jpn.srt",
+      "season": 1,
+      "episode": 37,
+      "global": 37
+    },
+    {
+      "name": "DEATH NOTE - 37 [Re-Timed for Netflix(US)].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH NOTE - 37 [Re-Timed for Netflix(US)].srt",
+      "season": null,
+      "episode": null,
+      "global": 37
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S01E37.STORY.37.「新世界」.(最終話).WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/DEATH.NOTE.-デスノート-.S01E37.STORY.37.「新世界」.(最終話).WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 37,
+      "global": 37
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S02E01.リライト～幻視する神～.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE Rewrite/DEATH.NOTE.-デスノート-.S02E01.リライト～幻視する神～.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 1,
+      "global": 38
+    },
+    {
+      "name": "DEATH.NOTE.-デスノート-.S03E01.リライト2～Lを継ぐ者～.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/DEATH NOTE Rewrite/DEATH.NOTE.-デスノート-.S03E01.リライト2～Lを継ぐ者～.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 1,
+      "global": 39
+    },
+    {
+      "name": "Death Note Rewrite 1 Visions Of A God (2007.08.31).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE/extra/Death Note Rewrite 1 Visions Of A God (2007.08.31).srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Death Note Rewrite 2 L’s Successors (2008.08.22).srt",
+      "path": "subtitles/anime_tv/DEATH NOTE Rewrite/Death Note Rewrite 2 L’s Successors (2008.08.22).srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    }
+  ],
+  "sxexx_to_gxx": {
+    "S01E01": 1,
+    "S01E02": 2,
+    "S01E03": 3,
+    "S01E04": 4,
+    "S01E05": 5,
+    "S01E06": 6,
+    "S01E07": 7,
+    "S01E08": 8,
+    "S01E09": 9,
+    "S01E10": 10,
+    "S01E11": 11,
+    "S01E12": 12,
+    "S01E13": 13,
+    "S01E14": 14,
+    "S01E15": 15,
+    "S01E16": 16,
+    "S01E17": 17,
+    "S01E18": 18,
+    "S01E19": 19,
+    "S01E20": 20,
+    "S01E21": 21,
+    "S01E22": 22,
+    "S01E23": 23,
+    "S01E24": 24,
+    "S01E25": 25,
+    "S01E26": 26,
+    "S01E27": 27,
+    "S01E28": 28,
+    "S01E29": 29,
+    "S01E30": 30,
+    "S01E31": 31,
+    "S01E32": 32,
+    "S01E33": 33,
+    "S01E34": 34,
+    "S01E35": 35,
+    "S01E36": 36,
+    "S01E37": 37,
+    "S02E01": 38,
+    "S03E01": 39
+  }
+}

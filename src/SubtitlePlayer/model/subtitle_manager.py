@@ -100,21 +100,50 @@ class SubtitleManager:
             logger.error("Local SRT path not found: \n%s\n -> Manual selection", local_srt_path)
             local_srt_path= self.set_new_file()# ask for local or remote
             if local_srt_path is None: return
+        # Keep the currently loaded file path in sync so helpers like get_current_global()
+        # can always parse the active filename.
+        self.srt_file = local_srt_path
         self._extract_and_set_local_episode_metadata(local_srt_path)
         self.set_subtitle_display_data(local_srt_path)
-        if self.is_movie: logger.info(f"Loaded subtitle: Movie | {local_srt_path}")
-        else:             logger.info(f"Loaded subtitle: S{self.current_season}E{self.current_episode} | {local_srt_path}")
+        if self.is_movie:
+            logger.info(f"Loaded subtitle: Movie | {local_srt_path}")
+        else:
+            # Prefer global numbering if that's all we have (common for long-running shows).
+            g = self.get_current_global()
+            if self.current_season is not None and self.current_episode is not None:
+                logger.info(f"Loaded subtitle: S{self.current_season}E{self.current_episode} | {local_srt_path}")
+            elif g is not None:
+                logger.info(f"Loaded subtitle: G{g} | {local_srt_path}")
+            else:
+                logger.info(f"Loaded subtitle: Episode | {local_srt_path}")
 
 # -------------------------helpers-----------------------------
     def _extract_and_set_local_episode_metadata(self, local_path):
         if not self.remote_flag: #hardcoded certain local folder when not using cached files
             self.anime_folder_name = local_path.replace("\\", "/").split("/")[local_path.replace("\\", "/").split("/").index("subs")+1]
-            self.config.set("LAST_LOCAL_SRT_FILE",local_path)
-            self.current_season, self.current_episode , _ = self.extract_season_episode_global(local_path)
-        self.is_movie = self.current_season is None and self.current_episode is None
+        self.config.set("LAST_LOCAL_SRT_FILE", local_path)
+
+        # Always parse from the filename (works for both fixed subs folder and runtime cache).
+        s, e, g = self.extract_season_episode_global(os.path.basename(local_path))
+        # If the file only has global numbering, treat that as the current "episode"
+        # so the UI/controller doesn't label it as "Movie".
+        if s is None and e is None and g is not None:
+            self.current_season, self.current_episode = None, int(g)
+        else:
+            self.current_season, self.current_episode = s, e
+
+        # Only treat as "movie" if we couldn't parse *any* episodic identifier.
+        # (Global-only numbering like "- 123" is still episodic.)
+        self.is_movie = (s is None and e is None and g is None)
         self._build_local_episode_map(local_path)
 
-    def _build_local_episode_map(self, local_path):
+    def _build_local_episode_map(self, local_path=None):
+        if local_path is None:
+            # Allow callers to refresh the map without explicitly passing a path.
+            local_path = getattr(self, "srt_file", None)
+            if not local_path:
+                return
+
         self.local_srt_dir = os.path.dirname(local_path)
         self.local_srt_files = []
         for fn in os.listdir(self.local_srt_dir):
@@ -122,9 +151,17 @@ class SubtitleManager:
                 continue
             path = os.path.join(self.local_srt_dir, fn)
             s, e, g = self.extract_season_episode_global(fn)
+            # Normalize global-only files so they behave like episodes in the UI.
+            if s is None and e is None and g is not None:
+                e = int(g)
             rec = {"name": fn, "path": path, "season": s, "episode": e, "global": g}
             self.local_srt_files.append(rec)
-        self.local_srt_files.sort(key=lambda x: (x.get("global") if x.get("global") is not None else (x.get("season") or 0, x.get("episode") or 0)))
+        def _sort_key(rec):
+            g = rec.get("global")
+            if g is not None:
+                return (0, int(g), (rec.get("name") or ""))
+            return (1, int(rec.get("season") or 0), int(rec.get("episode") or 0), rec.get("name") or "")
+        self.local_srt_files.sort(key=_sort_key)
 
     def set_subtitle_display_data(self, local_path):
         with open(local_path, 'rb') as f:
@@ -286,8 +323,8 @@ class SubtitleManager:
         """
         # ensure local index exists (might be empty on startup)
         if not getattr(self, "local_srt_files", None):
-            # if we have a local folder (e.g., from a previous run) build it
-            self._build_local_episode_map()
+            # Remote mode: index the cache recursively (Season* folders etc.)
+            self.update_local_srt_files()
 
         # ensure remote maps exist (for global<->local mapping and download lists)
         if not getattr(self, "remote_episode_map_global", None):
@@ -422,17 +459,31 @@ class SubtitleManager:
 
         # Request a synchronous windowed download centered on target_global, so the immediate next episodes are available
         try:
-            # synchronous download so that we can load right afterwards
-            self.download_window_around_global(target_global, window=20, async_download=False)
-            # refresh local index
-            self._build_local_episode_map()
+            # Always download the *requested* episode first (sync), then download the surrounding window in background.
+            item = getattr(self, "remote_episode_map_global", {}).get(int(target_global))
+            if item and item.get("path"):
+                season = item.get("season") or self.current_season
+                season_dir = self._season_cache_dir(season)
+                filename = self.sanitize_filename(os.path.basename(item["path"]))
+                local_path = os.path.join(season_dir, filename)
+                if not os.path.exists(local_path):
+                    raw_url = self._get_raw_url(item["path"])
+                    self._download_file(raw_url, local_path)
+
+            # refresh local index (must scan the whole cache; downloads may land in a different Season folder)
+            self.update_local_srt_files()
         except Exception:
-            logger.exception("Failed to download window around global %s", target_global)
+            logger.exception("Failed to download requested episode (global %s)", target_global)
 
         # After download attempt, try to find and load the file
         rec_after = find_by_global(target_global)
         if rec_after:
             if self._load_local_record(rec_after):
+                # Now that the requested episode is loaded, download the rest of the window asynchronously.
+                try:
+                    self.download_window_around_global(target_global, window=self._get_download_window(), async_download=True)
+                except Exception:
+                    logger.exception("Failed to start background window download around global %s", target_global)
                 return self.current_season, self.current_episode
 
         # still not found -> warn
@@ -544,12 +595,14 @@ class SubtitleManager:
 
 
 #region -------------------------remote handling-----------------------------
-    def _initialize_remote_path(self, init_url: Optional[str] = None, hint: Optional[Tuple[Optional[int], Optional[int]]] = None) -> Optional[str]:
-        #download given url
-        self._extract_and_set_remote_episode_metadata(url)
-        self._create_remote_episode_map_per_season()
-        self.build_remote_episode_maps()
+    def _get_download_window(self) -> int:
+        try:
+            w = int(self.config.get("DOWNLOAD_WINDOW") or 10)
+        except Exception:
+            w = 10
+        return max(0, w)
 
+    def _initialize_remote_path(self, init_url: Optional[str] = None, hint: Optional[Tuple[Optional[int], Optional[int]]] = None) -> Optional[str]:
         url = init_url
         prompt_hint = None
         if not url:
@@ -557,6 +610,11 @@ class SubtitleManager:
             prompt_hint = (h_s, h_e) if (h_s is not None or h_e is not None) else None
             if not url:
                 return None
+
+        # download/gather metadata for the chosen URL, then build maps once
+        self._extract_and_set_remote_episode_metadata(url)
+        self._create_remote_episode_map_per_season()
+        self.build_remote_episode_maps()
 
         # allow caller-provided hint (highest priority), otherwise prefer prompt hint
         chosen_item = None
@@ -628,7 +686,7 @@ class SubtitleManager:
             messagebox.showerror("Load failed", "Resolved episode item has no download path.")
             return None
 
-        # synchronous download of chosen item so UI can display it immediately
+        # synchronous download of chosen item so UI can load it immediately
         try:
             season_dir = self._season_cache_dir(target_season) if target_season is not None else self._season_cache_dir()
             filename = self.sanitize_filename(os.path.basename(target_remote_path))
@@ -640,19 +698,8 @@ class SubtitleManager:
             messagebox.showerror("Download failed", "Failed to download the requested subtitle file.")
             return None
 
-        # load the downloaded file and update state
+        # Persist remote selection (do not load here; __init__ loads exactly once)
         try:
-            self._load_local_and_process(local_path)
-            s_loaded, e_loaded, g_loaded = self.extract_season_episode_global(os.path.basename(local_path))
-            if s_loaded is not None and e_loaded is not None:
-                self.current_season = s_loaded
-                self.current_episode = e_loaded
-            else:
-                if target_season is not None:
-                    self.current_season = target_season
-                if target_episode is not None:
-                    self.current_episode = target_episode
-            self.srt_file = local_path
             self.remote_url = url
             try:
                 self.config.set("LAST_GITHUB_URL", url)
@@ -661,8 +708,7 @@ class SubtitleManager:
             except Exception:
                 logger.debug("Failed to persist LAST_GITHUB_URL/LAST_ANIME_NAME")
         except Exception:
-            logger.exception("Failed to load downloaded subtitle: %s", local_path)
-            messagebox.showerror("Load failed", "Downloaded subtitle could not be loaded.")
+            logger.exception("Failed to persist remote selection metadata for: %s", local_path)
             return None
 
         # refresh local index and remote lookup maps
@@ -681,7 +727,7 @@ class SubtitleManager:
             if center_global is None and target_season is not None and target_episode is not None:
                 center_global = self.local_to_global(target_season, target_episode)
             if center_global is not None:
-                self.download_window_around_global(center_global, window=20, async_download=True)
+                self.download_window_around_global(center_global, window=self._get_download_window(), async_download=True)
         except Exception:
             logger.exception("Failed to start windowed background downloads")
 
@@ -697,13 +743,17 @@ class SubtitleManager:
         self.github_ref   = github_dict["ref"]
         self.remote_path = github_dict["path"]
 
-        self.current_season, self.current_episode, global_e = self.extract_season_episode_global(self.remote_path)
+        s, e, global_e = self.extract_season_episode_global(os.path.basename(self.remote_path))
+        if s is None and e is None and global_e is not None:
+            self.current_season, self.current_episode = None, int(global_e)
+        else:
+            self.current_season, self.current_episode = s, e
         self.anime_folder_name = self.config.get("LAST_ANIME_NAME")
         url_anime_name = self._extract_anime_name_from_url(self.remote_path)
         if self.current_season == 1: #what if no seasons? change later doesnt make too much sense dont know how to do it. save last used github url will this be always s1? ...
             self.anime_folder_name = url_anime_name
             self.config.set("LAST_ANIME_NAME", url_anime_name)
-        self._create_remote_episode_map_per_season()
+        return
     
     def _specific_episode_search(self,s,e):
         #season and episode must be in the format of the github s02e0001 or e01 and so on
@@ -718,8 +768,10 @@ class SubtitleManager:
         elif e is not None:
             search_query = f"{self.anime_folder_name} e{e}"
         else: search_query = f"{self.anime_folder_name}"
+        # Quote the search_query so multi-word anime titles (e.g. "DEATH NOTE") are treated
+        # as a single phrase in the GitHub search parser.
         q = (f'repo:{self.github_owner}/{self.github_repo}'
-             f' path:subtitles/anime_tv extension:srt in:path {search_query}')
+             f' path:subtitles/anime_tv extension:srt in:path "{search_query}"')
         params = {"q": q, "per_page": per_page}
         results: List[Dict] = []
         page = 1
@@ -748,12 +800,106 @@ class SubtitleManager:
     def _create_remote_episode_map_per_season(self):
         #add end_season and anime name searches in the gui
         end_season = 50
-        # self.anime_folder_name = "Shingeki no Kyojin"
+        # self.anime_folder_name = "Daini no Shokugyo"
         logger.info(f"Building comprehensive episode map for {self.anime_folder_name}...")
+
+        # If we already have a cached episode map JSON for this anime, prefer it over
+        # hitting the GitHub Search API again (avoids rate limits / repeat work).
+        safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in (self.anime_folder_name or ""))[:200] or "result"
+        folder_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "github_search")
+        cache_path = os.path.join(folder_dir, f"github_search_{safe_name}.json")
+        if os.path.isfile(cache_path):
+            try:
+                with open(cache_path, "r", encoding="utf-8") as fh:
+                    payload = json.load(fh)
+                repo = payload.get("repo")
+                expected_repo = f"{getattr(self, 'github_owner', None)}/{getattr(self, 'github_repo', None)}"
+                if repo and expected_repo and repo != expected_repo:
+                    logger.info("Cached search exists but repo mismatch (%s != %s); ignoring: %s", repo, expected_repo, cache_path)
+                else:
+                    cached_items = payload.get("items")
+                    if isinstance(cached_items, list) and cached_items:
+                        logger.info("Using cached GitHub search results: %s", cache_path)
+                        all_results_items: List[Dict] = []
+                        for it in cached_items:
+                            path = it.get("path") if isinstance(it, dict) else None
+                            name = it.get("name") if isinstance(it, dict) else None
+                            if not name:
+                                name = os.path.basename(path or "") if path else ""
+                            season = it.get("season") if isinstance(it, dict) else None
+                            episode = it.get("episode") if isinstance(it, dict) else None
+                            global_e = it.get("global") if isinstance(it, dict) else None
+
+                            # If the cache didn't store parsed data, re-parse now.
+                            if season is None and episode is None and global_e is None:
+                                season, episode, global_e = self.extract_season_episode_global(name)
+
+                            rec = {"name": name, "path": path, "season": season, "episode": episode, "global": global_e}
+                            if isinstance(it, dict) and it.get("conflicts"):
+                                rec["conflicts"] = list(it.get("conflicts"))
+                            all_results_items.append(rec)
+
+                        # Only compute/assign globals if we actually have season+episode pairs that still
+                        # need a global index.
+                        needs_global_assign = any(
+                            (it.get("global") is None and it.get("season") is not None and it.get("episode") is not None)
+                            for it in all_results_items
+                        )
+                        if needs_global_assign:
+                            season_offset, local_numbering, season_len_est, season_len_density = self.compute_season_offsets_per_season(all_results_items)
+                            self.assign_globals_per_season(all_results_items, season_offset, local_numbering, season_len_est, season_len_density)
+
+                        # Always keep items sorted in the cache file for easier debugging.
+                        sorted_items = sorted(all_results_items, key=self.sort_key_per_season)
+
+                        # If we upgraded any cached entries (parsed season/episode/global or added conflicts)
+                        # OR the cache ordering isn't the canonical sorted order, write back to disk so the JSON
+                        # reflects the current parsing rules deterministically.
+                        try:
+                            upgraded = False
+                            for idx, old in enumerate(cached_items):
+                                if not isinstance(old, dict):
+                                    continue
+                                new = all_results_items[idx] if idx < len(all_results_items) else None
+                                if not isinstance(new, dict):
+                                    continue
+                                if old.get("season") != new.get("season"):
+                                    upgraded = True; break
+                                if old.get("episode") != new.get("episode"):
+                                    upgraded = True; break
+                                if old.get("global") != new.get("global"):
+                                    upgraded = True; break
+                                if (old.get("conflicts") or None) != (new.get("conflicts") or None):
+                                    upgraded = True; break
+
+                            if not upgraded:
+                                # Also upgrade if the on-disk order differs from canonical sorting.
+                                try:
+                                    old_paths = [x.get("path") for x in cached_items if isinstance(x, dict)]
+                                    new_paths = [x.get("path") for x in sorted_items]
+                                    if old_paths != new_paths:
+                                        upgraded = True
+                                except Exception:
+                                    # If we can't compare ordering, just skip reordering.
+                                    pass
+
+                            if upgraded:
+                                payload["items"] = sorted_items
+                                payload["result_count"] = len(sorted_items)
+                                with open(cache_path, "w", encoding="utf-8") as fh:
+                                    json.dump(payload, fh, ensure_ascii=False, indent=2)
+                                    fh.write("\n")
+                                logger.info("Upgraded cached GitHub search results with parsed episode metadata: %s", cache_path)
+                        except Exception:
+                            logger.exception("Failed to upgrade/write cached GitHub search results: %s", cache_path)
+
+                        self.all_results_items = sorted_items
+                        return
+            except Exception:
+                logger.exception("Failed to load cached GitHub search results from: %s", cache_path)
+
         all_results_items: List[Dict] = []
         stop_reason = None
-        first_query_success_count = 0
-        consecutive_first_failures = 0
         last_rate_info = {}
         api_url = "https://api.github.com/search/code"
         headers = {
@@ -809,23 +955,34 @@ class SubtitleManager:
         session = requests.Session()
         session.headers.update(headers)
         season = 1
+        max_empty_seasons = 2
+        empty_streak = 0
         while True: #search season until none found
             logger.info(f"\nSearching season {season:02d}")
             found_any_for_season = False
             old_length = len(all_results_items)
-            for tries in (1, 2, 3, 4):#if 0 hits try amazon instead of netflix then without both and so on can add more fallbacks later
+            season_searching = True
+            stop_season_loop = False
+            for tries in (1, 2, 3, 4, 5):#if 0 hits try amazon instead of netflix then without both and so on can add more fallbacks later
                 if tries == 1:
                     search_query = f"{self.anime_folder_name} s{season:02d} Netflix"
                 elif tries == 2:
                     search_query = f"{self.anime_folder_name} s{season:02d} Amazon"
                 elif tries == 3:
+                    continue #skip for now
                     search_query = f"{self.anime_folder_name} s{season:02d} Hulu"
                 elif tries == 4:
+                    continue #skip for now
                     search_query = f"{self.anime_folder_name} s{season:02d}"
                 elif tries == 5:
+                    # continue #skip for now
                     search_query = f"{self.anime_folder_name}"
+                    season_searching = False
+                # q = (f'repo:{self.github_owner}/{self.github_repo}'
+                #      f' path:subtitles extension:srt in:path {search_query}')
                 q = (f'repo:{self.github_owner}/{self.github_repo}'
                      f' path:subtitles/anime_tv extension:srt in:path {search_query}')
+
                 params = {"q": q, "per_page": per_page} 
                 page = 1
                 provider_found = False
@@ -892,24 +1049,33 @@ class SubtitleManager:
                     # Search API 1000-results cap
                     if resp.status_code == 422:
                         print("Search API 422 (cannot access beyond the first 1000 results). Stopping and returning partial results.")
+                        if not season_searching:
+                            stop_season_loop = True
                         break
                     raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
                 if provider_found:
                     break
+                if stop_season_loop:
+                    break
+            if stop_season_loop:
+                break
             if not found_any_for_season:
                 logger.info(f"No providers found results for season {season:02d}, stopping.")
                 break  # stop season loop entirely
             print("For season:",season, " we found ",len(all_results_items)-old_length,"files")
+            if not season_searching:
+                break
             season += 1
             if season == end_season:
+                break
+            if self.anime_folder_name == "HUNTER×HUNTER" and season == 7:
                 break
             if self.anime_folder_name == "Shingeki no Kyojin" and season == 8:
                 break
             if self.anime_folder_name == "One Piece" and season == 40:
                 break
-            
-        season_offset, local_numbering = self.compute_season_offsets_per_season(all_results_items)
-        self.assign_globals_per_season(all_results_items, season_offset, local_numbering)
+        season_offset, local_numbering, season_len_est, season_len_density = self.compute_season_offsets_per_season(all_results_items)
+        self.assign_globals_per_season(all_results_items, season_offset, local_numbering, season_len_est, season_len_density)
         
         all_results_items.sort(key=self.sort_key_per_season)
         # Build SxxEyy -> Gzz map for diagnostics (first seen mapping per pair)
@@ -960,12 +1126,30 @@ class SubtitleManager:
 
     def compute_season_offsets_per_season(self, items):
         """
-        Returns (season_offset, local_numbering)
+        Returns (season_offset, local_numbering, season_len_est, season_len_density)
         - season_offset: dict season -> offset (used when season uses local numbering)
         - local_numbering: dict season -> bool (True if season's episode numbers are local i.e. include E1)
+        - season_len_est: dict season -> estimated local season length (robust against outliers like S02E074)
+        - season_len_density: dict season -> density of observed episodes in [1..season_len_est]
         """
         season_eps = defaultdict(set)     # season -> set(episode numbers)
+        season_eps_by_provider = defaultdict(lambda: defaultdict(set))  # season -> provider -> set(episode numbers)
         pairs = defaultdict(lambda: defaultdict(set))  # season -> episode -> set(globals)
+
+        def _provider_token(s: str) -> str:
+            s = (s or "").lower()
+            if "netflix" in s:
+                return "netflix"
+            if "amazon" in s:
+                return "amazon"
+            if "hulu" in s:
+                return "hulu"
+            if "bandai" in s:
+                return "bandai"
+            if "TV" in s:
+                return "TV"
+            return "other"
+
         for it in items:
             s = it.get("season")
             e = it.get("episode")
@@ -973,11 +1157,57 @@ class SubtitleManager:
             if s is None or e is None:
                 continue
             season_eps[s].add(int(e))
+            prov = _provider_token(it.get("name") or it.get("path") or "")
+            season_eps_by_provider[s][prov].add(int(e))
             if g is not None:
                 pairs[s][int(e)].add(int(g))
 
         # Decide whether seasons use local numbering (contain an episode 1) or not.
         local_numbering = {s: (1 in eps) for s, eps in season_eps.items()}
+
+        # Estimate local season length (used for robust running offsets and per-item heuristics).
+        # Some sources mix global numbering into "seasoned" files (e.g. S02E074 meaning global 74),
+        # so using max(eps) overestimates the true local season length and breaks later season offsets.
+        season_len_est = {}
+        season_len_density = {}
+
+        def _estimate_local_len(eps: set[int]) -> tuple[int, float]:
+            eps = {int(x) for x in eps if x is not None and int(x) > 0}
+            if not eps:
+                return 0, 0.0
+            mx = max(eps)
+            # Not enough samples -> don't guess; treat as full span.
+            if len(eps) < 10 or 1 not in eps:
+                return mx, (len(eps) / mx) if mx else 0.0
+
+            # Choose the largest k where observed density in [1..k] stays high.
+            threshold = 0.80
+            seen = 0
+            best_k = 1
+            best_density = 1.0
+            for k in sorted(eps):
+                seen += 1
+                density = seen / k
+                if density >= threshold:
+                    best_k = k
+                    best_density = density
+            return best_k, float(best_density)
+
+        preferred_provider_order = ("netflix", "amazon", "hulu")
+        for s, eps in season_eps.items():
+            if not local_numbering.get(s, False):
+                continue
+
+            eps_for_len = eps
+            for prov in preferred_provider_order:
+                cand = season_eps_by_provider.get(s, {}).get(prov)
+                if cand and 1 in cand:
+                    eps_for_len = cand
+                    break
+
+            k, dens = _estimate_local_len(eps_for_len)
+            season_len_est[int(s)] = int(k)
+            season_len_density[int(s)] = float(dens)
 
         # Compute offsets from explicit (season,episode)->global pairs (one vote per episode)
         offsets_votes = defaultdict(list)
@@ -1007,15 +1237,27 @@ class SubtitleManager:
                 # If no computed offset, use running as fallback
                 if s not in season_offset:
                     season_offset[s] = running
-                running = max(running, season_offset[s] + (max(season_eps[s]) if season_eps[s] else 0))
+                # Use robust local season length estimate rather than max(eps) to avoid outliers
+                # inflating later season offsets.
+                est_len = season_len_est.get(int(s))
+                if est_len is None:
+                    est_len = max(season_eps[s]) if season_eps[s] else 0
+                running = max(running, season_offset[s] + int(est_len))
             else:
                 # season uses global numbering: update running to be at least the max global seen
                 running = max(running, max(season_eps[s]) if season_eps[s] else running)
 
-        return season_offset, local_numbering
+        return season_offset, local_numbering, season_len_est, season_len_density
 
-    def assign_globals_per_season(self, items, season_offset, local_numbering):
+    def assign_globals_per_season(self, items, season_offset, local_numbering, season_len_est, season_len_density):
         used_globals = set(it['global'] for it in items if it.get('global') is not None)
+        season_item_counts = Counter()
+        for it in items:
+            s = it.get('season')
+            e = it.get('episode')
+            if s is None or e is None:
+                continue
+            season_item_counts[int(s)] += 1
 
         for it in items:
             if it.get('global') is not None:
@@ -1028,7 +1270,21 @@ class SubtitleManager:
             if not local_numbering.get(s, True):
                 it['global'] = int(e)
             else:
-                it['global'] = int(season_offset.get(s, 0)) + int(e)
+                # Default mapping assumes local numbering within a season.
+                # If we have strong evidence that this season has a dense low-episode range
+                # (e.g. 1..50) and this particular item has an episode number far above that,
+                # it's likely using global numbering despite having an Sxx prefix.
+                local_len = season_len_est.get(int(s))
+                dens = season_len_density.get(int(s), 0.0)
+                if (local_len is not None
+                        and season_item_counts.get(int(s), 0) >= 10
+                        and int(local_len) >= 10
+                        and float(dens) >= 0.85
+                        and int(e) > int(local_len) + 2):
+                    it['global'] = int(e)
+                    it.setdefault('conflicts', []).append('season_mixed_numbering')
+                else:
+                    it['global'] = int(season_offset.get(s, 0)) + int(e)
 
             if it['global'] in used_globals:
                 it.setdefault('conflicts', []).append('global_collision')
@@ -1052,9 +1308,14 @@ class SubtitleManager:
             path = it.get("path") or it.get("name")
             name = it.get("name")
             entry = {"season": s, "episode": e, "global": g, "path": path, "name": name}
+            entry["_score"] = self._subtitle_candidate_score(name, path)
             if g is not None:
                 try:
-                    self.remote_episode_map_global[int(g)] = entry
+                    gi = int(g)
+                    prev = self.remote_episode_map_global.get(gi)
+                    # Prefer higher-scored variants (JP, SxxExx) instead of "last one wins".
+                    if prev is None or int(entry["_score"]) > int(prev.get("_score") or 0):
+                        self.remote_episode_map_global[gi] = entry
                 except Exception:
                     pass
             if s is not None:
@@ -1062,9 +1323,9 @@ class SubtitleManager:
                     self.remote_episode_map_season[int(s)].append(entry)
                 except Exception:
                     pass
-        # sort season lists by episode (fallback to global)
+        # sort season lists by episode, but keep the "best" variant first for each episode
         for s, lst in self.remote_episode_map_season.items():
-            lst.sort(key=lambda x: (x.get("episode") or 0, x.get("global") or 0))
+            lst.sort(key=lambda x: (x.get("episode") or 0, -(x.get("_score") or 0), x.get("global") or 0, x.get("name") or ""))
 
     def global_to_local(self, global_idx: int) -> Tuple[Optional[int], Optional[int]]:
         """Return (season, episode) for a given global index, or (None, None)."""
@@ -1178,9 +1439,19 @@ class SubtitleManager:
                 if g is None and s is not None and e is not None:
                     g = self.local_to_global(s, e)
                 rec = {"season": s, "episode": e, "global": g, "path": full, "name": fn}
+                # Used only for deterministic selection when multiple variants exist for one episode.
+                rec["_score"] = self._subtitle_candidate_score(fn, full)
                 self.local_srt_files.append(rec)
-        # optionally sort by global or season/episode
-        self.local_srt_files.sort(key=lambda x: (x.get("global") if x.get("global") is not None else (x.get("season") or 0, x.get("episode") or 0)))
+        # Keep selection deterministic: prefer higher-scored (JP, SxxExx) variants when duplicates exist.
+        def _sort_key(x):
+            g = x.get("global")
+            s = x.get("season") or 0
+            e = x.get("episode") or 0
+            sc = x.get("_score") or 0
+            if g is not None:
+                return (0, int(g), -int(sc), x.get("name") or "")
+            return (1, int(s), int(e), -int(sc), x.get("name") or "")
+        self.local_srt_files.sort(key=_sort_key)
         return self.local_srt_files
 
 
@@ -1217,6 +1488,9 @@ class SubtitleManager:
     def _season_cache_dir(self, season: Optional[int] = None) -> str:
         base = self._get_cache_base_dir()
         season_num = season if season is not None else self.current_season
+        # Avoid creating "SeasonNone" folders; use Season0 for global-only numbering.
+        if season_num is None:
+            season_num = 0
         season_dir = os.path.join(base, self.anime_folder_name,f"Season{season_num}")
         if not os.path.exists(season_dir):
             os.makedirs(season_dir, exist_ok=True)
@@ -1249,6 +1523,49 @@ class SubtitleManager:
         s2 = re.sub(r'[._]+', ' ', s2)
         s2 = re.sub(r'\s+', ' ', s2).strip()
         return s2
+
+    def _subtitle_candidate_score(self, name: Optional[str], path: Optional[str] = None) -> int:
+        """
+        Heuristic score to prefer "better" subtitle variants when multiple files map to the same episode/global.
+
+        Goals (user preference):
+        - Prefer Japanese subs (ja/jpn/ja[cc]) over English.
+        - Prefer filenames containing SxxExx when available.
+        - Keep behavior deterministic (avoid "last one wins" overwrites).
+        """
+        text = f"{name or ''} {path or ''}"
+        t = text.lower()
+        score = 0
+
+        # Language preference (strong)
+        if re.search(r'(?i)(?:^|[^a-z0-9])(jpn|ja)(?:$|[^a-z0-9])', text) or "ja[cc]" in t:
+            score += 200
+        if re.search(r'(?i)(?:^|[^a-z0-9])(eng|english)(?:$|[^a-z0-9])', text):
+            score -= 300
+        # Common compact token " en" / ".en." / "_en_" etc.
+        if re.search(r'(?i)(?:^|[^a-z0-9])en(?:$|[^a-z0-9])', text):
+            score -= 150
+
+        # Prefer explicit season/episode tags in filename.
+        if re.search(r'(?i)\bS\d{1,2}[ ._\-]*E\d{1,4}\b', text):
+            score += 120
+        # Weak positive: other episode markers (still better than nothing)
+        if re.search(r'(?i)\b(?:ep|episode)\s*\.?\s*\d{1,4}\b', text):
+            score += 25
+        if re.search(r'(?i)\bE\d{1,4}\b', text):
+            score += 15
+        if re.search(r'第\s*\d{1,4}\s*話', text):
+            score += 20
+        if re.search(r'(?:シーズン|ｼｰｽﾞﾝ)\s*\d{1,2}\s*[-‐‑–—ー]\s*\d{1,4}', text):
+            score += 30
+
+        # Small provider preference (tie-breaker)
+        if "netflix" in t:
+            score += 10
+        if "amazon" in t:
+            score += 5
+
+        return int(score)
     
     def is_noise_token(self, token: str) -> bool:
         t = token.lower().strip(" ._-()[]{}")
@@ -1275,8 +1592,13 @@ class SubtitleManager:
         re_s_e = re.compile(r'(?xi)\bS(?P<s>\d{1,2})[ ._\-]*E(?P<e>\d{1,3})\b')
         re_s_paren = re.compile(r'(?xi)\bS(?P<s>\d{1,2})[ ._\-]*[\(\[]\s*(?P<g>\d{1,4})\s*[\)\]]')
         re_episode_number = re.compile(r'(?xi)\b(?:ep|episode|ep\.)[ ._\-#]*(?P<num>\d{1,4})\b')
+        re_e_token = re.compile(r'(?xi)\bE(?P<num>\d{1,4})\b')
+        re_jp_episode = re.compile(r'(?x)第\s*(?P<num>\d{1,4})\s*話')
+        re_jp_season_dash = re.compile(r'(?x)(?:シーズン|ｼｰｽﾞﾝ)\s*(?P<s>\d{1,2})\s*[-‐‑–—ー]\s*(?P<e>\d{1,4})')
         re_bracket_number = re.compile(r'[\(\[]\s*(\d{1,4})\s*[\)\]]')
         re_trailing_number = re.compile(r'(?xi)(?:[_\-. ]|^)(?P<num>\d{1,4})(?:\.[a-z0-9]{1,6})?$')
+        # Common fansub pattern: "Show Name - 123 [720p].srt" (no season info -> treat as global)
+        re_dash_number = re.compile(r'(?x)\s-\s(?P<num>\d{1,4})\b')
 
         # 1) SxxEyy (GGG) -> explicit local + bracketed global
         m = re_s_e_paren.search(n)
@@ -1329,6 +1651,17 @@ class SubtitleManager:
                 return s, e, e
             return s, e, None
 
+        # 4b) Japanese "シーズンX-Y" (common on some subtitle sources)
+        m = re_jp_season_dash.search(n)
+        if m:
+            try:
+                s = int(m.group('s')); e = int(m.group('e'))
+            except Exception:
+                return None, None, None
+            if s == 1:
+                return s, e, e
+            return s, e, None
+
         # 5) "Ep 38" or "Episode 38" - if a season exists elsewhere treat as local episode; else treat as global
         m = re_episode_number.search(n)
         if m:
@@ -1346,6 +1679,35 @@ class SubtitleManager:
                     return s, num, num
                 return s, num, None
 
+            return None, None, num
+
+        # 5b) standalone "E254" token - if a season exists elsewhere treat as local; else treat as global
+        m = re_e_token.search(n)
+        if m:
+            try:
+                num = int(m.group('num'))
+                if not is_probable_episode_number(num):
+                    raise ValueError
+            except Exception:
+                return None, None, None
+
+            s_m = re.search(r"(?xi)\bS(?P<s>\d{1,2})\b", n)
+            if s_m:
+                s = int(s_m.group("s"))
+                if s == 1:
+                    return s, num, num
+                return s, num, None
+            return None, None, num
+
+        # 5c) Japanese "第255話" -> global episode number
+        m = re_jp_episode.search(n)
+        if m:
+            try:
+                num = int(m.group('num'))
+                if not is_probable_episode_number(num):
+                    raise ValueError
+            except Exception:
+                return None, None, None
             return None, None, num
 
         # 6) bracketed numbers (general). If season present and no E present: bracket likely global.
@@ -1373,7 +1735,26 @@ class SubtitleManager:
                 return s, None, num
             return None, None, num
 
-        # 7) trailing number heuristics:
+        # 7) dash-number pattern (e.g. " - 123 ") as global index (or local if season is present)
+        m = re_dash_number.search(n)
+        if m:
+            try:
+                num = int(m.group("num"))
+                if not is_probable_episode_number(num):
+                    raise ValueError
+            except Exception:
+                return None, None, None
+
+            s_m = re.search(r"(?xi)\bS(?P<s>\d{1,2})\b", n)
+            if s_m:
+                s = int(s_m.group("s"))
+                if s == 1:
+                    return s, num, num
+                return s, num, None
+
+            return None, None, num
+
+        # 8) trailing number heuristics:
         m = re_trailing_number.search(n)
         if m:
             try:
