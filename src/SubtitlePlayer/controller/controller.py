@@ -127,13 +127,7 @@ class SubtitleController:
     def _on_copy_popup(self, event=None):
         # Create popup first so we can click relative to its position.
         self.popup.open_copy_popup(self.last_subtitle_raw)
-        if self.video_click:
-            try:
-                popup_win = getattr(self.popup, "_popup", None)
-                if popup_win:
-                    self.simulate_video_click(above_window=popup_win)
-            except Exception:
-                pass
+        self.simulate_video_click()
         return "break"
 
 
@@ -468,6 +462,23 @@ class SubtitleController:
             return any(_contains(r, x, y) for r in block_rects)
 
         candidates = []
+        # Preferred: click above the *current mouse position*.
+        # This tends to land on the video area even if the cursor is near our UI.
+        try:
+            mx = int(original_pos.x)
+            my = int(original_pos.y) - 80
+            # If a popup window is provided, ensure we click above it (not inside it).
+            if above_window is not None:
+                try:
+                    above_window.update_idletasks()
+                    popup_top = int(above_window.winfo_rooty())
+                    my = min(my, popup_top - 80)
+                except Exception:
+                    pass
+            candidates.append((mx, my))
+        except Exception:
+            pass
+
         r_popup = _rect(above_window) if above_window is not None else None
         if r_popup:
             l, t, rr, bb = r_popup
