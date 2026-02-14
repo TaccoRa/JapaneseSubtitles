@@ -1,4 +1,12 @@
-# controller.py
+"""
+Controller glue between:
+- SubtitleManager (model)
+- SettingsUI + SubtitleOverlayUI + CopyPopup (view)
+- SubtitleRenderer (rendering)
+
+Handles input (buttons, keyboard, global mouse), time updates, and episode changes.
+"""
+
 import time
 import tkinter as tk
 from pynput.mouse import Button, Listener as MouseListener
@@ -80,7 +88,7 @@ class SubtitleController:
 
         self.settings.bind_update_display            (self.update_time_and_subtitle_displays)
         
-        self.overlay.subtitle_canvas.bind("<Button-3>", lambda e: self.popup.open_copy_popup(self.last_subtitle_raw))
+        self.overlay.subtitle_canvas.bind("<Button-3>", self._on_copy_popup)
         self.overlay.bind_sub_window_enter(self.sub_window_enter)
         self.overlay.bind_sub_window_leave(self.sub_window_leave)
         self.overlay.bind_sub_handel_enter(self.sub_handel_enter)   
@@ -91,7 +99,42 @@ class SubtitleController:
 
         self.last_update  = time.time()
         self.update_time_and_subtitle_displays()
+        self._update_episode_nav_controls()
 
+
+    def _update_episode_nav_controls(self) -> None:
+        """
+        Grey out + / - when we know from the episode maps/index that no prev/next exists.
+        """
+        try:
+            can_dec, can_inc, is_movie = self.sub_manager.get_episode_nav_state()
+        except Exception:
+            # Unknown -> keep enabled, don't break the UI.
+            can_dec, can_inc = True, True
+            is_movie = (self.sub_manager.current_episode is None)
+        try:
+            self.settings.set_episode_nav_state(can_dec=can_dec, can_inc=can_inc, is_movie=is_movie)
+        except Exception:
+            pass
+
+        # Update dropdown values for the episode entry (combobox).
+        try:
+            values = self.sub_manager.get_episode_dropdown_values()
+            self.settings.set_episode_values(values)
+        except Exception:
+            pass
+
+    def _on_copy_popup(self, event=None):
+        # Create popup first so we can click relative to its position.
+        self.popup.open_copy_popup(self.last_subtitle_raw)
+        if self.video_click:
+            try:
+                popup_win = getattr(self.popup, "_popup", None)
+                if popup_win:
+                    self.simulate_video_click(above_window=popup_win)
+            except Exception:
+                pass
+        return "break"
 
 
     # ——— Loop & scheduling ———————————————————————————————————
@@ -215,8 +258,9 @@ class SubtitleController:
 
     # ——— Change srt file ———————————————————————————————————
     def _on_open_srt(self, event=None):
-        self.sub_manager.set_new_file()
-        self._after_episode_change()
+        path = self.sub_manager.set_new_file()
+        if path:
+            self._after_episode_change()
 
     def change_episode(self, action: str):
         raw = self.settings.episode_var.get().strip()
@@ -255,6 +299,7 @@ class SubtitleController:
               self.settings.episode_var.set("Movie")
         else: 
             self.settings.episode_var.set(str(self.sub_manager.current_episode))
+        self._update_episode_nav_controls()
 
         new_total = self.sub_manager.get_total_duration() ##maybe not needed anymore
         self.settings.set_total_duration(new_total)
@@ -374,18 +419,121 @@ class SubtitleController:
         self.slider_dragging = False
         self.set_current_time(self.settings.slider.get())
 
-    def simulate_video_click(self):
+    def simulate_video_click(self, above_window=None):
+        def _rect(win):
+            if win is None:
+                return None
+            try:
+                win.update_idletasks()
+            except Exception:
+                pass
+            try:
+                x = int(win.winfo_rootx())
+                y = int(win.winfo_rooty())
+                w = int(win.winfo_width()) or int(win.winfo_reqwidth())
+                h = int(win.winfo_height()) or int(win.winfo_reqheight())
+                return (x, y, x + w, y + h)
+            except Exception:
+                return None
+
+        def _contains(r, x, y):
+            if not r:
+                return False
+            l, t, rr, bb = r
+            return l <= x <= rr and t <= y <= bb
+
         original_pos = pyautogui.position()
-        target_x = self.config.get("LAST_CONTROL_WINDOW_X") + 50
-        target_y = self.config.get("LAST_CONTROL_WINDOW_Y") - 50
-        pyautogui.click(target_x, target_y)
-        self.settings.control_window.attributes("-topmost", True)
-        pyautogui.moveTo(original_pos.x, original_pos.y)
+        try:
+            screen_w, screen_h = pyautogui.size()
+        except Exception:
+            screen_w, screen_h = (1920, 1080)
+
+        # Build a list of windows we want to click *outside* of so the click can land on the video.
+        block_wins = [
+            above_window,
+            getattr(self.popup, "_popup", None),
+            getattr(self.overlay, "sub_window", None),
+            getattr(self.settings, "control_window", None),
+            getattr(self.settings, "root", None),
+        ]
+        block_rects = [r for r in (_rect(w) for w in block_wins) if r]
+
+        def _clamp(x, y):
+            # Avoid corners (pyautogui FAILSAFE triggers on (0,0)).
+            x = max(5, min(int(x), int(screen_w) - 5))
+            y = max(5, min(int(y), int(screen_h) - 5))
+            return x, y
+
+        def _blocked(x, y):
+            return any(_contains(r, x, y) for r in block_rects)
+
+        candidates = []
+        r_popup = _rect(above_window) if above_window is not None else None
+        if r_popup:
+            l, t, rr, bb = r_popup
+            cx = int((l + rr) / 2)
+            cy = int((t + bb) / 2)
+            candidates.extend([
+                (cx, t - 80),        # above popup (preferred)
+                (cx, bb + 80),       # below popup
+                (l - 80, cy),        # left of popup
+                (rr + 80, cy),       # right of popup
+                (cx, t - 160),       # further above
+            ])
+
+        # Fallback: click above the control window.
+        r_ctrl = _rect(getattr(self.settings, "control_window", None))
+        if r_ctrl:
+            l, t, rr, bb = r_ctrl
+            candidates.append((int(l + 50), int(t - 80)))
+
+        # Final fallback: a safe spot near the top-middle of the primary screen.
+        candidates.append((int(screen_w / 2), 80))
+
+        target_x, target_y = None, None
+        for (cx, cy) in candidates:
+            x, y = _clamp(cx, cy)
+            # If this point is still blocked by one of our windows, walk upwards a bit.
+            for _ in range(10):
+                if not _blocked(x, y):
+                    break
+                x, y = _clamp(x, y - 40)
+            if not _blocked(x, y):
+                target_x, target_y = x, y
+                break
+
+        if target_x is None or target_y is None:
+            # Worst-case: just use the first candidate.
+            target_x, target_y = _clamp(*candidates[0])
+
+        try:
+            pyautogui.moveTo(target_x, target_y)
+            pyautogui.click(target_x, target_y)
+        except Exception:
+            # Don't crash the app (and don't show a warning popup), but do log for debugging.
+            print("simulate_video_click failed")
+        finally:
+            try:
+                # Bring our UI back in front.
+                self.settings.control_window.attributes("-topmost", True)
+                self.settings.control_window.lift()
+            except Exception:
+                pass
+            try:
+                # Keep the popup above our other topmost windows.
+                self.popup.ensure_on_top()
+            except Exception:
+                pass
+            try:
+                pyautogui.moveTo(original_pos.x, original_pos.y)
+            except Exception:
+                pass
 
     def _on_global_click(self, x, y, button, pressed):
         if button == Button.x2 and pressed:
             self.renderer.canvas.delete("all")
-            self.last_subtitle_text = ""
+            # Keep last_subtitle_text intact so _update_subtitle_display() won't immediately redraw
+            # the same subtitle on the next timer tick. It will render again once the subtitle changes.
             self.subtitle_deleted = True
 
 
@@ -408,6 +556,10 @@ class SubtitleController:
 
     def on_alt_x(self, event=None):
         self.settings.control_window.attributes("-topmost", True)
+        try:
+            self.popup.ensure_on_top()
+        except Exception:
+            pass
 
 
     # ——— Hide window logic —————————————————————————————————————
@@ -416,6 +568,10 @@ class SubtitleController:
         self.overlay.sub_window.attributes("-transparentcolor", "") #not transparent
         self.settings.control_window.attributes("-topmost", True)
         self.overlay.sub_window.attributes("-topmost", True)
+        try:
+            self.popup.ensure_on_top()
+        except Exception:
+            pass
         if getattr(self, "_con_hide_job", None) is not None:
             self.settings.control_window.after_cancel(self._con_hide_job) #cancel hide after calls if triggered
             self._con_hide_job = None
@@ -429,6 +585,10 @@ class SubtitleController:
     def sub_handel_enter(self, event):
         self.settings.control_window.attributes("-topmost", True)
         self.overlay.sub_window.attributes("-topmost", True)
+        try:
+            self.popup.ensure_on_top()
+        except Exception:
+            pass
         if getattr(self, "_con_hide_job", None):
             self.settings.control_window.after_cancel(self._con_hide_job) #cancel hide after calls if triggered
             self._con_hide_job = None
@@ -437,6 +597,10 @@ class SubtitleController:
     def control_window_enter(self, event):
         self.settings.control_window.attributes("-topmost", True)
         self.overlay.sub_window.attributes("-topmost", True)
+        try:
+            self.popup.ensure_on_top()
+        except Exception:
+            pass
         if getattr(self, "_con_hide_job", None):
             self.settings.control_window.after_cancel(self._con_hide_job) #cancel hide after calls if triggered
             self._con_hide_job = None

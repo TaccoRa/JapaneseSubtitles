@@ -1,4 +1,11 @@
+"""
+Settings window UI (root) and control window (floating playback controls).
+
+This module is the main user-facing UI for controlling time, offsets, episodes, and mode.
+"""
+
 import tkinter as tk
+from tkinter import ttk
 from re import fullmatch
 from model.config_manager import ConfigManager
 from utils import make_draggable, format_time
@@ -6,11 +13,19 @@ from utils import make_draggable, format_time
 class SettingsUI:
     OFFSET_PATTERN = r"\s*([-+]?\d+(?:\.\d+)?)\s*s?"
 
-    def __init__(self, root: tk.Tk, config: ConfigManager, total_duration: float, initial_episode=None):
+    def __init__(
+        self,
+        root: tk.Tk,
+        config: ConfigManager,
+        total_duration: float,
+        initial_episode=None,
+        start_hidden: bool = False,
+    ):
         self.root = root
         self.config = config
         self.total_duration = total_duration
         self.initial_episode = initial_episode
+        self._start_hidden = bool(start_hidden)
 
         self._init_defaults()
         self._init_vars()
@@ -24,6 +39,11 @@ class SettingsUI:
 
         self._build_settings_frame()
         self._build_control_window()
+        if self._start_hidden:
+            try:
+                self.control_window.withdraw()
+            except Exception:
+                pass
 
     def _init_defaults(self):
         get = self.config.get
@@ -48,6 +68,7 @@ class SettingsUI:
 
         self.episode_var = tk.StringVar(value="Movie" if self.initial_episode is None else str(self.initial_episode))
         self.setto_var = tk.StringVar(value="")
+        self._last_episode_value = self.episode_var.get()
 
         self.control_time_seconds = tk.DoubleVar(value=self.default_start)
         self.control_time_str     = tk.StringVar(value=format_time(self.default_start))
@@ -135,9 +156,17 @@ class SettingsUI:
         episode_frame.grid_columnconfigure((1,2), weight=0)
 
         # Episode entry
-        self.episode_entry = tk.Entry(episode_frame, textvariable=self.episode_var, font=("Arial", 12), width=7)
+        # Use a Combobox so we can provide a dropdown list of available episodes,
+        # while still allowing free typing like a normal entry.
+        self.episode_entry = ttk.Combobox(episode_frame, textvariable=self.episode_var, font=("Arial", 12), width=7)
         self.episode_entry.grid(row=0, column=0, sticky="ew")
         self.episode_entry.bind("<Return>", lambda e: (self._on_ep_entry_change(), self.root.focus()))
+        self.episode_entry.bind("<<ComboboxSelected>>", lambda e: (self._on_ep_entry_change(), self.root.focus()))
+        # Clear-on-click like the offset/skip entries: makes it quick to type a new episode.
+        # If the user clicks the dropdown arrow, do not clear (they want the list).
+        self.episode_entry.bind("<Button-1>", self._on_episode_entry_click, add="+")
+        # If they click away without typing anything, restore the previous value without changing episodes.
+        self.episode_entry.bind("<FocusOut>", self._on_episode_entry_focus_out, add="+")
         
         self.episode_dec_btn = tk.Button(episode_frame, text="-", font=("Arial", 8, "bold"), width=1, height=1,
                                          command=lambda: self._on_ep_dec())
@@ -257,6 +286,20 @@ class SettingsUI:
 
         self.control_window.bind("<Enter>", lambda ev: self._on_control_window_enter(ev))
         self.control_window.bind("<Leave>", lambda ev: self._on_control_window_leave(ev))
+
+    def show(self) -> None:
+        """Show the floating control window (used after startup splash)."""
+        try:
+            self.control_window.deiconify()
+            # Re-apply geometry after withdraw/deiconify (overrideredirect windows can reset to 0,0).
+            try:
+                self._set_phone_mode_styles(self.default_phone_mode)
+            except Exception:
+                pass
+            self.control_window.lift()
+            self.control_window.attributes("-topmost", True)
+        except Exception:
+            pass
         
     def _save_control_window_pos(self, x, y, w, h):
         self._control_win_x = x
@@ -273,6 +316,71 @@ class SettingsUI:
         self._on_ep_entry_change = on_ent
         self._on_ep_inc          = on_inc
         self._on_ep_dec          = on_dec
+
+    def set_episode_nav_state(self, can_dec: bool, can_inc: bool, is_movie: bool = False) -> None:
+        try:
+            self.episode_dec_btn.configure(state=(tk.NORMAL if can_dec else tk.DISABLED))
+            self.episode_inc_btn.configure(state=(tk.NORMAL if can_inc else tk.DISABLED))
+            self.episode_entry.configure(state=(tk.DISABLED if is_movie else tk.NORMAL))
+        except Exception:
+            pass
+
+    def set_episode_values(self, values) -> None:
+        """
+        Update the dropdown list for the episode combobox.
+        Values should be an iterable of ints/strings (will be converted to strings).
+        """
+        try:
+            self.episode_entry.configure(values=[str(v) for v in (values or [])])
+        except Exception:
+            pass
+
+    def _on_episode_entry_click(self, event):
+        try:
+            elem = event.widget.identify(event.x, event.y)
+            if elem and "downarrow" in str(elem).lower():
+                return
+        except Exception:
+            pass
+        try:
+            self._last_episode_value = self.episode_var.get()
+        except Exception:
+            self._last_episode_value = ""
+        try:
+            self.episode_var.set("")
+        except Exception:
+            pass
+
+    def _on_episode_entry_focus_out(self, event):
+        """
+        Restore last value if the entry is left empty (or invalid) without pressing Enter.
+        This must NOT trigger subtitle loading.
+        """
+        try:
+            text = (self.episode_var.get() or "").strip()
+        except Exception:
+            text = ""
+        if not text:
+            try:
+                self.episode_var.set(self._last_episode_value)
+            except Exception:
+                pass
+            return
+        if text.lower() == "movie":
+            try:
+                self.episode_var.set(self._last_episode_value)
+            except Exception:
+                pass
+            return
+        try:
+            n = int(text)
+            if n <= 0:
+                raise ValueError()
+        except Exception:
+            try:
+                self.episode_var.set(self._last_episode_value)
+            except Exception:
+                pass
     def bind_slider(self,   on_chg, on_pr, on_rl):
         self._on_slider_change   = on_chg
         self._on_slider_press    = on_pr
@@ -406,6 +514,11 @@ class SettingsUI:
                     self.slider.config(to=self.total_duration + number)
                     self.update_time_and_subtitle_displays()
                     self._on_slider_release(None)
+                    # Persist last used offset so next startup uses it.
+                    try:
+                        self.config.set("EXTRA_OFFSET", number)
+                    except Exception:
+                        pass
             else:
                 entry.delete(0, tk.END)
                 entry.insert(0, formatted)

@@ -1,12 +1,12 @@
 {
-  "last search": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles/anime_tv extension:srt in:path One Piece s39 Netflix",
+  "last search": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:ass in:path One piece s40 Netflix",
   "repo": "Ajatt-Tools/kitsunekko-mirror",
-  "created_at": "2026-02-01T12:28:00.438667Z",
-  "stop_reason": null,
+  "created_at": "2026-02-08T16:31:03.786080Z",
+  "stop_reason": "provider_early_stop:Netflix:S40",
   "rate_info": {
     "limit": "10",
-    "remaining": "4",
-    "reset": "1769948939",
+    "remaining": "2",
+    "reset": "1770568300",
     "retry_after": null
   },
   "result_count": 1186,
@@ -7476,15 +7476,15 @@
       ]
     },
     {
-      "name": "ONE.PIECE.S37E1063.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/ONE PIECE/extra/ONE.PIECE.S37E1063.WEBRip.Netflix.ja[cc].srt",
+      "name": "ワンピース.S37E1063.ルフィ躍動!.新時代の分岐点!.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/ONE PIECE/extra/ワンピース.S37E1063.ルフィ躍動!.新時代の分岐点!.WEBRip.Netflix.ja[cc].srt",
       "season": 37,
       "episode": 1063,
       "global": 1063
     },
     {
-      "name": "ワンピース.S37E1063.ルフィ躍動!.新時代の分岐点!.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/ONE PIECE/extra/ワンピース.S37E1063.ルフィ躍動!.新時代の分岐点!.WEBRip.Netflix.ja[cc].srt",
+      "name": "ONE.PIECE.S37E1063.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/ONE PIECE/extra/ONE.PIECE.S37E1063.WEBRip.Netflix.ja[cc].srt",
       "season": 37,
       "episode": 1063,
       "global": 1063,
@@ -7510,15 +7510,15 @@
       ]
     },
     {
-      "name": "ONE.PIECE.S37E1065.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/ONE PIECE/extra/ONE.PIECE.S37E1065.WEBRip.Netflix.ja[cc].srt",
+      "name": "ワンピース.S37E1065.同盟壊滅!_.燃えろ新世代の意志!.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/ONE PIECE/extra/ワンピース.S37E1065.同盟壊滅!_.燃えろ新世代の意志!.WEBRip.Netflix.ja[cc].srt",
       "season": 37,
       "episode": 1065,
       "global": 1065
     },
     {
-      "name": "ワンピース.S37E1065.同盟壊滅!_.燃えろ新世代の意志!.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/ONE PIECE/extra/ワンピース.S37E1065.同盟壊滅!_.燃えろ新世代の意志!.WEBRip.Netflix.ja[cc].srt",
+      "name": "ONE.PIECE.S37E1065.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/ONE PIECE/extra/ONE.PIECE.S37E1065.WEBRip.Netflix.ja[cc].srt",
       "season": 37,
       "episode": 1065,
       "global": 1065,
@@ -7527,15 +7527,15 @@
       ]
     },
     {
-      "name": "ワンピース.S37E1066.大トリ来る!.波動と磁気の大技.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/ONE PIECE/extra/ワンピース.S37E1066.大トリ来る!.波動と磁気の大技.WEBRip.Netflix.ja[cc].srt",
+      "name": "ONE.PIECE.S37E1066.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/ONE PIECE/extra/ONE.PIECE.S37E1066.WEBRip.Netflix.ja[cc].srt",
       "season": 37,
       "episode": 1066,
       "global": 1066
     },
     {
-      "name": "ONE.PIECE.S37E1066.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/ONE PIECE/extra/ONE.PIECE.S37E1066.WEBRip.Netflix.ja[cc].srt",
+      "name": "ワンピース.S37E1066.大トリ来る!.波動と磁気の大技.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/ONE PIECE/extra/ワンピース.S37E1066.大トリ来る!.波動と磁気の大技.WEBRip.Netflix.ja[cc].srt",
       "season": 37,
       "episode": 1066,
       "global": 1066,
@@ -7578,15 +7578,15 @@
       ]
     },
     {
-      "name": "ワンピース.S37E1069.勝者はひとり.ルフィVSカイドウ.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/ONE PIECE/extra/ワンピース.S37E1069.勝者はひとり.ルフィVSカイドウ.WEBRip.Netflix.ja[cc].srt",
+      "name": "ONE.PIECE.S37E1069.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/ONE PIECE/extra/ONE.PIECE.S37E1069.WEBRip.Netflix.ja[cc].srt",
       "season": 37,
       "episode": 1069,
       "global": 1069
     },
     {
-      "name": "ONE.PIECE.S37E1069.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/ONE PIECE/extra/ONE.PIECE.S37E1069.WEBRip.Netflix.ja[cc].srt",
+      "name": "ワンピース.S37E1069.勝者はひとり.ルフィVSカイドウ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/ONE PIECE/extra/ワンピース.S37E1069.勝者はひとり.ルフィVSカイドウ.WEBRip.Netflix.ja[cc].srt",
       "season": 37,
       "episode": 1069,
       "global": 1069,
@@ -7595,15 +7595,15 @@
       ]
     },
     {
-      "name": "ONE.PIECE.S37E1070.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/ONE PIECE/extra/ONE.PIECE.S37E1070.WEBRip.Netflix.ja[cc].srt",
+      "name": "ワンピース.S37E1070.ルフィ敗北!_.残された者の覚悟.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/ONE PIECE/extra/ワンピース.S37E1070.ルフィ敗北!_.残された者の覚悟.WEBRip.Netflix.ja[cc].srt",
       "season": 37,
       "episode": 1070,
       "global": 1070
     },
     {
-      "name": "ワンピース.S37E1070.ルフィ敗北!_.残された者の覚悟.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/ONE PIECE/extra/ワンピース.S37E1070.ルフィ敗北!_.残された者の覚悟.WEBRip.Netflix.ja[cc].srt",
+      "name": "ONE.PIECE.S37E1070.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/ONE PIECE/extra/ONE.PIECE.S37E1070.WEBRip.Netflix.ja[cc].srt",
       "season": 37,
       "episode": 1070,
       "global": 1070,
@@ -7680,15 +7680,15 @@
       ]
     },
     {
-      "name": "ワンピース.S37E1075.二十年の祈り!.ワノ国を取り戻せ.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/ONE PIECE/extra/ワンピース.S37E1075.二十年の祈り!.ワノ国を取り戻せ.WEBRip.Netflix.ja[cc].srt",
+      "name": "ONE.PIECE.S37E1075.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/ONE PIECE/extra/ONE.PIECE.S37E1075.WEBRip.Netflix.ja[cc].srt",
       "season": 37,
       "episode": 1075,
       "global": 1075
     },
     {
-      "name": "ONE.PIECE.S37E1075.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/ONE PIECE/extra/ONE.PIECE.S37E1075.WEBRip.Netflix.ja[cc].srt",
+      "name": "ワンピース.S37E1075.二十年の祈り!.ワノ国を取り戻せ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/ONE PIECE/extra/ワンピース.S37E1075.二十年の祈り!.ワノ国を取り戻せ.WEBRip.Netflix.ja[cc].srt",
       "season": 37,
       "episode": 1075,
       "global": 1075,
@@ -7731,15 +7731,15 @@
       ]
     },
     {
-      "name": "ワンピース.S37E1078.帰還!.ワノ国将軍.光月モモの助.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/ONE PIECE/extra/ワンピース.S37E1078.帰還!.ワノ国将軍.光月モモの助.WEBRip.Netflix.ja[cc].srt",
+      "name": "ONE.PIECE.S37E1078.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/ONE PIECE/extra/ONE.PIECE.S37E1078.WEBRip.Netflix.ja[cc].srt",
       "season": 37,
       "episode": 1078,
       "global": 1078
     },
     {
-      "name": "ONE.PIECE.S37E1078.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/ONE PIECE/extra/ONE.PIECE.S37E1078.WEBRip.Netflix.ja[cc].srt",
+      "name": "ワンピース.S37E1078.帰還!.ワノ国将軍.光月モモの助.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/ONE PIECE/extra/ワンピース.S37E1078.帰還!.ワノ国将軍.光月モモの助.WEBRip.Netflix.ja[cc].srt",
       "season": 37,
       "episode": 1078,
       "global": 1078,
@@ -7833,15 +7833,15 @@
       ]
     },
     {
-      "name": "ONE.PIECE.S37E1084.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/ONE PIECE/extra/ONE.PIECE.S37E1084.WEBRip.Netflix.ja[cc].srt",
+      "name": "ワンピース.S37E1084.旅立ちの時.ワノ国と麦わらの一味.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/ONE PIECE/extra/ワンピース.S37E1084.旅立ちの時.ワノ国と麦わらの一味.WEBRip.Netflix.ja[cc].srt",
       "season": 37,
       "episode": 1084,
       "global": 1084
     },
     {
-      "name": "ワンピース.S37E1084.旅立ちの時.ワノ国と麦わらの一味.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/ONE PIECE/extra/ワンピース.S37E1084.旅立ちの時.ワノ国と麦わらの一味.WEBRip.Netflix.ja[cc].srt",
+      "name": "ONE.PIECE.S37E1084.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/ONE PIECE/extra/ONE.PIECE.S37E1084.WEBRip.Netflix.ja[cc].srt",
       "season": 37,
       "episode": 1084,
       "global": 1084,

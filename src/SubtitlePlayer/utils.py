@@ -1,4 +1,10 @@
-#utils.py
+"""
+Small shared helpers used across the UI/controller.
+
+- Window dragging (make_draggable)
+- Parsing and formatting time values
+"""
+
 import tkinter as tk
 
 def make_draggable(drag_handle: tk.Widget,target: tk.Toplevel,sync_windows: list[tk.Toplevel] = None, on_release=None):

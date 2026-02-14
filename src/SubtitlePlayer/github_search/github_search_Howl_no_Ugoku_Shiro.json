@@ -1,0 +1,51 @@
+{
+  "last search": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:srt in:path Howl no Ugoku Shiro",
+  "repo": "Ajatt-Tools/kitsunekko-mirror",
+  "created_at": "2026-02-06T22:59:31.107840Z",
+  "stop_reason": null,
+  "rate_info": {
+    "limit": "10",
+    "remaining": "8",
+    "reset": "1770418827",
+    "retry_after": null
+  },
+  "result_count": 5,
+  "items": [
+    {
+      "name": "Howls.Moving.Castle.2004.720.DualAudio.x264.YIFY.ja.srt",
+      "path": "subtitles/anime_movie/Howl no Ugoku Shiro/Howls.Moving.Castle.2004.720.DualAudio.x264.YIFY.ja.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Howls.Moving.Castle.2004.720.ja.UTF-8 BOM 2019.srt",
+      "path": "subtitles/anime_movie/Howl no Ugoku Shiro/Howls.Moving.Castle.2004.720.ja.UTF-8 BOM 2019.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Howl’s Moving Castle (2004).ja.srt",
+      "path": "subtitles/anime_movie/Howl no Ugoku Shiro/Howl’s Moving Castle (2004).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Howl’s Moving Castle DVD Retimed.srt",
+      "path": "subtitles/anime_movie/Howl no Ugoku Shiro/Howl’s Moving Castle DVD Retimed.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    },
+    {
+      "name": "Howl’s Moving Castle Movie (2004.11.20).srt",
+      "path": "subtitles/anime_movie/Howl no Ugoku Shiro/Howl’s Moving Castle Movie (2004.11.20).srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    }
+  ],
+  "sxexx_to_gxx": {}
+}

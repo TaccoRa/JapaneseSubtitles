@@ -1,3 +1,9 @@
+"""
+Copy popup window shown on right-click.
+
+Displays subtitle text and provides a simple context menu for mouse-only copy.
+"""
+
 import tkinter as tk
 from tkinter import font as tkFont
 
@@ -50,16 +56,71 @@ class CopyPopup:
         entry.config(state="disabled")
         entry.pack()
 
+        # Right-click context menu to copy selected text using only the mouse.
+        menu = tk.Menu(popup, tearoff=0)
+
+        def _copy_selection():
+            try:
+                selected = entry.get("sel.first", "sel.last")
+            except tk.TclError:
+                selected = ""
+            selected = (selected or "").strip()
+            if not selected:
+                return
+            try:
+                popup.clipboard_clear()
+                popup.clipboard_append(selected)
+            except Exception:
+                pass
+
+        def _copy_all():
+            try:
+                popup.clipboard_clear()
+                popup.clipboard_append(subtitle_text or "")
+            except Exception:
+                pass
+
+        menu.add_command(label="Copy", command=_copy_selection)
+        menu.add_command(label="Copy All", command=_copy_all)
+        menu.add_separator()
+        menu.add_command(label="Pin", command=lambda: self._pin(popup))
+
+        def _show_menu(event):
+            try:
+                menu.tk_popup(event.x_root, event.y_root)
+            finally:
+                try:
+                    menu.grab_release()
+                except Exception:
+                    pass
+            return "break"
+
+        entry.bind("<Button-3>", _show_menu)
+
         x = self.root.winfo_pointerx()
         y = self.root.winfo_pointery() - total_height - 20
         popup.geometry(f"{total_width}x{total_height}+{x}+{y}")
+        self.ensure_on_top()
         
         self._pinned  = False
         popup.bind("<Enter>", lambda e: self._cancel_close())
         popup.bind("<Leave>", lambda e: self._restart_close() if not self._pinned else None)
-        popup.bind("<Button-3>", lambda e: self._pin(popup))
         popup.bind("<Destroy>", lambda e: setattr(self, "_popup", None))
 
+    def ensure_on_top(self) -> None:
+        """
+        Keep popup above the other always-on-top windows in this app.
+
+        Note: other windows (overlay/control) also set -topmost, so z-order depends on who is lifted last.
+        """
+        popup = getattr(self, "_popup", None)
+        if not popup:
+            return
+        try:
+            popup.attributes("-topmost", True)
+            popup.lift()
+        except Exception:
+            pass
 
     def _close(self) -> None:
         if self._popup: self._popup.destroy()

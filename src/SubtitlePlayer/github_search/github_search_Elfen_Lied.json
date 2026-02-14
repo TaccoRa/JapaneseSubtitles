@@ -1,0 +1,128 @@
+{
+  "last search": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:srt in:path Elfen Lied",
+  "repo": "Ajatt-Tools/kitsunekko-mirror",
+  "created_at": "2026-02-10T16:42:30.728538Z",
+  "stop_reason": "fallback_unseasoned_search",
+  "rate_info": {
+    "limit": "10",
+    "remaining": "5",
+    "reset": "1770741802",
+    "retry_after": null
+  },
+  "result_count": 14,
+  "items": [
+    {
+      "name": "Elfen Lied.S01E01.WEBRip.ja[cc].srt",
+      "path": "subtitles/anime_tv/Elfen Lied/extra/Elfen Lied.S01E01.WEBRip.ja[cc].srt",
+      "season": 1,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "Elfen Lied.S01E02.WEBRip.ja[cc].srt",
+      "path": "subtitles/anime_tv/Elfen Lied/extra/Elfen Lied.S01E02.WEBRip.ja[cc].srt",
+      "season": 1,
+      "episode": 2,
+      "global": 2
+    },
+    {
+      "name": "Elfen Lied.S01E03.WEBRip.ja[cc].srt",
+      "path": "subtitles/anime_tv/Elfen Lied/extra/Elfen Lied.S01E03.WEBRip.ja[cc].srt",
+      "season": 1,
+      "episode": 3,
+      "global": 3
+    },
+    {
+      "name": "Elfen Lied.S01E04.WEBRip.ja[cc].srt",
+      "path": "subtitles/anime_tv/Elfen Lied/extra/Elfen Lied.S01E04.WEBRip.ja[cc].srt",
+      "season": 1,
+      "episode": 4,
+      "global": 4
+    },
+    {
+      "name": "Elfen Lied.S01E05.WEBRip.ja[cc].srt",
+      "path": "subtitles/anime_tv/Elfen Lied/extra/Elfen Lied.S01E05.WEBRip.ja[cc].srt",
+      "season": 1,
+      "episode": 5,
+      "global": 5
+    },
+    {
+      "name": "Elfen Lied.S01E06.WEBRip.ja[cc].srt",
+      "path": "subtitles/anime_tv/Elfen Lied/extra/Elfen Lied.S01E06.WEBRip.ja[cc].srt",
+      "season": 1,
+      "episode": 6,
+      "global": 6
+    },
+    {
+      "name": "Elfen Lied.S01E07.WEBRip.ja[cc].srt",
+      "path": "subtitles/anime_tv/Elfen Lied/extra/Elfen Lied.S01E07.WEBRip.ja[cc].srt",
+      "season": 1,
+      "episode": 7,
+      "global": 7
+    },
+    {
+      "name": "Elfen Lied.S01E08.WEBRip.ja[cc].srt",
+      "path": "subtitles/anime_tv/Elfen Lied/extra/Elfen Lied.S01E08.WEBRip.ja[cc].srt",
+      "season": 1,
+      "episode": 8,
+      "global": 8
+    },
+    {
+      "name": "Elfen Lied.S01E09.WEBRip.ja[cc].srt",
+      "path": "subtitles/anime_tv/Elfen Lied/extra/Elfen Lied.S01E09.WEBRip.ja[cc].srt",
+      "season": 1,
+      "episode": 9,
+      "global": 9
+    },
+    {
+      "name": "Elfen Lied.S01E10.WEBRip.ja[cc].srt",
+      "path": "subtitles/anime_tv/Elfen Lied/extra/Elfen Lied.S01E10.WEBRip.ja[cc].srt",
+      "season": 1,
+      "episode": 10,
+      "global": 10
+    },
+    {
+      "name": "Elfen Lied.S01E11.WEBRip.ja[cc].srt",
+      "path": "subtitles/anime_tv/Elfen Lied/extra/Elfen Lied.S01E11.WEBRip.ja[cc].srt",
+      "season": 1,
+      "episode": 11,
+      "global": 11
+    },
+    {
+      "name": "Elfen Lied.S01E12.WEBRip.ja[cc].srt",
+      "path": "subtitles/anime_tv/Elfen Lied/extra/Elfen Lied.S01E12.WEBRip.ja[cc].srt",
+      "season": 1,
+      "episode": 12,
+      "global": 12
+    },
+    {
+      "name": "Elfen Lied.S01E13.WEBRip.ja[cc].srt",
+      "path": "subtitles/anime_tv/Elfen Lied/extra/Elfen Lied.S01E13.WEBRip.ja[cc].srt",
+      "season": 1,
+      "episode": 13,
+      "global": 13
+    },
+    {
+      "name": "Elfen Lied.SP.WEBRip.ja[cc].srt",
+      "path": "subtitles/anime_tv/Elfen Lied. Tooriame nite - Arui wa, Shoujo wa Ikani Shite Sono Shinjou ni Itatta ka？/extra/Elfen Lied.SP.WEBRip.ja[cc].srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    }
+  ],
+  "sxexx_to_gxx": {
+    "S01E01": 1,
+    "S01E02": 2,
+    "S01E03": 3,
+    "S01E04": 4,
+    "S01E05": 5,
+    "S01E06": 6,
+    "S01E07": 7,
+    "S01E08": 8,
+    "S01E09": 9,
+    "S01E10": 10,
+    "S01E11": 11,
+    "S01E12": 12,
+    "S01E13": 13
+  }
+}

@@ -1,4 +1,9 @@
-#subtitle_overlay.py
+"""
+Subtitle overlay window (transparent canvas) that renders the current subtitle text.
+
+This is a separate always-on-top, borderless toplevel window that can be dragged.
+"""
+
 import tkinter as tk
 from typing import List, Optional
 
@@ -7,10 +12,18 @@ from utils import make_draggable
 
 class SubtitleOverlayUI:
 
-    def __init__(self, root: tk.Tk, config: ConfigManager,cleaned_subs: Optional[List[str]] = None, overlay_geometry =  None) -> None:
+    def __init__(
+        self,
+        root: tk.Tk,
+        config: ConfigManager,
+        cleaned_subs: Optional[List[str]] = None,
+        overlay_geometry=None,
+        start_hidden: bool = False,
+    ) -> None:
         self.root = root
         self.config = config
         self.cleaned_subs = cleaned_subs
+        self._start_hidden = bool(start_hidden)
 
         self.sub_window: tk.Toplevel = None 
         self.subtitle_canvas: tk.Canvas = None
@@ -27,10 +40,17 @@ class SubtitleOverlayUI:
         self.sub_window.attributes("-topmost", True)
         self.sub_window.attributes("-transparentcolor", "grey")
 
+        # Clamp overlay width to the visible desktop to avoid off-screen windows.
+        sw = self.root.winfo_vrootwidth()
+        margin = 20  # keep at least 20px visible margin on left+right
+        max_w_allowed = max(100, int(sw) - margin * 2)
+        self.max_w = max(100, min(int(self.max_w), max_w_allowed))
+        self.max_h = max(80, int(self.max_h))
+
         x = int(self.center_x - self.max_w / 2)
         y = int(self.center_y - self.max_h / 2)
         sw, sh = self.root.winfo_vrootwidth(), self.root.winfo_vrootheight()
-        x = max(0, min(x, sw - self.max_w))
+        x = max(margin, min(x, sw - margin - self.max_w))
         y = max(0, min(y, sh - self.max_h))
         self.sub_window.geometry(f"{self.max_w}x{self.max_h}+{x}+{y}")
         self.sub_window.update_idletasks()
@@ -56,6 +76,17 @@ class SubtitleOverlayUI:
         self.sub_window.bind("<Enter>", lambda ev: self.on_sub_window_enter(ev))
         self.sub_window.bind("<Leave>", lambda ev: self.on_sub_window_leave(ev))
 
+        if self._start_hidden:
+            try:
+                self.sub_window.withdraw()
+            except Exception:
+                pass
+            try:
+                if self.subtitle_handle:
+                    self.subtitle_handle.withdraw()
+            except Exception:
+                pass
+
     # Subtitle overlay
     def bind_sub_window_enter(self, cb): self.on_sub_window_enter = cb
     def bind_sub_window_leave(self, cb): self.on_sub_window_leave = cb
@@ -63,8 +94,12 @@ class SubtitleOverlayUI:
 
     def update_geometry(self, new_w, new_h):
         """Resize overlay window and internal canvas to the new width/height (integers)."""
-        self.max_w = int(new_w)
-        self.max_h = int(new_h)
+        sw = self.root.winfo_vrootwidth()
+        margin = 20  # keep at least 20px visible margin on left+right
+        max_w_allowed = max(100, int(sw) - margin * 2)
+
+        self.max_w = max(100, min(int(new_w), max_w_allowed))
+        self.max_h = max(80, int(new_h))
 
         # Recenter around stored center_x/center_y
         x = int(self.center_x - self.max_w / 2)
@@ -73,7 +108,7 @@ class SubtitleOverlayUI:
         # Clamp to screen
         sw = self.root.winfo_vrootwidth()
         sh = self.root.winfo_vrootheight()
-        x = max(0, min(x, sw - self.max_w))
+        x = max(margin, min(x, sw - margin - self.max_w))
         y = max(0, min(y, sh - self.max_h))
 
         # Apply geometry
@@ -101,6 +136,11 @@ class SubtitleOverlayUI:
         make_draggable(self.sub_window, self.sub_window,
                        sync_windows=[self.subtitle_handle], 
                        on_release=self._save_center_position)
+        if self._start_hidden:
+            try:
+                self.subtitle_handle.withdraw()
+            except Exception:
+                pass
 
     def hide_handle(self):
         if self.subtitle_handle:
@@ -114,3 +154,19 @@ class SubtitleOverlayUI:
         if (self.center_x, self.center_y) != (self.config.get("LAST_SUB_CENTER_X"), self.config.get("LAST_SUB_CENTER_Y")):
             self.config.set("LAST_SUB_CENTER_X", self.center_x)
             self.config.set("LAST_SUB_CENTER_Y", self.center_y)
+
+    def show(self) -> None:
+        """Show overlay (and handle if enabled). Used after startup splash."""
+        try:
+            self.sub_window.deiconify()
+            self.sub_window.lift()
+            self.sub_window.attributes("-topmost", True)
+        except Exception:
+            pass
+        try:
+            if self.subtitle_handle and self.config.get("PHONEMODE_DEFAULT"):
+                self.subtitle_handle.deiconify()
+                self.subtitle_handle.lift()
+                self.subtitle_handle.attributes("-topmost", True)
+        except Exception:
+            pass

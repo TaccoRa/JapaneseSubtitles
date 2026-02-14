@@ -1,3 +1,9 @@
+"""
+Simple JSON-backed configuration wrapper.
+
+Reads/writes `config.json` and exposes get/set helpers.
+"""
+
 import json
 import os
 

@@ -1,12 +1,12 @@
 {
-  "last search": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:srt in:path Shingeki no Kyojin s07 Netflix",
+  "last search": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:ass in:path Shingeki no Kyo s08 Amazon",
   "repo": "Ajatt-Tools/kitsunekko-mirror",
-  "created_at": "2026-02-14T11:20:38.972289Z",
+  "created_at": "2026-02-14T09:22:30.908474Z",
   "stop_reason": null,
   "rate_info": {
     "limit": "10",
-    "remaining": "3",
-    "reset": "1771068096",
+    "remaining": "8",
+    "reset": "1771061010",
     "retry_after": null
   },
   "result_count": 126,

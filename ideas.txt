@@ -1,4 +1,5 @@
 To Do:
+connect anki
 add button to search new anime
 add extra function for searching movies
 download splash screen or info
