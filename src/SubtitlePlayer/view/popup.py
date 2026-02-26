@@ -16,6 +16,9 @@ class CopyPopup:
         self._popup: tk.Toplevel | None = None
         self._close_job: str | None = None
         self._pinned = False
+        self._menu_open = False
+        self._entry_widget: tk.Text | None = None
+        self._on_add_anki = None
         self.root.bind("<Destroy>", lambda e: self._cancel_close())
 
         self.bg_color = self.config.get("POPUP_BG_COLOR")
@@ -32,6 +35,8 @@ class CopyPopup:
         
         popup = tk.Toplevel(self.root)
         self._popup = popup
+        self._menu_open = False
+        self._entry_widget = None
         popup.overrideredirect(True)
         # popup.configure(bg=self.bg_color)
         popup.attributes("-topmost", True)
@@ -55,16 +60,19 @@ class CopyPopup:
         entry.tag_add("center", "1.0", "end")
         entry.config(state="disabled")
         entry.pack()
+        self._entry_widget = entry
 
         # Right-click context menu to copy selected text using only the mouse.
         menu = tk.Menu(popup, tearoff=0)
 
-        def _copy_selection():
+        def _get_selection() -> str:
             try:
-                selected = entry.get("sel.first", "sel.last")
+                return (entry.get("sel.first", "sel.last") or "").strip()
             except tk.TclError:
-                selected = ""
-            selected = (selected or "").strip()
+                return ""
+
+        def _copy_selection():
+            selected = _get_selection()
             if not selected:
                 return
             try:
@@ -72,6 +80,23 @@ class CopyPopup:
                 popup.clipboard_append(selected)
             except Exception:
                 pass
+
+        def _add_selection_to_anki():
+            selected = _get_selection()
+            if not selected:
+                return
+            if not callable(self._on_add_anki):
+                return
+            def _run():
+                try:
+                    self._on_add_anki(selected_text=selected, subtitle_text=subtitle_text or "")
+                except Exception:
+                    pass
+            # Run on next tick so the context menu can close and cursor change is visible.
+            try:
+                popup.after(1, _run)
+            except Exception:
+                _run()
 
         def _copy_all():
             try:
@@ -82,10 +107,13 @@ class CopyPopup:
 
         menu.add_command(label="Copy", command=_copy_selection)
         menu.add_command(label="Copy All", command=_copy_all)
+        menu.add_command(label="Add Selection To Anki", command=_add_selection_to_anki)
         menu.add_separator()
         menu.add_command(label="Pin", command=lambda: self._pin(popup))
 
         def _show_menu(event):
+            self._menu_open = True
+            self._cancel_close()
             try:
                 menu.tk_popup(event.x_root, event.y_root)
             finally:
@@ -93,6 +121,9 @@ class CopyPopup:
                     menu.grab_release()
                 except Exception:
                     pass
+                self._menu_open = False
+                if not self._pinned:
+                    self._restart_close()
             return "break"
 
         entry.bind("<Button-3>", _show_menu)
@@ -104,8 +135,11 @@ class CopyPopup:
         
         self._pinned  = False
         popup.bind("<Enter>", lambda e: self._cancel_close())
-        popup.bind("<Leave>", lambda e: self._restart_close() if not self._pinned else None)
-        popup.bind("<Destroy>", lambda e: setattr(self, "_popup", None))
+        popup.bind("<Leave>", lambda e: self._on_popup_leave())
+        popup.bind("<Destroy>", lambda e: self._on_popup_destroy())
+
+    def bind_add_to_anki(self, callback) -> None:
+        self._on_add_anki = callback
 
     def ensure_on_top(self) -> None:
         """
@@ -122,9 +156,25 @@ class CopyPopup:
         except Exception:
             pass
 
+    def set_busy_cursor(self, cursor: str) -> None:
+        popup = getattr(self, "_popup", None)
+        if not popup:
+            return
+        try:
+            popup.configure(cursor=cursor)
+        except Exception:
+            pass
+        entry = getattr(self, "_entry_widget", None)
+        if entry is not None:
+            try:
+                entry.configure(cursor=cursor or "xterm")
+            except Exception:
+                pass
+
     def _close(self) -> None:
         if self._popup: self._popup.destroy()
         self._popup = None
+        self._entry_widget = None
         self._close_job = None
 
     def _cancel_close(self) -> None:
@@ -137,8 +187,17 @@ class CopyPopup:
         if self._popup:
             self._close_job = self._popup.after(self.close_delay, self._close)
 
+    def _on_popup_leave(self) -> None:
+        if self._pinned or self._menu_open:
+            return
+        self._restart_close()
+
     def _pin(self, popup: tk.Toplevel) -> None:
         self._cancel_close()
         self._pinned = True
         popup.overrideredirect(False)
         popup.lift()
+
+    def _on_popup_destroy(self) -> None:
+        self._popup = None
+        self._entry_widget = None

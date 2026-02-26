@@ -14,7 +14,11 @@ from pynput.keyboard import Key, Listener as KeyboardListener
 import pyautogui
 import bisect
 
+from model.browser_video_controller import BrowserVideoController
+
+
 from model.config_manager import ConfigManager
+from model.anki_client import AnkiClient
 from model.subtitle_manager import SubtitleManager
 from model.renderer import SubtitleRenderer
 from view.settings_ui import SettingsUI
@@ -43,6 +47,11 @@ class SubtitleController:
         self.total_duration = total_duration
         self.settings.root.protocol("WM_DELETE_WINDOW", self._on_app_close)
 
+        
+        url = "https://animekai.to/watch/one-piece-dk6r#ep=430"#should be variable and changable during runtime!
+        self.browser = BrowserVideoController(url)
+
+
         self.default_start_time = self.config.get("DEFAULT_START_TIME")
         self.current_time = self.default_start_time
         self.default_skip = self.config.get("DEFAULT_SKIP")
@@ -52,6 +61,8 @@ class SubtitleController:
         self.hide_subtitles_ms = self.config.get("SUBTITLE_TIMEOUT_MS")                     # clears subtitle canvas after # ms
         self.update_interval_ms = self.config.get("UPDATE_INTERVAL_MS")                        # updates the time display every # ms
         self.video_click = self.config.get("VIDEO_CLICK")
+        self.anki_busy_cursor = (self.config.get("ANKI_BUSY_CURSOR") or "wait")
+        self.anki = AnkiClient(self.config)
 
         self.playing      = False
         self.entry_editing  = False
@@ -89,6 +100,7 @@ class SubtitleController:
         self.settings.bind_update_display            (self.update_time_and_subtitle_displays)
         
         self.overlay.subtitle_canvas.bind("<Button-3>", self._on_copy_popup)
+        self.popup.bind_add_to_anki(self._add_selection_to_anki)
         self.overlay.bind_sub_window_enter(self.sub_window_enter)
         self.overlay.bind_sub_window_leave(self.sub_window_leave)
         self.overlay.bind_sub_handel_enter(self.sub_handel_enter)   
@@ -129,6 +141,52 @@ class SubtitleController:
         self.popup.open_copy_popup(self.last_subtitle_raw)
         self.simulate_video_click()
         return "break"
+
+    def _add_selection_to_anki(self, selected_text: str, subtitle_text: str = "") -> None:
+        if not self.anki.is_enabled():
+            print("Anki integration disabled. Set ANKI_ENABLED=true in config.json.")
+            return
+        if not self.anki.ping():
+            print("AnkiConnect not reachable. Start Anki + AnkiConnect and try again.")
+            return
+
+        started = time.perf_counter()
+        self._set_busy_cursor(True)
+        try:
+            result = self.anki.add_from_selection(
+                selection_text=selected_text,
+                subtitle_text=subtitle_text,
+            )
+            elapsed = time.perf_counter() - started
+            print(f"Anki note created in {elapsed:.2f}s: {result}")
+        except Exception as e:
+            print(f"Anki add failed: {e}")
+        finally:
+            self._set_busy_cursor(False)
+
+    def _set_busy_cursor(self, busy: bool) -> None:
+        cursor = self.anki_busy_cursor if busy else ""
+        windows = [
+            getattr(self.settings, "root", None),
+            getattr(self.settings, "control_window", None),
+            getattr(self.overlay, "sub_window", None),
+            getattr(self.popup, "_popup", None),
+        ]
+        for win in windows:
+            if not win:
+                continue
+            try:
+                win.configure(cursor=cursor)
+            except Exception:
+                pass
+        try:
+            self.popup.set_busy_cursor(cursor)
+        except Exception:
+            pass
+        try:
+            self.settings.root.update()
+        except Exception:
+            pass
 
 
     # ——— Loop & scheduling ———————————————————————————————————
@@ -414,6 +472,7 @@ class SubtitleController:
         self.set_current_time(self.settings.slider.get())
 
     def simulate_video_click(self, above_window=None):
+        if not self.video_click: return
         def _rect(win):
             if win is None:
                 return None
@@ -576,6 +635,9 @@ class SubtitleController:
     # ——— Hide window logic —————————————————————————————————————
 
     def sub_window_enter(self, event):
+
+        self.browser.pause()
+
         self.overlay.sub_window.attributes("-transparentcolor", "") #not transparent
         self.settings.control_window.attributes("-topmost", True)
         self.overlay.sub_window.attributes("-topmost", True)
@@ -589,6 +651,7 @@ class SubtitleController:
         self.subtitle_deleted = False
 
     def sub_window_leave(self, event):
+        self.browser.play()
         self.overlay.sub_window.attributes("-transparentcolor", "grey")
         if not self.settings.default_phone_mode:
             self._hide_controls_after(self.windows_hide_control_ms)

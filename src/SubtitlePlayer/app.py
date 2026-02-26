@@ -11,11 +11,11 @@ from view.settings_ui import SettingsUI
 from view.subtitle_overlay import SubtitleOverlayUI
 from view.popup import CopyPopup
 from view.overlays import LoadingOverlay, set_startup_overlay
+from model.browser_video_controller import BrowserVideoController
 from model.config_manager import ConfigManager
 from model.subtitle_manager import SubtitleManager
 from model.renderer import SubtitleRenderer
 from controller.controller import SubtitleController
-
 
 logging.basicConfig(
     level=logging.INFO,
@@ -42,6 +42,9 @@ class SubtitlePlayerApp:
         self._startup_result = None  # (SubtitleManager, total_duration)
         self._startup_thread = Thread(target=self._startup_worker, daemon=True)
         # Start the worker once the Tk mainloop is running (so the splash can animate).
+        url = "https://animekai.to/watch/one-piece-dk6r#ep=430"
+        self.browser = BrowserVideoController(url)
+        self.browser.start()
         self.root.after(0, self._start_startup_worker)
         self.root.after(50, self._poll_startup_worker)
 
