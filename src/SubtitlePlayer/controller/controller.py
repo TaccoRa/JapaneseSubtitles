@@ -13,10 +13,6 @@ from pynput.mouse import Button, Listener as MouseListener
 from pynput.keyboard import Key, Listener as KeyboardListener
 import pyautogui
 import bisect
-
-from model.browser_video_controller import BrowserVideoController
-
-
 from model.config_manager import ConfigManager
 from model.anki_client import AnkiClient
 from model.subtitle_manager import SubtitleManager
@@ -46,12 +42,6 @@ class SubtitleController:
         self.config  = config
         self.total_duration = total_duration
         self.settings.root.protocol("WM_DELETE_WINDOW", self._on_app_close)
-
-        
-        url = "https://animekai.to/watch/one-piece-dk6r#ep=430"#should be variable and changable during runtime!
-        self.browser = BrowserVideoController(url)
-
-
         self.default_start_time = self.config.get("DEFAULT_START_TIME")
         self.current_time = self.default_start_time
         self.default_skip = self.config.get("DEFAULT_SKIP")
@@ -635,9 +625,6 @@ class SubtitleController:
     # ——— Hide window logic —————————————————————————————————————
 
     def sub_window_enter(self, event):
-
-        self.browser.pause()
-
         self.overlay.sub_window.attributes("-transparentcolor", "") #not transparent
         self.settings.control_window.attributes("-topmost", True)
         self.overlay.sub_window.attributes("-topmost", True)
@@ -651,7 +638,6 @@ class SubtitleController:
         self.subtitle_deleted = False
 
     def sub_window_leave(self, event):
-        self.browser.play()
         self.overlay.sub_window.attributes("-transparentcolor", "grey")
         if not self.settings.default_phone_mode:
             self._hide_controls_after(self.windows_hide_control_ms)

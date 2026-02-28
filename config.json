@@ -1,10 +1,10 @@
 {
     "DEBUGGING_SRT_FILE": "D:/Tobi/Programme/VSCode_projects/JapaneseSubtitles/subs/Record.of.Ragnarok/Record.of.Ragnarok.S02E01.WEBRip.Netflix.ja[cc].srt",
-    "LAST_LOCAL_SRT_FILE": "d:\\Tobi\\Programme\\VSCode_projects\\JapaneseSubtitles\\src\\SubtitlePlayer\\cache_github\\One Piece\\Season19\\ワンピース.S19E430.WEBRip.Netflix.ja[cc].srt",
-    "LAST_GITHUB_URL": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/main/subtitles/anime_tv/ONE PIECE/extra/ワンピース.S19E430.WEBRip.Netflix.ja[cc].srt",
-    "LAST_ANIME_NAME": "One Piece",
+    "LAST_LOCAL_SRT_FILE": "d:\\Tobi\\Programme\\VSCode_projects\\JapaneseSubtitles\\src\\SubtitlePlayer\\cache_github\\Shingeki no Kyojin\\Season5\\Attack.on.Titan.S05E68.WEBRip.Netflix.ja[cc].srt",
+    "LAST_GITHUB_URL": "https://github.com/Ajatt-Tools/kitsunekko-mirror/blob/main/subtitles/anime_tv/Shingeki no Kyojin/extra/Attack.on.Titan.S05E65.WEBRip.Netflix.ja[cc].srt",
+    "LAST_ANIME_NAME": "Shingeki no Kyojin",
     "DEFAULT_START_TIME": 120,
-    "EXTRA_OFFSET": 19.7,
+    "EXTRA_OFFSET": 0.0,
     "DEFAULT_SKIP": 1,
     "DOWNLOAD_WINDOW": 5,
     "DOWNLOAD_MAX_WORKERS": 2,
@@ -55,10 +55,10 @@
     ],
     "WINDOWS_HIDE_DELAY_MS": 7000,
     "PHONEMODE_WINDOWS_HIDE_DELAY_MS": 6000,
-    "LAST_SETTINGS_WINDOW_X": 300,
-    "LAST_SETTINGS_WINDOW_Y": 609,
+    "LAST_SETTINGS_WINDOW_X": 148,
+    "LAST_SETTINGS_WINDOW_Y": 610,
     "LAST_CONTROL_WINDOW_X": 1076,
     "LAST_CONTROL_WINDOW_Y": 796,
-    "LAST_SUB_CENTER_X": 1038.5,
-    "LAST_SUB_CENTER_Y": 663.0
+    "LAST_SUB_CENTER_X": 2619.0,
+    "LAST_SUB_CENTER_Y": 672.0
 }
