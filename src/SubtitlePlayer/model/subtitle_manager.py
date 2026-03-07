@@ -432,12 +432,22 @@ class SubtitleManager:
         self.remote_path = remote_path
         self.remote_url = f"https://github.com/{owner}/{repo}/blob/{ref}/{remote_path}"
 
-    def change_episode(self, action: str, raw: Optional[int] = None) -> Tuple[Optional[int], Optional[int]]:
+    def change_episode(
+        self,
+        action: str,
+        raw: Optional[int] = None,
+        target_season: Optional[int] = None,
+    ) -> Tuple[Optional[int], Optional[int]]:
         if self.remote_flag:
-            return self.change_episode_remote(action, raw)
-        return self.change_episode_local(action, raw)
+            return self.change_episode_remote(action, raw, target_season)
+        return self.change_episode_local(action, raw, target_season)
 
-    def change_episode_local(self, action: str, raw: Optional[int] = None) -> Tuple[Optional[int], Optional[int]]:
+    def change_episode_local(
+        self,
+        action: str,
+        raw: Optional[int] = None,
+        target_season: Optional[int] = None,
+    ) -> Tuple[Optional[int], Optional[int]]:
         if not getattr(self, "local_srt_files", None):
             self._build_local_episode_map()
 
@@ -495,9 +505,12 @@ class SubtitleManager:
         elif action == "set":
             if not (isinstance(raw, int) and raw > 0):
                 return self.current_season, self.current_episode
+            if target_season is not None:
+                target_rec = find_by_local(int(target_season), raw)
             # interpret as local episode in current season first
-            if cur_s is not None:
-                target_rec = find_by_local(cur_s, raw)
+            if target_rec is None:
+                if cur_s is not None:
+                    target_rec = find_by_local(cur_s, raw)
             # if that failed, also check whether raw matches a global index
             if target_rec is None:
                 target_rec = find_by_global(raw)
@@ -638,7 +651,12 @@ class SubtitleManager:
         except Exception:
             return []
 
-    def change_episode_remote(self, action: str, raw: Optional[int] = None) -> Tuple[Optional[int], Optional[int]]:
+    def change_episode_remote(
+        self,
+        action: str,
+        raw: Optional[int] = None,
+        target_season: Optional[int] = None,
+    ) -> Tuple[Optional[int], Optional[int]]:
         """
         Remote switching: first try to find the file in the local index. If missing, trigger a
         focused windowed download around the target/global (synchronously), refresh local index,
@@ -759,8 +777,41 @@ class SubtitleManager:
         elif action == "set":
             if not (isinstance(raw, int) and raw > 0):
                 return self.current_season, self.current_episode
+            if target_season is not None:
+                ts = int(target_season)
+                target_rec = find_by_local(ts, raw)
+                if target_rec:
+                    if self._load_local_record(target_rec):
+                        return self.current_season, self.current_episode
+
+                g = self.local_to_global(ts, raw)
+                if g is not None:
+                    target_global = int(g)
+                    target_s, target_e = ts, raw
+                else:
+                    try:
+                        if not getattr(self, "remote_episode_map_global", None):
+                            if not getattr(self, "all_results_items", None):
+                                self._create_remote_episode_map_per_season()
+                            self.build_remote_episode_maps()
+                    except Exception:
+                        logger.exception("Failed to build remote maps for season-episode set")
+
+                    season_items = getattr(self, "remote_episode_map_season", {}).get(ts, [])
+                    chosen = None
+                    for item in season_items:
+                        if item.get("episode") == int(raw):
+                            chosen = item
+                            break
+                    if chosen and chosen.get("global") is not None:
+                        target_global = int(chosen.get("global"))
+                        target_s, target_e = ts, raw
+                    else:
+                        logger.info("Episode not found for season set: S%sE%s", ts, raw)
+                        return self.current_season, self.current_episode
+
             # prefer local interpretation: current season + episode raw
-            if cur_s is not None:
+            elif cur_s is not None:
                 target_rec = find_by_local(cur_s, raw)
                 if target_rec:
                     if self._load_local_record(target_rec):
@@ -1674,6 +1725,110 @@ class SubtitleManager:
             logger.exception("Failed to start windowed background downloads for search-query init")
 
         return local_path
+    
+    def _search_remote_candidates_in_path(self, anime_query: str, repo_sub_path: str) -> List[Dict]:
+        """
+        Search GitHub code API for subtitle files under a specific path.
+        Returns normalized items with parsed season/episode/global metadata.
+        """
+        anime_query = (anime_query or "").strip()
+        repo_sub_path = (repo_sub_path or "").strip().strip("/")
+        if not anime_query or not repo_sub_path:
+            return []
+
+        owner = getattr(self, "github_owner", None) or self.config.get("GITHUB_OWNER") or "Ajatt-Tools"
+        repo = getattr(self, "github_repo", None) or self.config.get("GITHUB_REPO") or "kitsunekko-mirror"
+        if not owner or not repo:
+            return []
+
+        api_url = "https://api.github.com/search/code"
+        headers = {
+            "Accept": "application/vnd.github.v3+json",
+            "User-Agent": "subtitle-searcher",
+        }
+        if self.github_token:
+            headers["Authorization"] = f"token {self.github_token}"
+
+        per_page = 100
+        out: List[Dict] = []
+        seen_paths: set[str] = set()
+
+        session = requests.Session()
+        session.headers.update(headers)
+
+        for ext in ("srt", "ass"):
+            q = (f'repo:{owner}/{repo} '
+                 f'path:{repo_sub_path} extension:{ext} in:path "{anime_query}"')
+            page = 1
+            while True:
+                params = {"q": q, "per_page": per_page, "page": page}
+                try:
+                    resp = session.get(api_url, params=params, timeout=15)
+                except requests.RequestException:
+                    logger.exception("GitHub path search failed: query=%s", q)
+                    break
+
+                if resp.status_code != 200:
+                    logger.error("GitHub path search failed (%s): %s", resp.status_code, resp.text)
+                    break
+
+                data = resp.json()
+                items = data.get("items", [])
+                if not items:
+                    break
+
+                for it in items:
+                    path = it.get("path")
+                    if not path or path in seen_paths:
+                        continue
+                    seen_paths.add(path)
+                    name = os.path.basename(path or it.get("name") or "")
+                    s, e, g = self.extract_season_episode_global(name)
+                    if s is None and e is None and g is not None:
+                        e = int(g)
+                    out.append({
+                        "name": name or it.get("name"),
+                        "path": path,
+                        "season": s,
+                        "episode": e,
+                        "global": g,
+                    })
+
+                if len(items) < per_page:
+                    break
+                page += 1
+                time.sleep(0.1)
+
+        try:
+            out.sort(key=self.sort_key_per_season)
+        except Exception:
+            pass
+        return out
+
+    def search_remote_movie_candidates(self, anime_query: str) -> List[Dict]:
+        """
+        Search order for movie subtitles:
+        1) subtitles/anime_movie
+        2) subtitles/drama_movie (fallback only if #1 has zero results)
+        """
+        anime_query = (anime_query or "").strip()
+        if not anime_query:
+            return []
+
+        results = self._search_remote_candidates_in_path(anime_query, "subtitles/anime_movie")
+        if results:
+            return results
+        logger.info("No results in subtitles/anime_movie for '%s'; falling back to subtitles/drama_movie", anime_query)
+        return self._search_remote_candidates_in_path(anime_query, "subtitles/drama_movie")
+
+    def search_remote_drama_tv_candidates(self, anime_query: str) -> List[Dict]:
+        """
+        Search drama TV subtitles under subtitles/drama_tv.
+        """
+        anime_query = (anime_query or "").strip()
+        if not anime_query:
+            return []
+        return self._search_remote_candidates_in_path(anime_query, "subtitles/drama_tv")
     
 
     def _trying_search_queries(self):

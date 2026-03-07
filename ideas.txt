@@ -1,30 +1,27 @@
 To Do:
-Add listener for spacebar and arrow keys
-connect anki
-add extra function for searching movies
-add settings button to change for example default start time and so on
-remember last used offset, phone mde ...
 Maybe change how the copy window is displayed.
-Remember also last geometry not only position of settings window
-when local srt file added during runtime cant find it. Probably because dir list done during init.
+hovering over kanji --> in line glossary or/and translation
+
+implement season episode search in search bar in settings window
+change second to ms and so on with certain buttons for Skip 
+Add the html tags inside the subtitle files optional
+Optional ruby detection
+add profile settings for multiple users
 
 Bugs:
 Maybe shift of 1 second if offset 0?
-
-
-Bugs:
-picks last episode in cache if decreasing at first epoisode (because of last anime name not found)
-
-Ideas:
-Detect uncommon words or phrases and let users hover or tap a subtitle segment to 
-    see an in-line glossary or translation—great for educational content
-Change windows size in config (during run time?)
 
 Dont do:
 Change subtitle width to fit current subtitle (maybe flashes --> YES)
 
 
 Added:
+Add listener for spacebar and arrow keys
+add extra function for searching movies
+add settings button to change for example default start time and so on
+remember last used offset, phone mde ...
+Remember also last geometry not only position of settings window
+connect anki
 dropdown menu for episode entry
 right click on opened window(sub) to select copy
 download splash screen or info
@@ -41,6 +38,8 @@ add config for phone mode default true/false
 
 
 Fixed:
+when local srt file added during runtime cant find it. Probably because dir list done during init.
+picks last episode in cache if decreasing at first epoisode (because of last anime name not found)
 update episode number only if episode found
 creates season folder without finding season?
 Wrong episode when turning off?

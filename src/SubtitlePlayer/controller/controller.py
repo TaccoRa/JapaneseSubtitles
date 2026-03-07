@@ -8,6 +8,7 @@ Handles input (buttons, keyboard, global mouse), time updates, and episode chang
 """
 
 import time
+import queue
 import tkinter as tk
 from pynput.mouse import Button, Listener as MouseListener
 from pynput.keyboard import Key, Listener as KeyboardListener
@@ -58,12 +59,17 @@ class SubtitleController:
         self.entry_editing  = False
         self.subtitle_deleted = False
         self.alt_pressed = False
+        self.shift_pressed = False
+        self.space_pressed = False
         self.subtitle_timeout_job = None
         self.last_subtitle_text = ""
         self.last_subtitle_raw = ""
         self.sub_hidden = False
         self.slider_dragging = False
         self.last_rendered_sub_time = None
+        self._shutting_down = False
+        self._input_actions: "queue.Queue[str]" = queue.Queue()
+        self._input_pump_job = None
 
         self.settings.bind_back(self.go_back)
         self.settings.bind_forward(self.go_forward)
@@ -86,6 +92,7 @@ class SubtitleController:
         self.settings.bind_control_window_leave      (self.control_window_leave)
         self.settings.bind_show_subtitle_handle      (self.show_subtitle_handle)
         self.settings.bind_refresh_subtitles         (self.on_refresh_subtitles)
+        self.settings.bind_advanced_apply            (self.apply_advanced_settings)
 
         self.settings.bind_update_display            (self.update_time_and_subtitle_displays)
         
@@ -96,8 +103,11 @@ class SubtitleController:
         self.overlay.bind_sub_handel_enter(self.sub_handel_enter)   
 
 
-        MouseListener(on_click=self._on_global_click).start()
-        KeyboardListener(on_press=self._on_key_press, on_release=self._on_key_release).start()
+        self._mouse_listener = MouseListener(on_click=self._on_global_click)
+        self._mouse_listener.start()
+        self._keyboard_listener = KeyboardListener(on_press=self._on_key_press, on_release=self._on_key_release)
+        self._keyboard_listener.start()
+        self._input_pump_job = self.settings.root.after(15, self._process_input_queue)
 
         self.last_update  = time.time()
         self.update_time_and_subtitle_displays()
@@ -195,6 +205,48 @@ class SubtitleController:
             self.settings.root.update()
         except Exception:
             pass
+
+    def apply_advanced_settings(self, values: dict, persist: bool = False) -> None:
+        if not isinstance(values, dict):
+            return
+
+        # Keep the in-memory config in sync so model/view code that reads config.get(...)
+        # picks up values immediately (even without saving to disk).
+        try:
+            cfg = getattr(self.config, "config", None)
+            if isinstance(cfg, dict):
+                cfg.update(values)
+        except Exception:
+            pass
+
+        def _as_int(key: str, default: int) -> int:
+            try:
+                return int(values.get(key, default))
+            except Exception:
+                return int(default)
+
+        self.update_interval_ms = max(15, _as_int("UPDATE_INTERVAL_MS", self.update_interval_ms))
+        self.hide_subtitles_ms = max(100, _as_int("SUBTITLE_TIMEOUT_MS", self.hide_subtitles_ms))
+        self.windows_hide_control_ms = max(100, _as_int("WINDOWS_HIDE_DELAY_MS", self.windows_hide_control_ms))
+        self.phone_windows_hide_control_ms = max(100, _as_int("PHONEMODE_WINDOWS_HIDE_DELAY_MS", self.phone_windows_hide_control_ms))
+
+        if "VIDEO_CLICK" in values:
+            try:
+                self.video_click = bool(values.get("VIDEO_CLICK"))
+            except Exception:
+                pass
+
+        if "POPUP_CLOSE_TIMER" in values:
+            try:
+                self.popup.close_delay = max(100, int(values.get("POPUP_CLOSE_TIMER")))
+                popup = getattr(self.popup, "_popup", None)
+                if popup is not None and popup.winfo_exists():
+                    if (not getattr(self.popup, "_pinned", False)
+                            and not getattr(self.popup, "_menu_open", False)
+                            and not getattr(self.popup, "_dragging", False)):
+                        self.popup._restart_close()
+            except Exception:
+                pass
 
 
     # ——— Loop & scheduling ———————————————————————————————————
@@ -323,36 +375,73 @@ class SubtitleController:
             self._after_episode_change()
 
     def change_episode(self, action: str):
-        raw = self.settings.episode_var.get().strip()
-        if not raw:
-            # restore to current known value
+        def _restore_entry():
             if self.sub_manager.current_episode is None:
                 self.settings.episode_var.set("Movie")
             else:
                 self.settings.episode_var.set(str(self.sub_manager.current_episode))
+
+        raw = self.settings.episode_var.get().strip()
+        if action in ("inc", "dec"):
+            target_season, target_episode = self.sub_manager.change_episode(action)
+            if target_episode is not None:
+                self.settings.episode_var.set(str(target_episode))
+                self._after_episode_change()
+            else:
+                _restore_entry()
+            return
+
+        if not raw:
+            _restore_entry()
             return
         if raw.lower() == 'movie':
             return
+
+        raw_int = None
+        season_hint = None
+        parsed_global = None
         try:
-            raw_int = int(raw)
-            if raw_int <= 0:
-                raise ValueError()
+            candidate = int(raw)
+            if candidate > 0:
+                raw_int = candidate
         except ValueError:
-            # invalid entry -> restore
-            if self.sub_manager.current_episode is None:
-                self.settings.episode_var.set("Movie")
-            else:
-                self.settings.episode_var.set(str(self.sub_manager.current_episode))
+            try:
+                parsed_s, parsed_e, parsed_g = self.sub_manager.extract_season_episode_global(raw)
+            except Exception:
+                parsed_s, parsed_e, parsed_g = None, None, None
+            if parsed_s is not None and parsed_e is not None:
+                season_hint = int(parsed_s)
+                raw_int = int(parsed_e)
+                parsed_global = int(parsed_g) if parsed_g is not None else None
+            elif parsed_g is not None:
+                raw_int = int(parsed_g)
+
+        if raw_int is None or raw_int <= 0:
+            _restore_entry()
             return
-        target_season,target_episode = self.sub_manager.change_episode(action, raw_int)
+
+        before = (
+            getattr(self.sub_manager, "srt_file", None),
+            getattr(self.sub_manager, "current_season", None),
+            getattr(self.sub_manager, "current_episode", None),
+        )
+        target_season, target_episode = self.sub_manager.change_episode("set", raw_int, season_hint)
+        after = (
+            getattr(self.sub_manager, "srt_file", None),
+            getattr(self.sub_manager, "current_season", None),
+            getattr(self.sub_manager, "current_episode", None),
+        )
+
+        # Fallback: if explicit SxxEyy did not resolve, and parser also gave a global
+        # candidate, try the global target once.
+        if before == after and season_hint is not None and parsed_global is not None and parsed_global > 0:
+            target_season, target_episode = self.sub_manager.change_episode("set", parsed_global, None)
+
         if target_episode is not None:
             self.settings.episode_var.set(str(target_episode))
             self._after_episode_change() #reset all with new srt data
         else: #change not allowed
-            if self.sub_manager.current_episode is None:
-                self.settings.episode_var.set("Movie")
-            else:
-                self.settings.episode_var.set(str(self.sub_manager.current_episode))
+            _restore_entry()
 
     def _after_episode_change(self):
         if self.sub_manager.current_episode is None:
@@ -441,7 +530,8 @@ class SubtitleController:
 
     def go_forward(self):
         skip = self.settings._last_skip_value
-        if self.current_time <= self.total_duration + float(self.settings.offset_entry.get().replace("s","").replace(" ","").replace(":","")):
+        max_time = self.total_duration + float(self.settings._last_offset_value or 0.0)
+        if self.current_time <= max_time:
             self.set_current_time(self.current_time + skip)
             self._schedule_hide_controls()
 
@@ -609,28 +699,127 @@ class SubtitleController:
 
     def _on_global_click(self, x, y, button, pressed):
         if button == Button.x2 and pressed:
+            self._enqueue_input_action("clear_subtitle")
+
+
+    # ——— Keyboard handlers —————————————————————————————————————
+    def _enqueue_input_action(self, action: str) -> None:
+        if self._shutting_down:
+            return
+        try:
+            self._input_actions.put_nowait(action)
+        except Exception:
+            pass
+
+    def _process_input_queue(self):
+        if self._shutting_down:
+            return
+        try:
+            for _ in range(50):
+                try:
+                    action = self._input_actions.get_nowait()
+                except queue.Empty:
+                    break
+                self._dispatch_input_action(action)
+        finally:
+            try:
+                self._input_pump_job = self.settings.root.after(15, self._process_input_queue)
+            except Exception:
+                self._input_pump_job = None
+
+    def _dispatch_input_action(self, action: str) -> None:
+        if action == "toggle_play":
+            self.toggle_play()
+        elif action == "go_back":
+            self.go_back()
+        elif action == "go_forward":
+            self.go_forward()
+        elif action == "subtitle_back":
+            self.jump_subtitle_segment("prev")
+        elif action == "subtitle_forward":
+            self.jump_subtitle_segment("next")
+        elif action == "alt_x":
+            self.on_alt_x()
+        elif action == "episode_inc":
+            self.change_episode("inc")
+        elif action == "episode_dec":
+            self.change_episode("dec")
+        elif action == "clear_subtitle":
             self.renderer.canvas.delete("all")
             # Keep last_subtitle_text intact so _update_subtitle_display() won't immediately redraw
             # the same subtitle on the next timer tick. It will render again once the subtitle changes.
             self.subtitle_deleted = True
 
+    def jump_subtitle_segment(self, direction: str) -> None:
+        """
+        Jump to subtitle boundaries:
+        - prev: start of current segment (or previous if already at boundary)
+        - next: start of next segment
+        """
+        start_times = [item[1] for item in getattr(self.sub_manager, "display_data", [])]
+        if not start_times:
+            return
 
-    # ——— Keyboard handlers —————————————————————————————————————
+        offset = float(self.settings._last_offset_value or 0.0)
+        sub_t = max(0.0, float(self.current_time) - offset)
+        epsilon = 0.05
+
+        if direction == "prev":
+            target_idx = bisect.bisect_right(start_times, sub_t - epsilon) - 1
+        elif direction == "next":
+            target_idx = bisect.bisect_right(start_times, sub_t + epsilon)
+        else:
+            return
+
+        if target_idx < 0 or target_idx >= len(start_times):
+            return
+        self.set_current_time(float(start_times[target_idx]) + offset)
+        self._schedule_hide_controls()
+
     def _on_key_press(self, key):
+        if key in (Key.shift_l, Key.shift_r):
+            self.shift_pressed = True
+            return
+
         if key in (Key.alt_l, Key.alt_r):
             self.alt_pressed = True
-        elif self.alt_pressed:
-            if hasattr(key, "char") and key.char:
-                if key.char.lower() == "x":
-                    self.on_alt_x()
-                elif key.char.lower() == "c":
-                    self.increment_episode()
-                elif key.char.lower() == "y":
-                    self.decline_episode()
+            return
+
+        if key == Key.space:
+            if not self.space_pressed:
+                self.space_pressed = True
+                self._enqueue_input_action("toggle_play")
+            return
+
+        if key == Key.left:
+            if self.shift_pressed:
+                self._enqueue_input_action("subtitle_back")
+            else:
+                self._enqueue_input_action("go_back")
+            return
+
+        if key == Key.right:
+            if self.shift_pressed:
+                self._enqueue_input_action("subtitle_forward")
+            else:
+                self._enqueue_input_action("go_forward")
+            return
+
+        if self.alt_pressed and hasattr(key, "char") and key.char:
+            if key.char.lower() == "x":
+                self._enqueue_input_action("alt_x")
+            elif key.char.lower() == "c":
+                self._enqueue_input_action("episode_inc")
+            elif key.char.lower() == "y":
+                self._enqueue_input_action("episode_dec")
 
     def _on_key_release(self, key):
+        if key in (Key.shift_l, Key.shift_r):
+            self.shift_pressed = False
         if key in (Key.alt_l, Key.alt_r):
             self.alt_pressed = False
+        if key == Key.space:
+            self.space_pressed = False
 
     def on_alt_x(self, event=None):
         self.settings.control_window.attributes("-topmost", True)
@@ -697,13 +886,38 @@ class SubtitleController:
             self.overlay.hide_handle()
 
     def _on_app_close(self):
+        self._shutting_down = True
+        def _read_settings_geometry():
+            try:
+                geo = self.settings.root.winfo_geometry()
+                size, pos = geo.split("+", 1)
+                w_s, h_s = size.split("x", 1)
+                x_s, y_s = pos.split("+", 1)
+                return int(x_s), int(y_s), int(w_s), int(h_s)
+            except Exception:
+                try:
+                    return (
+                        int(self.settings.root.winfo_x()),
+                        int(self.settings.root.winfo_y()),
+                        int(self.settings.root.winfo_width()),
+                        int(self.settings.root.winfo_height()),
+                    )
+                except Exception:
+                    return None
         # Persist window positions/state before destroying any windows.
         try:
-            x, y = self.settings.root.winfo_x(), self.settings.root.winfo_y()
+            geom = _read_settings_geometry()
+            if geom is None:
+                raise ValueError("Could not read settings geometry")
+            x, y, w, h = geom
             if (x, y) != (self.config.get("LAST_SETTINGS_WINDOW_X"),
                           self.config.get("LAST_SETTINGS_WINDOW_Y")):
                 self.config.set("LAST_SETTINGS_WINDOW_X", x)
                 self.config.set("LAST_SETTINGS_WINDOW_Y", y)
+            if (w, h) != (self.config.get("LAST_SETTINGS_WINDOW_WIDTH"),
+                          self.config.get("LAST_SETTINGS_WINDOW_HEIGHT")):
+                self.config.set("LAST_SETTINGS_WINDOW_WIDTH", w)
+                self.config.set("LAST_SETTINGS_WINDOW_HEIGHT", h)
         except Exception:
             pass
         try:
@@ -719,11 +933,18 @@ class SubtitleController:
         except Exception:
             pass
 
-        for job in ("subtitle_timeout_job", "_con_hide_job"):
+        for job in ("subtitle_timeout_job", "_con_hide_job", "_input_pump_job"):
             handle = getattr(self, job, None)
             if handle is not None:
                 try:
                     self.settings.root.after_cancel(handle)
+                except Exception:
+                    pass
+        for listener_attr in ("_mouse_listener", "_keyboard_listener"):
+            listener = getattr(self, listener_attr, None)
+            if listener is not None:
+                try:
+                    listener.stop()
                 except Exception:
                     pass
         try:

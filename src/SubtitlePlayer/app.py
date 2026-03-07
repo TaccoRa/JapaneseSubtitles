@@ -119,8 +119,7 @@ class SubtitlePlayerApp:
         self.root = tk.Tk()
         self.root.withdraw()
         self.root.title("SubtitlePlayer")
-        self.root.geometry("320x123")
-        self.root.minsize(320, 123)
+        self.root.geometry("280x115")
         self._restore_window_position()
         self.root.protocol("WM_DELETE_WINDOW", self._on_root_close)
 
@@ -140,14 +139,43 @@ class SubtitlePlayerApp:
             title = f"S{s}E{e} {n}"
         self.root.title(title)
 
+    def _get_screen_size(self):
+        sw = int(self.root.winfo_vrootwidth() or 0)
+        sh = int(self.root.winfo_vrootheight() or 0)
+        if sw <= 1 or sh <= 1:
+            sw = int(self.root.winfo_screenwidth() or 1920)
+            sh = int(self.root.winfo_screenheight() or 1080)
+        return sw, sh
+
+    def _read_root_geometry(self):
+        try:
+            geo = self.root.winfo_geometry()
+            size, pos = geo.split("+", 1)
+            w_s, h_s = size.split("x", 1)
+            x_s, y_s = pos.split("+", 1)
+            return int(w_s), int(h_s), int(x_s), int(y_s)
+        except Exception:
+            try:
+                return (
+                    int(self.root.winfo_width()),
+                    int(self.root.winfo_height()),
+                    int(self.root.winfo_x()),
+                    int(self.root.winfo_y()),
+                )
+            except Exception:
+                return None
+
     def _restore_window_position(self):  # gets last saved position of settings window or centers it on the screen if out of bounds
         x = self.config.get("LAST_SETTINGS_WINDOW_X")
         y = self.config.get("LAST_SETTINGS_WINDOW_Y")
-        self.root.update_idletasks()
-        w = self.root.winfo_width() or self.root.winfo_reqwidth()
-        h = self.root.winfo_height() or self.root.winfo_reqheight()
-        sw = self.root.winfo_vrootwidth()
-        sh = self.root.winfo_vrootheight()
+        saved_w = self.config.get("LAST_SETTINGS_WINDOW_WIDTH")
+        saved_h = self.config.get("LAST_SETTINGS_WINDOW_HEIGHT")
+        default_w, default_h = 280, 115
+        w = int(saved_w) if isinstance(saved_w, int) and saved_w > 0 else default_w
+        h = int(saved_h) if isinstance(saved_h, int) and saved_h > 0 else default_h
+        sw, sh = self._get_screen_size()
+        w = max(120, min(int(w), int(sw)))
+        h = max(80, min(int(h), int(sh)))
 
         if not isinstance(x, int) or not isinstance(y, int):
             x = int((sw - w) / 2)
@@ -155,13 +183,20 @@ class SubtitlePlayerApp:
         else:
             x = max(0, min(x, sw - w))
             y = max(0, min(y, sh - h))
-        self.root.geometry(f"+{x}+{y}")
+        self.root.geometry(f"{w}x{h}+{x}+{y}")
 
     def _on_root_close(self):
-        x, y = self.root.winfo_x(), self.root.winfo_y()
+        geom = self._read_root_geometry()
+        if geom is None:
+            x, y, w, h = self.root.winfo_x(), self.root.winfo_y(), self.root.winfo_width(), self.root.winfo_height()
+        else:
+            w, h, x, y = geom
         if (x, y) != (self.config.get("LAST_SETTINGS_WINDOW_X"), self.config.get("LAST_SETTINGS_WINDOW_Y")):
             self.config.set("LAST_SETTINGS_WINDOW_X", x)
             self.config.set("LAST_SETTINGS_WINDOW_Y", y)
+        if (w, h) != (self.config.get("LAST_SETTINGS_WINDOW_WIDTH"), self.config.get("LAST_SETTINGS_WINDOW_HEIGHT")):
+            self.config.set("LAST_SETTINGS_WINDOW_WIDTH", w)
+            self.config.set("LAST_SETTINGS_WINDOW_HEIGHT", h)
 
         # Persist per-window state.
         try:

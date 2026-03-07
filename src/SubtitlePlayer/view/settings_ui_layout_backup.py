@@ -11,7 +11,7 @@ from model.config_manager import ConfigManager
 from utils import make_draggable, format_time
 
 class SettingsUI:
-    NUMBER_PATTERN = r"\s*([-+]?\d+(?:[.,]\d+)?)\s*"
+    OFFSET_PATTERN = r"\s*([-+]?\d+(?:\.\d+)?)\s*s?"
 
     def __init__(
         self,
@@ -65,10 +65,10 @@ class SettingsUI:
 
     def _init_vars(self):
         val = float(self.default_offset)
-        self.offset_var = tk.StringVar(value=self._format_number(val))
-
+        self.offset_var = tk.StringVar(value=f"{int(val) if val.is_integer() else val} s")
+        
         val = float(self.default_skip)
-        self.skip_var = tk.StringVar(value=self._format_number(val))
+        self.skip_var = tk.StringVar(value=f"{int(val) if val.is_integer() else val} s")
 
         self.episode_var = tk.StringVar(value="Movie" if self.initial_episode is None else str(self.initial_episode))
         self.setto_var = tk.StringVar(value="")
@@ -91,8 +91,7 @@ class SettingsUI:
                      "set_to", "open_srt", "show_handle",
                      #Control window:
                      "back", "forward", "play_pause",
-                     "time_entry_return", "time_entry_clear",
-                     "advanced_apply"):
+                     "time_entry_return", "time_entry_clear"):
             setattr(self, f"_on_{name}", self._noop)
 
     # ——— SETTINGS FRAME ————————————————————————————
@@ -107,115 +106,92 @@ class SettingsUI:
         options_frame.grid(row=0, column=0, sticky="news", pady=0, padx=0)
         options_frame.grid_rowconfigure(0, weight=1)
         options_frame.grid_rowconfigure(1, weight=1)
-        for col in range(6):
-            options_frame.grid_columnconfigure(col, weight=1, uniform="settings_row2")
+        options_frame.grid_columnconfigure(0, weight=1)
+        options_frame.grid_columnconfigure(1, weight=1)
+        options_frame.grid_columnconfigure(2, weight=1)
+        options_frame.grid_columnconfigure(3, weight=1)
+       
+        # Row 0
+        # Frame for advanced-settings + phone-mode controls.
+        mode_tools_frame = tk.Frame(options_frame, bg="#f0f0f0")
+        mode_tools_frame.grid(row=0, column=0, padx=(5, 0), pady=5, sticky="w")
 
-        # Row 0: compact search + episode controls with tools on the right.
-        top_row = tk.Frame(options_frame, bg="#f0f0f0")
-        top_row.grid(row=0, column=0, columnspan=6, padx=0, pady=0, sticky="ew")
-        top_row.grid_columnconfigure(0, weight=0)
-        top_row.grid_columnconfigure(1, weight=0)
-        top_row.grid_columnconfigure(2, weight=1)
-        top_row.grid_columnconfigure(3, weight=0)
+        self.advanced_settings_btn = tk.Button(
+            mode_tools_frame, text="⚙", width=2, height=1,
+            relief="raised", command=self._open_advanced_settings_window
+        )
+        self.advanced_settings_btn.pack(side="left", padx=(0, 0))
+
+        self.mode_toggle_btn = tk.Button(
+            mode_tools_frame, text="📞", width=2, height=1,
+            relief="raised", command=self._toggle_phone_mode
+        )
+        self.mode_toggle_btn.pack(side="left")
+
+        # Offset label + entry.
+        offset_frame = tk.Frame(options_frame, bg="#f0f0f0")
+        offset_frame.grid(row=0, column=1, padx=(0, 5), pady=5, sticky="w")
+        tk.Label(offset_frame, text="Offset:", font=("Arial", 12), bg="#f0f0f0").pack(side="left")
+        self.offset_entry = tk.Entry(offset_frame, textvariable=self.offset_var, font=("Arial", 12), width=7)
+        self.offset_entry.pack(side="left", padx=(4, 0))
+        self.offset_entry.bind("<Button-1>", self._clear_entry)
+        self.offset_entry.bind("<FocusOut>", self._on_entry_focus_out)
+        self.offset_entry.bind("<Return>",   self._on_entry_focus_out)
+ 
+        
+        # Skip entry.
+        tk.Label(options_frame, text="Skip:", font=("Arial",12), bg="#f0f0f0")\
+            .grid(row=0, column=2, padx=0, pady=5, sticky="e")
+        self.skip_entry = tk.Entry(options_frame, textvariable=self.skip_var, font=("Arial",12), width=7)
+        self.skip_entry.grid(row=0, column=3, padx=(0,5), pady=5, sticky="ew")
+        self.skip_entry.bind("<Button-1>",   self._clear_entry)
+        self.skip_entry.bind("<FocusOut>",   self._on_entry_focus_out)
+        self.skip_entry.bind("<Return>",     self._on_entry_focus_out) 
+
+        # Row 1
+        # Frame for SRT button and episode
+        srt_episode_frame = tk.Frame(options_frame, bg="#f0f0f0")
+        srt_episode_frame.grid(row=1, column=0, padx=(5,0), pady=(5,0), sticky="we")
 
         self.srt_button = tk.Button(
-            top_row,
-            text="🔍",
-            width=2,
-            height=1,
-            relief="raised",
-            command=lambda: self._on_open_srt(),
-        )
-        self.srt_button.grid(row=0, column=0, padx=(5, 2), pady=(5, 2), sticky="w")
-
-        tk.Label(top_row, text="Episode", font=("Arial", 12), bg="#f0f0f0").grid(
-            row=0, column=1, padx=(0, 2), pady=(5, 2), sticky="w"
-        )
-
-        episode_frame = tk.Frame(top_row, bg="#f0f0f0")
-        episode_frame.grid(row=0, column=2, padx=(0, 2), pady=(5, 2), sticky="ew")
+            srt_episode_frame, text="SRT", width=2, height=1,
+            relief="raised", command=lambda: self._on_open_srt())
+        self.srt_button.pack(side="left", padx=(0,5))
+        tk.Label(srt_episode_frame, text="Episode:",font=("Arial", 12), bg="#f0f0f0")\
+            .pack(side="right")
+        
+        # Frame for Episode entry and plus/minus buttons
+        episode_frame = tk.Frame(options_frame, bg="#f0f0f0")
+        episode_frame.grid(row=1, column=1, padx=(0,5), pady=(5,0), sticky="ew")
         episode_frame.grid_columnconfigure(0, weight=1)
-        episode_frame.grid_columnconfigure((1, 2), weight=0)
+        episode_frame.grid_columnconfigure((1,2), weight=0)
 
-        self.episode_entry = ttk.Combobox(
-            episode_frame,
-            textvariable=self.episode_var,
-            font=("Arial", 12),
-            width=4,
-        )
+        # Episode entry
+        # Use a Combobox so we can provide a dropdown list of available episodes,
+        # while still allowing free typing like a normal entry.
+        self.episode_entry = ttk.Combobox(episode_frame, textvariable=self.episode_var, font=("Arial", 12), width=7)
         self.episode_entry.grid(row=0, column=0, sticky="ew")
         self.episode_entry.bind("<Return>", lambda e: (self._on_ep_entry_change(), self.root.focus()))
         self.episode_entry.bind("<<ComboboxSelected>>", lambda e: (self._on_ep_entry_change(), self.root.focus()))
+        # Clear-on-click like the offset/skip entries: makes it quick to type a new episode.
+        # If the user clicks the dropdown arrow, do not clear (they want the list).
         self.episode_entry.bind("<Button-1>", self._on_episode_entry_click, add="+")
+        # If they click away without typing anything, restore the previous value without changing episodes.
         self.episode_entry.bind("<FocusOut>", self._on_episode_entry_focus_out, add="+")
-
-        self.episode_dec_btn = tk.Button(
-            episode_frame,
-            text="-",
-            font=("Arial", 8, "bold"),
-            width=1,
-            height=1,
-            command=lambda: self._on_ep_dec(),
-        )
+        
+        self.episode_dec_btn = tk.Button(episode_frame, text="-", font=("Arial", 8, "bold"), width=1, height=1,
+                                         command=lambda: self._on_ep_dec())
         self.episode_dec_btn.grid(row=0, column=1, sticky="e")
-        self.episode_inc_btn = tk.Button(
-            episode_frame,
-            text="+",
-            font=("Arial", 8, "bold"),
-            width=1,
-            height=1,
-            command=lambda: self._on_ep_inc(),
-        )
+        self.episode_inc_btn = tk.Button(episode_frame, text="+", font=("Arial", 8, "bold"), width=1, height=1,
+                                         command=lambda: self._on_ep_inc())
         self.episode_inc_btn.grid(row=0, column=2, sticky="e")
 
-        mode_tools_frame = tk.Frame(top_row, bg="#f0f0f0")
-        mode_tools_frame.grid(row=0, column=3, padx=(2, 5), pady=(5, 2), sticky="e")
-
-        self.mode_toggle_btn = tk.Button(
-            mode_tools_frame,
-            text="📞",
-            width=2,
-            height=1,
-            relief="raised",
-            command=self._toggle_phone_mode,
-        )
-        self.mode_toggle_btn.pack(side="left", padx=(0, 2))
-
-        self.advanced_settings_btn = tk.Button(
-            mode_tools_frame,
-            text="⚙",
-            width=2,
-            height=1,
-            relief="raised",
-            command=self._open_advanced_settings_window,
-        )
-        self.advanced_settings_btn.pack(side="left")
-
-        # Row 1: six equal parts (label/value pairs).
-        setto_pair = tk.Frame(options_frame, bg="#f0f0f0")
-        setto_pair.grid(row=1, column=0, columnspan=2, padx=(5, 2), pady=(2, 5), sticky="w")
-        tk.Label(setto_pair, text="Set to", font=("Arial", 12), bg="#f0f0f0").pack(side="left", padx=(0, 2))
-        self.setto_entry = tk.Entry(setto_pair, textvariable=self.setto_var, font=("Arial", 12), width=4)
-        self.setto_entry.pack(side="left")
+        # Set to
+        tk.Label(options_frame, text="Set to:", font=("Arial", 12), bg="#f0f0f0")\
+            .grid(row=1, column=2, padx=0, pady=(5,0), sticky="e") ##################
+        self.setto_entry = tk.Entry(options_frame,textvariable=self.setto_var, font=("Arial", 12), width=7)
+        self.setto_entry.grid(row=1, column=3, padx=(0,5), pady=(5,0), sticky="we")
         self.setto_entry.bind("<Return>", lambda e: self._on_set_to_return(self.setto_var.get()))
-
-        offset_pair = tk.Frame(options_frame, bg="#f0f0f0")
-        offset_pair.grid(row=1, column=2, columnspan=2, padx=(2, 2), pady=(2, 5), sticky="w")
-        tk.Label(offset_pair, text="Offset", font=("Arial", 12), bg="#f0f0f0").pack(side="left", padx=(0, 2))
-        self.offset_entry = tk.Entry(offset_pair, textvariable=self.offset_var, font=("Arial", 12), width=4)
-        self.offset_entry.pack(side="left")
-        self.offset_entry.bind("<Button-1>", self._clear_entry)
-        self.offset_entry.bind("<FocusOut>", self._on_entry_focus_out)
-        self.offset_entry.bind("<Return>", self._on_entry_focus_out)
-
-        skip_pair = tk.Frame(options_frame, bg="#f0f0f0")
-        skip_pair.grid(row=1, column=4, columnspan=2, padx=(2, 5), pady=(2, 5), sticky="w")
-        tk.Label(skip_pair, text="Skip", font=("Arial", 12), bg="#f0f0f0").pack(side="left", padx=(0, 2))
-        self.skip_entry = tk.Entry(skip_pair, textvariable=self.skip_var, font=("Arial", 12), width=4)
-        self.skip_entry.pack(side="left")
-        self.skip_entry.bind("<Button-1>", self._clear_entry)
-        self.skip_entry.bind("<FocusOut>", self._on_entry_focus_out)
-        self.skip_entry.bind("<Return>", self._on_entry_focus_out)
 
         self.slider_frame = tk.Frame(self.settings_frame)
         self.slider_frame.grid(row=1, column=0, sticky="ew", padx=(0,0), pady=(0,0))
@@ -437,7 +413,6 @@ class SettingsUI:
     def bind_refresh_subtitles(self, cb):    self.on_refresh_subtitles = cb
 
     def bind_update_display(self, cb):       self.update_time_and_subtitle_displays = cb
-    def bind_advanced_apply(self, cb):       self._on_advanced_apply = cb
 
     def update_time_overlay_position(self):
         self.root.update_idletasks()
@@ -525,7 +500,6 @@ class SettingsUI:
             self.advanced_window.deiconify()
             self.advanced_window.lift()
             self.advanced_window.attributes("-topmost", True)
-            self._load_advanced_values_into_vars()
             return
 
         win = tk.Toplevel(self.root)
@@ -538,7 +512,7 @@ class SettingsUI:
             self.root.update_idletasks()
             rw, rh = self.root.winfo_width(), self.root.winfo_height()
             rx, ry = self.root.winfo_rootx(), self.root.winfo_rooty()
-            w, h = 620, 430
+            w, h = 520, 340
             x = rx + max((rw - w) // 2, 0)
             y = ry + max((rh - h) // 2, 0)
             win.geometry(f"{w}x{h}+{x}+{y}")
@@ -550,257 +524,73 @@ class SettingsUI:
 
         tk.Label(
             body,
-            text="Tune runtime behavior and download/search strategy.",
+            text="Advanced settings (planned) - runtime controls and power-user options.",
             font=("Arial", 11, "bold"),
             anchor="w",
             justify="left",
-        ).pack(fill="x", pady=(0, 8))
+        ).pack(fill="x", pady=(0, 10))
 
-        self._advanced_vars = {}
-        self._advanced_meta = {}
-        self._advanced_status_var = tk.StringVar(value="")
-
-        for section_name, specs in self._advanced_specs():
-            section = tk.LabelFrame(body, text=section_name, padx=10, pady=8)
-            section.pack(fill="x", pady=(0, 10))
-            section.grid_columnconfigure(1, weight=1)
-
-            row = 0
-            for spec in specs:
-                key = spec["key"]
-                self._advanced_meta[key] = spec
-                if spec["type"] == "bool":
-                    var = tk.BooleanVar(value=False)
-                    self._advanced_vars[key] = var
-                    chk = tk.Checkbutton(section, text=spec["label"], variable=var, anchor="w")
-                    chk.grid(row=row, column=0, columnspan=2, sticky="w", pady=2)
-                else:
-                    var = tk.StringVar(value="")
-                    self._advanced_vars[key] = var
-                    tk.Label(section, text=spec["label"]).grid(row=row, column=0, sticky="w", pady=2)
-                    entry = tk.Entry(section, textvariable=var, width=10, justify="right")
-                    entry.grid(row=row, column=1, sticky="w", padx=(8, 0), pady=2)
-                row += 1
-
-        self._load_advanced_values_into_vars()
-
-        status_row = tk.Frame(body)
-        status_row.pack(fill="x", pady=(0, 6))
-        tk.Label(
-            status_row,
-            textvariable=self._advanced_status_var,
-            fg="#1a4d1a",
-            anchor="w",
-            justify="left",
-        ).pack(fill="x")
+        items = [
+            "Global hotkeys and shortcut behavior",
+            "Skip behavior (seconds vs subtitle-segment actions)",
+            "Popup behavior (timers, pinning, glossary preview settings)",
+            "Remote search behavior and source-path preferences",
+            "Subtitle rendering profile (outline/shadow/wrapping)",
+            "Anki integration and translation provider toggles",
+            "Performance/debug options (update intervals, logging)",
+        ]
+        for item in items:
+            tk.Label(body, text=f"- {item}", anchor="w", justify="left").pack(fill="x", pady=1)
 
         btn_row = tk.Frame(body)
-        btn_row.pack(fill="x", pady=(4, 0))
-        tk.Button(
-            btn_row,
-            text="Apply Now",
-            width=12,
-            command=lambda: self._apply_advanced_settings(persist=False),
-        ).pack(side="left")
-        tk.Button(
-            btn_row,
-            text="Save Default",
-            width=12,
-            command=lambda: self._apply_advanced_settings(persist=True),
-        ).pack(side="left", padx=(6, 0))
-        tk.Button(
-            btn_row,
-            text="Reload",
-            width=10,
-            command=self._load_advanced_values_into_vars,
-        ).pack(side="left", padx=(6, 0))
-        tk.Button(btn_row, text="Close", width=10, command=win.destroy).pack(side="right")
+        btn_row.pack(fill="x", pady=(12, 0))
+        tk.Button(btn_row, text="Close", width=12, command=win.destroy).pack(side="right")
 
         def _on_destroy(_event):
             self.advanced_window = None
 
         win.bind("<Destroy>", _on_destroy)
-
-    def _advanced_specs(self):
-        return [
-            (
-                "Playback / Overlay",
-                [
-                    {"key": "UPDATE_INTERVAL_MS", "label": "Update interval (ms)", "type": "int", "default": 100, "min": 15, "max": 5000},
-                    {"key": "SUBTITLE_TIMEOUT_MS", "label": "Subtitle timeout (ms)", "type": "int", "default": 7000, "min": 100, "max": 120000},
-                    {"key": "POPUP_CLOSE_TIMER", "label": "Popup close delay (ms)", "type": "int", "default": 1000, "min": 100, "max": 60000},
-                    {"key": "WINDOWS_HIDE_DELAY_MS", "label": "Control hide delay desktop (ms)", "type": "int", "default": 7000, "min": 100, "max": 120000},
-                    {"key": "PHONEMODE_WINDOWS_HIDE_DELAY_MS", "label": "Control hide delay phone (ms)", "type": "int", "default": 6000, "min": 100, "max": 120000},
-                    {"key": "VIDEO_CLICK", "label": "Auto-click video after control actions", "type": "bool", "default": False},
-                ],
-            ),
-            (
-                "Download / Search",
-                [
-                    {"key": "DOWNLOAD_WINDOW", "label": "Prefetch window (episodes)", "type": "int", "default": 5, "min": 1, "max": 50},
-                    {"key": "DOWNLOAD_MAX_WORKERS", "label": "Max parallel downloads", "type": "int", "default": 2, "min": 1, "max": 10},
-                    {"key": "DOWNLOAD_PREFETCH_DELAY_MS", "label": "Prefetch delay (ms)", "type": "int", "default": 1000, "min": 0, "max": 600000},
-                    {"key": "DOWNLOAD_THROTTLE_MS", "label": "Download throttle (ms)", "type": "int", "default": 0, "min": 0, "max": 60000},
-                    {"key": "SEASON_PROVIDER_EARLY_STOP_ENABLED", "label": "Provider early-stop enabled", "type": "bool", "default": False},
-                    {"key": "SEASON_PROVIDER_EARLY_STOP_MIN_FOUND_SEASONS", "label": "Early-stop min found seasons", "type": "int", "default": 1, "min": 1, "max": 20},
-                ],
-            ),
-        ]
-
-    def _coerce_bool(self, value) -> bool:
-        if isinstance(value, bool):
-            return value
-        if value is None:
-            return False
-        text = str(value).strip().lower()
-        return text in ("1", "true", "yes", "on")
-
-    def _load_advanced_values_into_vars(self):
-        if not hasattr(self, "_advanced_vars"):
-            return
-        for _, specs in self._advanced_specs():
-            for spec in specs:
-                key = spec["key"]
-                if key not in self._advanced_vars:
-                    continue
-                cfg_val = self.config.get(key)
-                if cfg_val is None:
-                    cfg_val = spec.get("default")
-                var = self._advanced_vars[key]
-                if spec["type"] == "bool":
-                    var.set(self._coerce_bool(cfg_val))
-                else:
-                    try:
-                        val = int(float(str(cfg_val)))
-                    except Exception:
-                        val = int(spec.get("default", 0))
-                    var.set(str(val))
-        if hasattr(self, "_advanced_status_var"):
-            self._advanced_status_var.set("Loaded values from config.")
-
-    def _collect_advanced_values(self):
-        if not hasattr(self, "_advanced_vars") or not hasattr(self, "_advanced_meta"):
-            return None
-        values = {}
-        errors = []
-        for key, spec in self._advanced_meta.items():
-            var = self._advanced_vars.get(key)
-            if var is None:
-                continue
-            if spec["type"] == "bool":
-                values[key] = bool(var.get())
-                continue
-            raw = str(var.get()).strip().replace(",", ".")
-            try:
-                num = int(float(raw))
-            except Exception:
-                errors.append(spec["label"])
-                continue
-            min_v = spec.get("min")
-            max_v = spec.get("max")
-            if min_v is not None and num < int(min_v):
-                num = int(min_v)
-            if max_v is not None and num > int(max_v):
-                num = int(max_v)
-            values[key] = num
-            var.set(str(num))
-        if errors:
-            return {"errors": errors}
-        return {"values": values}
-
-    def _apply_advanced_settings(self, persist: bool):
-        result = self._collect_advanced_values()
-        if not result:
-            return
-        if "errors" in result:
-            if hasattr(self, "_advanced_status_var"):
-                self._advanced_status_var.set("Invalid values: " + ", ".join(result["errors"]))
-            try:
-                self.root.bell()
-            except Exception:
-                pass
-            return
-
-        values = result["values"]
-        try:
-            self._on_advanced_apply(dict(values), bool(persist))
-        except Exception:
-            pass
-
-        if persist:
-            for key, value in values.items():
-                try:
-                    self.config.set(key, value)
-                except Exception:
-                    pass
-            if hasattr(self, "_advanced_status_var"):
-                self._advanced_status_var.set("Saved to config and applied.")
-        else:
-            if hasattr(self, "_advanced_status_var"):
-                self._advanced_status_var.set("Applied for current session.")
         
-    def _format_number(self, value: float) -> str:
-        value = float(value)
-        if value.is_integer():
-            return str(int(value))
-        text = f"{value:.6f}".rstrip("0").rstrip(".")
-        return text if text else "0"
-
-    def _parse_number(self, text: str):
-        match = fullmatch(self.NUMBER_PATTERN, (text or "").strip())
-        if not match:
-            return None
-        try:
-            return float(match.group(1).replace(",", "."))
-        except Exception:
-            return None
-
-    def _set_entry_value(self, entry, value: float):
-        entry.delete(0, tk.END)
-        entry.insert(0, self._format_number(value))
-
-    def _apply_offset_change(self, value_seconds: float, persist: bool):
-        self.slider.config(to=self.total_duration + value_seconds)
-        self.update_time_and_subtitle_displays()
-        self._on_slider_release(None)
-        if persist:
-            try:
-                self.config.set("EXTRA_OFFSET", value_seconds)
-            except Exception:
-                pass
-
+    def _format_offset(self, value: float) -> str:
+        return f"{int(value) if value.is_integer() else value} s"
+    
     def _get_last_value(self, entry):
-        if entry is self.offset_entry:
-            return "_last_offset_value", self._last_offset_value
-        if entry is self.skip_entry:
-            return "_last_skip_value", self._last_skip_value
-        return None, None
+        if entry is self.offset_entry: return "_last_offset_value", self._last_offset_value
+        elif entry is self.skip_entry: return "_last_skip_value", self._last_skip_value
 
     def _clear_entry(self, event):
         entry = event.widget
         attr, _ = self._get_last_value(entry)
-        if not attr:
-            return
-        parsed = self._parse_number(entry.get().replace(",", "."))
-        if parsed is not None:
-            setattr(self, attr, parsed)
+        match = fullmatch(self.OFFSET_PATTERN, entry.get().replace(",", ".").strip())
+        if match:
+            setattr(self, attr, float(match.group(1)))
         entry.delete(0, tk.END)
 
     def _on_entry_focus_out(self, event):
         entry = event.widget
         attr, last_val = self._get_last_value(entry)
-        if not attr:
-            return
         text = entry.get().replace(",", ".").strip()
-        parsed = self._parse_number(text)
-        if parsed is None:
-            self._set_entry_value(entry, last_val)
-        else:
-            value = parsed
-            setattr(self, attr, value)
-            self._set_entry_value(entry, value)
-            if entry is self.offset_entry:
-                self._apply_offset_change(value, persist=True)
+        formatted = self._format_offset(last_val)
+
+        if text != formatted:
+            match = fullmatch(self.OFFSET_PATTERN, text)
+            if match:
+                number = float(match.group(1))
+                setattr(self, attr, number)
+                entry.delete(0, tk.END)
+                entry.insert(0, self._format_offset(number))
+                if entry is self.offset_entry:
+                    self.slider.config(to=self.total_duration + number)
+                    self.update_time_and_subtitle_displays()
+                    self._on_slider_release(None)
+                    # Persist last used offset so next startup uses it.
+                    try:
+                        self.config.set("EXTRA_OFFSET", number)
+                    except Exception:
+                        pass
+            else:
+                entry.delete(0, tk.END)
+                entry.insert(0, formatted)
         entry.master.focus_set()
 
     def set_total_duration(self, total_duration: float):
