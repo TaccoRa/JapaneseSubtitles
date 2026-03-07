@@ -902,7 +902,7 @@ class SubtitleManager:
             popup.title("Choose Source")
             popup.attributes("-topmost", True)
             popup.grab_set()
-            w, h = 420, 140
+            w, h = 420, 100
             popup.update_idletasks()
             sw, sh = popup.winfo_screenwidth(), popup.winfo_screenheight()
             x, y = (sw - w) // 2, (sh - h) // 2
@@ -1035,6 +1035,107 @@ class SubtitleManager:
         finally:
             show_startup_overlay()
 
+    def _cached_github_search_dir(self) -> str:
+        return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "github_search")
+
+    def _list_cached_github_search_queries(self) -> List[str]:
+        folder_dir = self._cached_github_search_dir()
+        if not os.path.isdir(folder_dir):
+            return []
+
+        prefix = "github_search_"
+        suffix = ".json"
+        queries: List[str] = []
+        for fn in os.listdir(folder_dir):
+            if not (fn.startswith(prefix) and fn.endswith(suffix)):
+                continue
+            safe_name = fn[len(prefix):-len(suffix)]
+            if not safe_name:
+                continue
+            queries.append(safe_name.replace("_", " "))
+        return sorted(set(queries), key=str.casefold)
+
+    def _ask_cached_github_search_query(self, parent) -> Optional[str]:
+        queries = self._list_cached_github_search_queries()
+        if not queries:
+            try:
+                parent.bell()
+            except Exception:
+                pass
+            return None
+
+        chosen = {"query": None}
+        chooser = tk.Toplevel(parent)
+        chooser.title("Choose cached search")
+        chooser.attributes("-topmost", True)
+        chooser.transient(parent)
+        chooser.grab_set()
+        chooser.resizable(False, False)
+
+        tk.Label(chooser, text="Select a cached anime query:", anchor="w").pack(padx=8, pady=(8, 4), fill="x")
+
+        list_frame = tk.Frame(chooser)
+        list_frame.pack(padx=8, pady=(0, 8), fill="both", expand=True)
+        scrollbar = tk.Scrollbar(list_frame, orient="vertical")
+        listbox = tk.Listbox(
+            list_frame,
+            width=56,
+            height=min(12, len(queries)),
+            yscrollcommand=scrollbar.set,
+            exportselection=False,
+        )
+        scrollbar.config(command=listbox.yview)
+        listbox.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        for q in queries:
+            listbox.insert(tk.END, q)
+        if queries:
+            listbox.selection_set(0)
+            listbox.activate(0)
+            listbox.focus_set()
+
+        btn_frame = tk.Frame(chooser)
+        btn_frame.pack(pady=(0, 8))
+
+        def on_ok(event=None):
+            selection = listbox.curselection()
+            if not selection:
+                try:
+                    chooser.bell()
+                except Exception:
+                    pass
+                return "break"
+            chosen["query"] = (listbox.get(selection[0]) or "").strip() or None
+            chooser.destroy()
+            return "break"
+
+        def on_cancel(event=None):
+            chooser.destroy()
+            return "break"
+
+        tk.Button(btn_frame, text="Use Selected", width=12, command=on_ok).pack(side="left", padx=6)
+        tk.Button(btn_frame, text="Cancel", width=10, command=on_cancel).pack(side="left", padx=6)
+
+        listbox.bind("<Double-Button-1>", on_ok)
+        listbox.bind("<Return>", on_ok)
+        listbox.bind("<KP_Enter>", on_ok)
+        chooser.bind("<Escape>", on_cancel)
+
+        try:
+            chooser.update_idletasks()
+            pw, ph = parent.winfo_width(), parent.winfo_height()
+            px, py = parent.winfo_rootx(), parent.winfo_rooty()
+            w, h = chooser.winfo_reqwidth(), chooser.winfo_reqheight()
+            x = px + max((pw - w) // 2, 0)
+            y = py + max((ph - h) // 2, 0)
+            chooser.geometry(f"+{x}+{y}")
+        except Exception:
+            pass
+
+        chooser.wait_window(chooser)
+        return chosen["query"]
+
     def ask_remote_search_query(self) -> Tuple[Optional[str], Optional[int], Optional[int]]:
         """
         Ask the user for a GitHub search query (anime name) and an optional episode hint.
@@ -1049,7 +1150,7 @@ class SubtitleManager:
         hide_startup_overlay()
         try:
             dlg = tk.Toplevel()
-            dlg.title("Remote subtitle (Search)")
+            dlg.title("Remote Subtitle Search")
             dlg.attributes("-topmost", True)
             dlg.grab_set()
             dlg.resizable(False, False)
@@ -1059,12 +1160,26 @@ class SubtitleManager:
             x = (sw - w) // 2
             y = (sh - h) // 2
             dlg.geometry(f"+{x}+{y}")
+            dlg.grid_columnconfigure(0, weight=1)
 
             tk.Label(dlg, text="Anime search query (folder name / season 1 base):", anchor="w").grid(
                 row=0, column=0, sticky="w", padx=8, pady=(8, 2)
             )
-            query_entry = tk.Entry(dlg, width=50)
-            query_entry.grid(row=1, column=0, padx=8)
+            query_row = tk.Frame(dlg)
+            query_row.grid(row=1, column=0, sticky="ew", padx=8)
+            query_row.grid_columnconfigure(0, weight=1)
+            query_entry = tk.Entry(query_row, width=25)
+            query_entry.grid(row=0, column=0, sticky="ew", padx=(0, 4))
+
+            def choose_cached():
+                cached_query = self._ask_cached_github_search_query(dlg)
+                if not cached_query:
+                    return
+                query_entry.delete(0, tk.END)
+                query_entry.insert(0, cached_query)
+                query_entry.icursor(tk.END)
+
+            tk.Button(query_row, text="Use Saved...", width=12, command=choose_cached).grid(row=0, column=1)
             try:
                 dlg.after(0, lambda: query_entry.focus_set())
             except Exception:
@@ -1077,7 +1192,7 @@ class SubtitleManager:
                 row=2, column=0, sticky="w", padx=8, pady=(8, 2)
             )
             hint_entry = tk.Entry(dlg, width=30)
-            hint_entry.grid(row=3, column=0, padx=8)
+            hint_entry.grid(row=3, column=0, sticky="w", padx=8)
 
             btn_frame = tk.Frame(dlg)
             btn_frame.grid(row=4, column=0, pady=10)
@@ -1100,6 +1215,17 @@ class SubtitleManager:
 
             tk.Button(btn_frame, text="OK", width=10, command=on_ok).pack(side="left", padx=6)
             tk.Button(btn_frame, text="Cancel", width=10, command=on_cancel).pack(side="left", padx=6)
+
+            def on_enter(event=None):
+                on_ok()
+                return "break"
+
+            query_entry.bind("<Return>", on_enter)
+            query_entry.bind("<KP_Enter>", on_enter)
+            hint_entry.bind("<Return>", on_enter)
+            hint_entry.bind("<KP_Enter>", on_enter)
+            dlg.bind("<Return>", on_enter)
+            dlg.bind("<KP_Enter>", on_enter)
 
             dlg.wait_window(dlg)
             return result["query"], result["season"], result["episode"]
