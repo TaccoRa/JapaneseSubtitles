@@ -133,9 +133,6 @@ class SubtitleController:
         return "break"
 
     def _add_selection_to_anki(self, selected_text: str, subtitle_text: str = "") -> None:
-        if not self.anki.is_enabled():
-            print("Anki integration disabled. Set ANKI_ENABLED=true in config.json.")
-            return
         if not self.anki.ping():
             print("AnkiConnect not reachable. Start Anki + AnkiConnect and try again.")
             return
@@ -148,11 +145,32 @@ class SubtitleController:
                 subtitle_text=subtitle_text,
             )
             elapsed = time.perf_counter() - started
-            print(f"Anki note created in {elapsed:.2f}s: {result}")
+            print(f"Anki note created in {elapsed:.2f}s")
+            candidates = result.get("translation_candidates") or {}
+            word_cands = candidates.get("word") or {}
+            sentence_cands = candidates.get("sentence") or {}
+            print(f"Note ID: {result.get('note_id', '')}")
+            print(f"Marked Word: {(selected_text or '').strip()}")
+            print(f"Word DeepL: {self._format_translation_csv(word_cands.get('deepl', ''))}")
+            print(f"Word Jisho: {self._format_translation_csv(word_cands.get('jisho', ''))}")
+            print(f"Sentence DeepL: {self._format_translation_csv(sentence_cands.get('deepl', ''))}")
+            print(f"Sentence Google: {self._format_translation_csv(sentence_cands.get('google', ''))}")
+            print("")
         except Exception as e:
             print(f"Anki add failed: {e}")
         finally:
             self._set_busy_cursor(False)
+
+    def _format_translation_csv(self, value: str) -> str:
+        text = (value or "").replace("\n", " ").replace("\r", " ").strip()
+        text = " ".join(text.split())
+        if not text:
+            return "<empty>"
+        text = text.replace(";", ",").replace("|", ",")
+        parts = [part.strip() for part in text.split(",") if part.strip()]
+        if not parts:
+            return text
+        return ", ".join(parts)
 
     def _set_busy_cursor(self, busy: bool) -> None:
         cursor = self.anki_busy_cursor if busy else ""

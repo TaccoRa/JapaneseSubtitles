@@ -82,12 +82,19 @@ class SubtitleManager:
     def save_state(self):
         #save all the variables to config on close:
         #LAST_LOCAL_SRT_FILE, LAST_ANIME_NAME, LAST_GITHUB_URL, 
-        if self.srt_file != self.config.get("LAST_LOCAL_SRT_FILE"):
+        if getattr(self, "remote_flag", False):
+            try:
+                self._sync_remote_url_to_current_episode()
+            except Exception:
+                logger.exception("Failed to sync remote URL to current episode before save_state")
+
+        if getattr(self, "srt_file", None) != self.config.get("LAST_LOCAL_SRT_FILE"):
             self.config.set("LAST_LOCAL_SRT_FILE", self.srt_file)
-        if self.anime_folder_name != self.config.get("LAST_ANIME_NAME"):
+        if getattr(self, "anime_folder_name", None) != self.config.get("LAST_ANIME_NAME"):
             self.config.set("LAST_ANIME_NAME", self.anime_folder_name)
-        if self.remote_url != self.config.get("LAST_GITHUB_URL"):
-            self.config.set("LAST_GITHUB_URL", self.remote_url)
+        remote_url = getattr(self, "remote_url", None)
+        if remote_url and remote_url != self.config.get("LAST_GITHUB_URL"):
+            self.config.set("LAST_GITHUB_URL", remote_url)
             
 #region --------------------------------local handling-----------------------------------
     def _load_local_and_process(self, local_srt_path: str) -> bool:
@@ -355,10 +362,75 @@ class SubtitleManager:
             elif rec.get("global") is not None and self.current_episode is None:
                 self.current_episode = int(rec.get("global"))
             self.srt_file = rec["path"]
+            if getattr(self, "remote_flag", False):
+                try:
+                    self._sync_remote_url_to_current_episode(rec)
+                except Exception:
+                    logger.exception("Failed to sync remote URL after loading local record")
             return True
         except Exception:
             logger.exception("Failed to load local subtitle: %s", rec.get("path"))
             return False
+
+    def _sync_remote_url_to_current_episode(self, rec: Optional[Dict] = None) -> None:
+        """
+        Keep remote_url/remote_path aligned with the currently loaded episode.
+        This allows startup to resume the same episode via LAST_GITHUB_URL even when cache is cleared on exit.
+        """
+        if not getattr(self, "remote_flag", False):
+            return
+
+        owner = getattr(self, "github_owner", None)
+        repo = getattr(self, "github_repo", None)
+        ref = getattr(self, "github_ref", None)
+        if not (owner and repo and ref):
+            return
+
+        item = None
+        remote_map = getattr(self, "remote_episode_map_global", None) or {}
+
+        g = None
+        if isinstance(rec, dict):
+            try:
+                if rec.get("global") is not None:
+                    g = int(rec.get("global"))
+            except Exception:
+                g = None
+        if g is None:
+            try:
+                g = self.get_current_global()
+            except Exception:
+                g = None
+        if g is not None:
+            item = remote_map.get(int(g))
+
+        if item is None:
+            s = None
+            e = None
+            if isinstance(rec, dict):
+                s = rec.get("season")
+                e = rec.get("episode")
+            if s is None:
+                s = getattr(self, "current_season", None)
+            if e is None:
+                e = getattr(self, "current_episode", None)
+            season_map = getattr(self, "remote_episode_map_season", None) or {}
+            if s is not None and e is not None:
+                for it in season_map.get(int(s), []):
+                    if it.get("episode") == int(e):
+                        item = it
+                        break
+
+        remote_path = None
+        if item and item.get("path"):
+            remote_path = item.get("path")
+        elif getattr(self, "remote_path", None):
+            remote_path = self.remote_path
+        if not remote_path:
+            return
+
+        self.remote_path = remote_path
+        self.remote_url = f"https://github.com/{owner}/{repo}/blob/{ref}/{remote_path}"
 
     def change_episode(self, action: str, raw: Optional[int] = None) -> Tuple[Optional[int], Optional[int]]:
         if self.remote_flag:

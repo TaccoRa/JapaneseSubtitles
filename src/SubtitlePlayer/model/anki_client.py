@@ -4,13 +4,10 @@ AnkiConnect client used to create notes from popup selections.
 
 from __future__ import annotations
 
-from html import escape
-import lzma
 import os
 import re
-import tarfile
+from html import escape
 from typing import Dict, List, Optional
-import xml.etree.ElementTree as ET
 
 import requests
 
@@ -21,6 +18,10 @@ except Exception:
 
 
 class AnkiClient:
+    DEFAULT_JISHO_URL = "https://jisho.org/api/v1/search/words"
+    DEFAULT_GOOGLE_TRANSLATE_URL = "https://translate.googleapis.com/translate_a/single"
+    DEFAULT_DEEPL_URL = "https://api-free.deepl.com/v2/translate"
+
     def __init__(self, config) -> None:
         self.config = config
         self.url = (self.config.get("ANKI_CONNECT_URL") or "http://127.0.0.1:8765").strip()
@@ -28,8 +29,13 @@ class AnkiClient:
 
         self._model_fields_cache: Optional[set[str]] = None
         self._word_translation_cache: Dict[str, str] = {}
+        self._word_definition_cache: Dict[str, str] = {}
         self._sentence_translation_cache: Dict[str, str] = {}
-        self._wadoku_index: Optional[Dict[str, List[str]]] = None
+        self._jisho_entries_cache: Dict[str, List[Dict]] = {}
+
+        # when using Jisho we keep the full english definition list here so the
+        # note builder can put the full string into the "Definition" field
+        self._last_jisho_full_definition: str = ""
 
         self._tagger = None
         if Tagger is not None:
@@ -38,56 +44,50 @@ class AnkiClient:
             except Exception:
                 self._tagger = None
 
-        # Root deck + per-card target decks.
+        # Deck/model defaults are hardcoded; config can still override if needed.
         self.deck_name = (self.config.get("ANKI_DECK") or "Japanese").strip()
         self.reading_deck = (self.config.get("ANKI_READING_DECK") or f"{self.deck_name}::Reading").strip()
         self.reverse_deck = (self.config.get("ANKI_REVERSE_DECK") or f"{self.deck_name}::DE -> JA").strip()
-
-        # Note type + field names.
         self.model_name = (
             self.config.get("ANKI_MODEL") or "Standard (und umgekehrte Karte) Japanese"
         ).strip()
-        self.front_field = (self.config.get("ANKI_FIELD_FRONT") or "Front").strip()
-        self.back_field = (self.config.get("ANKI_FIELD_BACK") or "Back").strip()
 
-        self.default_back = self.config.get("ANKI_DEFAULT_BACK") or ""
-        self.translate_word_enabled = bool(
-            self.config.get("ANKI_AUTO_TRANSLATE_WORD")
-            if self.config.get("ANKI_AUTO_TRANSLATE_WORD") is not None
-            else True
-        )
-        self.translate_sentence_enabled = bool(
-            self.config.get("ANKI_AUTO_TRANSLATE_SENTENCE")
-            if self.config.get("ANKI_AUTO_TRANSLATE_SENTENCE") is not None
-            else True
-        )
-        self.wadoku_enabled = bool(self.config.get("ANKI_WADOKU_ENABLED"))
-        self.wadoku_path = (self.config.get("ANKI_WADOKU_PATH") or "").strip()
-        self.word_target_lang = (self.config.get("ANKI_WORD_TARGET_LANG") or "de").strip()
+        # Keep these stable in code so config stays minimal.
+        self.add_rubies_to_front_field = "AddRubiesToFront"
+        self.front_field = "Front"
+        self.back_field = "Back"
+        self.sentence_ja_field = "SentenceJA"
+        self.sentence_de_field = "SentenceDE"
+        self.sound_field = "Sound"
+        self.image_field = "Image"
+        self.add_rubies_to_sentence_ja_field = "AddRubiesToSentenceJA"
+        self.definition_field = "Definition"
+
         self.sentence_target_lang = (self.config.get("ANKI_SENTENCE_TARGET_LANG") or "de").strip()
-        self.word_translate_provider = self._normalize_translation_provider(
-            self.config.get("ANKI_TRANSLATE_PROVIDER_WORD"),
-            default="jisho",
-        )
-        self.sentence_translate_provider = self._normalize_translation_provider(
-            self.config.get("ANKI_TRANSLATE_PROVIDER_SENTENCE"),
-            default="google",
-        )
-        self.jisho_url = (self.config.get("ANKI_JISHO_URL") or "https://jisho.org/api/v1/search/words").strip()
-        self.google_translate_url = (
-            self.config.get("ANKI_GOOGLE_TRANSLATE_URL")
-            or "https://translate.googleapis.com/translate_a/single"
+        self.word_target_lang = (self.config.get("ANKI_WORD_TARGET_LANG") or "de").strip()
+
+        # Prefer Jisho for single-word meanings; keep DeepL for sentence translation.
+        self.word_translate_provider = "jisho"
+        self.sentence_translate_provider = "deepl"
+
+        self.jisho_url = self.DEFAULT_JISHO_URL
+        self.google_translate_url = self.DEFAULT_GOOGLE_TRANSLATE_URL
+        self.deepl_translate_url = self.DEFAULT_DEEPL_URL
+
+        # Keep API key out of config when sharing repo.
+        self.deepl_api_key = (
+            os.environ.get("DEEPL_TOKEN")
+            or os.environ.get("DEEPL_AUTH_KEY")
+            or os.environ.get("DEEPL_API_KEY")
+            or ""
         ).strip()
-        self.deepl_translate_url = (
-            self.config.get("ANKI_DEEPL_API_URL")
-            or "https://api-free.deepl.com/v2/translate"
-        ).strip()
-        self.deepl_api_key = (self.config.get("ANKI_DEEPL_API_KEY") or "").strip()
+        enabled = self.config.get("ANKI_ENABLED")
+        self.enabled = True if enabled is None else bool(enabled)
         tags = self.config.get("ANKI_TAGS")
         self.tags = list(tags) if isinstance(tags, list) else ["subtitleplayer"]
 
     def is_enabled(self) -> bool:
-        return bool(self.config.get("ANKI_ENABLED"))
+        return self.enabled
 
     def ping(self) -> bool:
         try:
@@ -108,6 +108,19 @@ class AnkiClient:
         subtitle = (subtitle_text or "").strip()
         word_translation = self._translate_word(selected)
         sentence_translation = self._translate_sentence(subtitle)
+        full_definition = self._last_jisho_full_definition
+        translation_candidates = self._collect_translation_candidates(selected, subtitle)
+        self._last_jisho_full_definition = full_definition
+        word_provider_used = self._detect_translation_provider(
+            chosen=word_translation,
+            candidates=translation_candidates.get("word", {}),
+            configured=self.word_translate_provider,
+        )
+        sentence_provider_used = self._detect_translation_provider(
+            chosen=sentence_translation,
+            candidates=translation_candidates.get("sentence", {}),
+            configured=self.sentence_translate_provider,
+        )
         fields = self._build_note_fields(
             selected=selected,
             subtitle=subtitle,
@@ -134,24 +147,12 @@ class AnkiClient:
             "routed_cards": routed,
             "word_translation": word_translation,
             "sentence_translation": sentence_translation,
+            "translation_candidates": translation_candidates,
+            "translation_provider_used": {
+                "word": word_provider_used,
+                "sentence": sentence_provider_used,
+            },
         }
-
-    def _build_front_html(self, selected: str, subtitle: str) -> str:
-        selected_furigana = self._to_furigana_brackets(
-            selected,
-            collapse_inline_reading=False,
-            sentence_spacing=True,
-        )
-        sentence_furigana = self._to_furigana_brackets(
-            subtitle,
-            collapse_inline_reading=True,
-            sentence_spacing=True,
-        )
-
-        parts = [f'<span class="kanji">{self._escape_multiline(selected_furigana)}</span>']
-        if subtitle:
-            parts.append(f'<span class="sentence">{self._escape_multiline(sentence_furigana)}</span>')
-        return "<br>".join(parts)
 
     def _build_note_fields(
         self,
@@ -160,106 +161,58 @@ class AnkiClient:
         word_translation: str,
         sentence_translation: str,
     ) -> Dict[str, str]:
-        fields = {
-            self.front_field: self._build_front_html(selected, subtitle),
-            self.back_field: self._build_back_html(
-                word_translation=word_translation,
-                sentence_translation=sentence_translation,
-            ),
-        }
-
         model_fields = self._get_model_field_names()
-        if self.front_field not in model_fields:
-            raise RuntimeError(
-                f'Anki model "{self.model_name}" has no field "{self.front_field}". '
-                "Check ANKI_FIELD_FRONT in config.json."
+        fields: Dict[str, str] = {}
+
+        missing_required = [
+            name
+            for name in (
+                self.add_rubies_to_front_field,
+                self.front_field,
+                self.back_field,
+                self.sentence_ja_field,
+                self.sentence_de_field,
+                self.add_rubies_to_sentence_ja_field,
             )
-        if self.back_field not in model_fields:
+            if name not in model_fields
+        ]
+        if missing_required:
             raise RuntimeError(
-                f'Anki model "{self.model_name}" has no field "{self.back_field}". '
-                "Check ANKI_FIELD_BACK in config.json."
+                f'Anki model "{self.model_name}" is missing fields: {", ".join(missing_required)}.'
             )
+
+        selected_raw = (selected or "").strip()
+        subtitle_raw = (subtitle or "").strip()
+        selected_with_rubies = self._to_furigana_brackets(
+            selected_raw,
+            collapse_inline_reading=False,
+            sentence_spacing=False,
+        )
+        sentence_with_rubies = self._to_furigana_brackets(
+            subtitle_raw,
+            collapse_inline_reading=True,
+            sentence_spacing=True,
+        )
+
+        back_value = word_translation
+        sentence_de = (sentence_translation).strip()
+
+        fields[self.add_rubies_to_front_field] = selected_raw
+        fields[self.front_field] = selected_with_rubies or selected_raw
+        fields[self.back_field] = back_value
+        fields[self.sentence_ja_field] = sentence_with_rubies
+        fields[self.sentence_de_field] = sentence_de
+        fields[self.add_rubies_to_sentence_ja_field] = subtitle_raw
+        if self.definition_field in model_fields:
+            fields[self.definition_field] = self._last_jisho_full_definition
+
+        # Optional media fields stay empty by design; they are filled by capture pipeline later.
+        if self.sound_field in model_fields:
+            fields[self.sound_field] = ""
+        if self.image_field in model_fields:
+            fields[self.image_field] = ""
+
         return fields
-
-    def _build_back_html(self, word_translation: str, sentence_translation: str) -> str:
-        parts = []
-
-        word_text = (word_translation or "").strip()
-        sentence_text = (sentence_translation or "").strip()
-        if word_text:
-            parts.append(f"<span class='transl'>{self._escape_multiline(word_text)}</span>")
-        if sentence_text:
-            highlighted = self._sentence_with_highlight(sentence_text, word_text)
-            parts.append(f"<span class='sentence2'>{highlighted}</span>")
-        if not parts and self.default_back:
-            parts.append(f'<span class="default-back">{self._escape_multiline(self.default_back)}</span>')
-        return "<br>".join(parts).strip()
-
-    def _escape_multiline(self, text: str) -> str:
-        return escape(text).replace("\n", "<br>")
-
-    def _sentence_with_highlight(self, sentence_text: str, word_translation: str) -> str:
-        safe_sentence = self._escape_multiline(sentence_text)
-        candidates = self._translation_candidates(word_translation)
-        for candidate in candidates:
-            safe_candidate = escape(candidate)
-            if not safe_candidate:
-                continue
-            pattern = re.compile(re.escape(safe_candidate), re.IGNORECASE)
-            if not pattern.search(safe_sentence):
-                continue
-            return pattern.sub(
-                lambda m: f'<span class="highlight">{m.group(0)}</span>',
-                safe_sentence,
-            )
-
-        # Fallback: if exact match fails, highlight a sentence word sharing a long prefix.
-        sentence_words = re.findall(r"[^\W_]+", sentence_text, flags=re.UNICODE)
-        best_word = ""
-        best_score = 0
-        for candidate in candidates:
-            cand = candidate.casefold()
-            for word in sentence_words:
-                w = word.casefold()
-                common = 0
-                max_len = min(len(cand), len(w))
-                while common < max_len and cand[common] == w[common]:
-                    common += 1
-                if common > best_score:
-                    best_score = common
-                    best_word = word
-        if best_word and best_score >= 6:
-            pattern = re.compile(re.escape(escape(best_word)), re.IGNORECASE)
-            return pattern.sub(
-                lambda m: f'<span class="highlight">{m.group(0)}</span>',
-                safe_sentence,
-                count=1,
-            )
-        return safe_sentence
-
-    def _translation_candidates(self, word_translation: str) -> List[str]:
-        raw = (word_translation or "").strip()
-        if not raw:
-            return []
-        parts = [p.strip() for p in re.split(r"[;,/|]", raw) if p.strip()]
-        candidates = []
-        for part in parts:
-            candidates.append(part)
-            simplified = re.sub(r"\s*\(.*?\)\s*", " ", part).strip()
-            if simplified and simplified != part:
-                candidates.append(simplified)
-        if not candidates:
-            candidates = [raw]
-
-        dedup = []
-        seen = set()
-        for item in sorted(candidates, key=len, reverse=True):
-            key = item.casefold()
-            if key in seen:
-                continue
-            seen.add(key)
-            dedup.append(item)
-        return dedup
 
     def _to_furigana_brackets(
         self,
@@ -290,11 +243,10 @@ class AnkiClient:
             if (
                 sentence_spacing
                 and ruby
-                and len(base) == 1
-                and self._contains_kanji(base)
+                and self._starts_with_kanji(base)
                 and out
                 and not out[-1].endswith((" ", "\n", "\t"))
-                and not out[-1].endswith(("[", "(", "{", "<"))
+                and not out[-1].endswith(("[", "(", "{", "<", "\u300c", "\u300e"))
                 and (not prev_had_ruby or not self._has_okurigana_continuation(segments, i))
             ):
                 out.append(" ")
@@ -461,8 +413,7 @@ class AnkiClient:
         surface: str,
         reading: str,
     ) -> List[tuple[str, Optional[str]]] | None:
-        # Heuristic split: distribute the token reading across kanji characters.
-        # This avoids standalone-kanji readings like 指[ゆび] for compounds such as 指示[しじ].
+        # Heuristic split: distribute token reading across kanji chars.
         if not surface or not reading:
             return None
         if not self._is_all_kanji(surface):
@@ -490,7 +441,9 @@ class AnkiClient:
         return result
 
     def _split_moras(self, reading: str) -> List[str]:
-        small = set("ゃゅょぁぃぅぇぉゎゕゖっゝゞー")
+        small = set(
+            "\u3083\u3085\u3087\u3041\u3043\u3045\u3047\u3049\u308e\u308e\u3095\u3096\u3063\u309d\u309e\u30fc"
+        )
         moras: List[str] = []
         for ch in reading:
             if ch in small and moras:
@@ -516,6 +469,11 @@ class AnkiClient:
                 return True
         return False
 
+    def _starts_with_kanji(self, text: str) -> bool:
+        if not text:
+            return False
+        return self._contains_kanji(text[0])
+
     def _is_all_kanji(self, text: str) -> bool:
         return bool(text) and all(self._contains_kanji(ch) for ch in text)
 
@@ -533,64 +491,58 @@ class AnkiClient:
         return bool(cleaned) and all(ch in number_chars for ch in cleaned)
 
     def _translate_word(self, text: str) -> str:
+        self._last_jisho_full_definition = ""
         text = (text or "").strip()
-        if not text or not self.translate_word_enabled:
+        if not text:
             return ""
         cached = self._word_translation_cache.get(text)
         if cached is not None:
+            self._last_jisho_full_definition = self._word_definition_cache.get(text, "")
             return cached
-
-        provider = self.word_translate_provider
-        translation = ""
-
-        if provider in {"jisho", "auto"} and self.wadoku_enabled:
-            translation = self._lookup_wadoku_local(text)
-
+        
+        translation = self._translate_word_with_jisho(text)
         if not translation:
-            if provider == "jisho":
-                translation = self._translate_word_with_jisho(text)
-            elif provider == "deepl":
-                translation = self._translate_deepl(
-                    text,
-                    source_lang="ja",
-                    target_lang=self.word_target_lang,
-                )
-            elif provider == "google":
-                translation = self._translate_google(
-                    text,
-                    source_lang="ja",
-                    target_lang=self.word_target_lang,
-                )
-            else:
-                translation = self._translate_word_with_jisho(text)
-                if not translation:
-                    translation = self._translate_deepl(
-                        text,
-                        source_lang="ja",
-                        target_lang=self.word_target_lang,
-                    )
-                if not translation:
-                    translation = self._translate_google(
-                        text,
-                        source_lang="ja",
-                        target_lang=self.word_target_lang,
-                    )
-
-        # Extra fallback if selected provider cannot translate.
-        if not translation and provider != "google":
-            translation = self._translate_google(
-                text,
-                source_lang="ja",
-                target_lang=self.word_target_lang,
-            )
-
+            translation = self._translate_google(text, source_lang="ja", target_lang=self.word_target_lang)
         self._word_translation_cache[text] = translation
+        self._word_definition_cache[text] = self._last_jisho_full_definition
         return translation
 
     def _translate_word_with_jisho(self, text: str) -> str:
         text = (text or "").strip()
         if not text:
             return ""
+        entries = self._fetch_jisho_entries(text)
+        definitions = self._extract_jisho_translation(text, entries)
+        # definitions is now a list of strings (may be empty)
+        if not definitions:
+            return ""
+        self._last_jisho_full_definition = ", ".join(definitions)
+        summary_en = ", ".join(definitions[:3])
+        if self.word_target_lang.lower() == "en":
+            return summary_en
+
+        translated = self._translate_deepl(
+            summary_en,
+            source_lang="en",
+            target_lang=self.word_target_lang,
+        )
+        if not translated:
+            translated = self._translate_google(
+                summary_en,
+                source_lang="en",
+                target_lang=self.word_target_lang,
+            )
+        return translated or summary_en
+
+    def _fetch_jisho_entries(self, text: str) -> List[Dict]:
+        text = (text or "").strip()
+        if not text:
+            return []
+        cached = self._jisho_entries_cache.get(text)
+        if cached is not None:
+            return cached
+
+        entries: List[Dict] = []
         try:
             r = requests.get(
                 self.jisho_url,
@@ -599,206 +551,19 @@ class AnkiClient:
             )
             r.raise_for_status()
             payload = r.json()
-            entries = payload.get("data") or []
-            translation_en = self._extract_jisho_translation(text, entries)
+            data = payload.get("data") if isinstance(payload, dict) else None
+            if isinstance(data, list):
+                entries = data
         except Exception:
-            translation_en = ""
+            entries = []
 
-        if not translation_en:
-            return ""
-        if self.word_target_lang.lower() == "en":
-            return translation_en
+        self._jisho_entries_cache[text] = entries
+        return entries
 
-        # Jisho is EN-focused, so bridge EN -> target via machine translation.
-        translation = self._translate_deepl(
-            translation_en,
-            source_lang="en",
-            target_lang=self.word_target_lang,
-        )
-        if not translation:
-            translation = self._translate_google(
-                translation_en,
-                source_lang="en",
-                target_lang=self.word_target_lang,
-            )
-        return translation or translation_en
-
-    def _lookup_wadoku_local(self, text: str) -> str:
-        text = (text or "").strip()
-        if not text:
-            return ""
-        index = self._get_wadoku_index()
-        if not index:
-            return ""
-
-        candidates = [
-            text,
-            self._normalize_lookup_key(text),
-            re.sub(r"\[[^\]]+\]", "", text).strip(),
-        ]
-        for candidate in candidates:
-            key = self._normalize_lookup_key(candidate)
-            if not key:
-                continue
-            values = index.get(key)
-            if values:
-                return "; ".join(values[:3])
-        return ""
-
-    def _get_wadoku_index(self) -> Dict[str, List[str]]:
-        if self._wadoku_index is not None:
-            return self._wadoku_index
-
-        path = self.wadoku_path
-        if not path or not os.path.exists(path):
-            self._wadoku_index = {}
-            return self._wadoku_index
-
-        index: Dict[str, List[str]] = {}
-        try:
-            for line in self._iter_wadoku_lines(path):
-                parsed = self._parse_wadoku_xml_line(line)
-                if not parsed:
-                    parsed = self._parse_wadoku_edict_line(line)
-                if not parsed:
-                    continue
-                keys, gloss = parsed
-                for key in keys:
-                    self._add_wadoku_entry(index, key, gloss)
-        except Exception:
-            # Keep lookup non-fatal and fall back to online services.
-            index = {}
-
-        self._wadoku_index = index
-        return self._wadoku_index
-
-    def _iter_wadoku_lines(self, path: str):
-        lower = path.lower()
-        if tarfile.is_tarfile(path):
-            with tarfile.open(path, "r:*") as tf:
-                for member in tf.getmembers():
-                    if not member.isfile():
-                        continue
-                    name = member.name.lower()
-                    if "edict" not in name and not name.endswith((".txt", ".u8", ".utf8", ".xml")):
-                        continue
-                    extracted = tf.extractfile(member)
-                    if extracted is None:
-                        continue
-                    for raw in extracted:
-                        yield raw.decode("utf-8", errors="ignore")
-                    return
-        elif lower.endswith(".xz"):
-            with lzma.open(path, "rt", encoding="utf-8", errors="ignore") as f:
-                for line in f:
-                    yield line
-        else:
-            with open(path, "r", encoding="utf-8", errors="ignore") as f:
-                for line in f:
-                    yield line
-
-    def _parse_wadoku_edict_line(self, line: str):
-        row = (line or "").strip()
-        if not row or row.startswith("#"):
-            return None
-        if "/" not in row:
-            return None
-
-        head, tail = row.split("/", 1)
-        head = head.strip()
-        tail = tail.strip()
-        if not head:
-            return None
-
-        head = re.sub(r"^\d+\s+", "", head)
-        head = re.sub(r"\s+\([^)]+\)\s*$", "", head)
-
-        readings = [r.strip() for r in re.findall(r"\[([^\]]+)\]", head) if r.strip()]
-        orth_part = re.sub(r"\[[^\]]+\]", "", head).strip()
-        orths = [o.strip() for o in re.split(r"[;,]", orth_part) if o.strip()]
-        keys = orths + readings
-        if not keys:
-            return None
-
-        glosses = []
-        for chunk in tail.split("/"):
-            c = chunk.strip()
-            if not c:
-                continue
-            c = re.sub(r"^EntL\d+\s*", "", c)
-            c = re.sub(r"^\([^)]+\)\s*", "", c)
-            c = re.sub(r"\s*\([^)]+\)\s*$", "", c)
-            c = c.strip()
-            if not c:
-                continue
-            glosses.append(c)
-            if len(glosses) >= 6:
-                break
-        if not glosses:
-            return None
-
-        return keys, "; ".join(glosses)
-
-    def _parse_wadoku_xml_line(self, line: str):
-        row = (line or "").strip()
-        if not row.startswith("<entry"):
-            return None
-        try:
-            root = ET.fromstring(row)
-        except Exception:
-            return None
-
-        ns = {"w": "http://www.wadoku.de/xml/entry"}
-        orths = []
-        for node in root.findall(".//w:form/w:orth", ns):
-            txt = "".join(node.itertext()).strip()
-            txt = re.sub(r"\(([^)]*)\)", r"\1", txt)
-            txt = txt.replace("△", "").replace("×", "")
-            txt = txt.strip()
-            if txt:
-                orths.append(txt)
-
-        readings = []
-        for node in root.findall(".//w:form/w:reading/w:hira", ns):
-            txt = "".join(node.itertext()).strip()
-            if txt:
-                readings.append(txt)
-
-        keys = orths + readings
-        if not keys:
-            return None
-
-        glosses = []
-        for node in root.findall(".//w:sense/w:trans/w:tr", ns):
-            txt = "".join(node.itertext()).strip()
-            txt = re.sub(r"\s+", " ", txt)
-            txt = txt.strip()
-            if txt and txt not in glosses:
-                glosses.append(txt)
-            if len(glosses) >= 6:
-                break
-        if not glosses:
-            return None
-
-        return keys, "; ".join(glosses)
-
-    def _add_wadoku_entry(self, index: Dict[str, List[str]], key: str, gloss: str) -> None:
-        normalized = self._normalize_lookup_key(key)
-        if not normalized:
-            return
-        entries = index.setdefault(normalized, [])
-        if gloss not in entries:
-            entries.append(gloss)
-
-    def _normalize_lookup_key(self, text: str) -> str:
-        t = (text or "").strip()
-        t = t.replace("\u3000", " ")
-        t = re.sub(r"\s+", "", t)
-        return t
-
-    def _extract_jisho_translation(self, query: str, entries: List[Dict]) -> str:
+    def _extract_jisho_translation(self, query: str, entries: List[Dict]) -> List[str]:
         if not entries:
-            return ""
+            return []
+
         best = entries[0]
         best_score = -1
         for entry in entries:
@@ -826,18 +591,19 @@ class AnkiClient:
                     definitions.append(gloss)
             if len(definitions) >= 6:
                 break
-        if not definitions:
-            return ""
-        return "; ".join(definitions[:6])
+        return definitions
 
     def _translate_sentence(self, text: str) -> str:
-        text = (text or "").strip()
-        if not text or not self.translate_sentence_enabled:
+        text = self._normalize_translation_input(text)
+        if not text:
             return ""
+
         cached = self._sentence_translation_cache.get(text)
         if cached is not None:
             return cached
+
         provider = self.sentence_translate_provider
+        translated = ""
         if provider == "deepl":
             translated = self._translate_deepl(
                 text,
@@ -868,8 +634,75 @@ class AnkiClient:
                     source_lang="ja",
                     target_lang=self.sentence_target_lang,
                 )
+
         self._sentence_translation_cache[text] = translated
         return translated
+
+    def _normalize_translation_input(self, text: str) -> str:
+        value = (text or "").strip()
+        if not value:
+            return ""
+        value = value.replace("\u3000", " ")
+        # Translate subtitle lines as one sentence block.
+        value = re.sub(r"\s*\n+\s*", " ", value)
+        value = re.sub(r"[ \t]+", " ", value)
+        return value.strip()
+
+    def _collect_translation_candidates(self, selected: str, subtitle: str) -> Dict[str, Dict[str, str]]:
+        selected_text = (selected or "").strip()
+        subtitle_text = self._normalize_translation_input(subtitle)
+
+        word_candidates = {
+            "jisho": self._translate_word_with_jisho(selected_text) if selected_text else "",
+            "deepl": self._translate_deepl(
+                selected_text,
+                source_lang="ja",
+                target_lang=self.word_target_lang,
+            ) if selected_text else "",
+            "google": self._translate_google(
+                selected_text,
+                source_lang="ja",
+                target_lang=self.word_target_lang,
+            ) if selected_text else "",
+        }
+
+        sentence_candidates = {
+            "deepl": (
+                self._sentence_translation_cache.get(subtitle_text)
+                or self._translate_deepl(
+                    subtitle_text, source_lang="ja", target_lang=self.sentence_target_lang
+                )
+                if subtitle_text
+                else ""
+            ),
+            "google": self._translate_google(
+                subtitle_text,
+                source_lang="ja",
+                target_lang=self.sentence_target_lang,
+            ) if subtitle_text else "",
+        }
+
+        return {
+            "word": word_candidates,
+            "sentence": sentence_candidates,
+        }
+
+    def _detect_translation_provider(
+        self,
+        chosen: str,
+        candidates: Dict[str, str],
+        configured: str,
+    ) -> str:
+        selected = (chosen or "").strip()
+        if not selected:
+            return "none"
+        configured_key = (configured or "").strip().lower()
+        if configured_key and selected == (candidates.get(configured_key) or "").strip():
+            return configured_key
+        for name, value in candidates.items():
+            if selected == (value or "").strip():
+                return name
+        return "fallback/unknown"
 
     def _translate_google(self, text: str, source_lang: str, target_lang: str) -> str:
         text = (text or "").strip()
@@ -894,21 +727,21 @@ class AnkiClient:
             for chunk in chunks:
                 if isinstance(chunk, list) and chunk:
                     translated += str(chunk[0] or "")
-            translated = translated.strip()
+            return translated.strip()
         except Exception:
-            translated = ""
-        return translated
+            return ""
 
     def _translate_deepl(self, text: str, source_lang: str, target_lang: str) -> str:
         text = (text or "").strip()
         if not text or not self.deepl_api_key:
             return ""
+
         source = self._normalize_deepl_source_lang(source_lang)
         target = self._normalize_deepl_target_lang(target_lang)
         if not target:
             return ""
+
         payload = {
-            "auth_key": self.deepl_api_key,
             "text": text,
             "target_lang": target,
         }
@@ -918,6 +751,7 @@ class AnkiClient:
         try:
             r = requests.post(
                 self.deepl_translate_url,
+                headers={"Authorization": f"DeepL-Auth-Key {self.deepl_api_key}"},
                 data=payload,
                 timeout=self.http_timeout,
             )
@@ -926,16 +760,9 @@ class AnkiClient:
             translations = data.get("translations") or []
             if not translations:
                 return ""
-            translated = str((translations[0] or {}).get("text") or "").strip()
-            return translated
+            return str((translations[0] or {}).get("text") or "").strip()
         except Exception:
             return ""
-
-    def _normalize_translation_provider(self, value: Optional[str], default: str) -> str:
-        provider = str(value or default).strip().lower()
-        if provider not in {"jisho", "google", "deepl", "auto"}:
-            return default
-        return provider
 
     def _normalize_deepl_source_lang(self, lang: str) -> str:
         code = str(lang or "").strip().replace("_", "-").upper()

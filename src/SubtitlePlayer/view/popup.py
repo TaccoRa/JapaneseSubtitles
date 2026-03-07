@@ -25,7 +25,7 @@ class CopyPopup:
         self.font_name = self.config.get("POPUP_FONT")
         self.font_color = self.config.get("POPUP_FONT_COLOR")
         self.font_size = self.config.get("POPUP_FONT_SIZE")
-        self.close_delay = self.config.get("POPUP_CLOSE_TIMER")
+        self.close_delay = int(self.config.get("POPUP_CLOSE_TIMER") or 1000)
 
     def open_copy_popup(self, subtitle_text = None) -> None:
         if self._popup: #if already popup, close it and make a new one
@@ -84,14 +84,16 @@ class CopyPopup:
         def _add_selection_to_anki():
             selected = _get_selection()
             if not selected:
+                print("Add Selection To Anki: no text selected.")
                 return
             if not callable(self._on_add_anki):
+                print("Add Selection To Anki: callback not bound.")
                 return
             def _run():
                 try:
                     self._on_add_anki(selected_text=selected, subtitle_text=subtitle_text or "")
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"Add Selection To Anki failed: {e}")
             # Run on next tick so the context menu can close and cursor change is visible.
             try:
                 popup.after(1, _run)
@@ -137,6 +139,7 @@ class CopyPopup:
         popup.bind("<Enter>", lambda e: self._cancel_close())
         popup.bind("<Leave>", lambda e: self._on_popup_leave())
         popup.bind("<Destroy>", lambda e: self._on_popup_destroy())
+        self._restart_close()
 
     def bind_add_to_anki(self, callback) -> None:
         self._on_add_anki = callback
