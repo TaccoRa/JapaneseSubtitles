@@ -1,34 +1,19 @@
 To Do:
+Add listener for spacebar and arrow keys
 connect anki
-add button to search new anime
 add extra function for searching movies
-download splash screen or info
 add settings button to change for example default start time and so on
 remember last used offset, phone mde ...
-change how everything is initialized when a new srt is loaded. Currently the subtitle window size is not recalculated.
-Check where the biggest size was
-srt button cant be doen twice in a row while still open
-right click on opened window(sub) to select copy
-Correct the search function for srt in github
 Maybe change how the copy window is displayed.
-Select srt after remote session maybe weird. You have to select the folder again.
 Remember also last geometry not only position of settings window
-dropdown menu for episode entry
-Add listener for spacebar and arrow keys
 when local srt file added during runtime cant find it. Probably because dir list done during init.
+
 Bugs:
 Maybe shift of 1 second if offset 0?
-When changing to movie the highest slide possible is to maximum of episode from before
-                       the window subtitle size is incorrect
-When offset is set after changing to movie for example the total duration is wrong
-When new srt file is chosen the list of the srt files available should be updated.
-Wrong episode when turning off?
 
 
 Bugs:
 picks last episode in cache if decreasing at first epoisode (because of last anime name not found)
-creates season folder without finding season?
-update episode number only if episode found
 
 Ideas:
 Detect uncommon words or phrases and let users hover or tap a subtitle segment to 
@@ -40,6 +25,10 @@ Change subtitle width to fit current subtitle (maybe flashes --> YES)
 
 
 Added:
+dropdown menu for episode entry
+right click on opened window(sub) to select copy
+download splash screen or info
+add button to search new anime
 add anime name and sxex in title window
 Added the posibility to download and cache a season from a mirror github srt folder
 Show Kanji written above
@@ -52,6 +41,17 @@ add config for phone mode default true/false
 
 
 Fixed:
+update episode number only if episode found
+creates season folder without finding season?
+Wrong episode when turning off?
+When offset is set after changing to movie for example the total duration is wrong
+When new srt file is chosen the list of the srt files available should be updated.
+When changing to movie the highest slide possible is to maximum of episode from before
+                       the window subtitle size is incorrect
+Select srt after remote session maybe weird. You have to select the folder again.
+Correct the search function for srt in github
+srt button cant be doen twice in a row while still open
+change how everything is initialized when a new srt is loaded. Currently the subtitle window size is not recalculated.
 If no .srt found dont reset to default slider position and so on
 when movie (when not japanese characters) the width of subtitle window is wrong
 When phone mode button to show settigns window issue
