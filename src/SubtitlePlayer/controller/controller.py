@@ -986,7 +986,11 @@ class SubtitleController:
         if key == Key.insert:
             _add("insert")
         if hasattr(key, "char") and key.char:
-            _add(str(key.char).lower())
+            ch = key.char
+            # Convert Ctrl-letter control codes (e.g. '\x19') back to letters
+            if len(ch) == 1 and ord(ch) < 32:
+                ch = chr(ord(ch) + 96)
+            _add(ch.lower())
 
         if self._is_numpad_vk_key(key, 96, 45):
             _add("numpad0", "insert", "0")
@@ -1002,12 +1006,11 @@ class SubtitleController:
         if not key_token:
             return False
 
-        # Exact modifier matching prevents "left" from also firing on "shift+left".
-        if self.shift_pressed != ("shift" in mods):
+        if "shift" in mods and not self.shift_pressed:
             return False
-        if self.alt_pressed != ("alt" in mods):
+        if "alt" in mods and not self.alt_pressed:
             return False
-        if self.ctrl_pressed != ("ctrl" in mods):
+        if "ctrl" in mods and not self.ctrl_pressed:
             return False
 
         return key_token in self._key_tokens(key)
@@ -1019,6 +1022,7 @@ class SubtitleController:
             ("alt_x", self._get_shortcut_value("SHORTCUT_BRING_TO_FRONT")),
             ("episode_inc", self._get_shortcut_value("SHORTCUT_EPISODE_INC")),
             ("episode_dec", self._get_shortcut_value("SHORTCUT_EPISODE_DEC")),
+            ("jump_sub_end", self._get_shortcut_value("SHORTCUT_JUMP_SUB_END")),
         ]
 
     def _hotkeys_disabled(self) -> bool:
@@ -1038,7 +1042,102 @@ class SubtitleController:
         self.ctrl_pressed = False
         self._single_fire_actions.clear()
 
+    # def _on_key_press(self, key):
+    #     # don't return for modifier presses — only update flags
+    #     if self._hotkeys_disabled():
+    #         self._reset_hotkey_state()
+    #         return
+
+    #     if key in (Key.shift_l, Key.shift_r):
+    #         self.shift_pressed = True
+    #     if key in (Key.alt_l, Key.alt_r):
+    #         self.alt_pressed = True
+    #     if key in (Key.ctrl_l, Key.ctrl_r):
+    #         self.ctrl_pressed = True
+
+    #     try:
+    #         mode2_numpad = int(getattr(self.settings, "input_mode", 1)) == 2
+    #     except Exception:
+    #         mode2_numpad = bool(getattr(self.settings, "numpad_mode_enabled", False))
+
+    #     if mode2_numpad:
+    #         mapping = [
+    #             (self._get_shortcut_value("SHORTCUT_MODE2_TOGGLE_PLAY"), "toggle_play", True),
+    #             (self._get_shortcut_value("SHORTCUT_TOGGLE_PLAY"), "toggle_play", True),
+    #             (self._get_shortcut_value("SHORTCUT_MODE2_SUBTITLE_BACK"), "subtitle_back", False),
+    #             (self._get_shortcut_value("SHORTCUT_MODE2_SUBTITLE_FORWARD"), "subtitle_forward", False),
+    #             (self._get_shortcut_value("SHORTCUT_MODE2_GO_BACK"), "go_back", False),
+    #             (self._get_shortcut_value("SHORTCUT_MODE2_GO_FORWARD"), "go_forward", False),
+    #         ]
+    #     else:
+    #         mapping = [
+    #             (self._get_shortcut_value("SHORTCUT_TOGGLE_PLAY"), "toggle_play", True),
+    #             (self._get_shortcut_value("SHORTCUT_SUBTITLE_BACK"), "subtitle_back", False),
+    #             (self._get_shortcut_value("SHORTCUT_SUBTITLE_FORWARD"), "subtitle_forward", False),
+    #             (self._get_shortcut_value("SHORTCUT_GO_BACK"), "go_back", False),
+    #             (self._get_shortcut_value("SHORTCUT_GO_FORWARD"), "go_forward", False),
+    #         ]
+
+    #     # keep jump_sub_end out of the press-mapping; we'll trigger on release
+    #     mapping.extend([
+    #         (self._get_shortcut_value("SHORTCUT_BRING_TO_FRONT"), "alt_x", True),
+    #         (self._get_shortcut_value("SHORTCUT_EPISODE_INC"), "episode_inc", True),
+    #         (self._get_shortcut_value("SHORTCUT_EPISODE_DEC"), "episode_dec", True),
+    #     ])
+
+    #     for binding, action, single_fire in mapping:
+    #         if not self._shortcut_matches(binding, key):
+    #             continue
+    #         if single_fire and action in self._single_fire_actions:
+    #             return
+    #         if single_fire:
+    #             self._single_fire_actions.add(action)
+    #         self._enqueue_input_action(action)
+    #         return
+        
+    # def _on_key_release(self, key):
+    #     if self._hotkeys_disabled():
+    #         self._reset_hotkey_state()
+    #         return
+
+    #     # capture modifier state BEFORE clearing it
+    #     was_shift = self.shift_pressed
+    #     was_ctrl = self.ctrl_pressed
+    #     was_alt = self.alt_pressed
+
+    #     # figure out released character (if any)
+    #     released_char = None
+    #     try:
+    #         if hasattr(key, "char") and key.char:
+    #             released_char = str(key.char).lower()
+    #     except Exception:
+    #         released_char = None
+
+    #     # trigger our combo on release: ctrl+shift + release of 'y'
+    #     if released_char == "y" and was_shift and was_ctrl:
+    #         # ensure this action can be repeated each time (don't mark as single-fire here)
+    #         self._enqueue_input_action("jump_sub_end")
+
+    #     # now clear modifier flags if modifiers were actually released
+    #     if key in (Key.shift_l, Key.shift_r):
+    #         self.shift_pressed = False
+    #     if key in (Key.alt_l, Key.alt_r):
+    #         self.alt_pressed = False
+    #     if key in (Key.ctrl_l, Key.ctrl_r):
+    #         self.ctrl_pressed = False
+
+    #     # cleanup for single-fire actions when their key token is released
+    #     released_tokens = self._key_tokens(key)
+    #     for action, binding in self._single_fire_bindings():
+    #         _, key_token = self._split_shortcut(binding)
+    #         if key_token and key_token in released_tokens:
+    #             self._single_fire_actions.discard(action)
+
+
+
+
     def _on_key_press(self, key):
+        print("Pressed:", key, "tokens:", self._key_tokens(key), "ctrl:", self.ctrl_pressed, "shift:", self.shift_pressed)
         if self._hotkeys_disabled():
             self._reset_hotkey_state()
             return
