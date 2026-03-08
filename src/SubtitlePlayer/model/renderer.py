@@ -24,6 +24,13 @@ class SubtitleRenderer:
         self.ruby_font = tkFont.Font(family=self.font.actual("family"), size=int(self.font.actual("size") * 0.6), weight="bold")
 
         self.color=self.config.get("SUBTITLE_COLOR")
+        self.glow_color = str(self.config.get("GLOW_COLOR") or "black")
+        try:
+            glow_radius = int(float(self.config.get("GLOW_RADIUS") or 10))
+        except Exception:
+            glow_radius = 10
+        self.glow_radius = max(0, min(glow_radius, 20))
+        self.ruby_glow_radius = max(0, int(round(self.glow_radius * 0.6667)))
         self.line_height = self.font.metrics("linespace")
         self.ruby_height = int(self.line_height * 0.6)
         base_height = int(self.ruby_height * 2 + self.line_height * 2)  # 2 lines + 2 ruby rows
@@ -109,12 +116,12 @@ class SubtitleRenderer:
                 self.draw_outlined_text(
                     self.canvas, cx, ruby_y,
                     ruby, self.ruby_font, fill=self.color,
-                    outline="black", thickness=2
+                    outline=self.glow_color, thickness=self.ruby_glow_radius
                 )
             self.draw_outlined_text(
                 self.canvas, cx, base_y,
                 base, self.font, fill=self.color,
-                outline="black", thickness=3
+                outline=self.glow_color, thickness=self.glow_radius
             )
             cur_x += base_w
 

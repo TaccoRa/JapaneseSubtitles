@@ -8,6 +8,7 @@ Handles input (buttons, keyboard, global mouse), time updates, and episode chang
 """
 
 import time
+import threading
 import queue
 import tkinter as tk
 from pynput.mouse import Button, Listener as MouseListener
@@ -24,6 +25,22 @@ from utils import parse_time_value, format_time
 from view.popup import CopyPopup
 
 class SubtitleController:
+    SHORTCUT_DEFAULTS = {
+        "SHORTCUT_TOGGLE_PLAY": "space",
+        "SHORTCUT_GO_BACK": "left",
+        "SHORTCUT_GO_FORWARD": "right",
+        "SHORTCUT_SUBTITLE_BACK": "shift+left",
+        "SHORTCUT_SUBTITLE_FORWARD": "shift+right",
+        "SHORTCUT_MODE2_TOGGLE_PLAY": "numpad0",
+        "SHORTCUT_MODE2_GO_BACK": "4",
+        "SHORTCUT_MODE2_GO_FORWARD": "6",
+        "SHORTCUT_MODE2_SUBTITLE_BACK": "alt+4",
+        "SHORTCUT_MODE2_SUBTITLE_FORWARD": "alt+6",
+        "SHORTCUT_BRING_TO_FRONT": "alt+x",
+        "SHORTCUT_EPISODE_INC": "alt+c",
+        "SHORTCUT_EPISODE_DEC": "alt+y",
+        "SHORTCUT_JUMP_SUB_END": "ctrl+shift+y",
+    }
     
     
     def __init__(self,
@@ -59,8 +76,9 @@ class SubtitleController:
         self.entry_editing  = False
         self.subtitle_deleted = False
         self.alt_pressed = False
+        self.ctrl_pressed = False
         self.shift_pressed = False
-        self.space_pressed = False
+        self._single_fire_actions = set()
         self.subtitle_timeout_job = None
         self.last_subtitle_text = ""
         self.last_subtitle_raw = ""
@@ -150,24 +168,44 @@ class SubtitleController:
         started = time.perf_counter()
         self._set_busy_cursor(True)
         try:
-            result = self.anki.add_from_selection(
-                selection_text=selected_text,
-                subtitle_text=subtitle_text,
-            )
-            elapsed = time.perf_counter() - started
-            print(f"Anki note created in {elapsed:.2f}s")
-            candidates = result.get("translation_candidates") or {}
-            word_cands = candidates.get("word") or {}
-            sentence_cands = candidates.get("sentence") or {}
-            print(f"Note ID: {result.get('note_id', '')}")
-            print(f"Marked Word: {(selected_text or '').strip()}")
-            print(f"Word DeepL: {self._format_translation_csv(word_cands.get('deepl', ''))}")
-            print(f"Word Jisho: {self._format_translation_csv(word_cands.get('jisho', ''))}")
-            print(f"Sentence DeepL: {self._format_translation_csv(sentence_cands.get('deepl', ''))}")
-            print(f"Sentence Google: {self._format_translation_csv(sentence_cands.get('google', ''))}")
-            print("")
-        except Exception as e:
-            print(f"Anki add failed: {e}")
+            selected = (selected_text or "").strip()
+
+            def worker():
+                if not self.anki.ping():
+                    print("AnkiConnect not reachable. Start Anki + AnkiConnect and try again.")
+                    return
+
+                started = time.perf_counter()
+
+                try:
+                    result = self.anki.add_from_selection(
+                        selection_text=selected,
+                        subtitle_text=subtitle_text,
+                    )
+
+                    elapsed = time.perf_counter() - started
+                    print(f"Anki note created in {elapsed:.2f}s")
+
+                    candidates = result.get("translation_candidates") or {}
+                    word_cands = candidates.get("word") or {}
+                    sentence_cands = candidates.get("sentence") or {}
+
+                    print(f"Note ID: {result.get('note_id', '')}")
+                    print(f"Marked Word: {selected}")
+                    print(f"Word Jisho: {self._format_translation_csv(word_cands.get('jisho', ''))}")
+                    print(f"Word Google: {self._format_translation_csv(word_cands.get('google', ''))}")
+                    print(f"Sentence DeepL: {self._format_translation_csv(sentence_cands.get('deepl', ''))}")
+                    print(f"Sentence Google: {self._format_translation_csv(sentence_cands.get('google', ''))}")
+
+                    fields = result.get("stroke_svg_sync_fields")
+
+                    if fields:
+                        self.anki.sync_missing_stroke_svgs_async(selected, fields)
+
+                except Exception as e:
+                    print(f"Anki add failed: {e}")
+
+            threading.Thread(target=worker, daemon=True).start()
         finally:
             self._set_busy_cursor(False)
 
@@ -245,6 +283,92 @@ class SubtitleController:
                             and not getattr(self.popup, "_menu_open", False)
                             and not getattr(self.popup, "_dragging", False)):
                         self.popup._restart_close()
+            except Exception:
+                pass
+
+        # Popup style fields apply immediately for newly opened popups, and update the
+        # currently open popup widget where possible.
+        try:
+            if "POPUP_FONT" in values:
+                self.popup.font_name = str(values.get("POPUP_FONT") or self.popup.font_name)
+            if "POPUP_FONT_COLOR" in values:
+                self.popup.font_color = str(values.get("POPUP_FONT_COLOR") or self.popup.font_color)
+            if "POPUP_BG_COLOR" in values:
+                self.popup.bg_color = str(values.get("POPUP_BG_COLOR") or self.popup.bg_color)
+            if "POPUP_FONT_SIZE" in values:
+                self.popup.font_size = max(8, int(values.get("POPUP_FONT_SIZE")))
+
+            popup_win = getattr(self.popup, "_popup", None)
+            entry = getattr(self.popup, "_entry_widget", None)
+            if popup_win is not None and popup_win.winfo_exists():
+                try:
+                    popup_win.configure(bg=self.popup.bg_color)
+                except Exception:
+                    pass
+            if entry is not None:
+                try:
+                    entry.configure(
+                        bg=self.popup.bg_color,
+                        fg=self.popup.font_color,
+                        font=(self.popup.font_name, self.popup.font_size, "bold"),
+                    )
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # Subtitle style fields are read by renderer on each draw; trigger a refresh now.
+        subtitle_style_keys = {
+            "SUBTITLE_FONT",
+            "SUBTITLE_FONT_SIZE",
+            "SUBTITLE_COLOR",
+            "SUBTITLE_WRAP_LIMIT_PX",
+            "GLOW_COLOR",
+            "GLOW_RADIUS",
+        }
+        if any(k in values for k in subtitle_style_keys):
+            try:
+                self.last_subtitle_text = ""
+                self.update_time_and_subtitle_displays()
+            except Exception:
+                pass
+
+        startup_value_keys = {"DEFAULT_START_TIME", "EXTRA_OFFSET", "DEFAULT_SKIP"}
+        if any(k in values for k in startup_value_keys):
+            try:
+                self.default_start_time = float(values.get("DEFAULT_START_TIME", self.default_start_time))
+            except Exception:
+                pass
+            try:
+                if "EXTRA_OFFSET" in values:
+                    off = float(values.get("EXTRA_OFFSET"))
+                    self.default_offset = off
+                    self.settings._last_offset_value = off
+                    self.settings.offset_var.set(f"{self.settings._format_number(off)} s")
+                    self.settings._apply_offset_change(off, persist=False)
+            except Exception:
+                pass
+            try:
+                if "DEFAULT_SKIP" in values:
+                    skip = float(values.get("DEFAULT_SKIP"))
+                    self.default_skip = skip
+                    self.settings._last_skip_value = skip
+                    self.settings.skip_var.set(f"{self.settings._format_number(skip)} s")
+            except Exception:
+                pass
+
+        if "SHORTCUTS_DISABLED" in values:
+            try:
+                self.settings.set_hotkeys_disabled(bool(values.get("SHORTCUTS_DISABLED")))
+            except Exception:
+                pass
+            if self._hotkeys_disabled():
+                self._reset_hotkey_state()
+
+        if any(str(k).startswith("ANKI_") for k in values.keys()):
+            try:
+                self.anki = AnkiClient(self.config)
+                self.anki_busy_cursor = (self.config.get("ANKI_BUSY_CURSOR") or "wait")
             except Exception:
                 pass
 
@@ -541,6 +665,27 @@ class SubtitleController:
             self.set_current_time(self.current_time - skip)
             self._schedule_hide_controls()
 
+    def on_jump_sub_end(self, event=None):
+        start_times = [item[1] for item in getattr(self.sub_manager, "display_data", [])]
+        if not start_times:
+            return
+
+        offset = float(self.settings._last_offset_value or 0.0)
+        sub_t = max(0.0, float(self.current_time) - offset)
+        epsilon = 0.05
+
+        idx = bisect.bisect_right(start_times, sub_t + epsilon) - 1
+        if idx < 0 or idx >= len(self.sub_manager.subtitles):
+            return
+
+        sub = self.sub_manager.subtitles[idx]
+
+        padding = 0.1  # 100 ms
+        target_time = sub.end.total_seconds() + padding + offset
+
+        self.set_current_time(target_time)
+        self._schedule_hide_controls()
+
     def _schedule_hide_controls(self):
         if self.settings.default_phone_mode:
             self._hide_controls_after(self.phone_windows_hide_control_ms)
@@ -738,6 +883,8 @@ class SubtitleController:
             self.jump_subtitle_segment("prev")
         elif action == "subtitle_forward":
             self.jump_subtitle_segment("next")
+        elif action == "jump_sub_end":
+            self.on_jump_sub_end()
         elif action == "alt_x":
             self.on_alt_x()
         elif action == "episode_inc":
@@ -776,50 +923,192 @@ class SubtitleController:
         self.set_current_time(float(start_times[target_idx]) + offset)
         self._schedule_hide_controls()
 
+    @staticmethod
+    def _is_numpad_vk_key(key, *codes: int) -> bool:
+        try:
+            return hasattr(key, "vk") and int(getattr(key, "vk")) in codes
+        except Exception:
+            return False
+
+    def _get_shortcut_value(self, config_key: str) -> str:
+        default = self.SHORTCUT_DEFAULTS.get(config_key, "")
+        raw = self.config.get(config_key)
+        if not isinstance(raw, str) or not raw.strip():
+            return default
+        return raw.strip().lower()
+
+    @staticmethod
+    def _normalize_shortcut_token(token: str) -> str:
+        t = str(token or "").strip().lower().replace(" ", "")
+        alias = {
+            "arrowleft": "left",
+            "arrowright": "right",
+            "spacebar": "space",
+            "ins": "insert",
+            "num0": "numpad0",
+            "np0": "numpad0",
+            "num4": "numpad4",
+            "np4": "numpad4",
+            "num6": "numpad6",
+            "np6": "numpad6",
+        }
+        return alias.get(t, t)
+
+    def _split_shortcut(self, binding: str):
+        text = str(binding or "").strip().lower().replace(" ", "")
+        if not text:
+            return set(), None
+        parts = [p for p in text.split("+") if p]
+        mods = set()
+        key_token = None
+        for p in parts:
+            token = self._normalize_shortcut_token(p)
+            if token in {"shift", "alt", "ctrl"}:
+                mods.add(token)
+            elif key_token is None:
+                key_token = token
+        return mods, key_token
+
+    def _key_tokens(self, key) -> set[str]:
+        tokens = set()
+
+        def _add(*vals):
+            for v in vals:
+                if v:
+                    tokens.add(str(v).lower())
+
+        if key == Key.space:
+            _add("space")
+        if key == Key.left:
+            _add("left")
+        if key == Key.right:
+            _add("right")
+        if key == Key.insert:
+            _add("insert")
+        if hasattr(key, "char") and key.char:
+            _add(str(key.char).lower())
+
+        if self._is_numpad_vk_key(key, 96, 45):
+            _add("numpad0", "insert", "0")
+        if self._is_numpad_vk_key(key, 100):
+            _add("numpad4", "left", "4")
+        if self._is_numpad_vk_key(key, 102):
+            _add("numpad6", "right", "6")
+
+        return {self._normalize_shortcut_token(t) for t in tokens}
+
+    def _shortcut_matches(self, binding: str, key) -> bool:
+        mods, key_token = self._split_shortcut(binding)
+        if not key_token:
+            return False
+
+        # Exact modifier matching prevents "left" from also firing on "shift+left".
+        if self.shift_pressed != ("shift" in mods):
+            return False
+        if self.alt_pressed != ("alt" in mods):
+            return False
+        if self.ctrl_pressed != ("ctrl" in mods):
+            return False
+
+        return key_token in self._key_tokens(key)
+
+    def _single_fire_bindings(self):
+        return [
+            ("toggle_play", self._get_shortcut_value("SHORTCUT_TOGGLE_PLAY")),
+            ("toggle_play", self._get_shortcut_value("SHORTCUT_MODE2_TOGGLE_PLAY")),
+            ("alt_x", self._get_shortcut_value("SHORTCUT_BRING_TO_FRONT")),
+            ("episode_inc", self._get_shortcut_value("SHORTCUT_EPISODE_INC")),
+            ("episode_dec", self._get_shortcut_value("SHORTCUT_EPISODE_DEC")),
+        ]
+
+    def _hotkeys_disabled(self) -> bool:
+        try:
+            if int(getattr(self.settings, "input_mode", 1)) == 3:
+                return True
+        except Exception:
+            pass
+        try:
+            return bool(self.config.get("SHORTCUTS_DISABLED") or False)
+        except Exception:
+            return False
+
+    def _reset_hotkey_state(self) -> None:
+        self.shift_pressed = False
+        self.alt_pressed = False
+        self.ctrl_pressed = False
+        self._single_fire_actions.clear()
+
     def _on_key_press(self, key):
+        if self._hotkeys_disabled():
+            self._reset_hotkey_state()
+            return
+
         if key in (Key.shift_l, Key.shift_r):
             self.shift_pressed = True
             return
-
         if key in (Key.alt_l, Key.alt_r):
             self.alt_pressed = True
             return
-
-        if key == Key.space:
-            if not self.space_pressed:
-                self.space_pressed = True
-                self._enqueue_input_action("toggle_play")
+        if key in (Key.ctrl_l, Key.ctrl_r):
+            self.ctrl_pressed = True
             return
 
-        if key == Key.left:
-            if self.shift_pressed:
-                self._enqueue_input_action("subtitle_back")
-            else:
-                self._enqueue_input_action("go_back")
-            return
+        try:
+            mode2_numpad = int(getattr(self.settings, "input_mode", 1)) == 2
+        except Exception:
+            mode2_numpad = bool(getattr(self.settings, "numpad_mode_enabled", False))
+        if mode2_numpad:
+            mapping = [
+                (self._get_shortcut_value("SHORTCUT_MODE2_TOGGLE_PLAY"), "toggle_play", True),
+                (self._get_shortcut_value("SHORTCUT_TOGGLE_PLAY"), "toggle_play", True),
+                (self._get_shortcut_value("SHORTCUT_MODE2_SUBTITLE_BACK"), "subtitle_back", False),
+                (self._get_shortcut_value("SHORTCUT_MODE2_SUBTITLE_FORWARD"), "subtitle_forward", False),
+                (self._get_shortcut_value("SHORTCUT_MODE2_GO_BACK"), "go_back", False),
+                (self._get_shortcut_value("SHORTCUT_MODE2_GO_FORWARD"), "go_forward", False),
+            ]
+        else:
+            mapping = [
+                (self._get_shortcut_value("SHORTCUT_TOGGLE_PLAY"), "toggle_play", True),
+                (self._get_shortcut_value("SHORTCUT_SUBTITLE_BACK"), "subtitle_back", False),
+                (self._get_shortcut_value("SHORTCUT_SUBTITLE_FORWARD"), "subtitle_forward", False),
+                (self._get_shortcut_value("SHORTCUT_GO_BACK"), "go_back", False),
+                (self._get_shortcut_value("SHORTCUT_GO_FORWARD"), "go_forward", False),
+            ]
 
-        if key == Key.right:
-            if self.shift_pressed:
-                self._enqueue_input_action("subtitle_forward")
-            else:
-                self._enqueue_input_action("go_forward")
-            return
+        mapping.extend([
+            (self._get_shortcut_value("SHORTCUT_BRING_TO_FRONT"), "alt_x", True),
+            (self._get_shortcut_value("SHORTCUT_EPISODE_INC"), "episode_inc", True),
+            (self._get_shortcut_value("SHORTCUT_EPISODE_DEC"), "episode_dec", True),
+            (self._get_shortcut_value("SHORTCUT_JUMP_SUB_END"), "jump_sub_end", True),
+        ])
 
-        if self.alt_pressed and hasattr(key, "char") and key.char:
-            if key.char.lower() == "x":
-                self._enqueue_input_action("alt_x")
-            elif key.char.lower() == "c":
-                self._enqueue_input_action("episode_inc")
-            elif key.char.lower() == "y":
-                self._enqueue_input_action("episode_dec")
+        for binding, action, single_fire in mapping:
+            if not self._shortcut_matches(binding, key):
+                continue
+            if single_fire and action in self._single_fire_actions:
+                return
+            if single_fire:
+                self._single_fire_actions.add(action)
+            self._enqueue_input_action(action)
+            return
 
     def _on_key_release(self, key):
+        if self._hotkeys_disabled():
+            self._reset_hotkey_state()
+            return
+
         if key in (Key.shift_l, Key.shift_r):
             self.shift_pressed = False
         if key in (Key.alt_l, Key.alt_r):
             self.alt_pressed = False
-        if key == Key.space:
-            self.space_pressed = False
+        if key in (Key.ctrl_l, Key.ctrl_r):
+            self.ctrl_pressed = False
+
+        released_tokens = self._key_tokens(key)
+        for action, binding in self._single_fire_bindings():
+            _, key_token = self._split_shortcut(binding)
+            if key_token and key_token in released_tokens:
+                self._single_fire_actions.discard(action)
 
     def on_alt_x(self, event=None):
         self.settings.control_window.attributes("-topmost", True)

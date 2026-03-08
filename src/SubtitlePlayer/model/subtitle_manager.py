@@ -41,6 +41,21 @@ class SubtitleManager:
 
     CLEAN_PATTERN = re.compile(r'\{\\an\d+\}')
     TAG_PATTERN = re.compile(r'<[^>]*>')
+    TAG_NAME_PATTERN = re.compile(r'<\s*/?\s*([A-Za-z0-9:_-]+)')
+    SPEAKER_PATTERN = re.compile(r'^\s*[（(]\s*(?P<name>[^)）]{1,60})\s*[）)]\s*[:：]?\s*(?P<rest>.*)$')
+    NON_SPEAKER_HINTS = (
+        "音",
+        "物音",
+        "声",
+        "効果音",
+        "足音",
+        "息",
+        "拍手",
+        "ざわめき",
+        "雑音",
+        "心の声",
+        "モノローグ",
+    )
     SEASON_PATTERN = re.compile(r'S(\d+)', re.IGNORECASE)
     EPISODE_PATTERN = re.compile(r'E(\d+)', re.IGNORECASE)
     RUBY_PATTERN = regex.compile(r'(\p{Han}+)\(([^)]+)\)')
@@ -197,11 +212,116 @@ class SubtitleManager:
 
     def _clean_text(self, text: str) -> str:
         cleaned = self.CLEAN_PATTERN.sub('', text)
-        cleaned = self.TAG_PATTERN.sub('', cleaned)
+        cleaned = self._clean_html_tags(cleaned)
         cleaned = self.RUBY_PATTERN.sub(r'\1«\2»', cleaned)
-        cleaned = regex.sub(r'[（(].*?[）)]', '', cleaned)
+
+        keep_speaker = bool(self.config.get("SUBTITLE_KEEP_SPEAKER_NAMES") or False)
+        strip_paren_notes = self.config.get("SUBTITLE_STRIP_PAREN_NOTES")
+        strip_paren_notes = True if strip_paren_notes is None else bool(strip_paren_notes)
+        speaker_template = str(self.config.get("SUBTITLE_SPEAKER_TEMPLATE") or "<speaker:{name}> ")
+
+        out_lines = []
+        for raw_line in cleaned.splitlines():
+            line = (raw_line or "").strip()
+            if not line:
+                continue
+            name, rest = self._find_leading_speaker_label(line)
+            if name is not None:
+                if keep_speaker and name:
+                    prefix = self._format_speaker_template(speaker_template, name).rstrip()
+                    line = f"{prefix} {rest}".strip() if rest else prefix
+                else:
+                    line = rest
+            if strip_paren_notes and line:
+                line = regex.sub(r'[（(].*?[）)]', '', line).strip()
+            if line:
+                out_lines.append(line)
+
+        cleaned = "\n".join(out_lines)
         cleaned = cleaned.replace('«', '(').replace('»', ')')
         return cleaned.replace('&lrm;', '').replace('\u200e', '').strip()
+
+    def _clean_html_tags(self, text: str) -> str:
+        raw = self.config.get("SUBTITLE_CUSTOM_HTML_TAGS")
+        if raw is None:
+            raw = ""
+        if isinstance(raw, (list, tuple, set)):
+            parts = [str(p).strip() for p in raw]
+        else:
+            parts = re.split(r"[\s,;|]+", str(raw))
+
+        allow = set()
+        for p in parts:
+            tag = str(p or "").strip().lower().strip("<>/")
+            if tag:
+                allow.add(tag)
+
+        if not allow:
+            return self.TAG_PATTERN.sub('', text)
+
+        def _replace(match):
+            token = match.group(0)
+            m = self.TAG_NAME_PATTERN.search(token)
+            if not m:
+                return ""
+            tag_name = (m.group(1) or "").strip().lower()
+            return token if tag_name in allow else ""
+
+        return self.TAG_PATTERN.sub(_replace, text)
+
+    @staticmethod
+    def _format_speaker_template(template: str, name: str) -> str:
+        text = str(template or "<speaker:{name}> ")
+        if "{name}" not in text:
+            text = text + "{name}"
+        try:
+            return text.format(name=name)
+        except Exception:
+            return f"<speaker:{name}> "
+
+    def _find_leading_speaker_label(self, line: str) -> Tuple[Optional[str], str]:
+        current = (line or "").strip()
+        if not current:
+            return None, ""
+
+        # Some subtitle lines have multiple leading (...) tags; we only treat tags
+        # that look like an actual speaker label as speaker names.
+        for _ in range(6):
+            m = self.SPEAKER_PATTERN.match(current)
+            if not m:
+                break
+            candidate = (m.group("name") or "").strip()
+            rest = (m.group("rest") or "").strip()
+            if self._looks_like_speaker_name(candidate):
+                return candidate, rest
+            if not rest or rest == current:
+                break
+            current = rest
+        return None, (line or "").strip()
+
+    @classmethod
+    def _looks_like_speaker_name(cls, text: str) -> bool:
+        value = (text or "").strip()
+        if not value:
+            return False
+
+        # Remove ruby placeholders from the name check (e.g. 刃牙«バキ»).
+        normalized = regex.sub(r'«[^»]*»', '', value)
+        normalized = re.sub(r'\s+', '', normalized)
+        if not normalized:
+            return False
+
+        if len(normalized) > 30:
+            return False
+
+        lower = normalized.lower()
+        if any(token in lower for token in ("sfx", "se", "bgm", "voice", "sound", "noise")):
+            return False
+
+        if any(hint in normalized for hint in cls.NON_SPEAKER_HINTS):
+            return False
+
+        return bool(regex.search(r'[\p{Han}\p{Hiragana}\p{Katakana}A-Za-z]', normalized))
 
     # ---------------------- ASS parsing (minimal) ----------------------
     ASS_OVERRIDE_TAG_RE = re.compile(r'\{[^}]*\}')
@@ -1589,7 +1709,7 @@ class SubtitleManager:
             logger.exception("Failed to persist remote selection metadata for: %s", local_path)
             return None
 
-        # kick off async windowed download around the chosen global (±20)
+        # kick off async windowed download around the chosen global (Â±20)
         try:
             center_global = target_global
             if center_global is None and target_season is not None and target_episode is not None:
@@ -2239,7 +2359,7 @@ class SubtitleManager:
             season += 1
             if season == end_season:
                 break
-            if self.anime_folder_name == "HUNTER×HUNTER" and season == 7:
+            if self.anime_folder_name == "HUNTERÃ—HUNTER" and season == 7:
                 break
             if self.anime_folder_name == "Shingeki no Kyojin" and season == 8:
                 break
@@ -2753,7 +2873,7 @@ class SubtitleManager:
         s = re.sub(r'\[.*?\]', '', s)
         s = re.sub(r'\{.*?\}', '', s)
         s = re.sub(r'\.(mkv|mp4|srt|ass|avi)$', '', s, flags=re.IGNORECASE)
-        s = s.replace('–','-').replace('—','-')
+        s = s.replace('â€“','-').replace('â€”','-')
         s = re.sub(r'\b\d{4}-\d{2}-\d{2}\b', '', s)
         tokens = re.split(r'([.\s_\-()\[\]]+)', s)
         filtered = []
@@ -2798,9 +2918,9 @@ class SubtitleManager:
             score += 25
         if re.search(r'(?i)\bE\d{1,4}\b', text):
             score += 15
-        if re.search(r'第\s*\d{1,4}\s*話', text):
+        if re.search(r'ç¬¬\s*\d{1,4}\s*è©±', text):
             score += 20
-        if re.search(r'(?:シーズン|ｼｰｽﾞﾝ)\s*\d{1,2}\s*[-‐‑–—ー]\s*\d{1,4}', text):
+        if re.search(r'(?:ã‚·ãƒ¼ã‚ºãƒ³|ï½¼ï½°ï½½ï¾žï¾)\s*\d{1,2}\s*[-â€â€‘â€“â€”ãƒ¼]\s*\d{1,4}', text):
             score += 30
 
         # Small provider preference (tie-breaker)
@@ -2835,7 +2955,7 @@ class SubtitleManager:
         # Episode numbers can be up to 4 digits for long-running shows (e.g. One Piece E1135).
         #
         # IMPORTANT: We can't rely on \b boundaries for SxxEyy because many Japanese filenames are like:
-        # "名探偵コナンS10 E1 - 第384話..." (no separator before "S").
+        # "åæŽ¢åµã‚³ãƒŠãƒ³S10 E1 - ç¬¬384è©±..." (no separator before "S").
         # Use an ASCII-only "not preceded by [A-Za-z0-9]" guard instead.
         re_s_e_paren = re.compile(
             r'(?xi)(?<![A-Za-z0-9])S(?P<s>\d{1,2})[ ._\-]*E(?P<e>\d{1,4})(?!\d)'
@@ -2846,10 +2966,10 @@ class SubtitleManager:
         re_episode_number = re.compile(r'(?xi)\b(?:ep|episode|ep\.)[ ._\-#]*(?P<num>\d{1,4})\b')
         # Similar to SxxEyy: don't rely on \b because filenames can contain "_E60_" etc.
         re_e_token = re.compile(r'(?xi)(?<![A-Za-z0-9])E(?P<num>\d{1,4})(?!\d)')
-        # Japanese "第384話" style global episode markers.
+        # Japanese "ç¬¬384è©±" style global episode markers.
         # Use explicit unicode escapes to avoid source-encoding / mojibake issues.
         re_jp_episode = re.compile(r'(?x)\u7b2c\s*(?P<num>\d{1,4})\s*\u8a71')
-        re_jp_season_dash = re.compile(r'(?x)(?:シーズン|ｼｰｽﾞﾝ)\s*(?P<s>\d{1,2})\s*[-‐‑–—ー]\s*(?P<e>\d{1,4})')
+        re_jp_season_dash = re.compile(r'(?x)(?:ã‚·ãƒ¼ã‚ºãƒ³|ï½¼ï½°ï½½ï¾žï¾)\s*(?P<s>\d{1,2})\s*[-â€â€‘â€“â€”ãƒ¼]\s*(?P<e>\d{1,4})')
         re_bracket_number = re.compile(r'[\(\[]\s*(\d{1,4})\s*[\)\]]')
         re_trailing_number = re.compile(r'(?xi)(?:[_\-. ]|^)(?P<num>\d{1,4})(?:\.[a-z0-9]{1,6})?$')
         # Common fansub pattern: "Show Name - 123 [720p].srt" (no season info -> treat as global)
@@ -2874,7 +2994,7 @@ class SubtitleManager:
             return s, e, g
 
         # 2) SxxEyy -> local episode (conservative: do not treat as global unless we have
-        # an explicit global marker like "第384話" in the same filename).
+        # an explicit global marker like "ç¬¬384è©±" in the same filename).
         m = re_s_e.search(n)
         if m:
             try:
@@ -2882,7 +3002,7 @@ class SubtitleManager:
             except Exception:
                 return None, None, None
             # If the filename contains an explicit global episode marker, prefer it.
-            # Example: "名探偵コナンS10 E1 - 第384話...srt" -> s=10,e=1,g=384.
+            # Example: "åæŽ¢åµã‚³ãƒŠãƒ³S10 E1 - ç¬¬384è©±...srt" -> s=10,e=1,g=384.
             m_g = re_jp_episode.search(n)
             if m_g:
                 try:
@@ -2920,7 +3040,7 @@ class SubtitleManager:
                 return s, e, e
             return s, e, None
 
-        # 4b) Japanese "シーズンX-Y" (common on some subtitle sources)
+        # 4b) Japanese "ã‚·ãƒ¼ã‚ºãƒ³X-Y" (common on some subtitle sources)
         m = re_jp_season_dash.search(n)
         if m:
             try:
@@ -2968,7 +3088,7 @@ class SubtitleManager:
                 return s, num, None
             return None, None, num
 
-        # 5c) Japanese "第255話" -> global episode number
+        # 5c) Japanese "ç¬¬255è©±" -> global episode number
         m = re_jp_episode.search(n)
         if m:
             try:
@@ -3176,6 +3296,7 @@ class SubtitleManager:
             logger.error(f"Download failed for {remote_path}: {e}")
 # ---------------------- GitHub searching / downloading ----------------------
 #endregion -------------------------remote handling-----------------------------
+
 
 
 

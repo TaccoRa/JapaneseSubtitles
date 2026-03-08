@@ -1,9 +1,10 @@
-"""
+﻿"""
 AnkiConnect client used to create notes from popup selections.
 """
 
 from __future__ import annotations
 
+import base64
 import os
 import re
 from html import escape
@@ -21,6 +22,8 @@ class AnkiClient:
     DEFAULT_JISHO_URL = "https://jisho.org/api/v1/search/words"
     DEFAULT_GOOGLE_TRANSLATE_URL = "https://translate.googleapis.com/translate_a/single"
     DEFAULT_DEEPL_URL = "https://api-free.deepl.com/v2/translate"
+    DEFAULT_STROKE_SVG_BASE_URL = "https://raw.githubusercontent.com/KanjiVG/kanjivg/master/kanji"
+    DEFAULT_STROKE_MEDIA_PREFIX = "stroke_"
 
     def __init__(self, config) -> None:
         self.config = config
@@ -32,6 +35,8 @@ class AnkiClient:
         self._word_definition_cache: Dict[str, str] = {}
         self._sentence_translation_cache: Dict[str, str] = {}
         self._jisho_entries_cache: Dict[str, List[Dict]] = {}
+        self._stroke_media_exists_cache: Dict[str, bool] = {}
+        self._stroke_sync_failed_cache: set[str] = set()
 
         # when using Jisho we keep the full english definition list here so the
         # note builder can put the full string into the "Definition" field
@@ -52,16 +57,25 @@ class AnkiClient:
             self.config.get("ANKI_MODEL") or "Standard (und umgekehrte Karte) Japanese"
         ).strip()
 
-        # Keep these stable in code so config stays minimal.
-        self.add_rubies_to_front_field = "AddRubiesToFront"
-        self.front_field = "Front"
-        self.back_field = "Back"
-        self.sentence_ja_field = "SentenceJA"
-        self.sentence_de_field = "SentenceDE"
-        self.sound_field = "Sound"
-        self.image_field = "Image"
-        self.add_rubies_to_sentence_ja_field = "AddRubiesToSentenceJA"
-        self.definition_field = "Definition"
+        self.add_rubies_to_front_field = (
+            self.config.get("ANKI_FIELD_ADD_RUBIES_FRONT") or "AddRubiesToFront"
+        ).strip()
+        self.front_field = (self.config.get("ANKI_FIELD_FRONT") or "Front").strip()
+        self.back_field = (self.config.get("ANKI_FIELD_BACK") or "Back").strip()
+        self.sentence_ja_field = (
+            self.config.get("ANKI_FIELD_SENTENCE_JA") or "SentenceJA"
+        ).strip()
+        self.sentence_de_field = (
+            self.config.get("ANKI_FIELD_SENTENCE_DE") or "SentenceDE"
+        ).strip()
+        self.sound_field = (self.config.get("ANKI_FIELD_SOUND") or "Sound").strip()
+        self.image_field = (self.config.get("ANKI_FIELD_IMAGE") or "Image").strip()
+        self.add_rubies_to_sentence_ja_field = (
+            self.config.get("ANKI_FIELD_ADD_RUBIES_SENTENCE_JA") or "AddRubiesToSentenceJA"
+        ).strip()
+        self.definition_field = (
+            self.config.get("ANKI_FIELD_DEFINITION") or "Definition"
+        ).strip()
 
         self.sentence_target_lang = (self.config.get("ANKI_SENTENCE_TARGET_LANG") or "de").strip()
         self.word_target_lang = (self.config.get("ANKI_WORD_TARGET_LANG") or "de").strip()
@@ -73,6 +87,20 @@ class AnkiClient:
         self.jisho_url = self.DEFAULT_JISHO_URL
         self.google_translate_url = self.DEFAULT_GOOGLE_TRANSLATE_URL
         self.deepl_translate_url = self.DEFAULT_DEEPL_URL
+        self.stroke_svg_base_url = (
+            self.config.get("ANKI_STROKE_SVG_BASE_URL") or self.DEFAULT_STROKE_SVG_BASE_URL
+        ).strip()
+        self.stroke_media_prefix = (
+            self.config.get("ANKI_STROKE_MEDIA_PREFIX") or self.DEFAULT_STROKE_MEDIA_PREFIX
+        ).strip() or self.DEFAULT_STROKE_MEDIA_PREFIX
+        stroke_auto_sync = self.config.get("ANKI_STROKE_AUTO_SYNC")
+        self.stroke_auto_sync = True if stroke_auto_sync is None else bool(stroke_auto_sync)
+        try:
+            self.stroke_download_timeout = float(
+                self.config.get("ANKI_STROKE_DOWNLOAD_TIMEOUT_SEC") or max(self.http_timeout, 20.0)
+            )
+        except Exception:
+            self.stroke_download_timeout = max(self.http_timeout, 20.0)
 
         # Keep API key out of config when sharing repo.
         self.deepl_api_key = (
@@ -84,7 +112,14 @@ class AnkiClient:
         enabled = self.config.get("ANKI_ENABLED")
         self.enabled = True if enabled is None else bool(enabled)
         tags = self.config.get("ANKI_TAGS")
-        self.tags = list(tags) if isinstance(tags, list) else ["subtitleplayer"]
+        if tags is None:
+            self.tags = ["subtitleplayer"]
+        elif isinstance(tags, list):
+            self.tags = [str(t).strip() for t in tags if str(t).strip()]
+        elif isinstance(tags, str):
+            self.tags = [t.strip() for t in tags.replace(";", ",").split(",") if t.strip()]
+        else:
+            self.tags = []
 
     def is_enabled(self) -> bool:
         return self.enabled
@@ -141,18 +176,35 @@ class AnkiClient:
         }
         note_id = self._invoke("addNote", {"note": note})
         routed = self._route_new_cards(note_id)
+        # stroke_sync = self._sync_missing_stroke_svgs_for_new_note(
+        #     selected_text=selected,
+        #     fields=fields,
+        # )
 
         return {
             "note_id": note_id,
             "routed_cards": routed,
             "word_translation": word_translation,
             "sentence_translation": sentence_translation,
+            # "stroke_svg_sync": stroke_sync,
             "translation_candidates": translation_candidates,
             "translation_provider_used": {
                 "word": word_provider_used,
                 "sentence": sentence_provider_used,
             },
+            "stroke_svg_sync_fields": fields,
         }
+
+
+    def sync_missing_stroke_svgs_async(self, selected_text: str, fields: Dict[str, str]):
+        import threading
+
+        thread = threading.Thread(
+            target=self._sync_missing_stroke_svgs_for_new_note,
+            args=(selected_text, fields),
+            daemon=True,
+        )
+        thread.start()
 
     def _build_note_fields(
         self,
@@ -654,11 +706,6 @@ class AnkiClient:
 
         word_candidates = {
             "jisho": self._translate_word_with_jisho(selected_text) if selected_text else "",
-            "deepl": self._translate_deepl(
-                selected_text,
-                source_lang="ja",
-                target_lang=self.word_target_lang,
-            ) if selected_text else "",
             "google": self._translate_google(
                 selected_text,
                 source_lang="ja",
@@ -851,3 +898,116 @@ class AnkiClient:
         if data.get("error"):
             raise RuntimeError(str(data["error"]))
         return data.get("result")
+
+    def _sync_missing_stroke_svgs_for_new_note(self, selected_text: str, fields: Dict[str, str]) -> Dict[str, int]:
+        result = {
+            "enabled": int(bool(self.stroke_auto_sync)),
+            "required": 0,
+            "missing": 0,
+            "uploaded": 0,
+            "failed": 0,
+        }
+        if not self.stroke_auto_sync:
+            return result
+
+        texts = [
+            selected_text,
+            fields.get(self.add_rubies_to_front_field, ""),
+            fields.get(self.front_field, ""),
+        ]
+        chars = self._extract_kanji_chars_for_strokes(texts)
+        result["required"] = len(chars)
+        if not chars:
+            return result
+
+        for kanji_char in chars:
+            filename = self._stroke_media_filename(kanji_char)
+            if self._stroke_media_exists(filename):
+                continue
+            result["missing"] += 1
+
+            if kanji_char in self._stroke_sync_failed_cache:
+                result["failed"] += 1
+                continue
+
+            try:
+                raw_svg = self._download_stroke_svg(kanji_char)
+                self._store_media_file(filename, raw_svg)
+                self._stroke_media_exists_cache[filename] = True
+                result["uploaded"] += 1
+            except Exception:
+                self._stroke_sync_failed_cache.add(kanji_char)
+                result["failed"] += 1
+        return result
+
+    def _extract_kanji_chars_for_strokes(self, texts: List[str]) -> List[str]:
+        seen: set[str] = set()
+        out: List[str] = []
+        for raw in texts or []:
+            value = str(raw or "")
+            value = re.sub(r"<[^>]+>", "", value)
+            value = re.sub(r"\[[^\[\]]+\]", "", value)
+            for ch in value:
+                if not self._is_kanji_char(ch):
+                    continue
+                if ch in seen:
+                    continue
+                seen.add(ch)
+                out.append(ch)
+        return out
+
+    def _is_kanji_char(self, ch: str) -> bool:
+        code = ord(ch)
+        return (
+            0x3400 <= code <= 0x4DBF
+            or 0x4E00 <= code <= 0x9FFF
+            or 0xF900 <= code <= 0xFAFF
+            or 0x20000 <= code <= 0x2A6DF
+            or 0x2A700 <= code <= 0x2B81F
+            or 0x2B820 <= code <= 0x2CEAF
+        )
+
+    def _stroke_media_filename(self, kanji_char: str) -> str:
+        prefix = re.sub(r"[^a-zA-Z0-9_.-]", "_", self.stroke_media_prefix or self.DEFAULT_STROKE_MEDIA_PREFIX)
+        return f"{prefix}{ord(kanji_char):05x}.svg"
+
+    def _stroke_media_exists(self, filename: str) -> bool:
+        cached = self._stroke_media_exists_cache.get(filename)
+        if cached is not None:
+            return cached
+        try:
+            result = self._invoke("retrieveMediaFile", {"filename": filename})
+            exists = isinstance(result, str) and bool(result)
+        except Exception:
+            exists = False
+        self._stroke_media_exists_cache[filename] = exists
+        return exists
+
+    def _stroke_download_candidates(self, kanji_char: str) -> List[str]:
+        base = (self.stroke_svg_base_url or self.DEFAULT_STROKE_SVG_BASE_URL).strip().rstrip("/")
+        code = ord(kanji_char)
+        hex_candidates = [
+            f"{code:05x}",
+            f"{code:04x}",
+            f"{code:x}",
+            f"{code:05X}",
+            f"{code:04X}",
+            f"{code:X}",
+        ]
+        return [f"{base}/{code_hex}.svg" for code_hex in hex_candidates]
+
+    def _download_stroke_svg(self, kanji_char: str) -> bytes:
+        last_error = None
+        for url in self._stroke_download_candidates(kanji_char):
+            try:
+                response = requests.get(url, timeout=self.stroke_download_timeout)
+                response.raise_for_status()
+                if response.content:
+                    return response.content
+            except Exception as exc:
+                last_error = exc
+        raise RuntimeError(f"No stroke SVG URL worked for {kanji_char}") from last_error
+
+    def _store_media_file(self, filename: str, raw: bytes) -> None:
+        encoded = base64.b64encode(raw).decode("ascii")
+        self._invoke("storeMediaFile", {"filename": filename, "data": encoded})
