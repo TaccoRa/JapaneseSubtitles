@@ -851,8 +851,11 @@ class SettingsUI:
                     return
             nb_w, nb_h, req_w, req_h = sizes
             notebook.configure(width=int(nb_w), height=int(nb_h))
-            sw = int(win.winfo_screenwidth() or 1920)
-            sh = int(win.winfo_screenheight() or 1080)
+            try:
+                sw = int(self.root.winfo_vrootwidth() or self.root.winfo_screenwidth())
+                sh = int(self.root.winfo_vrootheight() or self.root.winfo_screenheight())
+            except Exception:
+                sw, sh = 1920, 1080
             x = max(0, min(int(win.winfo_x()), max(0, sw - req_w)))
             y = max(0, min(int(win.winfo_y()), max(0, sh - req_h)))
             if int(win.winfo_width()) != int(req_w) or int(win.winfo_height()) != int(req_h):

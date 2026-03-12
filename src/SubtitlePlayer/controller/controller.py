@@ -1137,7 +1137,6 @@ class SubtitleController:
 
 
     def _on_key_press(self, key):
-        print("Pressed:", key, "tokens:", self._key_tokens(key), "ctrl:", self.ctrl_pressed, "shift:", self.shift_pressed)
         if self._hotkeys_disabled():
             self._reset_hotkey_state()
             return
