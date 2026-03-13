@@ -961,6 +961,7 @@ class SettingsUI:
                     {"key": "SUBTITLE_KEEP_SPEAKER_NAMES", "label": "Keep speaker names from (Name)", "type": "bool", "default": False},
                     {"key": "SUBTITLE_SPEAKER_TEMPLATE", "label": "Speaker template ({name})", "type": "str", "default": "<speaker:{name}> "},
                     {"key": "SUBTITLE_STRIP_PAREN_NOTES", "label": "Strip remaining (...) notes", "type": "bool", "default": True},
+                    {"key": "SUBTITLE_AUTO_RUBY", "label": "Auto-add ruby for kanji-only lines", "type": "bool", "default": False},
                 ],
             ),
         ]
@@ -1067,6 +1068,7 @@ class SettingsUI:
                 "Hotkeys",
                 [
                     {"key": "SHORTCUTS_DISABLED", "label": "Disable all hotkeys", "type": "bool", "default": False},
+                    {"key": "DISABLE_SPACE_HOTKEY", "label": "Disable space play/pause", "type": "bool", "default": False},
                 ],
             ),
             (
@@ -1306,5 +1308,4 @@ class SettingsUI:
     def set_total_duration(self, total_duration: float):
         self.total_duration = total_duration
         self.slider.config(to=total_duration + self._last_offset_value)
-
 

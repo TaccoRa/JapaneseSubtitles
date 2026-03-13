@@ -47,14 +47,49 @@ def make_draggable(drag_handle: tk.Widget,target: tk.Toplevel,sync_windows: list
 
 
 def parse_time_value(time: str, last_subtitle = None) -> float:
-    time = str(time).replace("s","").replace(" ","").replace(":","").replace(",", ".")
-    if "." in time:
-        int_part, frac = time.split(".", 1)
-        frac_secs = float("0." + frac)
+    text = str(time or "").strip().lower()
+    text = text.replace(" ", "").replace("s", "").replace(",", ".")
+    if not text:
+        return 0.0
+
+    def _digits(s: str) -> str:
+        return "".join(ch for ch in s if ch.isdigit())
+
+    if ":" in text:
+        parts = [p or "0" for p in text.split(":")]
+        if len(parts) > 3:
+            parts = parts[-3:]
+        while len(parts) < 3:
+            parts.insert(0, "0")
+        h_s, m_s, s_s = parts
+        h = int(_digits(h_s) or 0)
+        m = int(_digits(m_s) or 0)
+        if "." in s_s:
+            sec_int, frac = s_s.split(".", 1)
+        else:
+            sec_int, frac = s_s, ""
+        sec = int(_digits(sec_int) or 0)
+        frac_digits = _digits(frac)
+        frac_secs = float("0." + frac_digits) if frac_digits else 0.0
     else:
-        int_part, frac_secs = time, 0.0
-    p = int_part.zfill(6)
-    h, m, sec = int(p[:2]), int(p[2:4]), int(p[4:6])
+        if "." in text:
+            int_part, frac = text.split(".", 1)
+        else:
+            int_part, frac = text, ""
+        int_digits = _digits(int_part)
+        if not int_digits:
+            return 0.0
+        if len(int_digits) <= 4:
+            padded = int_digits.zfill(4)
+            h = 0
+            m = int(padded[:-2])
+            sec = int(padded[-2:])
+        else:
+            h = int(int_digits[:-4] or 0)
+            m = int(int_digits[-4:-2])
+            sec = int(int_digits[-2:])
+        frac_digits = _digits(frac)
+        frac_secs = float("0." + frac_digits) if frac_digits else 0.0
 
     m += sec // 60
     sec %= 60

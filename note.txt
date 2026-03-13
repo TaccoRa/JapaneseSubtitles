@@ -38,7 +38,10 @@ SubtitlePlayer:
 - `src/SubtitlePlayer/__init__.py` | 37 bytes | 2 lines | py | Package marker | exports: n/a
 - `src/SubtitlePlayer/app.py` | 9246 bytes | 256 lines | py | App bootstrap and startup threading | exports: `SubtitlePlayerApp()->class`
 - `src/SubtitlePlayer/controller/__init__.py` | 33 bytes | 2 lines | py | Package marker | exports: n/a
-- `src/SubtitlePlayer/controller/controller.py` | 55784 bytes | 1347 lines | py | UI/controller glue, time loop, input handling | exports: `SubtitleController(...)->class`
+- `src/SubtitlePlayer/controller/controller.py` | 56526 bytes | 1367 lines | py | UI/controller glue, time loop, input handling | exports: `SubtitleController(...)->class`
+- `src/SubtitlePlayer/anki_reading_support/dicrc` | 693 bytes | 30 lines | other | MeCab dictionary config | exports: n/a
+- `src/SubtitlePlayer/anki_reading_support/itaijidict` | 2820 bytes | 565 lines | other | Kakasi itaijidict table | exports: n/a
+- `src/SubtitlePlayer/anki_reading_support/mecabrc` | 0 bytes | 0 lines | other | MeCab runtime config | exports: n/a
 - `src/SubtitlePlayer/github_search/github_search_Ansatsu_Kyoushitsu.json` | 49108 bytes | 1373 lines | json | Cached GitHub search results for Ansatsu Kyoushitsu | exports: n/a
 - `src/SubtitlePlayer/github_search/github_search_Daini_no_Shokugyo.json` | 13726 bytes | 197 lines | json | Cached GitHub search results for Daini no Shokugyo | exports: n/a
 - `src/SubtitlePlayer/github_search/github_search_Death_note.json` | 48159 bytes | 1330 lines | json | Cached GitHub search results for Death Note | exports: n/a
@@ -65,13 +68,14 @@ SubtitlePlayer:
 - `src/SubtitlePlayer/model/__init__.py` | 28 bytes | 2 lines | py | Package marker | exports: n/a
 - `src/SubtitlePlayer/model/anki_client.py` | 37800 bytes | 1014 lines | py | AnkiConnect + translation client | exports: `AnkiClient(...)->class`
 - `src/SubtitlePlayer/model/config_manager.py` | 939 bytes | 34 lines | py | JSON config wrapper | exports: `ConfigManager(...)->class`
-- `src/SubtitlePlayer/model/renderer.py` | 9887 bytes | 255 lines | py | Subtitle rendering on canvas | exports: `SubtitleRenderer(...)->class`
-- `src/SubtitlePlayer/model/subtitle_manager.py` | 149986 bytes | 3316 lines | py | Subtitle parsing, episode maps, downloads | exports: `SubtitleManager(...)->class`
-- `src/SubtitlePlayer/utils.py` | 2232 bytes | 75 lines | py | Time parsing/formatting + dragging | exports: `make_draggable`, `parse_time_value`, `format_time`
+- `src/SubtitlePlayer/model/renderer.py` | 10812 bytes | 278 lines | py | Subtitle rendering on canvas | exports: `SubtitleRenderer(...)->class`
+- `src/SubtitlePlayer/model/anki_ruby.py` | 7956 bytes | 242 lines | py | MeCab/Kakasi ruby generation (add-on logic) | exports: `AddonRubyGenerator(...)->class`
+- `src/SubtitlePlayer/model/subtitle_manager.py` | 151497 bytes | 3363 lines | py | Subtitle parsing, episode maps, downloads | exports: `SubtitleManager(...)->class`
+- `src/SubtitlePlayer/utils.py` | 3317 bytes | 109 lines | py | Time parsing/formatting + dragging | exports: `make_draggable`, `parse_time_value`, `format_time`
 - `src/SubtitlePlayer/view/__init__.py` | 27 bytes | 2 lines | py | Package marker | exports: n/a
 - `src/SubtitlePlayer/view/overlays.py` | 8043 bytes | 250 lines | py | Loading/splash overlays | exports: `_center_toplevel`, `LoadingOverlay`, `_STARTUP_OVERLAY`
 - `src/SubtitlePlayer/view/popup.py` | 8311 bytes | 237 lines | py | Copy popup and Anki add UI | exports: `CopyPopup(...)->class`
-- `src/SubtitlePlayer/view/settings_ui.py` | 59366 bytes | 1311 lines | py | Settings + control windows | exports: `SettingsUI(...)->class`
+- `src/SubtitlePlayer/view/settings_ui.py` | 59621 bytes | 1312 lines | py | Settings + control windows | exports: `SettingsUI(...)->class`
 - `src/SubtitlePlayer/view/subtitle_overlay.py` | 6652 bytes | 173 lines | py | Subtitle overlay window | exports: `SubtitleOverlayUI(...)->class`
 
 Modify_anki:
@@ -85,15 +89,17 @@ Modify_anki:
 - Episode maps: `remote_episode_map_global` (global index->item) and `remote_episode_map_season` (season->items).
 - `github_search/*.json`: cached GitHub search results with repo metadata and subtitle item lists.
 - `config.json`: JSON configuration controlling UI layout, timing, Anki fields, and remote settings.
+- Advanced toggles: `SUBTITLE_AUTO_RUBY` (auto ruby generation) and `DISABLE_SPACE_HOTKEY` (disable space play/pause).
+- `anki_reading_support/`: bundled MeCab/Kakasi binaries and dictionaries copied from the add-on.
 - `unparsed_episode_names.tsv`: TSV log of filenames failing episode parsing.
 - Modify_anki `PlanItem`: dataclass for note mutation plans (nid, old/new front, flags).
 - AnkiConnect payloads: JSON `{action, version, params}` for find/update/add/media operations.
 - Stroke media naming: `stroke_<codepoint>.svg` (5-hex Unicode codepoint).
 
 7. Known issues and probable runtime errors
-- `src/SubtitlePlayer/model/subtitle_manager.py:141` assumes local paths contain a `subs` folder; otherwise `.index('subs')` throws `ValueError` and startup can crash in local mode.
-- `src/SubtitlePlayer/model/subtitle_manager.py:460` `get_total_duration` uses `self.subtitles[-1]`; empty/failed parses raise `IndexError`.
-- `src/SubtitlePlayer/model/subtitle_manager.py:196` `srt.parse` exceptions are uncaught; malformed SRTs stop loading.
+- `src/SubtitlePlayer/model/subtitle_manager.py:145` assumes local paths contain a `subs` folder; otherwise `.index('subs')` throws `ValueError` and startup can crash in local mode.
+- `src/SubtitlePlayer/model/subtitle_manager.py:508` `get_total_duration` uses `self.subtitles[-1]`; empty/failed parses raise `IndexError`.
+- `src/SubtitlePlayer/model/subtitle_manager.py:200` `srt.parse` exceptions are uncaught; malformed SRTs stop loading.
 - `src/SubtitlePlayer/app.py:49` `ConfigManager("config.json")` is cwd-dependent; running from outside repo root fails.
 - `src/SubtitlePlayer/utils.py:49` `parse_time_value` is ambiguous for short inputs (e.g., "90"), risking wrong seek times.
 - `anki_modify/sync_missing_stroke_svgs.py:113` default behavior is APPLY, so missing media may be uploaded without explicit confirmation.
@@ -103,6 +109,7 @@ Modify_anki:
 Subtitle parsing and timing checks:
 - SRT parsing uses `srt.parse` (expects `HH:MM:SS,mmm`); dot-millis or malformed blocks may raise.
 - ASS parsing supports `H:MM:SS.CS` or 3-digit fractions; unusual formats may be skipped.
+- Auto ruby uses the bundled MeCab/Kakasi support binaries; if unavailable, subtitles remain unchanged.
 - Time comparisons use floats from `total_seconds`; boundary cases can miss cues without epsilon in some paths.
 - Sync drift risk: controller time is driven by wall-clock deltas, not by actual Chrome video time.
 
@@ -117,7 +124,7 @@ Modify_anki safety checks:
 - No built-in backup or transaction rollback; partial updates are possible on failures.
 
 TODO/FIXME/HACK:
-- `src/SubtitlePlayer/model/subtitle_manager.py:1468` TODO: figure out the anime name of first season.
+- `src/SubtitlePlayer/model/subtitle_manager.py:1516` TODO: figure out the anime name of first season.
 
 8. Refactoring opportunities and prioritized action list
 1. Guard local path parsing to avoid `subs` hard dependency.

@@ -333,6 +333,16 @@ class SubtitleController:
             except Exception:
                 pass
 
+        if "SUBTITLE_AUTO_RUBY" in values:
+            try:
+                srt_path = getattr(self.sub_manager, "srt_file", None)
+                if srt_path:
+                    self.sub_manager.set_subtitle_display_data(srt_path)
+                    self.last_subtitle_text = ""
+                    self.update_time_and_subtitle_displays()
+            except Exception:
+                pass
+
         startup_value_keys = {"DEFAULT_START_TIME", "EXTRA_OFFSET", "DEFAULT_SKIP"}
         if any(k in values for k in startup_value_keys):
             try:
@@ -934,8 +944,18 @@ class SubtitleController:
         default = self.SHORTCUT_DEFAULTS.get(config_key, "")
         raw = self.config.get(config_key)
         if not isinstance(raw, str) or not raw.strip():
-            return default
-        return raw.strip().lower()
+            value = default
+        else:
+            value = raw
+        value = str(value).strip().lower()
+        if config_key == "SHORTCUT_TOGGLE_PLAY":
+            try:
+                if bool(self.config.get("DISABLE_SPACE_HOTKEY") or False):
+                    if self._normalize_shortcut_token(value) == "space":
+                        return ""
+            except Exception:
+                pass
+        return value
 
     @staticmethod
     def _normalize_shortcut_token(token: str) -> str:

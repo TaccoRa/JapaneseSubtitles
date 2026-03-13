@@ -29,6 +29,8 @@ import tkinter as tk
 from tkinter import font as tkFont
 from tkinter import filedialog
 
+from model.anki_ruby import AddonRubyGenerator
+
 from model.config_manager import ConfigManager
 from utils import format_time
 from view.overlays import LoadingOverlay, get_startup_overlay, hide_startup_overlay, show_startup_overlay
@@ -70,6 +72,8 @@ class SubtitleManager:
         self.config = config
         self.github_token = os.environ.get("GITHUB_TOKEN")
         self.remote_flag = self.config.get("REMOTE_FLAG")
+        self._ruby_generator = None
+        self._ruby_generator_failed = False
 
         if self.remote_flag:
             url = self.config.get("LAST_GITHUB_URL")
@@ -439,7 +443,9 @@ class SubtitleManager:
     def _parse_ruby_segments(self, text: str) -> List[tuple[str, Optional[str]]]:
         segments: List[tuple[str, Optional[str]]] = []
         last = 0
+        found_ruby = False
         for m in self.RUBY_PATTERN.finditer(text):
+            found_ruby = True
             plain = text[last:m.start()].strip()
             if plain:
                 segments.append((plain, None))
@@ -448,7 +454,49 @@ class SubtitleManager:
         tail = text[last:].strip()
         if tail:
             segments.append((tail, None))
+        if found_ruby:
+            return segments
+
+        auto = self._auto_ruby_segments(text)
+        if auto:
+            return auto
         return segments
+
+    def _auto_ruby_enabled(self) -> bool:
+        try:
+            return bool(self.config.get("SUBTITLE_AUTO_RUBY") or False)
+        except Exception:
+            return False
+
+    def _get_ruby_generator(self) -> Optional[AddonRubyGenerator]:
+        if self._ruby_generator is not None or self._ruby_generator_failed:
+            return self._ruby_generator
+        try:
+            self._ruby_generator = AddonRubyGenerator()
+        except Exception:
+            self._ruby_generator_failed = True
+        return self._ruby_generator
+
+    def _auto_ruby_segments(self, text: str) -> Optional[List[tuple[str, Optional[str]]]]:
+        if not self._auto_ruby_enabled():
+            return None
+        if not text or ("[" in text and "]" in text):
+            return None
+        if not regex.search(r"\p{Han}", text or ""):
+            return None
+
+        generator = self._get_ruby_generator()
+        if generator is None:
+            return None
+        try:
+            segments = generator.segments(text)
+        except Exception:
+            return None
+        if not segments:
+            return None
+        if any(ruby for _base, ruby in segments):
+            return segments
+        return None
 # -------------------------helpers-----------------------------
 
 # ---------------------- get data -------------------------

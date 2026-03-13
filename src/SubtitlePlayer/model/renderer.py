@@ -72,6 +72,10 @@ class SubtitleRenderer:
             self._render_line(lines[0], y_ruby_top, y_base1, overlay.max_w)
             return
         if len(lines) == 2:
+            block_h = self.line_height + self.ruby_height
+            base2_start = block_h
+            y_base2 = base2_start + self.line_height // 2
+            y_ruby_bot = base2_start + self.line_height + self.ruby_height // 2
             self._render_line(lines[0], y_ruby_top, y_base1, overlay.max_w)
             self._render_line(lines[1], y_ruby_bot, y_base2, overlay.max_w)
             return
@@ -99,19 +103,34 @@ class SubtitleRenderer:
         top_offset = max(0, int((avail_h - total_h) / 2))
 
         for i, segs in enumerate(lines):
-            ruby_y = top_offset + int(i * block_h) + self.ruby_height // 2
-            base_y = top_offset + int(i * block_h) + self.ruby_height + self.line_height // 2
+            block_y = top_offset + int(i * block_h)
+            if i == len(lines) - 1:
+                base_y = block_y + self.line_height // 2
+                ruby_y = block_y + self.line_height + self.ruby_height // 2
+            else:
+                ruby_y = block_y + self.ruby_height // 2
+                base_y = block_y + self.ruby_height + self.line_height // 2
             self._render_line(segs, ruby_y, base_y, overlay.max_w)
 
     def _render_line(self, segments, ruby_y, base_y, max_width):
         if not segments:
             return
-        total_w = sum(self.font.measure(b) for b, _ in segments)
-        cur_x = (max_width - total_w) / 2
-
+        seg_meta = []
+        total_w = 0
         for base, ruby in segments:
             base_w = self.font.measure(base)
-            cx = cur_x + base_w / 2
+            if ruby:
+                ruby_w = self.ruby_font.measure(ruby)
+                seg_w = max(base_w, ruby_w)
+            else:
+                ruby_w = 0
+                seg_w = base_w
+            seg_meta.append((base, ruby, base_w, ruby_w, seg_w))
+            total_w += seg_w
+        cur_x = (max_width - total_w) / 2
+
+        for base, ruby, base_w, ruby_w, seg_w in seg_meta:
+            cx = cur_x + seg_w / 2
             if ruby:
                 self.draw_outlined_text(
                     self.canvas, cx, ruby_y,
@@ -123,7 +142,7 @@ class SubtitleRenderer:
                 base, self.font, fill=self.color,
                 outline=self.glow_color, thickness=self.glow_radius
             )
-            cur_x += base_w
+            cur_x += seg_w
 
     @staticmethod
     def draw_outlined_text(canvas: tk.Canvas, x: int, y: int, text: str,
@@ -175,7 +194,12 @@ class SubtitleRenderer:
         for base, ruby in segments:
             if not base:
                 continue
-            seg_w = self.font.measure(base)
+            base_w = self.font.measure(base)
+            if ruby:
+                ruby_w = self.ruby_font.measure(ruby)
+                seg_w = max(base_w, ruby_w)
+            else:
+                seg_w = base_w
 
             # If it fits on the current line, keep it.
             if cur and (cur_w + seg_w) <= limit:
