@@ -132,17 +132,35 @@ class SubtitleRenderer:
         for base, ruby, base_w, ruby_w, seg_w in seg_meta:
             cx = cur_x + seg_w / 2
             if ruby:
-                self.draw_outlined_text(
-                    self.canvas, cx, ruby_y,
-                    ruby, self.ruby_font, fill=self.color,
-                    outline=self.glow_color, thickness=self.ruby_glow_radius
-                )
+                self._draw_ruby_text(ruby, base_w, ruby_w, cx, ruby_y)
             self.draw_outlined_text(
                 self.canvas, cx, base_y,
                 base, self.font, fill=self.color,
                 outline=self.glow_color, thickness=self.glow_radius
             )
             cur_x += seg_w
+
+    def _draw_ruby_text(self, ruby: str, base_w: int, ruby_w: int, center_x: float, y: float) -> None:
+        if not ruby:
+            return
+        # If ruby is longer than the base, just center it.
+        if base_w <= 0 or ruby_w >= base_w or len(ruby) <= 1:
+            self.draw_outlined_text(
+                self.canvas, center_x, y,
+                ruby, self.ruby_font, fill=self.color,
+                outline=self.glow_color, thickness=self.ruby_glow_radius
+            )
+            return
+
+        slot = base_w / max(1, len(ruby))
+        start_x = center_x - base_w / 2
+        for i, ch in enumerate(ruby):
+            ch_x = start_x + slot * (i + 0.5)
+            self.draw_outlined_text(
+                self.canvas, ch_x, y,
+                ch, self.ruby_font, fill=self.color,
+                outline=self.glow_color, thickness=self.ruby_glow_radius
+            )
 
     @staticmethod
     def draw_outlined_text(canvas: tk.Canvas, x: int, y: int, text: str,

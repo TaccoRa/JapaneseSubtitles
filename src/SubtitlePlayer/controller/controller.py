@@ -10,18 +10,23 @@ Handles input (buttons, keyboard, global mouse), time updates, and episode chang
 import time
 import threading
 import queue
+import os
+import re
+import subprocess
+import tempfile
 import tkinter as tk
 from pynput.mouse import Button, Listener as MouseListener
 from pynput.keyboard import Key, Listener as KeyboardListener
 import pyautogui
 import bisect
+from PIL import ImageOps, ImageGrab, ImageStat
 from model.config_manager import ConfigManager
 from model.anki_client import AnkiClient
 from model.subtitle_manager import SubtitleManager
 from model.renderer import SubtitleRenderer
 from view.settings_ui import SettingsUI
 from view.subtitle_overlay import SubtitleOverlayUI
-from utils import parse_time_value, format_time
+from utils import parse_time_value, format_time, get_monitor_rects
 from view.popup import CopyPopup
 
 class SubtitleController:
@@ -41,6 +46,10 @@ class SubtitleController:
         "SHORTCUT_EPISODE_DEC": "alt+y",
         "SHORTCUT_JUMP_SUB_END": "ctrl+shift+y",
     }
+
+    OCR_TIME_PATTERN = re.compile(
+        r"(\d{1,2}:\d{2}(?::\d{2})?)[/\\|](\d{1,2}:\d{2}(?::\d{2})?)"
+    )
     
     
     def __init__(self,
@@ -88,6 +97,10 @@ class SubtitleController:
         self._shutting_down = False
         self._input_actions: "queue.Queue[str]" = queue.Queue()
         self._input_pump_job = None
+        self._ocr_job = None
+        self._ocr_thread = None
+        self._ocr_generation = 0
+        self._ocr_pending_time = None
 
         self.settings.bind_back(self.go_back)
         self.settings.bind_forward(self.go_forward)
@@ -111,6 +124,7 @@ class SubtitleController:
         self.settings.bind_show_subtitle_handle      (self.show_subtitle_handle)
         self.settings.bind_refresh_subtitles         (self.on_refresh_subtitles)
         self.settings.bind_advanced_apply            (self.apply_advanced_settings)
+        self.settings.bind_ocr_read_now              (self.on_ocr_read_now)
 
         self.settings.bind_update_display            (self.update_time_and_subtitle_displays)
         
@@ -130,6 +144,7 @@ class SubtitleController:
         self.last_update  = time.time()
         self.update_time_and_subtitle_displays()
         self._update_episode_nav_controls()
+        self._schedule_ocr_time_jump("startup")
 
 
     def _update_episode_nav_controls(self) -> None:
@@ -592,6 +607,7 @@ class SubtitleController:
         self.settings.root.title(title)
         self.current_time = self.default_start_time
         self.set_current_time(self.current_time)
+        self._schedule_ocr_time_jump("episode_change")
         
     def update_max_width(self) -> None:
         # Recompute content width + padding
@@ -855,6 +871,8 @@ class SubtitleController:
     def _on_global_click(self, x, y, button, pressed):
         if button == Button.x2 and pressed:
             self._enqueue_input_action("clear_subtitle")
+        if button == Button.x1 and pressed:
+            self._enqueue_input_action("toggle_m3_mode")
 
 
     # ——— Keyboard handlers —————————————————————————————————————
@@ -906,6 +924,8 @@ class SubtitleController:
             # Keep last_subtitle_text intact so _update_subtitle_display() won't immediately redraw
             # the same subtitle on the next timer tick. It will render again once the subtitle changes.
             self.subtitle_deleted = True
+        elif action == "toggle_m3_mode":
+            self._toggle_m3_mode()
 
     def jump_subtitle_segment(self, direction: str) -> None:
         """
@@ -1061,6 +1081,496 @@ class SubtitleController:
         self.alt_pressed = False
         self.ctrl_pressed = False
         self._single_fire_actions.clear()
+
+    def _toggle_m3_mode(self) -> None:
+        enable_m3 = not self._hotkeys_disabled()
+        try:
+            self.settings.set_hotkeys_disabled(enable_m3)
+        except Exception:
+            return
+        # Clear any stuck modifier state when toggling hotkeys on/off.
+        self._reset_hotkey_state()
+
+    def _schedule_ocr_time_jump(self, reason: str) -> None:
+        if self._shutting_down:
+            return
+        if not self._ocr_auto_enabled():
+            return
+        delay_ms = 800 if reason == "startup" else 500
+        try:
+            if self._ocr_job is not None:
+                self.settings.root.after_cancel(self._ocr_job)
+        except Exception:
+            pass
+        self._ocr_generation += 1
+        try:
+            self._ocr_pending_time = float(self.current_time)
+        except Exception:
+            self._ocr_pending_time = None
+
+        generation = self._ocr_generation
+
+        def _kickoff():
+            self._run_ocr_time_jump_async(generation)
+
+        try:
+            self._ocr_job = self.settings.root.after(delay_ms, _kickoff)
+        except Exception:
+            self._ocr_job = None
+
+    def _run_ocr_time_jump_async(self, generation: int) -> None:
+        if self._shutting_down:
+            return
+
+        def worker():
+            seconds = self._ocr_find_time_seconds()
+            if seconds is None:
+                return
+            try:
+                self.settings.root.after(0, lambda: self._apply_ocr_time(seconds, generation))
+            except Exception:
+                pass
+
+        self._ocr_thread = threading.Thread(target=worker, daemon=True)
+        self._ocr_thread.start()
+
+    def _apply_ocr_time(self, seconds: float, generation: int) -> None:
+        if self._shutting_down:
+            return
+        if generation != self._ocr_generation:
+            return
+        try:
+            if self.playing:
+                return
+        except Exception:
+            pass
+        pending = getattr(self, "_ocr_pending_time", None)
+        if pending is not None:
+            try:
+                if abs(float(self.current_time) - float(pending)) > 0.75:
+                    return
+            except Exception:
+                pass
+        self.set_current_time(seconds)
+
+    def on_ocr_read_now(self, override: dict | None = None) -> None:
+        if self._shutting_down:
+            return
+
+        def worker():
+            seconds = self._ocr_find_time_seconds(override=override)
+            if seconds is None:
+                return
+            try:
+                self.settings.root.after(0, lambda: self._apply_ocr_time_manual(seconds))
+            except Exception:
+                pass
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _apply_ocr_time_manual(self, seconds: float) -> None:
+        if self._shutting_down:
+            return
+        self.set_current_time(seconds)
+
+    def _ocr_find_time_seconds(self, override: dict | None = None):
+        regions = self._get_ocr_capture_regions(override)
+        if not regions:
+            return None
+
+        debug = self._ocr_debug_enabled(override)
+        started = time.perf_counter()
+
+        variant_makers = []
+
+        def _make_autocontrast(img):
+            gray = ImageOps.grayscale(img)
+            return ImageOps.autocontrast(gray)
+
+        def _make_gray(img):
+            return ImageOps.grayscale(img)
+
+        variant_makers.append(("autocontrast", _make_autocontrast))
+        variant_makers.append(("gray", _make_gray))
+
+        # Threshold variant (disabled for now; keep for later tuning)
+        # def _make_threshold(img):
+        #     gray = ImageOps.grayscale(img)
+        #     stat = ImageStat.Stat(gray)
+        #     median = int(stat.median[0]) if stat.median else 128
+        #     threshold = min(255, max(0, median + 10))
+        #     thresh_img = gray.point(lambda p, t=threshold: 255 if p >= t else 0)
+        #     if median < 128:
+        #         thresh_img = ImageOps.invert(thresh_img)
+        #     return thresh_img
+        # variant_makers.append(("threshold", _make_threshold))
+
+        region_images = []
+        for region_idx, region, is_custom in regions:
+            img = self._capture_ocr_image(region)
+            if img is None:
+                region_images.append((region_idx, None))
+                continue
+            if is_custom:
+                try:
+                    img = img.resize((img.width * 2, img.height * 2), Image.BICUBIC)
+                except Exception:
+                    pass
+            region_images.append((region_idx, img))
+
+        for label, maker in variant_makers:
+            for region_idx, img in region_images:
+                if img is None:
+                    continue
+                try:
+                    variant = maker(img)
+                except Exception:
+                    variant = img
+                text = self._ocr_image_to_text(variant, override=override)
+                if debug:
+                    print(f"OCR raw text [{label}#{region_idx}]:")
+                    print(text if text else "<empty>")
+                if not text:
+                    continue
+                result = self._extract_time_from_ocr_text(text, override=override)
+                if result is None:
+                    continue
+                seconds, left, right = result
+                elapsed_ms = (time.perf_counter() - started) * 1000.0
+                print(f"OCR result: {left} / {right} -> {seconds:.2f}s (box {region_idx}, {label}, {elapsed_ms:.0f} ms)")
+                return seconds
+        return None
+
+    def _ocr_image_to_text(self, image, override: dict | None = None) -> str:
+        config_str, config_args = self._build_tesseract_config(override)
+        tesseract_cmd = self._resolve_tesseract_cmd(override)
+        try:
+            import pytesseract
+            if tesseract_cmd:
+                try:
+                    pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
+                except Exception:
+                    pass
+            return pytesseract.image_to_string(image, config=config_str) or ""
+        except Exception:
+            pass
+
+        tmp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                tmp_path = tmp.name
+                image.save(tmp_path)
+            cmd = tesseract_cmd or "tesseract"
+            result = subprocess.run(
+                [cmd, tmp_path, "stdout", *config_args],
+                capture_output=True,
+                text=True,
+                timeout=8,
+            )
+            return result.stdout or ""
+        except Exception:
+            return ""
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                try:
+                    os.remove(tmp_path)
+                except Exception:
+                    pass
+
+    def _extract_time_from_ocr_text(self, text: str, override: dict | None = None):
+        if not text:
+            return None
+        cleaned = text.replace(" ", "").replace("\n", "").replace("\t", "")
+        cleaned = (cleaned
+                   .replace("O", "0")
+                   .replace("o", "0")
+                   .replace("I", "1")
+                   .replace("l", "1")
+                   .replace(";", ":"))
+
+        matches = self.OCR_TIME_PATTERN.findall(cleaned)
+        if not matches:
+            # Fallback 1: digit-only timecodes (e.g. 1823/2341)
+            digit_matches = re.findall(r"(\d{3,4})[/\\|](\d{3,4})", cleaned)
+            if digit_matches:
+                matches = digit_matches
+                if self._ocr_debug_enabled(override):
+                    print("OCR fallback: digit-only timecodes detected")
+
+        if not matches:
+            # Fallback 2: 8-digit compact timecodes (e.g. 18232341 -> 18:23 / 23:41)
+            digits_only = re.sub(r"\D", "", cleaned)
+            for i in range(max(0, len(digits_only) - 7)):
+                run = digits_only[i:i + 8]
+                if len(run) < 8:
+                    continue
+                left_digits = run[:4]
+                right_digits = run[4:]
+                try:
+                    mm1 = int(left_digits[:2])
+                    ss1 = int(left_digits[2:])
+                    mm2 = int(right_digits[:2])
+                    ss2 = int(right_digits[2:])
+                except Exception:
+                    continue
+                if mm1 > 59 or ss1 > 59 or mm2 > 59 or ss2 > 59:
+                    continue
+                left = f"{mm1:02d}:{ss1:02d}"
+                right = f"{mm2:02d}:{ss2:02d}"
+                matches = [(left, right)]
+                if self._ocr_debug_enabled(override):
+                    print("OCR fallback: 8-digit timecodes detected")
+                break
+
+        if not matches:
+            # Fallback 3: two timecodes found back-to-back (missing separator)
+            time_re = re.compile(r"\d{1,2}:\d{2}(?::\d{2})?")
+            time_hits = list(time_re.finditer(cleaned))
+            for i in range(len(time_hits) - 1):
+                gap = time_hits[i + 1].start() - time_hits[i].end()
+                if gap <= 2:
+                    matches = [(time_hits[i].group(0), time_hits[i + 1].group(0))]
+                    if self._ocr_debug_enabled(override):
+                        print("OCR fallback: adjacent timecodes detected")
+                    break
+
+        if not matches:
+            # Fallback 4: left time + trailing digits (e.g. 18:2312341 -> 18:23 / 23:41)
+            tail_match = re.search(r"(\d{1,2}:\d{2})(\d{4,6})", cleaned)
+            if tail_match:
+                left = tail_match.group(1)
+                tail = re.sub(r"\D", "", tail_match.group(2) or "")
+                if len(tail) >= 4:
+                    right_digits = tail[-4:]
+                    try:
+                        mm = int(right_digits[:2])
+                        ss = int(right_digits[2:])
+                    except Exception:
+                        mm, ss = 99, 99
+                    if mm > 59 or ss > 59:
+                        right_digits = ""
+                    if not right_digits:
+                        pass
+                    else:
+                        right = f"{right_digits[:2]}:{right_digits[2:]}"
+                        matches = [(left, right)]
+                        if self._ocr_debug_enabled(override):
+                            print("OCR fallback: inferred right time from trailing digits")
+        if not matches:
+            if self._ocr_debug_enabled(override):
+                print("OCR match: <no timecode found>")
+            return None
+
+        max_allow = None
+        try:
+            max_allow = float(self.total_duration) + float(self.settings._last_offset_value or 0.0)
+        except Exception:
+            max_allow = None
+
+        for left, right in matches:
+            try:
+                left_sec = parse_time_value(left)
+                right_sec = parse_time_value(right)
+            except Exception:
+                continue
+            if right_sec > 0 and left_sec > right_sec + 1.0:
+                continue
+            if max_allow is not None and max_allow > 0 and left_sec > (max_allow + 2.0):
+                continue
+            if self._ocr_debug_enabled(override):
+                print(f"OCR match: {left} / {right} -> {left_sec:.2f}s")
+            return left_sec, left, right
+        return None
+
+    def _ocr_auto_enabled(self) -> bool:
+        raw = self.config.get("OCR_ENABLED")
+        if raw is None:
+            return True
+        return self._coerce_bool(raw, default=True)
+
+    @staticmethod
+    def _coerce_bool(value, default: bool = False) -> bool:
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return default
+        text = str(value).strip().lower()
+        if text in ("1", "true", "yes", "on"):
+            return True
+        if text in ("0", "false", "no", "off"):
+            return False
+        return default
+
+    @staticmethod
+    def _coerce_int(value, default: int = 0) -> int:
+        try:
+            return int(float(str(value).strip().replace(",", ".")))
+        except Exception:
+            return int(default)
+
+    def _ocr_debug_enabled(self, override: dict | None = None) -> bool:
+        if override and "OCR_DEBUG" in override:
+            return self._coerce_bool(override.get("OCR_DEBUG"), default=True)
+        return self._coerce_bool(self.config.get("OCR_DEBUG"), default=True)
+
+    def _build_tesseract_config(self, override: dict | None = None):
+        psm = self._coerce_int(
+            (override or {}).get("OCR_TESSERACT_PSM", self.config.get("OCR_TESSERACT_PSM")),
+            default=6,
+        )
+        oem = self._coerce_int(
+            (override or {}).get("OCR_TESSERACT_OEM", self.config.get("OCR_TESSERACT_OEM")),
+            default=3,
+        )
+        whitelist = (override or {}).get("OCR_CHAR_WHITELIST", self.config.get("OCR_CHAR_WHITELIST"))
+        whitelist = str(whitelist or "").strip() or "0123456789:/"
+
+        args = ["--psm", str(psm)]
+        if oem >= 0:
+            args += ["--oem", str(oem)]
+        if whitelist:
+            args += ["-c", f"tessedit_char_whitelist={whitelist}"]
+
+        return " ".join(args), args
+
+    def _resolve_tesseract_cmd(self, override: dict | None = None):
+        raw = ""
+        if override and "OCR_TESSERACT_CMD" in override:
+            raw = str(override.get("OCR_TESSERACT_CMD") or "").strip()
+        if not raw:
+            raw = str(self.config.get("OCR_TESSERACT_CMD") or "").strip()
+        if not raw:
+            raw = (os.environ.get("TESSERACT_CMD") or os.environ.get("TESSERACT_PATH") or "").strip()
+        if not raw:
+            return None
+        path = os.path.expandvars(raw)
+        if os.path.isdir(path):
+            exe = os.path.join(path, "tesseract.exe")
+            if os.path.exists(exe):
+                return exe
+        return path
+
+    def _get_ocr_setting(self, key: str, override: dict | None = None, default=None):
+        if override and key in override:
+            return override.get(key)
+        value = self.config.get(key)
+        return default if value is None else value
+
+    def _get_ocr_region_count(self, override: dict | None = None) -> int:
+        raw = self._get_ocr_setting("OCR_REGION_COUNT", override, default=2)
+        count = self._coerce_int(raw, default=2)
+        return max(1, min(8, count))
+
+    def _get_ocr_capture_regions(self, override: dict | None = None):
+        base_x, base_y, base_w, base_h = self._get_ocr_base_rect(override)
+        regions = []
+        count = self._get_ocr_region_count(override)
+
+        def _suffix(idx: int) -> str:
+            return "" if idx == 1 else str(idx)
+
+        def _build_region(idx: int, default_bottom: bool):
+            suffix = _suffix(idx)
+            rx = self._coerce_int(self._get_ocr_setting(f"OCR_REGION{suffix}_X", override, default=0), default=0)
+            ry = self._coerce_int(self._get_ocr_setting(f"OCR_REGION{suffix}_Y", override, default=0), default=0)
+            rw = self._coerce_int(self._get_ocr_setting(f"OCR_REGION{suffix}_W", override, default=0), default=0)
+            rh = self._coerce_int(self._get_ocr_setting(f"OCR_REGION{suffix}_H", override, default=0), default=0)
+
+            if rw <= 0 or rh <= 0:
+                if not default_bottom:
+                    return None
+                half_h = max(1, int(base_h / 2))
+                return (base_x, base_y + (base_h - half_h), base_w, half_h), False
+
+            if rx < 0:
+                rx = 0
+            if ry < 0:
+                ry = 0
+            if rw > base_w:
+                rw = base_w
+            if rh > base_h:
+                rh = base_h
+            return (base_x + rx, base_y + ry, rw, rh), True
+
+        for idx in range(1, count + 1):
+            default_bottom = (idx == 1)
+            built = _build_region(idx, default_bottom=default_bottom)
+            if built:
+                region, is_custom = built
+                regions.append((idx, region, is_custom))
+        return regions
+
+    def _get_ocr_capture_region(self, override: dict | None = None):
+        regions = self._get_ocr_capture_regions(override)
+        if not regions:
+            return None
+        return regions[0][1]
+
+    def _get_ocr_base_rect(self, override: dict | None = None):
+        monitors = get_monitor_rects(self.settings.root)
+        if not monitors:
+            monitors = [(0, 0, 1920, 1080)]
+
+        screen_idx = self._coerce_int(self._get_ocr_setting("OCR_SCREEN_INDEX", override, default=1), default=1)
+        if screen_idx <= 0:
+            min_x = min(r[0] for r in monitors)
+            min_y = min(r[1] for r in monitors)
+            max_x = max(r[0] + r[2] for r in monitors)
+            max_y = max(r[1] + r[3] for r in monitors)
+            x, y = int(min_x), int(min_y)
+            w, h = int(max_x - min_x), int(max_y - min_y)
+            return x, y, w, h
+
+        if screen_idx > len(monitors):
+            screen_idx = 1
+        x, y, w, h = monitors[screen_idx - 1]
+        return int(x), int(y), int(w), int(h)
+
+    def _get_ocr_capture_region(self, override: dict | None = None):
+        base_x, base_y, base_w, base_h = self._get_ocr_base_rect(override)
+
+        rx = self._coerce_int(self._get_ocr_setting("OCR_REGION_X", override, default=0), default=0)
+        ry = self._coerce_int(self._get_ocr_setting("OCR_REGION_Y", override, default=0), default=0)
+        rw = self._coerce_int(self._get_ocr_setting("OCR_REGION_W", override, default=0), default=0)
+        rh = self._coerce_int(self._get_ocr_setting("OCR_REGION_H", override, default=0), default=0)
+
+        # Default search area: bottom half of the selected screen(s) unless a region is set.
+        if rw <= 0 or rh <= 0:
+            half_h = max(1, int(base_h / 2))
+            region = (base_x, base_y + (base_h - half_h), base_w, half_h)
+            return region
+
+        if rx < 0:
+            rx = 0
+        if ry < 0:
+            ry = 0
+        if rw > base_w:
+            rw = base_w
+        if rh > base_h:
+            rh = base_h
+        region = (base_x + rx, base_y + ry, rw, rh)
+        return region
+
+    def _capture_ocr_image(self, region):
+        if not region:
+            return None
+        x, y, w, h = region
+        bbox = (int(x), int(y), int(x + w), int(y + h))
+        try:
+            return ImageGrab.grab(bbox=bbox, all_screens=True)
+        except Exception:
+            pass
+        try:
+            return ImageGrab.grab(bbox=bbox)
+        except Exception:
+            pass
+        try:
+            # Fallback to pyautogui (may ignore negative coords)
+            if x >= 0 and y >= 0:
+                return pyautogui.screenshot(region=(int(x), int(y), int(w), int(h)))
+            return pyautogui.screenshot()
+        except Exception:
+            return None
 
     # def _on_key_press(self, key):
     #     # don't return for modifier presses — only update flags
@@ -1340,7 +1850,7 @@ class SubtitleController:
         except Exception:
             pass
 
-        for job in ("subtitle_timeout_job", "_con_hide_job", "_input_pump_job"):
+        for job in ("subtitle_timeout_job", "_con_hide_job", "_input_pump_job", "_ocr_job"):
             handle = getattr(self, job, None)
             if handle is not None:
                 try:

@@ -8,10 +8,27 @@ import tkinter as tk
 from tkinter import ttk
 from re import fullmatch
 from model.config_manager import ConfigManager
-from utils import make_draggable, format_time
+from utils import make_draggable, format_time, get_monitor_rects
 
 class SettingsUI:
     NUMBER_PATTERN = r"\s*([-+]?\d+(?:[.,]\d+)?)\s*(?:s|sec|secs|second|seconds)?\s*"
+    OCR_MAX_REGIONS = 8
+    _OCR_REGION_KEYS = []
+    for _idx in range(1, OCR_MAX_REGIONS + 1):
+        _suffix = "" if _idx == 1 else str(_idx)
+        for _axis in ("X", "Y", "W", "H"):
+            _OCR_REGION_KEYS.append(f"OCR_REGION{_suffix}_{_axis}")
+    OCR_KEYS = (
+        "OCR_ENABLED",
+        "OCR_DEBUG",
+        "OCR_TESSERACT_CMD",
+        "OCR_TESSERACT_PSM",
+        "OCR_TESSERACT_OEM",
+        "OCR_CHAR_WHITELIST",
+        "OCR_SCREEN_INDEX",
+        "OCR_REGION_COUNT",
+        *_OCR_REGION_KEYS,
+    )
 
     def __init__(
         self,
@@ -114,7 +131,8 @@ class SettingsUI:
                      #Control window:
                      "back", "forward", "play_pause",
                      "time_entry_return", "time_entry_clear",
-                     "advanced_apply"):
+                     "advanced_apply",
+                     "ocr_read_now"):
             setattr(self, f"_on_{name}", self._noop)
 
     # â€”â€”â€” SETTINGS FRAME â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”
@@ -484,6 +502,7 @@ class SettingsUI:
 
     def bind_update_display(self, cb):       self.update_time_and_subtitle_displays = cb
     def bind_advanced_apply(self, cb):       self._on_advanced_apply = cb
+    def bind_ocr_read_now(self, cb):         self._on_ocr_read_now = cb
 
     def update_time_overlay_position(self):
         self.root.update_idletasks()
@@ -651,14 +670,19 @@ class SettingsUI:
         general_tab = tk.Frame(notebook)
         anki_tab = tk.Frame(notebook)
         shortcuts_tab = tk.Frame(notebook)
+        ocr_tab = tk.Frame(notebook)
         notebook.add(general_tab, text="General")
         notebook.add(anki_tab, text="Anki")
         notebook.add(shortcuts_tab, text="Shortcuts")
+        notebook.add(ocr_tab, text="OCR")
         notebook.bind("<<NotebookTabChanged>>", self._on_advanced_tab_changed, add="+")
 
         self._build_advanced_tab(general_tab, self._advanced_general_columns())
         self._build_advanced_tab(anki_tab, self._advanced_anki_columns())
         self._build_advanced_tab(shortcuts_tab, self._advanced_shortcut_columns())
+        self._build_advanced_tab(ocr_tab, self._advanced_ocr_columns())
+
+        self._build_ocr_actions(ocr_tab)
 
         self._load_advanced_values_into_vars()
 
@@ -910,22 +934,39 @@ class SettingsUI:
                 )
 
     def _build_advanced_section(self, parent, section_name, specs, is_last: bool = False):
+        visible_specs = [spec for spec in specs if not spec.get("hidden")]
+
+        def _register_var(spec):
+            key = spec["key"]
+            if key in self._advanced_vars:
+                return
+            self._advanced_meta[key] = spec
+            if spec["type"] == "bool":
+                self._advanced_vars[key] = tk.BooleanVar(value=False)
+            else:
+                self._advanced_vars[key] = tk.StringVar(value="")
+
+        # If everything is hidden, just register vars without rendering a UI section.
+        if not visible_specs:
+            for spec in specs:
+                _register_var(spec)
+            return
+
         section = tk.LabelFrame(parent, text=section_name, padx=10, pady=8)
         section.pack(fill="x", pady=(0, 0 if is_last else 10))
         section.grid_columnconfigure(1, weight=1)
 
         row = 0
         for spec in specs:
+            _register_var(spec)
+            if spec.get("hidden"):
+                continue
             key = spec["key"]
-            self._advanced_meta[key] = spec
+            var = self._advanced_vars.get(key)
             if spec["type"] == "bool":
-                var = tk.BooleanVar(value=False)
-                self._advanced_vars[key] = var
                 chk = tk.Checkbutton(section, text=spec["label"], variable=var, anchor="w")
                 chk.grid(row=row, column=0, columnspan=2, sticky="w", pady=2)
             else:
-                var = tk.StringVar(value="")
-                self._advanced_vars[key] = var
                 tk.Label(section, text=spec["label"]).grid(row=row, column=0, sticky="w", pady=2)
                 entry = tk.Entry(section, textvariable=var, width=20)
                 entry.grid(row=row, column=1, sticky="ew", padx=(8, 0), pady=2)
@@ -974,7 +1015,7 @@ class SettingsUI:
                     {"key": "SUBTITLE_COLOR", "label": "Subtitle color", "type": "str", "default": "white"},
                     {"key": "SUBTITLE_WRAP_LIMIT_PX", "label": "Subtitle wrap limit px", "type": "int", "default": 1500, "min": 0, "max": 5000},
                     {"key": "GLOW_COLOR", "label": "Glow color", "type": "str", "default": "black"},
-                    {"key": "GLOW_RADIUS", "label": "Glow radius", "type": "int", "default": 10, "min": 0, "max": 20},
+                    {"key": "GLOW_RADIUS", "label": "Glow radius", "type": "int", "default": 5, "min": 0, "max": 20},
                     {"key": "POPUP_FONT", "label": "Popup font", "type": "str", "default": "Arial"},
                     {"key": "POPUP_FONT_SIZE", "label": "Popup font size", "type": "int", "default": 20, "min": 8, "max": 96},
                     {"key": "POPUP_FONT_COLOR", "label": "Popup font color", "type": "str", "default": "white"},
@@ -1082,6 +1123,33 @@ class SettingsUI:
         ]
         return [left, right]
 
+    def _advanced_ocr_columns(self):
+        left = [
+            (
+                "OCR Settings",
+                [
+                    {"key": "OCR_ENABLED", "label": "Enable startup/episode OCR sync", "type": "bool", "default": True},
+                    {"key": "OCR_DEBUG", "label": "Debug print OCR text", "type": "bool", "default": True},
+                    {"key": "OCR_TESSERACT_CMD", "label": "Tesseract path (exe or folder)", "type": "str", "default": "", "allow_empty": True},
+                    {"key": "OCR_TESSERACT_PSM", "label": "Tesseract PSM", "type": "int", "default": 6, "min": 0, "max": 13},
+                    {"key": "OCR_TESSERACT_OEM", "label": "Tesseract OEM", "type": "int", "default": 3, "min": 0, "max": 3},
+                    {"key": "OCR_CHAR_WHITELIST", "label": "Char whitelist", "type": "str", "default": "0123456789:/", "allow_empty": True},
+                    {"key": "OCR_REGION_COUNT", "label": "OCR box count", "type": "int", "default": 2, "min": 1, "max": self.OCR_MAX_REGIONS},
+                    {"key": "OCR_SCREEN_INDEX", "label": "Screen index", "type": "int", "default": 1, "min": 1, "max": 16, "hidden": True},
+                ],
+            ),
+        ]
+        # Hidden region coordinate fields for all supported boxes.
+        for idx in range(1, self.OCR_MAX_REGIONS + 1):
+            suffix = "" if idx == 1 else str(idx)
+            left[0][1].extend([
+                {"key": f"OCR_REGION{suffix}_X", "label": f"Region {idx} X", "type": "int", "default": 0, "min": 0, "max": 100000, "hidden": True},
+                {"key": f"OCR_REGION{suffix}_Y", "label": f"Region {idx} Y", "type": "int", "default": 0, "min": 0, "max": 100000, "hidden": True},
+                {"key": f"OCR_REGION{suffix}_W", "label": f"Region {idx} W", "type": "int", "default": 0, "min": 0, "max": 100000, "hidden": True},
+                {"key": f"OCR_REGION{suffix}_H", "label": f"Region {idx} H", "type": "int", "default": 0, "min": 0, "max": 100000, "hidden": True},
+            ])
+        return [left]
+
     def _coerce_bool(self, value) -> bool:
         if isinstance(value, bool):
             return value
@@ -1089,6 +1157,360 @@ class SettingsUI:
             return False
         text = str(value).strip().lower()
         return text in ("1", "true", "yes", "on")
+
+    def _coerce_int(self, value, default: int = 0, min_v=None, max_v=None) -> int:
+        try:
+            num = int(float(str(value).strip().replace(",", ".")))
+        except Exception:
+            num = int(default)
+        if min_v is not None and num < int(min_v):
+            num = int(min_v)
+        if max_v is not None and num > int(max_v):
+            num = int(max_v)
+        return int(num)
+
+    def _build_ocr_actions(self, ocr_tab: tk.Frame) -> None:
+        actions = tk.LabelFrame(ocr_tab, text="Actions", padx=10, pady=8)
+        actions.pack(fill="x", padx=8, pady=(0, 8), anchor="n")
+
+        top = tk.Frame(actions)
+        top.pack(fill="x", expand=True)
+        left = tk.Frame(top)
+        left.pack(side="left", fill="x", expand=True)
+        right = tk.Frame(top)
+        right.pack(side="right")
+
+        self._ocr_area_select_btn = tk.Button(left, text="Select OCR Area", command=self._handle_select_ocr_area)
+        self._ocr_area_select_btn.pack(side="left")
+        self._ocr_area_select_var = tk.StringVar(value="1")
+        self._ocr_area_select_menu = tk.OptionMenu(left, self._ocr_area_select_var, "1")
+        self._ocr_area_select_menu.pack(side="left", padx=(4, 10))
+
+        self._ocr_area_clear_btn = tk.Button(left, text="Clear OCR Area", command=self._handle_clear_ocr_area)
+        self._ocr_area_clear_btn.pack(side="left")
+        self._ocr_area_clear_var = tk.StringVar(value="1")
+        self._ocr_area_clear_menu = tk.OptionMenu(left, self._ocr_area_clear_var, "1")
+        self._ocr_area_clear_menu.pack(side="left", padx=(4, 0))
+
+        self._refresh_ocr_area_buttons()
+        tk.Button(right, text="Read Now (Set Time)", command=self._handle_ocr_read_now).pack(side="right")
+
+        screen_row = tk.Frame(actions)
+        screen_row.pack(fill="x", pady=(8, 0))
+        tk.Label(screen_row, text="Screen:").pack(side="left")
+        self._build_ocr_screen_buttons(screen_row)
+
+        self._update_ocr_screen_button_styles()
+
+    def _get_ocr_region_count_from_vars(self) -> int:
+        default = int(self.config.get("OCR_REGION_COUNT") or 2)
+        try:
+            var = getattr(self, "_advanced_vars", {}).get("OCR_REGION_COUNT")
+            raw = var.get() if var is not None else default
+        except Exception:
+            raw = default
+        return self._coerce_int(raw, default=default, min_v=1, max_v=self.OCR_MAX_REGIONS)
+
+    def _refresh_ocr_area_buttons(self) -> None:
+        select_var = getattr(self, "_ocr_area_select_var", None)
+        clear_var = getattr(self, "_ocr_area_clear_var", None)
+        select_menu = getattr(self, "_ocr_area_select_menu", None)
+        clear_menu = getattr(self, "_ocr_area_clear_menu", None)
+        if select_var is None and clear_var is None:
+            return
+        count = self._get_ocr_region_count_from_vars()
+        options = [str(i) for i in range(1, count + 1)]
+
+        def _refresh_menu(menu_widget, var):
+            if menu_widget is None or var is None:
+                return
+            try:
+                menu = menu_widget["menu"]
+                menu.delete(0, "end")
+                for opt in options:
+                    menu.add_command(label=opt, command=lambda v=opt, vv=var: vv.set(v))
+            except Exception:
+                pass
+
+        if select_var is not None and select_var.get() not in options:
+            select_var.set(options[0])
+        if clear_var is not None and clear_var.get() not in options:
+            clear_var.set(options[0])
+        _refresh_menu(select_menu, select_var)
+        _refresh_menu(clear_menu, clear_var)
+
+    def _build_ocr_screen_buttons(self, parent: tk.Frame) -> None:
+        for child in parent.winfo_children():
+            if isinstance(child, tk.Button):
+                child.destroy()
+        monitors = get_monitor_rects(self.root)
+        count = max(1, len(monitors))
+        self._ocr_screen_buttons = {}
+
+        for idx in range(1, count + 1):
+            btn = tk.Button(parent, text=f"Screen {idx}", command=lambda i=idx: self._set_ocr_screen_index(i))
+            btn.pack(side="left", padx=(6, 0))
+            self._ocr_screen_buttons[idx] = btn
+            self._remember_ocr_button_defaults(btn)
+
+        if hasattr(self, "_ocr_area_select_btn"):
+            self._remember_ocr_button_defaults(self._ocr_area_select_btn)
+
+    def _remember_ocr_button_defaults(self, btn: tk.Button) -> None:
+        if btn is None:
+            return
+        if hasattr(self, "_ocr_button_defaults"):
+            return
+        try:
+            self._ocr_button_defaults = {
+                "bg": btn.cget("bg"),
+                "fg": btn.cget("fg"),
+                "activebackground": btn.cget("activebackground"),
+                "activeforeground": btn.cget("activeforeground"),
+            }
+        except Exception:
+            self._ocr_button_defaults = None
+
+    def _apply_ocr_button_style(self, btn: tk.Button, active: bool) -> None:
+        if btn is None:
+            return
+        if active:
+            try:
+                btn.configure(bg="#2f8f4e", fg="white", activebackground="#2f8f4e", activeforeground="white")
+            except Exception:
+                pass
+            return
+        defaults = getattr(self, "_ocr_button_defaults", None)
+        if not defaults:
+            return
+        try:
+            btn.configure(
+                bg=defaults.get("bg"),
+                fg=defaults.get("fg"),
+                activebackground=defaults.get("activebackground"),
+                activeforeground=defaults.get("activeforeground"),
+            )
+        except Exception:
+            pass
+
+    def _update_ocr_screen_button_styles(self) -> None:
+        values = {}
+        try:
+            values = self._get_ocr_values_from_vars()
+        except Exception:
+            values = {}
+
+        screen_idx = self._coerce_int(values.get("OCR_SCREEN_INDEX", 1), default=1, min_v=1, max_v=64)
+        region_count = self._get_ocr_region_count_from_vars()
+        area_any = False
+        area_selected = False
+        select_var = getattr(self, "_ocr_area_select_var", None)
+        select_idx = self._coerce_int(select_var.get(), default=1, min_v=1, max_v=region_count) if select_var else 1
+        for idx in range(1, region_count + 1):
+            suffix = "" if idx == 1 else str(idx)
+            rw = self._coerce_int(values.get(f"OCR_REGION{suffix}_W", 0), default=0)
+            rh = self._coerce_int(values.get(f"OCR_REGION{suffix}_H", 0), default=0)
+            selected = rw > 0 and rh > 0
+            if selected:
+                area_any = True
+                if idx == select_idx:
+                    area_selected = True
+
+        select_btn = getattr(self, "_ocr_area_select_btn", None)
+        self._apply_ocr_button_style(select_btn, area_selected)
+
+        for idx, btn in getattr(self, "_ocr_screen_buttons", {}).items():
+            active = (not area_any) and (idx == screen_idx)
+            self._apply_ocr_button_style(btn, active)
+
+    def _set_ocr_screen_index(self, index: int) -> None:
+        self._ocr_selected_screen = int(index)
+        var = getattr(self, "_advanced_vars", {}).get("OCR_SCREEN_INDEX")
+        if var is not None:
+            var.set(str(int(index)))
+        region_count = self._get_ocr_region_count_from_vars()
+        for idx in range(1, region_count + 1):
+            self._set_ocr_region_vars(0, 0, 0, 0, index=idx)
+        self._apply_ocr_values_runtime()
+        self._update_ocr_screen_button_styles()
+
+    def _set_ocr_region_vars(self, x: int, y: int, w: int, h: int, index: int = 1) -> None:
+        suffix = "" if index == 1 else str(index)
+        label = "OCR region" if index == 1 else f"OCR region {index}"
+        mapping = {
+            f"OCR_REGION{suffix}_X": x,
+            f"OCR_REGION{suffix}_Y": y,
+            f"OCR_REGION{suffix}_W": w,
+            f"OCR_REGION{suffix}_H": h,
+        }
+        for key, val in mapping.items():
+            var = getattr(self, "_advanced_vars", {}).get(key)
+            if var is not None:
+                var.set(str(int(val)))
+        if hasattr(self, "_advanced_status_var"):
+            if w > 0 and h > 0:
+                self._advanced_status_var.set(f"{label} set (area mode).")
+            else:
+                cleared_msg = f"{label} cleared (default bottom half)." if index == 1 else f"{label} cleared."
+                self._advanced_status_var.set(cleared_msg)
+        self._update_ocr_screen_button_styles()
+
+    def _get_ocr_values_from_vars(self) -> dict:
+        values = {}
+        meta = getattr(self, "_advanced_meta", {})
+        vars_map = getattr(self, "_advanced_vars", {})
+        for key in self.OCR_KEYS:
+            spec = meta.get(key)
+            var = vars_map.get(key)
+            if spec is None or var is None:
+                continue
+            if spec["type"] == "bool":
+                values[key] = bool(var.get())
+                continue
+            if spec["type"] == "int":
+                values[key] = self._coerce_int(var.get(), default=spec.get("default", 0),
+                                               min_v=spec.get("min"), max_v=spec.get("max"))
+                continue
+            if spec["type"] == "float":
+                try:
+                    values[key] = float(str(var.get()).strip().replace(",", "."))
+                except Exception:
+                    values[key] = float(spec.get("default", 0.0))
+                continue
+            text = str(var.get()).strip()
+            allow_empty = bool(spec.get("allow_empty", False))
+            if not text and not allow_empty:
+                text = str(spec.get("default", ""))
+            values[key] = text
+        return values
+
+    def _apply_ocr_values_runtime(self):
+        try:
+            values = self._get_ocr_values_from_vars()
+        except Exception:
+            return
+        if not values:
+            return
+        try:
+            self._on_advanced_apply(dict(values), False)
+        except Exception:
+            pass
+        self._refresh_ocr_area_buttons()
+
+    def _handle_ocr_read_now(self):
+        values = self._get_ocr_values_from_vars()
+        try:
+            self._on_ocr_read_now(dict(values))
+        except Exception:
+            pass
+
+    def _handle_select_ocr_area(self) -> None:
+        var = getattr(self, "_ocr_area_select_var", None)
+        try:
+            index = int(var.get()) if var is not None else 1
+        except Exception:
+            index = 1
+        self._select_ocr_region(index)
+
+    def _handle_clear_ocr_area(self) -> None:
+        var = getattr(self, "_ocr_area_clear_var", None)
+        try:
+            index = int(var.get()) if var is not None else 1
+        except Exception:
+            index = 1
+        self._clear_ocr_region_index(index)
+
+    def _clear_ocr_region(self):
+        self._set_ocr_region_vars(0, 0, 0, 0, index=1)
+        self._apply_ocr_values_runtime()
+
+    def _clear_ocr_region_index(self, index: int):
+        self._set_ocr_region_vars(0, 0, 0, 0, index=index)
+        self._apply_ocr_values_runtime()
+
+    def _select_ocr_region(self, index: int = 1):
+        values = self._get_ocr_values_from_vars()
+        selected = getattr(self, "_ocr_selected_screen", None)
+        screen_idx = self._coerce_int(
+            selected if selected is not None else values.get("OCR_SCREEN_INDEX", 1),
+            default=1,
+            min_v=1,
+            max_v=64,
+        )
+        monitors = get_monitor_rects(self.root)
+        if not monitors:
+            monitors = [(0, 0, 1920, 1080)]
+
+        if screen_idx <= 0:
+            min_x = min(r[0] for r in monitors)
+            min_y = min(r[1] for r in monitors)
+            max_x = max(r[0] + r[2] for r in monitors)
+            max_y = max(r[1] + r[3] for r in monitors)
+            base_x, base_y = int(min_x), int(min_y)
+            sw, sh = int(max_x - min_x), int(max_y - min_y)
+        else:
+            if screen_idx > len(monitors):
+                screen_idx = 1
+            base_x, base_y, sw, sh = monitors[screen_idx - 1]
+
+        win = tk.Toplevel(self.root)
+        win.overrideredirect(True)
+        win.attributes("-topmost", True)
+        try:
+            win.attributes("-alpha", 0.25)
+        except Exception:
+            pass
+        win.configure(bg="black")
+        win.geometry(f"{int(sw)}x{int(sh)}+{int(base_x)}+{int(base_y)}")
+        win.focus_set()
+        win.grab_set()
+
+        canvas = tk.Canvas(win, width=sw, height=sh, bg="black", highlightthickness=0, cursor="crosshair")
+        canvas.pack(fill="both", expand=True)
+
+        state = {"x0": 0, "y0": 0, "rect": None}
+
+        def _on_press(event):
+            state["x0"] = event.x
+            state["y0"] = event.y
+            if state["rect"] is not None:
+                canvas.delete(state["rect"])
+                state["rect"] = None
+            state["rect"] = canvas.create_rectangle(event.x, event.y, event.x, event.y,
+                                                    outline="#00ff66", width=2)
+
+        def _on_drag(event):
+            if state["rect"] is None:
+                return
+            canvas.coords(state["rect"], state["x0"], state["y0"], event.x, event.y)
+
+        def _finish(x1, y1, x2, y2):
+            win.grab_release()
+            win.destroy()
+            x = int(min(x1, x2))
+            y = int(min(y1, y2))
+            w = int(abs(x2 - x1))
+            h = int(abs(y2 - y1))
+            if w < 5 or h < 5:
+                self._set_ocr_region_vars(0, 0, 0, 0, index=index)
+            else:
+                self._set_ocr_region_vars(x, y, w, h, index=index)
+            self._apply_ocr_values_runtime()
+
+        def _on_release(event):
+            _finish(state["x0"], state["y0"], event.x, event.y)
+
+        def _on_cancel(_event=None):
+            try:
+                win.grab_release()
+            except Exception:
+                pass
+            win.destroy()
+
+        canvas.bind("<ButtonPress-1>", _on_press)
+        canvas.bind("<B1-Motion>", _on_drag)
+        canvas.bind("<ButtonRelease-1>", _on_release)
+        win.bind("<Escape>", _on_cancel)
 
     def _load_advanced_values_into_vars(self):
         if not hasattr(self, "_advanced_vars") or not hasattr(self, "_advanced_meta"):
@@ -1123,8 +1545,16 @@ class SettingsUI:
                 if (not text) and ((cfg_val is None) or (not allow_empty)):
                     text = str(spec.get("default", ""))
                 var.set(text)
+        try:
+            screen_var = self._advanced_vars.get("OCR_SCREEN_INDEX")
+            if screen_var is not None:
+                self._ocr_selected_screen = self._coerce_int(screen_var.get(), default=1, min_v=1, max_v=64)
+        except Exception:
+            self._ocr_selected_screen = None
         if hasattr(self, "_advanced_status_var"):
             self._advanced_status_var.set("Loaded values from config.")
+        self._refresh_ocr_area_buttons()
+        self._update_ocr_screen_button_styles()
 
     def _collect_advanced_values(self):
         if not hasattr(self, "_advanced_vars") or not hasattr(self, "_advanced_meta"):
@@ -1308,4 +1738,3 @@ class SettingsUI:
     def set_total_duration(self, total_duration: float):
         self.total_duration = total_duration
         self.slider.config(to=total_duration + self._last_offset_value)
-

@@ -7,6 +7,50 @@ Small shared helpers used across the UI/controller.
 
 import tkinter as tk
 
+def get_monitor_rects(root: tk.Tk | None = None):
+    """
+    Return a list of monitor rectangles as (x, y, w, h).
+    On Windows, uses EnumDisplayMonitors; otherwise falls back to the primary screen.
+    """
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class RECT(ctypes.Structure):
+            _fields_ = [("left", wintypes.LONG),
+                        ("top", wintypes.LONG),
+                        ("right", wintypes.LONG),
+                        ("bottom", wintypes.LONG)]
+
+        monitors = []
+
+        def _callback(hMonitor, hdc, lprcMonitor, dwData):
+            r = lprcMonitor.contents
+            w = int(r.right - r.left)
+            h = int(r.bottom - r.top)
+            monitors.append((int(r.left), int(r.top), w, h))
+            return 1
+
+        callback_type = ctypes.WINFUNCTYPE(ctypes.c_int, wintypes.HMONITOR, wintypes.HDC,
+                                           ctypes.POINTER(RECT), wintypes.LPARAM)
+        ctypes.windll.user32.EnumDisplayMonitors(0, 0, callback_type(_callback), 0)
+        if monitors:
+            monitors.sort(key=lambda r: (r[0], r[1]))
+            return monitors
+    except Exception:
+        pass
+
+    # Fallback: use primary screen size
+    try:
+        if root is not None:
+            sw = int(root.winfo_vrootwidth() or root.winfo_screenwidth())
+            sh = int(root.winfo_vrootheight() or root.winfo_screenheight())
+        else:
+            sw, sh = 1920, 1080
+    except Exception:
+        sw, sh = 1920, 1080
+    return [(0, 0, int(sw), int(sh))]
+
 def make_draggable(drag_handle: tk.Widget,target: tk.Toplevel,sync_windows: list[tk.Toplevel] = None, on_release=None):
 
     drag_state = {}

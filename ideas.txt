@@ -1,4 +1,6 @@
 To Do:
+if ocr works good add that it jumps to the time when collecting anki cards
+add filter when searching in cached(saved) searches
 Maybe change how the copy window is displayed.
 hovering over kanji --> in line glossary or/and translation
 
@@ -9,6 +11,7 @@ Optional ruby detection
 add profile settings for multiple users
 
 Bugs:
+if i inside the time in the control winodw wihtout changing anything and then press the skip button it should go back to the same value from before
 Maybe shift of 1 second if offset 0?
 
 Dont do:

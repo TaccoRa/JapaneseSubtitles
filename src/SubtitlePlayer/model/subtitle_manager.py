@@ -446,12 +446,12 @@ class SubtitleManager:
         found_ruby = False
         for m in self.RUBY_PATTERN.finditer(text):
             found_ruby = True
-            plain = text[last:m.start()].strip()
+            plain = text[last:m.start()]
             if plain:
                 segments.append((plain, None))
             segments.append((m.group(1), m.group(2)))
             last = m.end()
-        tail = text[last:].strip()
+        tail = text[last:]
         if tail:
             segments.append((tail, None))
         if found_ruby:

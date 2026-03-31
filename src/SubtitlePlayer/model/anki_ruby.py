@@ -17,6 +17,146 @@ DEFAULT_SUPPORT_DIR = os.path.abspath(
 BRACKET_RUBY_RE = re.compile(r"([^\[\]]+)\[([^\[\]]+)\]")
 
 
+def _is_kanji_char(ch: str) -> bool:
+    if not ch:
+        return False
+    code = ord(ch)
+    return (
+        (0x4E00 <= code <= 0x9FFF)
+        or (0x3400 <= code <= 0x4DBF)
+        or (0xF900 <= code <= 0xFAFF)
+        or (0x20000 <= code <= 0x2A6DF)
+        or (0x2A700 <= code <= 0x2B73F)
+        or (0x2B740 <= code <= 0x2B81F)
+        or (0x2B820 <= code <= 0x2CEAF)
+    )
+
+
+def _is_kana_char(ch: str) -> bool:
+    if not ch:
+        return False
+    code = ord(ch)
+    return (0x3040 <= code <= 0x309F) or (0x30A0 <= code <= 0x30FF)
+
+
+def _kata_to_hira(text: str) -> str:
+    out = []
+    for ch in text:
+        code = ord(ch)
+        if 0x30A1 <= code <= 0x30F6:
+            out.append(chr(code - 0x60))
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _split_kanji_kana_core(base: str, ruby: str) -> Optional[List[Tuple[str, Optional[str]]]]:
+    if not base or not ruby:
+        return None
+    has_kanji = any(_is_kanji_char(ch) for ch in base)
+    has_kana = any(_is_kana_char(ch) for ch in base)
+    if not (has_kanji and has_kana):
+        return None
+
+    reading = _kata_to_hira(ruby)
+    r_pos = 0
+    out: List[Tuple[str, Optional[str]]] = []
+    i = 0
+    n = len(base)
+    while i < n:
+        ch = base[i]
+        if _is_kana_char(ch):
+            hira = _kata_to_hira(ch)
+            if reading.startswith(hira, r_pos):
+                r_pos += len(hira)
+            out.append((ch, None))
+            i += 1
+            continue
+
+        if _is_kanji_char(ch):
+            j = i
+            while j < n and _is_kanji_char(base[j]):
+                j += 1
+            kanji_chunk = base[i:j]
+
+            next_kana = None
+            k = j
+            while k < n:
+                if _is_kana_char(base[k]):
+                    next_kana = _kata_to_hira(base[k])
+                    break
+                if _is_kanji_char(base[k]):
+                    break
+                k += 1
+
+            if next_kana:
+                idx = reading.find(next_kana, r_pos)
+                if idx <= r_pos:
+                    ruby_chunk = reading[r_pos:]
+                    r_pos = len(reading)
+                else:
+                    ruby_chunk = reading[r_pos:idx]
+                    r_pos = idx
+            else:
+                ruby_chunk = reading[r_pos:]
+                r_pos = len(reading)
+
+            if ruby_chunk:
+                out.append((kanji_chunk, ruby_chunk))
+            else:
+                out.append((kanji_chunk, None))
+            i = j
+            continue
+
+        out.append((ch, None))
+        i += 1
+
+    if r_pos < len(reading):
+        for idx in range(len(out) - 1, -1, -1):
+            base_chunk, ruby_chunk = out[idx]
+            if ruby_chunk:
+                out[idx] = (base_chunk, ruby_chunk + reading[r_pos:])
+                break
+        else:
+            return None
+    return out or None
+
+
+def _split_ruby_base(base: str, ruby: str) -> List[Tuple[str, Optional[str]]]:
+    if not base:
+        return []
+    if not ruby:
+        return [(base, None)]
+    first = None
+    for i, ch in enumerate(base):
+        if _is_kanji_char(ch):
+            first = i
+            break
+    if first is None:
+        return [(base, ruby)]
+    last = None
+    for i in range(len(base) - 1, -1, -1):
+        if _is_kanji_char(base[i]):
+            last = i
+            break
+    if last is None or last < first:
+        return [(base, ruby)]
+    prefix = base[:first]
+    core = base[first:last + 1]
+    suffix = base[last + 1:]
+    out: List[Tuple[str, Optional[str]]] = []
+    if prefix:
+        out.append((prefix, None))
+    core_split = _split_kanji_kana_core(core, ruby)
+    if core_split:
+        out.extend(core_split)
+    else:
+        out.append((core, ruby))
+    if suffix:
+        out.append((suffix, None))
+    return out
+
+
 def strip_html(text: str) -> str:
     return re.sub(r"<[^>]+>", "", text or "")
 
@@ -233,7 +373,7 @@ def bracket_text_to_segments(text: str) -> List[Tuple[str, Optional[str]]]:
         base = m.group(1)
         ruby = m.group(2)
         if base:
-            segments.append((base, ruby))
+            segments.extend(_split_ruby_base(base, ruby))
         last = m.end()
     tail = (text or "")[last:]
     if tail:
