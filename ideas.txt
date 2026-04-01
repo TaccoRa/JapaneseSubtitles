@@ -1,17 +1,13 @@
 To Do:
 if ocr works good add that it jumps to the time when collecting anki cards
-add filter when searching in cached(saved) searches
 Maybe change how the copy window is displayed.
 hovering over kanji --> in line glossary or/and translation
 
-implement season episode search in search bar in settings window
 change second to ms and so on with certain buttons for Skip 
 Add the html tags inside the subtitle files optional
-Optional ruby detection
 add profile settings for multiple users
 
 Bugs:
-if i inside the time in the control winodw wihtout changing anything and then press the skip button it should go back to the same value from before
 Maybe shift of 1 second if offset 0?
 
 Dont do:
@@ -19,6 +15,9 @@ Change subtitle width to fit current subtitle (maybe flashes --> YES)
 
 
 Added:
+Optional ruby detection
+implement season episode search in search bar in settings window
+add filter when searching in cached(saved) searches
 Add listener for spacebar and arrow keys
 add extra function for searching movies
 add settings button to change for example default start time and so on
@@ -41,6 +40,7 @@ add config for phone mode default true/false
 
 
 Fixed:
+if i inside the time in the control winodw wihtout changing anything and then press the skip button it should go back to the same value from before
 when local srt file added during runtime cant find it. Probably because dir list done during init.
 picks last episode in cache if decreasing at first epoisode (because of last anime name not found)
 update episode number only if episode found

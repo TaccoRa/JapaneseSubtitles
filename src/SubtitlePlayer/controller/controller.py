@@ -101,6 +101,8 @@ class SubtitleController:
         self._ocr_thread = None
         self._ocr_generation = 0
         self._ocr_pending_time = None
+        self._ocr_sync_generation = 0
+        self._ocr_sync_thread = None
 
         self.settings.bind_back(self.go_back)
         self.settings.bind_forward(self.go_forward)
@@ -216,6 +218,10 @@ class SubtitleController:
 
                     if fields:
                         self.anki.sync_missing_stroke_svgs_async(selected, fields)
+                    try:
+                        self.settings.root.after(0, self._schedule_ocr_sync_after_anki)
+                    except Exception:
+                        pass
 
                 except Exception as e:
                     print(f"Anki add failed: {e}")
@@ -679,6 +685,8 @@ class SubtitleController:
         self._schedule_hide_controls()
 
     def go_forward(self):
+        if self.entry_editing:
+            self.control_time_entry_return(None)
         skip = self.settings._last_skip_value
         max_time = self.total_duration + float(self.settings._last_offset_value or 0.0)
         if self.current_time <= max_time:
@@ -686,6 +694,8 @@ class SubtitleController:
             self._schedule_hide_controls()
 
     def go_back(self):
+        if self.entry_editing:
+            self.control_time_entry_return(None)
         skip = self.settings._last_skip_value
         if self.current_time >= 0:
             self.set_current_time(self.current_time - skip)
@@ -1172,6 +1182,77 @@ class SubtitleController:
         if self._shutting_down:
             return
         self.set_current_time(seconds)
+
+    def _schedule_ocr_sync_after_anki(self, duration_sec: float = 5.0, interval_sec: float = 1.0) -> None:
+        if self._shutting_down:
+            return
+        if not self._ocr_auto_enabled():
+            return
+        try:
+            duration_sec = float(duration_sec)
+        except Exception:
+            duration_sec = 5.0
+        try:
+            interval_sec = float(interval_sec)
+        except Exception:
+            interval_sec = 1.0
+        duration_sec = max(1.0, duration_sec)
+        interval_sec = max(0.4, interval_sec)
+
+        self._ocr_sync_generation += 1
+        generation = self._ocr_sync_generation
+
+        def worker():
+            diffs = []
+            deadline = time.perf_counter() + duration_sec
+            while time.perf_counter() < deadline:
+                if self._shutting_down or generation != self._ocr_sync_generation:
+                    return
+                started = time.perf_counter()
+                try:
+                    base_time = float(self.current_time)
+                except Exception:
+                    base_time = None
+                seconds = self._ocr_find_time_seconds(override={"OCR_DEBUG": False})
+                if seconds is not None and base_time is not None:
+                    elapsed = time.perf_counter() - started
+                    if self.playing:
+                        base_time += elapsed
+                    diffs.append(seconds - base_time)
+                sleep_for = interval_sec - (time.perf_counter() - started)
+                if sleep_for > 0:
+                    time.sleep(sleep_for)
+            if not diffs:
+                return
+            diffs.sort()
+            mid = len(diffs) // 2
+            if len(diffs) % 2 == 1:
+                median = diffs[mid]
+            else:
+                median = (diffs[mid - 1] + diffs[mid]) / 2.0
+            try:
+                self.settings.root.after(0, lambda: self._apply_ocr_sync_delta(median))
+            except Exception:
+                pass
+
+        self._ocr_sync_thread = threading.Thread(target=worker, daemon=True)
+        self._ocr_sync_thread.start()
+
+    def _apply_ocr_sync_delta(self, delta: float) -> None:
+        if self._shutting_down:
+            return
+        try:
+            delta = float(delta)
+        except Exception:
+            return
+        if abs(delta) < 0.15:
+            return
+        try:
+            new_time = float(self.current_time) + delta
+        except Exception:
+            return
+        self.set_current_time(new_time)
+        print(f"OCR sync: adjusted by {delta:+.2f}s")
 
     def _ocr_find_time_seconds(self, override: dict | None = None):
         regions = self._get_ocr_capture_regions(override)

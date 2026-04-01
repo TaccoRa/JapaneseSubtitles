@@ -1293,6 +1293,13 @@ class SubtitleManager:
 
         tk.Label(chooser, text="Select a cached anime query:", anchor="w").pack(padx=8, pady=(8, 4), fill="x")
 
+        filter_row = tk.Frame(chooser)
+        filter_row.pack(padx=8, pady=(0, 6), fill="x")
+        tk.Label(filter_row, text="Filter:", anchor="w").pack(side="left")
+        filter_var = tk.StringVar()
+        filter_entry = tk.Entry(filter_row, textvariable=filter_var)
+        filter_entry.pack(side="left", fill="x", expand=True, padx=(6, 0))
+
         list_frame = tk.Frame(chooser)
         list_frame.pack(padx=8, pady=(0, 8), fill="both", expand=True)
         scrollbar = tk.Scrollbar(list_frame, orient="vertical")
@@ -1307,12 +1314,31 @@ class SubtitleManager:
         listbox.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        for q in queries:
-            listbox.insert(tk.END, q)
-        if queries:
-            listbox.selection_set(0)
-            listbox.activate(0)
+        all_queries = list(queries)
+
+        def _refresh_list(filtered):
+            listbox.delete(0, tk.END)
+            for q in filtered:
+                listbox.insert(tk.END, q)
+            if filtered:
+                listbox.selection_set(0)
+                listbox.activate(0)
+
+        def _apply_filter(_event=None):
+            term = (filter_var.get() or "").strip().lower()
+            if not term:
+                filtered = all_queries
+            else:
+                filtered = [q for q in all_queries if term in q.lower()]
+            _refresh_list(filtered)
+
+        _refresh_list(all_queries)
+        try:
+            filter_entry.focus_set()
+        except Exception:
             listbox.focus_set()
+
+        filter_entry.bind("<KeyRelease>", _apply_filter)
 
         btn_frame = tk.Frame(chooser)
         btn_frame.pack(pady=(0, 8))
@@ -1368,9 +1394,15 @@ class SubtitleManager:
 
         hide_startup_overlay()
         try:
-            dlg = tk.Toplevel()
+            root = getattr(tk, "_default_root", None)
+            dlg = tk.Toplevel(root) if root is not None else tk.Toplevel()
             dlg.title("Remote Subtitle Search")
             dlg.attributes("-topmost", True)
+            if root is not None:
+                try:
+                    dlg.transient(root)
+                except Exception:
+                    pass
             dlg.grab_set()
             dlg.resizable(False, False)
             dlg.update_idletasks()
