@@ -6,6 +6,7 @@ This module is the main user-facing UI for controlling time, offsets, episodes, 
 
 import tkinter as tk
 from tkinter import ttk
+import threading
 from re import fullmatch
 from model.config_manager import ConfigManager
 from utils import make_draggable, format_time, get_monitor_rects
@@ -153,7 +154,8 @@ class SettingsUI:
                      "back", "forward", "play_pause",
                      "time_entry_return", "time_entry_clear",
                      "advanced_apply",
-                     "ocr_read_now", "ocr_sync_now"):
+                     "ocr_read_now", "ocr_sync_now",
+                     "anki_check"):
             setattr(self, f"_on_{name}", self._noop)
 
     # â€”â€”â€” SETTINGS FRAME â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”
@@ -392,6 +394,7 @@ class SettingsUI:
         self.time_entry.bind("<Button-1>", lambda ev: self._on_time_entry_clear(ev))
         self.time_entry.bind("<FocusOut>", lambda ev: self._on_time_entry_return(ev))
         self.time_entry.bind("<Return>", lambda ev:   self._on_time_entry_return(ev))
+        self.control_window.bind("<ButtonPress-1>", self._on_control_window_click, add="+")
 
         self.control_window.bind("<Enter>", lambda ev: self._on_control_window_enter(ev))
         self.control_window.bind("<Leave>", lambda ev: self._on_control_window_leave(ev))
@@ -545,6 +548,7 @@ class SettingsUI:
     def bind_advanced_apply(self, cb):       self._on_advanced_apply = cb
     def bind_ocr_read_now(self, cb):         self._on_ocr_read_now = cb
     def bind_ocr_sync_now(self, cb):         self._on_ocr_sync_now = cb
+    def bind_anki_check(self, cb):           self._on_anki_check = cb
 
     def update_time_overlay_position(self):
         self.root.update_idletasks()
@@ -666,6 +670,21 @@ class SettingsUI:
         y = self.control_window.winfo_y()
         self.control_window.geometry(f"{reqw}x{self.control_window.winfo_height()}+{x}+{y}")
 
+    def _on_control_window_click(self, event):
+        if event.widget is self.time_entry:
+            return
+        try:
+            self.control_window.focus_force()
+        except Exception:
+            pass
+        try:
+            self.control_window.after_idle(lambda: self.control_window.tk.call("focus", ""))
+        except Exception:
+            try:
+                self.control_window.focus_set()
+            except Exception:
+                pass
+
 
 
     # â€”â€”â€” HELPERS â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”
@@ -767,6 +786,7 @@ class SettingsUI:
         self._build_advanced_tab(shortcuts_tab, self._advanced_shortcut_columns())
         self._build_advanced_tab(ocr_tab, self._advanced_ocr_columns())
 
+        self._build_anki_actions(anki_tab)
         self._build_ocr_actions(ocr_tab)
 
         self._load_advanced_values_into_vars()
@@ -830,6 +850,7 @@ class SettingsUI:
             self.advanced_window = None
             self._advanced_notebook = None
             self._advanced_tab_sizes = {}
+            self._anki_check_btn = None
 
         win.bind("<Destroy>", _on_destroy)
 
@@ -1176,6 +1197,98 @@ class SettingsUI:
             ),
         ]
         return [left, right]
+
+    def _build_anki_actions(self, anki_tab: tk.Frame) -> None:
+        actions = tk.LabelFrame(anki_tab, text="Actions", padx=10, pady=8)
+        actions.pack(fill="x", padx=8, pady=(0, 8), anchor="n")
+
+        row = tk.Frame(actions)
+        row.pack(fill="x", expand=True)
+
+        self._anki_check_btn = tk.Button(row, text="Check Connection", command=self._handle_anki_check)
+        self._anki_check_btn.pack(side="left")
+        self._remember_anki_check_defaults(self._anki_check_btn)
+        self._set_anki_check_button_state(None)
+
+    def _remember_anki_check_defaults(self, btn: tk.Button) -> None:
+        if btn is None:
+            return
+        if hasattr(self, "_anki_check_defaults"):
+            return
+        try:
+            self._anki_check_defaults = {
+                "bg": btn.cget("bg"),
+                "fg": btn.cget("fg"),
+                "activebackground": btn.cget("activebackground"),
+                "activeforeground": btn.cget("activeforeground"),
+            }
+        except Exception:
+            self._anki_check_defaults = None
+
+    def _set_anki_check_button_state(self, connected):
+        btn = getattr(self, "_anki_check_btn", None)
+        if btn is None:
+            return
+        if connected is True:
+            try:
+                btn.configure(bg="#2f8f4e", fg="white", activebackground="#2f8f4e", activeforeground="white")
+            except Exception:
+                pass
+            return
+        if connected is False:
+            try:
+                btn.configure(bg="#b33939", fg="white", activebackground="#b33939", activeforeground="white")
+            except Exception:
+                pass
+            return
+        defaults = getattr(self, "_anki_check_defaults", None)
+        if not defaults:
+            return
+        try:
+            btn.configure(
+                bg=defaults.get("bg"),
+                fg=defaults.get("fg"),
+                activebackground=defaults.get("activebackground"),
+                activeforeground=defaults.get("activeforeground"),
+            )
+        except Exception:
+            pass
+
+    def _handle_anki_check(self) -> None:
+        btn = getattr(self, "_anki_check_btn", None)
+        if btn is not None:
+            try:
+                btn.configure(state=tk.DISABLED, text="Checking...")
+            except Exception:
+                pass
+
+        def worker():
+            connected = False
+            try:
+                connected = bool(self._on_anki_check())
+            except Exception:
+                connected = False
+
+            def _finish():
+                target = getattr(self, "_anki_check_btn", None)
+                if target is None or not target.winfo_exists():
+                    return
+                try:
+                    target.configure(state=tk.NORMAL, text="Check Connection")
+                except Exception:
+                    pass
+                self._set_anki_check_button_state(connected)
+                if hasattr(self, "_advanced_status_var"):
+                    self._advanced_status_var.set(
+                        "AnkiConnect reachable." if connected else "AnkiConnect not reachable."
+                    )
+
+            try:
+                self.root.after(0, _finish)
+            except Exception:
+                pass
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def _advanced_shortcut_columns(self):
         left = [

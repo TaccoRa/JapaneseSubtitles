@@ -97,6 +97,13 @@ class SubtitleController:
         self._shutting_down = False
         self._input_actions: "queue.Queue[str]" = queue.Queue()
         self._input_pump_job = None
+        self._repeat_job = None
+        self._repeat_lock = threading.Lock()
+        self._held_repeat_next_fire: dict[str, float] = {}
+        self._held_repeat_fired: set[str] = set()
+        self._repeat_initial_delay_sec = 0.22
+        self._repeat_interval_sec = 0.04
+        self._pending_seek_delta = 0.0
         self._ocr_job = None
         self._ocr_thread = None
         self._ocr_generation = 0
@@ -132,6 +139,7 @@ class SubtitleController:
         self.settings.bind_advanced_apply            (self.apply_advanced_settings)
         self.settings.bind_ocr_read_now              (self.on_ocr_read_now)
         self.settings.bind_ocr_sync_now              (self.on_ocr_sync_now)
+        self.settings.bind_anki_check                (self.on_anki_check_connection)
 
         self.settings.bind_update_display            (self.update_time_and_subtitle_displays)
         
@@ -147,6 +155,7 @@ class SubtitleController:
         self._keyboard_listener = KeyboardListener(on_press=self._on_key_press, on_release=self._on_key_release)
         self._keyboard_listener.start()
         self._input_pump_job = self.settings.root.after(15, self._process_input_queue)
+        self._repeat_job = self.settings.root.after(16, self._process_repeat_actions)
 
         self.last_update  = time.time()
         self.update_time_and_subtitle_displays()
@@ -417,6 +426,12 @@ class SubtitleController:
         except Exception:
             pass
 
+    def on_anki_check_connection(self) -> bool:
+        try:
+            return bool(self.anki.ping())
+        except Exception:
+            return False
+
     def apply_advanced_settings(self, values: dict, persist: bool = False) -> None:
         if not isinstance(values, dict):
             return
@@ -596,14 +611,51 @@ class SubtitleController:
         self.settings.setto_entry.delete(0, tk.END)
         self.settings.root.focus_set()
 
+    def _release_time_entry_focus(self) -> None:
+        try:
+            focused = self.settings.control_window.focus_get()
+        except Exception:
+            focused = None
+        try:
+            time_entry = self.settings.time_entry
+        except Exception:
+            time_entry = None
+        if focused is not time_entry:
+            return
+        try:
+            target = getattr(self.overlay, "sub_window", None)
+            if target is not None and target.winfo_exists():
+                target.focus_force()
+                return
+        except Exception:
+            pass
+        try:
+            self.settings.control_window.after_idle(
+                lambda: self.settings.control_window.tk.call("focus", "")
+            )
+            return
+        except Exception:
+            pass
+        try:
+            self.settings.control_window.focus_set()
+        except Exception:
+            pass
+
+    @staticmethod
+    def _format_delta_seconds(value: float) -> str:
+        text = f"{abs(float(value)):.2f}".rstrip("0").rstrip(".")
+        return text if text else "0"
+
     def control_time_entry_return(self, event):
         self.entry_editing  = False
         text = self.settings.control_time_str.get().strip()
         if text == "":
             self.settings.control_time_str.set(format_time(self.current_time))
+            self._release_time_entry_focus()
             return
         new_time = parse_time_value(text)
         self.set_current_time(new_time)
+        self._release_time_entry_focus()
 
     def control_clear_time_entry(self, event):
         if self.playing:
@@ -618,6 +670,13 @@ class SubtitleController:
 
     def update_time_and_subtitle_displays(self):#updates settings time overlay and control window entry
         text = format_time(self.current_time)
+        try:
+            pending = float(getattr(self, "_pending_seek_delta", 0.0) or 0.0)
+        except Exception:
+            pending = 0.0
+        if abs(pending) >= 0.001:
+            sign = "+" if pending > 0 else "-"
+            text = f"{text} ({sign}{self._format_delta_seconds(pending)}s)"
         self.settings.time_overlay.itemconfig(self.settings.time_overlay_text, text=text)
         self.settings.update_time_overlay_position()
         if not self.entry_editing:
@@ -1051,6 +1110,159 @@ class SubtitleController:
         except Exception:
             pass
 
+    def _drop_pending_input_actions(self, actions_to_remove: set[str]) -> None:
+        if not actions_to_remove:
+            return
+        kept = []
+        while True:
+            try:
+                action = self._input_actions.get_nowait()
+            except queue.Empty:
+                break
+            except Exception:
+                break
+            if action not in actions_to_remove:
+                kept.append(action)
+        for action in kept:
+            try:
+                self._input_actions.put_nowait(action)
+            except Exception:
+                break
+
+    @staticmethod
+    def _is_seek_repeat_action(action: str) -> bool:
+        return action in {"go_back", "go_forward"}
+
+    @staticmethod
+    def _seek_step_action_name(action: str) -> str | None:
+        if action == "go_back":
+            return "_seek_step_back"
+        if action == "go_forward":
+            return "_seek_step_forward"
+        return None
+
+    def _queue_names_for_repeat_action(self, action: str, settle_seek: bool = True) -> set[str]:
+        if self._is_seek_repeat_action(action):
+            step_name = self._seek_step_action_name(action)
+            return {step_name} if step_name else set()
+        return {action}
+
+    def _queue_repeat_step(self, action: str) -> None:
+        step_name = self._seek_step_action_name(action)
+        if step_name:
+            self._enqueue_input_action(step_name)
+        else:
+            self._enqueue_input_action(action)
+
+    def _seek_delta_for_action(self, action: str) -> float:
+        try:
+            skip = float(self.settings._last_skip_value or 0.0)
+        except Exception:
+            skip = 0.0
+        if action == "go_back":
+            return -skip
+        if action == "go_forward":
+            return skip
+        return 0.0
+
+    def _accumulate_pending_seek(self, action: str) -> None:
+        delta = self._seek_delta_for_action(action)
+        if abs(delta) < 0.000001:
+            return
+        try:
+            self._pending_seek_delta = float(self._pending_seek_delta) + delta
+        except Exception:
+            self._pending_seek_delta = delta
+        self.update_time_and_subtitle_displays()
+
+    def _clear_pending_seek_preview(self) -> None:
+        if abs(float(getattr(self, "_pending_seek_delta", 0.0) or 0.0)) < 0.000001:
+            return
+        self._pending_seek_delta = 0.0
+        self.update_time_and_subtitle_displays()
+
+    def _apply_pending_seek(self) -> None:
+        try:
+            delta = float(self._pending_seek_delta or 0.0)
+        except Exception:
+            delta = 0.0
+        if abs(delta) < 0.000001:
+            return
+        self._pending_seek_delta = 0.0
+        self.set_current_time(self.current_time + delta)
+        self._schedule_hide_controls()
+
+    def _hold_repeat_action(self, action: str) -> bool:
+        now = time.perf_counter()
+        with self._repeat_lock:
+            if action in self._held_repeat_next_fire:
+                return False
+            self._held_repeat_next_fire[action] = now + self._repeat_initial_delay_sec
+            self._held_repeat_fired.discard(action)
+        return True
+
+    def _release_repeat_actions(self, actions: set[str], settle_seek: bool = True) -> None:
+        if not actions:
+            return
+        released_seek_actions = set()
+        released_seek_fired = {}
+        with self._repeat_lock:
+            for action in actions:
+                if self._is_seek_repeat_action(action):
+                    released_seek_actions.add(action)
+                    released_seek_fired[action] = (action in self._held_repeat_fired)
+                self._held_repeat_next_fire.pop(action, None)
+                self._held_repeat_fired.discard(action)
+            still_held = set(self._held_repeat_next_fire.keys())
+
+        queue_names = set()
+        for action in actions:
+            queue_names.update(self._queue_names_for_repeat_action(action, settle_seek=settle_seek))
+        self._drop_pending_input_actions(queue_names)
+
+        if released_seek_actions:
+            seek_still_held = bool(still_held & {"go_back", "go_forward"})
+            if not seek_still_held:
+                try:
+                    pending = float(getattr(self, "_pending_seek_delta", 0.0) or 0.0)
+                except Exception:
+                    pending = 0.0
+                if settle_seek:
+                    if abs(pending) >= 0.000001:
+                        self._enqueue_input_action("apply_pending_seek")
+                    else:
+                        unresolved = [a for a in released_seek_actions if not released_seek_fired.get(a, False)]
+                        if "go_forward" in unresolved and "go_back" not in unresolved:
+                            self._enqueue_input_action("go_forward")
+                        elif "go_back" in unresolved and "go_forward" not in unresolved:
+                            self._enqueue_input_action("go_back")
+                else:
+                    if abs(pending) >= 0.000001:
+                        self._enqueue_input_action("clear_pending_seek")
+
+    def _process_repeat_actions(self):
+        if self._shutting_down:
+            return
+        now = time.perf_counter()
+        due_actions = []
+        with self._repeat_lock:
+            for action, next_fire in list(self._held_repeat_next_fire.items()):
+                if now >= next_fire:
+                    due_actions.append(action)
+                    self._held_repeat_next_fire[action] = now + self._repeat_interval_sec
+
+        for action in due_actions:
+            with self._repeat_lock:
+                if action not in self._held_repeat_next_fire:
+                    continue
+                self._held_repeat_fired.add(action)
+            self._queue_repeat_step(action)
+
+        try:
+            self._repeat_job = self.settings.root.after(16, self._process_repeat_actions)
+        except Exception:
+            self._repeat_job = None
+
     def _process_input_queue(self):
         if self._shutting_down:
             return
@@ -1093,6 +1305,14 @@ class SubtitleController:
             self.subtitle_deleted = True
         elif action == "toggle_m3_mode":
             self._toggle_m3_mode()
+        elif action == "_seek_step_back":
+            self._accumulate_pending_seek("go_back")
+        elif action == "_seek_step_forward":
+            self._accumulate_pending_seek("go_forward")
+        elif action == "apply_pending_seek":
+            self._apply_pending_seek()
+        elif action == "clear_pending_seek":
+            self._clear_pending_seek_preview()
 
     def jump_subtitle_segment(self, direction: str) -> None:
         """
@@ -1210,6 +1430,12 @@ class SubtitleController:
                 widget = owner.focus_get()
             except Exception:
                 widget = None
+            try:
+                # Treat control time entry as text-focused only while actively editing.
+                if widget is getattr(self.settings, "time_entry", None) and not bool(self.entry_editing):
+                    continue
+            except Exception:
+                pass
             if self._is_text_input_widget(widget):
                 return True
         return False
@@ -1260,6 +1486,25 @@ class SubtitleController:
 
         return key_token in self._key_tokens(key)
 
+    def _repeat_action_bindings(self):
+        try:
+            mode2_numpad = int(getattr(self.settings, "input_mode", 1)) == 2
+        except Exception:
+            mode2_numpad = bool(getattr(self.settings, "numpad_mode_enabled", False))
+        if mode2_numpad:
+            return [
+                ("subtitle_back", self._get_shortcut_value("SHORTCUT_MODE2_SUBTITLE_BACK")),
+                ("subtitle_forward", self._get_shortcut_value("SHORTCUT_MODE2_SUBTITLE_FORWARD")),
+                ("go_back", self._get_shortcut_value("SHORTCUT_MODE2_GO_BACK")),
+                ("go_forward", self._get_shortcut_value("SHORTCUT_MODE2_GO_FORWARD")),
+            ]
+        return [
+            ("subtitle_back", self._get_shortcut_value("SHORTCUT_SUBTITLE_BACK")),
+            ("subtitle_forward", self._get_shortcut_value("SHORTCUT_SUBTITLE_FORWARD")),
+            ("go_back", self._get_shortcut_value("SHORTCUT_GO_BACK")),
+            ("go_forward", self._get_shortcut_value("SHORTCUT_GO_FORWARD")),
+        ]
+
     def _single_fire_bindings(self):
         return [
             ("toggle_play", self._get_shortcut_value("SHORTCUT_TOGGLE_PLAY")),
@@ -1286,6 +1531,8 @@ class SubtitleController:
         self.alt_pressed = False
         self.ctrl_pressed = False
         self._single_fire_actions.clear()
+        repeat_actions = {action for action, _ in self._repeat_action_bindings()}
+        self._release_repeat_actions(repeat_actions, settle_seek=False)
 
     def _toggle_m3_mode(self) -> None:
         enable_m3 = not self._hotkeys_disabled()
@@ -2077,7 +2324,12 @@ class SubtitleController:
                 return
             if single_fire:
                 self._single_fire_actions.add(action)
-            self._enqueue_input_action(action)
+                self._enqueue_input_action(action)
+                return
+            if not self._hold_repeat_action(action):
+                return
+            if not self._is_seek_repeat_action(action):
+                self._queue_repeat_step(action)
             return
 
     def _on_key_release(self, key):
@@ -2101,6 +2353,15 @@ class SubtitleController:
             _, key_token = self._split_shortcut(binding)
             if key_token and key_token in released_tokens:
                 self._single_fire_actions.discard(action)
+
+        repeat_actions_to_drop = set()
+        for action, binding in self._repeat_action_bindings():
+            _, key_token = self._split_shortcut(binding)
+            if key_token and key_token in released_tokens:
+                repeat_actions_to_drop.add(action)
+        if key in (Key.shift_l, Key.shift_r, Key.alt_l, Key.alt_r, Key.ctrl_l, Key.ctrl_r):
+            repeat_actions_to_drop.update(action for action, _ in self._repeat_action_bindings())
+        self._release_repeat_actions(repeat_actions_to_drop, settle_seek=True)
 
     def on_alt_x(self, event=None):
         self.settings.control_window.attributes("-topmost", True)
@@ -2214,7 +2475,7 @@ class SubtitleController:
         except Exception:
             pass
 
-        for job in ("subtitle_timeout_job", "_con_hide_job", "_input_pump_job", "_ocr_job"):
+        for job in ("subtitle_timeout_job", "_con_hide_job", "_input_pump_job", "_repeat_job", "_ocr_job"):
             handle = getattr(self, job, None)
             if handle is not None:
                 try:

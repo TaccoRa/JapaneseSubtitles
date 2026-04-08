@@ -290,3 +290,31 @@ Recommended commands:
 - Numpad hotkeys are suppressed while a text input is focused; mode 1 no longer maps numpad `4/6` to left/right movement.
 - Advanced window no longer cycles through all tabs on open; tab sizing is now measured lazily per selected tab.
 - Subtitle ruby parsing now keeps source ruby `(かな)` when auto-ruby is off, and strips source ruby markers when auto-ruby is on.
+
+15. Working Notes (2026-04-08 follow-up)
+- Time entry commit now drops focus: pressing Enter in the control time field commits the value and moves focus away from the entry.
+- Clicking outside the control time field now clears its focus so further typing no longer keeps writing into that entry.
+- Advanced Settings > Anki now has a `Check Connection` button that pings AnkiConnect asynchronously and colors green when reachable / red when unreachable.
+- Key repeat queue behavior improved: releasing `4`/`6` (mode 2) or Left/Right now drops queued seek actions immediately, so playback stops stepping as soon as key hold ends.
+- Wiring updates: Settings UI now exposes `bind_anki_check`, and controller binds it to `AnkiClient.ping()` for runtime status checks.
+
+16. Working Notes (2026-04-08 YouTube-style seek)
+- Keyboard second-skip (`go_back` / `go_forward`) is now buffered while a key is held: repeated presses accumulate into a pending delta instead of applying per event.
+- On key release, the accumulated pending delta is applied once as a single seek step, matching YouTube-style buffered scrubbing behavior.
+- Pending seek amount is displayed inline in the time text as `(+/-Ns)` while the key is held.
+- Repeat generation now uses an internal hold loop (initial delay + repeat interval) and stops immediately on release to avoid OS key-repeat queue aftereffects.
+- Time-entry defocus now clears focus to no widget (instead of transferring focus to Play).
+
+
+17. Working Notes (2026-04-08 hold-threshold + focus hardening)
+- Seek key taps are now silent: quick tap does a single skip on key release without showing pending `Ns` preview.
+- Pending `Ns` preview appears only after hold-delay repeat starts; before that threshold no preview text is shown.
+- While held beyond threshold, pending seek accumulates in buffered mode and applies once on release.
+- Time-entry defocus is hardened: Enter now briefly moves focus to Play and then clears focus from the control window, preventing further number input from going back into the time entry.
+- Control-window clicks on non-entry widgets now force widget focus first and then clear focus to avoid sticky entry focus.
+
+18. Working Notes (2026-04-08 focus handoff cleanup)
+- Enter in control time entry now prefers focusing the subtitle window (`sub_window`) to avoid leaving focus on Play.
+- Added fallback behavior that clears focus on the control window when subtitle window focus is unavailable.
+- Control-window click focus handling now forces toplevel focus before clearing, reducing sticky entry focus after button clicks.
+- Text-input focus gating now ignores the control time entry unless `entry_editing` is true, preventing stale entry focus from blocking hotkeys.
