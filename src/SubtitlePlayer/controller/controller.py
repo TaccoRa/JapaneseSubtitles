@@ -103,6 +103,10 @@ class SubtitleController:
         self._ocr_pending_time = None
         self._ocr_sync_generation = 0
         self._ocr_sync_thread = None
+        self._anki_wait_window = None
+        self._anki_wait_status_var = None
+        self._anki_wait_thread = None
+        self._pending_anki_payload = None
 
         self.settings.bind_back(self.go_back)
         self.settings.bind_forward(self.go_forward)
@@ -127,6 +131,7 @@ class SubtitleController:
         self.settings.bind_refresh_subtitles         (self.on_refresh_subtitles)
         self.settings.bind_advanced_apply            (self.apply_advanced_settings)
         self.settings.bind_ocr_read_now              (self.on_ocr_read_now)
+        self.settings.bind_ocr_sync_now              (self.on_ocr_sync_now)
 
         self.settings.bind_update_display            (self.update_time_and_subtitle_displays)
         
@@ -178,57 +183,204 @@ class SubtitleController:
         return "break"
 
     def _add_selection_to_anki(self, selected_text: str, subtitle_text: str = "") -> None:
-        if not self.anki.ping():
-            print("AnkiConnect not reachable. Start Anki + AnkiConnect and try again.")
+        selected = (selected_text or "").strip()
+        if not selected:
+            print("Add Selection To Anki: no text selected.")
             return
 
-        started = time.perf_counter()
-        self._set_busy_cursor(True)
+        subtitle = subtitle_text or ""
+        if not self.anki.ping():
+            print("AnkiConnect not reachable. Start Anki + AnkiConnect and confirm with 'Anki opened'.")
+            self._show_anki_wait_dialog(selected_text=selected, subtitle_text=subtitle)
+            return
+
+        self._start_anki_add_worker(selected_text=selected, subtitle_text=subtitle)
+
+    def _start_anki_add_worker(self, selected_text: str, subtitle_text: str = "") -> None:
+        selected = (selected_text or "").strip()
+        if not selected:
+            print("Add Selection To Anki: no text selected.")
+            return
+
         try:
-            selected = (selected_text or "").strip()
+            self._set_busy_cursor(True)
+        except Exception:
+            pass
 
-            def worker():
+        def worker():
+            started = time.perf_counter()
+            try:
                 if not self.anki.ping():
-                    print("AnkiConnect not reachable. Start Anki + AnkiConnect and try again.")
-                    return
+                    raise RuntimeError("AnkiConnect not reachable.")
 
-                started = time.perf_counter()
+                result = self.anki.add_from_selection(
+                    selection_text=selected,
+                    subtitle_text=subtitle_text,
+                )
 
+                elapsed = time.perf_counter() - started
+                print(f"Anki note created in {elapsed:.2f}s")
+
+                candidates = result.get("translation_candidates") or {}
+                word_cands = candidates.get("word") or {}
+                sentence_cands = candidates.get("sentence") or {}
+
+                print(f"Note ID: {result.get('note_id', '')}")
+                print(f"Marked Word: {selected}")
+                print(f"Word Jisho: {self._format_translation_csv(word_cands.get('jisho', ''))}")
+                print(f"Word Google: {self._format_translation_csv(word_cands.get('google', ''))}")
+                print(f"Sentence DeepL: {self._format_translation_csv(sentence_cands.get('deepl', ''))}")
+                print(f"Sentence Google: {self._format_translation_csv(sentence_cands.get('google', ''))}")
+
+                fields = result.get("stroke_svg_sync_fields")
+                if fields:
+                    self.anki.sync_missing_stroke_svgs_async(selected, fields)
                 try:
-                    result = self.anki.add_from_selection(
-                        selection_text=selected,
-                        subtitle_text=subtitle_text,
-                    )
-
-                    elapsed = time.perf_counter() - started
-                    print(f"Anki note created in {elapsed:.2f}s")
-
-                    candidates = result.get("translation_candidates") or {}
-                    word_cands = candidates.get("word") or {}
-                    sentence_cands = candidates.get("sentence") or {}
-
-                    print(f"Note ID: {result.get('note_id', '')}")
-                    print(f"Marked Word: {selected}")
-                    print(f"Word Jisho: {self._format_translation_csv(word_cands.get('jisho', ''))}")
-                    print(f"Word Google: {self._format_translation_csv(word_cands.get('google', ''))}")
-                    print(f"Sentence DeepL: {self._format_translation_csv(sentence_cands.get('deepl', ''))}")
-                    print(f"Sentence Google: {self._format_translation_csv(sentence_cands.get('google', ''))}")
-
-                    fields = result.get("stroke_svg_sync_fields")
-
-                    if fields:
-                        self.anki.sync_missing_stroke_svgs_async(selected, fields)
+                    self.settings.root.after(0, self._schedule_ocr_sync_after_anki)
+                except Exception:
+                    pass
+            except Exception as e:
+                print(f"Anki add failed: {e}")
+            finally:
+                try:
+                    self.settings.root.after(0, lambda: self._set_busy_cursor(False))
+                except Exception:
                     try:
-                        self.settings.root.after(0, self._schedule_ocr_sync_after_anki)
+                        self._set_busy_cursor(False)
                     except Exception:
                         pass
 
-                except Exception as e:
-                    print(f"Anki add failed: {e}")
+        threading.Thread(target=worker, daemon=True).start()
 
-            threading.Thread(target=worker, daemon=True).start()
-        finally:
-            self._set_busy_cursor(False)
+    def _show_anki_wait_dialog(self, selected_text: str, subtitle_text: str = "") -> None:
+        self._pending_anki_payload = {
+            "selected_text": selected_text,
+            "subtitle_text": subtitle_text,
+        }
+
+        existing = getattr(self, "_anki_wait_window", None)
+        if existing is not None:
+            try:
+                if existing.winfo_exists():
+                    existing.deiconify()
+                    existing.lift()
+                    existing.attributes("-topmost", True)
+                    return
+            except Exception:
+                pass
+
+        parent = getattr(self.settings, "root", None)
+        win = tk.Toplevel(parent) if parent is not None else tk.Toplevel()
+        self._anki_wait_window = win
+        win.title("Anki Not Connected")
+        win.attributes("-topmost", True)
+        win.resizable(False, False)
+        try:
+            win.transient(parent)
+        except Exception:
+            pass
+        try:
+            win.grab_set()
+        except Exception:
+            pass
+
+        body = tk.Frame(win, padx=12, pady=10)
+        body.pack(fill="both", expand=True)
+        tk.Label(
+            body,
+            text=(
+                "AnkiConnect is not reachable.\n"
+                "Please open Anki, then press the button below."
+            ),
+            justify="left",
+            anchor="w",
+        ).pack(fill="x")
+
+        status_var = tk.StringVar(value="Waiting for confirmation...")
+        self._anki_wait_status_var = status_var
+        tk.Label(body, textvariable=status_var, anchor="w", fg="#1a4d1a").pack(fill="x", pady=(8, 0))
+
+        btn_row = tk.Frame(body)
+        btn_row.pack(fill="x", pady=(10, 0))
+        wait_state = {"running": False}
+
+        def _set_status(text: str) -> None:
+            status = getattr(self, "_anki_wait_status_var", None)
+            if status is not None:
+                try:
+                    status.set(text)
+                except Exception:
+                    pass
+
+        def _begin_wait_for_anki() -> None:
+            if wait_state["running"]:
+                return
+            wait_state["running"] = True
+            try:
+                open_btn.configure(state="disabled")
+            except Exception:
+                pass
+            _set_status("Waiting for AnkiConnect...")
+
+            def wait_worker():
+                while not self._shutting_down:
+                    win_ref = getattr(self, "_anki_wait_window", None)
+                    if win_ref is None:
+                        return
+                    try:
+                        if not win_ref.winfo_exists():
+                            return
+                    except Exception:
+                        return
+                    if self.anki.ping():
+                        payload = dict(self._pending_anki_payload or {})
+
+                        def _finish():
+                            try:
+                                if win_ref.winfo_exists():
+                                    win_ref.destroy()
+                            except Exception:
+                                pass
+                            self._start_anki_add_worker(
+                                selected_text=payload.get("selected_text", ""),
+                                subtitle_text=payload.get("subtitle_text", ""),
+                            )
+
+                        try:
+                            self.settings.root.after(0, _finish)
+                        except Exception:
+                            _finish()
+                        return
+                    time.sleep(0.5)
+
+            self._anki_wait_thread = threading.Thread(target=wait_worker, daemon=True)
+            self._anki_wait_thread.start()
+
+        open_btn = tk.Button(btn_row, text="Anki opened", width=14, command=_begin_wait_for_anki)
+        open_btn.pack(side="left")
+        tk.Button(btn_row, text="Cancel", width=10, command=win.destroy).pack(side="left", padx=(6, 0))
+
+        def _on_destroy(_event):
+            if _event.widget is not win:
+                return
+            self._anki_wait_window = None
+            self._anki_wait_status_var = None
+            self._anki_wait_thread = None
+
+        win.bind("<Destroy>", _on_destroy)
+        win.bind("<Escape>", lambda _e: win.destroy())
+
+        try:
+            win.update_idletasks()
+            if parent is not None:
+                px, py = parent.winfo_rootx(), parent.winfo_rooty()
+                pw, ph = parent.winfo_width(), parent.winfo_height()
+                ww, wh = win.winfo_reqwidth(), win.winfo_reqheight()
+                x = px + max((pw - ww) // 2, 0)
+                y = py + max((ph - wh) // 2, 0)
+                win.geometry(f"+{x}+{y}")
+        except Exception:
+            pass
 
     def _format_translation_csv(self, value: str) -> str:
         text = (value or "").replace("\n", " ").replace("\r", " ").strip()
@@ -385,6 +537,11 @@ class SubtitleController:
                     self.default_skip = skip
                     self.settings._last_skip_value = skip
                     self.settings.skip_var.set(f"{self.settings._format_number(skip)} s")
+                    self.settings._apply_skip_change(skip, persist=False)
+            except Exception:
+                pass
+            try:
+                self.settings._sync_advanced_startup_vars_from_runtime()
             except Exception:
                 pass
 
@@ -1019,6 +1176,44 @@ class SubtitleController:
                 key_token = token
         return mods, key_token
 
+    @staticmethod
+    def _is_text_input_widget(widget) -> bool:
+        if widget is None:
+            return False
+        try:
+            cls = str(widget.winfo_class() or "").lower()
+        except Exception:
+            cls = ""
+        return cls in {
+            "entry",
+            "tentry",
+            "ttk::entry",
+            "text",
+            "combobox",
+            "tcombobox",
+            "ttk::combobox",
+            "spinbox",
+            "ttk::spinbox",
+        }
+
+    def _is_text_input_focused(self) -> bool:
+        windows = [
+            getattr(self.settings, "root", None),
+            getattr(self.settings, "control_window", None),
+            getattr(self.settings, "advanced_window", None),
+            getattr(self.popup, "_popup", None),
+        ]
+        for owner in windows:
+            if owner is None:
+                continue
+            try:
+                widget = owner.focus_get()
+            except Exception:
+                widget = None
+            if self._is_text_input_widget(widget):
+                return True
+        return False
+
     def _key_tokens(self, key) -> set[str]:
         tokens = set()
 
@@ -1043,11 +1238,11 @@ class SubtitleController:
             _add(ch.lower())
 
         if self._is_numpad_vk_key(key, 96, 45):
-            _add("numpad0", "insert", "0")
+            _add("numpad0", "0")
         if self._is_numpad_vk_key(key, 100):
-            _add("numpad4", "left", "4")
+            _add("numpad4", "4")
         if self._is_numpad_vk_key(key, 102):
-            _add("numpad6", "right", "6")
+            _add("numpad6", "6")
 
         return {self._normalize_shortcut_token(t) for t in tokens}
 
@@ -1170,6 +1365,7 @@ class SubtitleController:
         def worker():
             seconds = self._ocr_find_time_seconds(override=override)
             if seconds is None:
+                self._log_ocr_read_failure(override=override)
                 return
             try:
                 self.settings.root.after(0, lambda: self._apply_ocr_time_manual(seconds))
@@ -1178,15 +1374,93 @@ class SubtitleController:
 
         threading.Thread(target=worker, daemon=True).start()
 
+    def _log_ocr_read_failure(self, override: dict | None = None) -> None:
+        try:
+            regions = self._get_ocr_capture_regions(override=override)
+        except Exception:
+            regions = []
+        if not regions:
+            print("OCR read-now failed: no capture region available.")
+            return
+        details = []
+        for region_idx, region, is_custom in regions:
+            try:
+                x, y, w, h = region
+                mode = "custom" if is_custom else "default"
+                details.append(f"#{region_idx} {x},{y} {w}x{h} ({mode})")
+            except Exception:
+                details.append(f"#{region_idx} <invalid region>")
+        joined = "; ".join(details)
+        print(f"OCR read-now failed: no valid timecode detected. Checked {len(regions)} region(s): {joined}")
+
+    def on_ocr_sync_now(self, override: dict | None = None) -> None:
+        if self._shutting_down:
+            return
+        self._start_ocr_live_sync(override=override)
+
     def _apply_ocr_time_manual(self, seconds: float) -> None:
         if self._shutting_down:
             return
         self.set_current_time(seconds)
 
+    def _start_ocr_live_sync(
+        self,
+        duration_sec: float = 5.0,
+        interval_sec: float = 1.0,
+        override: dict | None = None,
+    ) -> None:
+        if self._shutting_down:
+            return
+        if not self._ocr_auto_enabled():
+            return
+        try:
+            duration_sec = float(duration_sec)
+        except Exception:
+            duration_sec = 5.0
+        try:
+            interval_sec = float(interval_sec)
+        except Exception:
+            interval_sec = 1.0
+        duration_sec = max(1.0, duration_sec)
+        interval_sec = max(0.4, interval_sec)
+
+        self._ocr_sync_generation += 1
+        generation = self._ocr_sync_generation
+
+        def worker():
+            deadline = time.perf_counter() + duration_sec
+            while time.perf_counter() < deadline:
+                if self._shutting_down or generation != self._ocr_sync_generation:
+                    return
+                started = time.perf_counter()
+                try:
+                    base_time = float(self.current_time)
+                except Exception:
+                    base_time = None
+                seconds = self._ocr_find_time_seconds(override=override)
+                if seconds is not None and base_time is not None:
+                    elapsed = time.perf_counter() - started
+                    if self.playing:
+                        base_time += elapsed
+                    delta = seconds - base_time
+                    if abs(delta) >= 0.15:
+                        adjust = max(-0.5, min(0.5, delta * 0.5))
+                        try:
+                            self.settings.root.after(0, lambda d=adjust: self._apply_ocr_sync_delta(d))
+                        except Exception:
+                            pass
+                sleep_for = interval_sec - (time.perf_counter() - started)
+                if sleep_for > 0:
+                    time.sleep(sleep_for)
+
+        threading.Thread(target=worker, daemon=True).start()
+
     def _schedule_ocr_sync_after_anki(self, duration_sec: float = 5.0, interval_sec: float = 1.0) -> None:
         if self._shutting_down:
             return
         if not self._ocr_auto_enabled():
+            return
+        if not self._ocr_sync_after_anki_enabled():
             return
         try:
             duration_sec = float(duration_sec)
@@ -1494,6 +1768,12 @@ class SubtitleController:
             return self._coerce_bool(override.get("OCR_DEBUG"), default=True)
         return self._coerce_bool(self.config.get("OCR_DEBUG"), default=True)
 
+    def _ocr_sync_after_anki_enabled(self) -> bool:
+        raw = self.config.get("OCR_SYNC_AFTER_ANKI")
+        if raw is None:
+            return True
+        return self._coerce_bool(raw, default=True)
+
     def _build_tesseract_config(self, override: dict | None = None):
         psm = self._coerce_int(
             (override or {}).get("OCR_TESSERACT_PSM", self.config.get("OCR_TESSERACT_PSM")),
@@ -1543,15 +1823,27 @@ class SubtitleController:
         return max(1, min(8, count))
 
     def _get_ocr_capture_regions(self, override: dict | None = None):
-        base_x, base_y, base_w, base_h = self._get_ocr_base_rect(override)
+        monitors = get_monitor_rects(self.settings.root)
+        if not monitors:
+            monitors = [(0, 0, 1920, 1080)]
+
         regions = []
         count = self._get_ocr_region_count(override)
+        default_screen = self._coerce_int(
+            self._get_ocr_setting("OCR_SCREEN_INDEX", override, default=1),
+            default=1,
+        )
 
         def _suffix(idx: int) -> str:
             return "" if idx == 1 else str(idx)
 
         def _build_region(idx: int, default_bottom: bool):
             suffix = _suffix(idx)
+            region_screen = self._coerce_int(
+                self._get_ocr_setting(f"OCR_REGION{suffix}_SCREEN", override, default=default_screen),
+                default=default_screen,
+            )
+            base_x, base_y, base_w, base_h = self._resolve_ocr_screen_rect(monitors, region_screen)
             rx = self._coerce_int(self._get_ocr_setting(f"OCR_REGION{suffix}_X", override, default=0), default=0)
             ry = self._coerce_int(self._get_ocr_setting(f"OCR_REGION{suffix}_Y", override, default=0), default=0)
             rw = self._coerce_int(self._get_ocr_setting(f"OCR_REGION{suffix}_W", override, default=0), default=0)
@@ -1581,18 +1873,10 @@ class SubtitleController:
                 regions.append((idx, region, is_custom))
         return regions
 
-    def _get_ocr_capture_region(self, override: dict | None = None):
-        regions = self._get_ocr_capture_regions(override)
-        if not regions:
-            return None
-        return regions[0][1]
-
-    def _get_ocr_base_rect(self, override: dict | None = None):
-        monitors = get_monitor_rects(self.settings.root)
+    @staticmethod
+    def _resolve_ocr_screen_rect(monitors, screen_idx: int):
         if not monitors:
-            monitors = [(0, 0, 1920, 1080)]
-
-        screen_idx = self._coerce_int(self._get_ocr_setting("OCR_SCREEN_INDEX", override, default=1), default=1)
+            return (0, 0, 1920, 1080)
         if screen_idx <= 0:
             min_x = min(r[0] for r in monitors)
             min_y = min(r[1] for r in monitors)
@@ -1607,30 +1891,21 @@ class SubtitleController:
         x, y, w, h = monitors[screen_idx - 1]
         return int(x), int(y), int(w), int(h)
 
+    def _get_ocr_base_rect(self, override: dict | None = None):
+        monitors = get_monitor_rects(self.settings.root)
+        if not monitors:
+            monitors = [(0, 0, 1920, 1080)]
+        screen_idx = self._coerce_int(
+            self._get_ocr_setting("OCR_SCREEN_INDEX", override, default=1),
+            default=1,
+        )
+        return self._resolve_ocr_screen_rect(monitors, screen_idx)
+
     def _get_ocr_capture_region(self, override: dict | None = None):
-        base_x, base_y, base_w, base_h = self._get_ocr_base_rect(override)
-
-        rx = self._coerce_int(self._get_ocr_setting("OCR_REGION_X", override, default=0), default=0)
-        ry = self._coerce_int(self._get_ocr_setting("OCR_REGION_Y", override, default=0), default=0)
-        rw = self._coerce_int(self._get_ocr_setting("OCR_REGION_W", override, default=0), default=0)
-        rh = self._coerce_int(self._get_ocr_setting("OCR_REGION_H", override, default=0), default=0)
-
-        # Default search area: bottom half of the selected screen(s) unless a region is set.
-        if rw <= 0 or rh <= 0:
-            half_h = max(1, int(base_h / 2))
-            region = (base_x, base_y + (base_h - half_h), base_w, half_h)
-            return region
-
-        if rx < 0:
-            rx = 0
-        if ry < 0:
-            ry = 0
-        if rw > base_w:
-            rw = base_w
-        if rh > base_h:
-            rh = base_h
-        region = (base_x + rx, base_y + ry, rw, rh)
-        return region
+        regions = self._get_ocr_capture_regions(override)
+        if not regions:
+            return None
+        return regions[0][1]
 
     def _capture_ocr_image(self, region):
         if not region:
@@ -1762,6 +2037,10 @@ class SubtitleController:
             self.ctrl_pressed = True
             return
 
+        if self._is_text_input_focused():
+            self._reset_hotkey_state()
+            return
+
         try:
             mode2_numpad = int(getattr(self.settings, "input_mode", 1)) == 2
         except Exception:
@@ -1803,6 +2082,10 @@ class SubtitleController:
 
     def _on_key_release(self, key):
         if self._hotkeys_disabled():
+            self._reset_hotkey_state()
+            return
+
+        if self._is_text_input_focused():
             self._reset_hotkey_state()
             return
 

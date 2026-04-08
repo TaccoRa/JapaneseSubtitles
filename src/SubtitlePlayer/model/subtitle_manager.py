@@ -60,7 +60,8 @@ class SubtitleManager:
     )
     SEASON_PATTERN = re.compile(r'S(\d+)', re.IGNORECASE)
     EPISODE_PATTERN = re.compile(r'E(\d+)', re.IGNORECASE)
-    RUBY_PATTERN = regex.compile(r'(\p{Han}+)\(([^)]+)\)')
+    RUBY_PATTERN = regex.compile(r'(\p{Han}+)[(\uFF08]([^\)\uFF09]+)[)\uFF09]')
+    PAREN_NOTE_PATTERN = regex.compile(r'[(\uFF08][^)\uFF09]*[)\uFF09]')
 
     RESOLUTION_RE = re.compile(r'^\d{3,4}p$', re.IGNORECASE)
     RESOLUTION_X_RE = re.compile(r'^\d{3,4}x\d{3,4}$', re.IGNORECASE)
@@ -217,7 +218,9 @@ class SubtitleManager:
     def _clean_text(self, text: str) -> str:
         cleaned = self.CLEAN_PATTERN.sub('', text)
         cleaned = self._clean_html_tags(cleaned)
-        cleaned = self.RUBY_PATTERN.sub(r'\1«\2»', cleaned)
+        use_source_ruby = not self._auto_ruby_enabled()
+        if not use_source_ruby:
+            cleaned = self.RUBY_PATTERN.sub(r'\1', cleaned)
 
         keep_speaker = bool(self.config.get("SUBTITLE_KEEP_SPEAKER_NAMES") or False)
         strip_paren_notes = self.config.get("SUBTITLE_STRIP_PAREN_NOTES")
@@ -237,13 +240,34 @@ class SubtitleManager:
                 else:
                     line = rest
             if strip_paren_notes and line:
-                line = regex.sub(r'[（(].*?[）)]', '', line).strip()
+                line = self._strip_parenthetical_notes(line, keep_ruby=use_source_ruby).strip()
             if line:
                 out_lines.append(line)
 
         cleaned = "\n".join(out_lines)
         cleaned = cleaned.replace('«', '(').replace('»', ')')
         return cleaned.replace('&lrm;', '').replace('\u200e', '').strip()
+
+    def _strip_parenthetical_notes(self, line: str, keep_ruby: bool) -> str:
+        if not line:
+            return ""
+        parts = []
+        cursor = 0
+        for match in self.PAREN_NOTE_PATTERN.finditer(line):
+            start, end = match.span()
+            if start > cursor:
+                parts.append(line[cursor:start])
+            keep_group = False
+            if keep_ruby and start > 0:
+                prev_char = line[start - 1]
+                if regex.match(r"\p{Han}", prev_char):
+                    keep_group = True
+            if keep_group:
+                parts.append(match.group(0))
+            cursor = end
+        if cursor < len(line):
+            parts.append(line[cursor:])
+        return "".join(parts)
 
     def _clean_html_tags(self, text: str) -> str:
         raw = self.config.get("SUBTITLE_CUSTOM_HTML_TAGS")
@@ -1512,7 +1536,7 @@ class SubtitleManager:
         font = tkFont.Font(family=self.config.get("SUBTITLE_FONT"),size=self.config.get("SUBTITLE_FONT_SIZE"),weight="bold")
         max_width = 0
         for clean, time, *_rest in self.display_data:
-            base_text = regex.sub(r'\p{Han}+\([^)]+\)', lambda m: regex.match(r'(\p{Han}+)', m.group()).group(), clean)
+            base_text = self.RUBY_PATTERN.sub(r"\1", clean)
             for line in base_text.splitlines():
                 width = font.measure(line)
                 if max_width < width:

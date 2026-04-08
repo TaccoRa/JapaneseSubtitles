@@ -281,3 +281,12 @@ Recommended commands:
 [ ] Code documented
 [ ] No dead code
 [ ] No major architecture problems
+
+14. Working Notes (2026-04-08 update)
+- OCR UI now supports per-box screen assignment (`OCR_REGION{N}_SCREEN`) so regions can span multiple monitors.
+- OCR "Clear Area" controls were removed from Advanced OCR actions.
+- Manual OCR read now logs a clear failure line if no timecode is detected.
+- Anki add now shows a warning dialog when AnkiConnect is offline, with an `Anki opened` confirmation that waits and then submits automatically once reachable.
+- Numpad hotkeys are suppressed while a text input is focused; mode 1 no longer maps numpad `4/6` to left/right movement.
+- Advanced window no longer cycles through all tabs on open; tab sizing is now measured lazily per selected tab.
+- Subtitle ruby parsing now keeps source ruby `(かな)` when auto-ruby is off, and strips source ruby markers when auto-ruby is on.

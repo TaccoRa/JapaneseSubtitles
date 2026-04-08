@@ -31,6 +31,9 @@ class SubtitleOverlayUI:
         self.max_w, self.max_h = overlay_geometry
         self.center_x = self.config.get("LAST_SUB_CENTER_X")
         self.center_y = self.config.get("LAST_SUB_CENTER_Y")
+        self.on_sub_window_enter = lambda _ev=None: None
+        self.on_sub_window_leave = lambda _ev=None: None
+        self.on_handle_enter = lambda _ev=None: None
 
         self.build_overlay()
 

@@ -16,9 +16,11 @@ from hover_glossary_canvas_prototype import CanvasGlossaryPrototype  # noqa: E40
 
 def main() -> None:
     root = tk.Tk()
-    app = CanvasGlossaryPrototype(root)
+    target_lang = os.environ.get("HOVER_GLOSSARY_LANG", "de")
+    app = CanvasGlossaryPrototype(root, transparent=True, target_lang=target_lang)
     app.current_text = "昨日は学校に行かなかった。今日は家で勉強している。"
     app._render_tokens(app.current_text)
+    root.bind("<Escape>", lambda _ev: root.destroy())
     root.mainloop()
 
 

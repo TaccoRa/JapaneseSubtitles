@@ -14,10 +14,12 @@ class SettingsUI:
     NUMBER_PATTERN = r"\s*([-+]?\d+(?:[.,]\d+)?)\s*(?:s|sec|secs|second|seconds)?\s*"
     OCR_MAX_REGIONS = 8
     _OCR_REGION_KEYS = []
+    _OCR_REGION_SCREEN_KEYS = []
     for _idx in range(1, OCR_MAX_REGIONS + 1):
         _suffix = "" if _idx == 1 else str(_idx)
         for _axis in ("X", "Y", "W", "H"):
             _OCR_REGION_KEYS.append(f"OCR_REGION{_suffix}_{_axis}")
+        _OCR_REGION_SCREEN_KEYS.append(f"OCR_REGION{_suffix}_SCREEN")
     OCR_KEYS = (
         "OCR_ENABLED",
         "OCR_DEBUG",
@@ -27,7 +29,9 @@ class SettingsUI:
         "OCR_CHAR_WHITELIST",
         "OCR_SCREEN_INDEX",
         "OCR_REGION_COUNT",
+        "OCR_SYNC_AFTER_ANKI",
         *_OCR_REGION_KEYS,
+        *_OCR_REGION_SCREEN_KEYS,
     )
 
     def __init__(
@@ -96,10 +100,27 @@ class SettingsUI:
             parsed = int(mode)
         except Exception:
             parsed = None
-        if parsed not in (1, 2, 3):
-            parsed = 2 if bool(self.config.get("INPUT_MODE_NUMPAD") or False) else 1
+        if parsed in (1, 2):
+            return parsed
+        if parsed == 3:
+            last_active = self.config.get("LAST_ACTIVE_INPUT_MODE")
+            try:
+                last_active = int(last_active)
+            except Exception:
+                last_active = None
+            if last_active in (1, 2):
+                return last_active
+            return 1
+        parsed = 2 if bool(self.config.get("INPUT_MODE_NUMPAD") or False) else 1
         if bool(self.config.get("SHORTCUTS_DISABLED") or False):
-            parsed = 3
+            last_active = self.config.get("LAST_ACTIVE_INPUT_MODE")
+            try:
+                last_active = int(last_active)
+            except Exception:
+                last_active = None
+            if last_active in (1, 2):
+                return last_active
+            return 1
         return parsed
 
     def _init_vars(self):
@@ -132,7 +153,7 @@ class SettingsUI:
                      "back", "forward", "play_pause",
                      "time_entry_return", "time_entry_clear",
                      "advanced_apply",
-                     "ocr_read_now"):
+                     "ocr_read_now", "ocr_sync_now"):
             setattr(self, f"_on_{name}", self._noop)
 
     # â€”â€”â€” SETTINGS FRAME â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”
@@ -410,6 +431,26 @@ class SettingsUI:
         hotkeys_disabled = bool(self.input_mode == 3)
         if hotkeys_disabled != bool(self.config.get("SHORTCUTS_DISABLED") or False):
             self.config.set("SHORTCUTS_DISABLED", hotkeys_disabled)
+        if self._last_active_input_mode in (1, 2):
+            try:
+                saved_last = int(self.config.get("LAST_ACTIVE_INPUT_MODE") or 0)
+            except Exception:
+                saved_last = 0
+            if self._last_active_input_mode != saved_last:
+                self.config.set("LAST_ACTIVE_INPUT_MODE", int(self._last_active_input_mode))
+        # Persist offset and skip values
+        try:
+            saved_offset = float(self.config.get("EXTRA_OFFSET") or 0.0)
+        except Exception:
+            saved_offset = 0.0
+        if abs(self._last_offset_value - saved_offset) > 0.001:
+            self.config.set("EXTRA_OFFSET", self._last_offset_value)
+        try:
+            saved_skip = float(self.config.get("DEFAULT_SKIP") or 1.0)
+        except Exception:
+            saved_skip = 1.0
+        if abs(self._last_skip_value - saved_skip) > 0.001:
+            self.config.set("DEFAULT_SKIP", self._last_skip_value)
             
     # â€”â€”â€” PUBLIC binders â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”
     # Settings window
@@ -503,6 +544,7 @@ class SettingsUI:
     def bind_update_display(self, cb):       self.update_time_and_subtitle_displays = cb
     def bind_advanced_apply(self, cb):       self._on_advanced_apply = cb
     def bind_ocr_read_now(self, cb):         self._on_ocr_read_now = cb
+    def bind_ocr_sync_now(self, cb):         self._on_ocr_sync_now = cb
 
     def update_time_overlay_position(self):
         self.root.update_idletasks()
@@ -571,6 +613,8 @@ class SettingsUI:
             cfg["INPUT_MODE"] = int(self.input_mode)
             cfg["INPUT_MODE_NUMPAD"] = bool(self.numpad_mode_enabled)
             cfg["SHORTCUTS_DISABLED"] = bool(self.input_mode == 3)
+            if self.input_mode in (1, 2):
+                cfg["LAST_ACTIVE_INPUT_MODE"] = int(self.input_mode)
 
     def _refresh_input_mode_button(self):
         if not self.input_mode_btn:
@@ -629,7 +673,48 @@ class SettingsUI:
         self.root.deiconify()
         self.root.lift()
 
+    def _flush_pending_entry_changes(self):
+        """Force any pending changes in offset/skip entry fields to be saved to config."""
+        for entry, attr_name, apply_method in [
+            (self.offset_entry, "_last_offset_value", self._apply_offset_change),
+            (self.skip_entry, "_last_skip_value", self._apply_skip_change),
+        ]:
+            try:
+                text = entry.get().replace(",", ".").strip()
+                parsed = self._parse_number(text)
+                if parsed is not None and hasattr(self, attr_name):
+                    current_value = getattr(self, attr_name)
+                    if abs(parsed - current_value) > 0.001:  # Value has changed
+                        setattr(self, attr_name, parsed)
+                        if entry is self.offset_entry:
+                            apply_method(parsed, persist=True)
+                        elif entry is self.skip_entry:
+                            apply_method(parsed, persist=True)
+            except Exception:
+                pass
+        self._sync_advanced_startup_vars_from_runtime()
+
+    def _sync_advanced_startup_vars_from_runtime(self) -> None:
+        vars_map = getattr(self, "_advanced_vars", None)
+        if not isinstance(vars_map, dict):
+            return
+        offset_var = vars_map.get("EXTRA_OFFSET")
+        if offset_var is not None:
+            try:
+                offset_var.set(self._format_number(float(self._last_offset_value)))
+            except Exception:
+                pass
+        skip_var = vars_map.get("DEFAULT_SKIP")
+        if skip_var is not None:
+            try:
+                skip_var.set(self._format_number(float(self._last_skip_value)))
+            except Exception:
+                pass
+
     def _open_advanced_settings_window(self):
+        # Flush any pending changes in the main UI before opening the advanced window
+        self._flush_pending_entry_changes()
+        
         if self.advanced_window is not None and self.advanced_window.winfo_exists():
             self.advanced_window.deiconify()
             self.advanced_window.lift()
@@ -815,6 +900,14 @@ class SettingsUI:
         win = self.advanced_window
         if win is None:
             return
+        try:
+            notebook = getattr(self, "_advanced_notebook", None)
+            if notebook is not None and notebook.winfo_exists():
+                tab_id = notebook.select()
+                if tab_id:
+                    self._prepare_advanced_tab_size(tab_id)
+        except Exception:
+            pass
         if self._advanced_resize_job is not None:
             try:
                 win.after_cancel(self._advanced_resize_job)
@@ -888,30 +981,33 @@ class SettingsUI:
             pass
 
     def _prepare_advanced_tab_sizes(self):
+        notebook = getattr(self, "_advanced_notebook", None)
+        if notebook is None:
+            return
+        try:
+            tab_id = notebook.select()
+        except Exception:
+            return
+        if tab_id:
+            self._prepare_advanced_tab_size(tab_id)
+
+    def _prepare_advanced_tab_size(self, tab_id: str):
         win = self.advanced_window
         notebook = getattr(self, "_advanced_notebook", None)
         if win is None or notebook is None:
             return
         try:
-            tabs = list(notebook.tabs())
-            if not tabs:
+            if not tab_id:
                 return
-            current = notebook.select()
-            sizes = {}
-            for tab_id in tabs:
-                notebook.select(tab_id)
-                win.update_idletasks()
-                tab = notebook.nametowidget(tab_id)
-                nb_w = max(280, int(tab.winfo_reqwidth()) + 14)
-                nb_h = max(80, int(tab.winfo_reqheight()) + 8)
-                notebook.configure(width=nb_w, height=nb_h)
-                win.update_idletasks()
-                w = max(360, int(win.winfo_reqwidth()))
-                h = max(180, int(win.winfo_reqheight()))
-                sizes[tab_id] = (nb_w, nb_h, w, h)
-            if current:
-                notebook.select(current)
-            self._advanced_tab_sizes = sizes
+            win.update_idletasks()
+            tab = notebook.nametowidget(tab_id)
+            nb_w = max(280, int(tab.winfo_reqwidth()) + 14)
+            nb_h = max(80, int(tab.winfo_reqheight()) + 8)
+            notebook.configure(width=nb_w, height=nb_h)
+            win.update_idletasks()
+            w = max(360, int(win.winfo_reqwidth()))
+            h = max(180, int(win.winfo_reqheight()))
+            self._advanced_tab_sizes[tab_id] = (nb_w, nb_h, w, h)
         except Exception:
             pass
 
@@ -1001,7 +1097,7 @@ class SettingsUI:
                     {"key": "SUBTITLE_CUSTOM_HTML_TAGS", "label": "Custom HTML tags to keep", "type": "str", "default": ""},
                     {"key": "SUBTITLE_KEEP_SPEAKER_NAMES", "label": "Keep speaker names from (Name)", "type": "bool", "default": False},
                     {"key": "SUBTITLE_SPEAKER_TEMPLATE", "label": "Speaker template ({name})", "type": "str", "default": "<speaker:{name}> "},
-                    {"key": "SUBTITLE_STRIP_PAREN_NOTES", "label": "Strip remaining (...) notes", "type": "bool", "default": True},
+                    {"key": "SUBTITLE_STRIP_PAREN_NOTES", "label": "Strip remaining (...) notes", "type": "bool", "default": False},
                     {"key": "SUBTITLE_AUTO_RUBY", "label": "Auto-add ruby for kanji-only lines", "type": "bool", "default": False},
                 ],
             ),
@@ -1130,6 +1226,7 @@ class SettingsUI:
                 [
                     {"key": "OCR_ENABLED", "label": "Enable startup/episode OCR sync", "type": "bool", "default": True},
                     {"key": "OCR_DEBUG", "label": "Debug print OCR text", "type": "bool", "default": True},
+                    {"key": "OCR_SYNC_AFTER_ANKI", "label": "OCR sync after Anki add", "type": "bool", "default": False},
                     {"key": "OCR_TESSERACT_CMD", "label": "Tesseract path (exe or folder)", "type": "str", "default": "", "allow_empty": True},
                     {"key": "OCR_TESSERACT_PSM", "label": "Tesseract PSM", "type": "int", "default": 6, "min": 0, "max": 13},
                     {"key": "OCR_TESSERACT_OEM", "label": "Tesseract OEM", "type": "int", "default": 3, "min": 0, "max": 3},
@@ -1143,6 +1240,7 @@ class SettingsUI:
         for idx in range(1, self.OCR_MAX_REGIONS + 1):
             suffix = "" if idx == 1 else str(idx)
             left[0][1].extend([
+                {"key": f"OCR_REGION{suffix}_SCREEN", "label": f"Region {idx} Screen", "type": "int", "default": 1, "min": 1, "max": 64, "hidden": True},
                 {"key": f"OCR_REGION{suffix}_X", "label": f"Region {idx} X", "type": "int", "default": 0, "min": 0, "max": 100000, "hidden": True},
                 {"key": f"OCR_REGION{suffix}_Y", "label": f"Region {idx} Y", "type": "int", "default": 0, "min": 0, "max": 100000, "hidden": True},
                 {"key": f"OCR_REGION{suffix}_W", "label": f"Region {idx} W", "type": "int", "default": 0, "min": 0, "max": 100000, "hidden": True},
@@ -1184,16 +1282,11 @@ class SettingsUI:
         self._ocr_area_select_btn.pack(side="left")
         self._ocr_area_select_var = tk.StringVar(value="1")
         self._ocr_area_select_menu = tk.OptionMenu(left, self._ocr_area_select_var, "1")
-        self._ocr_area_select_menu.pack(side="left", padx=(4, 10))
-
-        self._ocr_area_clear_btn = tk.Button(left, text="Clear OCR Area", command=self._handle_clear_ocr_area)
-        self._ocr_area_clear_btn.pack(side="left")
-        self._ocr_area_clear_var = tk.StringVar(value="1")
-        self._ocr_area_clear_menu = tk.OptionMenu(left, self._ocr_area_clear_var, "1")
-        self._ocr_area_clear_menu.pack(side="left", padx=(4, 0))
+        self._ocr_area_select_menu.pack(side="left", padx=(4, 0))
 
         self._refresh_ocr_area_buttons()
         tk.Button(right, text="Read Now (Set Time)", command=self._handle_ocr_read_now).pack(side="right")
+        tk.Button(right, text="Sync Now (5s)", command=self._handle_ocr_sync_now).pack(side="right", padx=(6, 0))
 
         screen_row = tk.Frame(actions)
         screen_row.pack(fill="x", pady=(8, 0))
@@ -1211,12 +1304,30 @@ class SettingsUI:
             raw = default
         return self._coerce_int(raw, default=default, min_v=1, max_v=self.OCR_MAX_REGIONS)
 
+    def _get_selected_ocr_area_index(self) -> int:
+        count = self._get_ocr_region_count_from_vars()
+        var = getattr(self, "_ocr_area_select_var", None)
+        try:
+            raw = var.get() if var is not None else "1"
+        except Exception:
+            raw = "1"
+        return self._coerce_int(raw, default=1, min_v=1, max_v=count)
+
+    @staticmethod
+    def _get_ocr_region_screen_key(index: int) -> str:
+        suffix = "" if int(index) == 1 else str(int(index))
+        return f"OCR_REGION{suffix}_SCREEN"
+
+    def _get_ocr_screen_for_region(self, values: dict, index: int) -> int:
+        default_screen = self._coerce_int(values.get("OCR_SCREEN_INDEX", 1), default=1, min_v=1, max_v=64)
+        screen_key = self._get_ocr_region_screen_key(index)
+        raw = values.get(screen_key, default_screen)
+        return self._coerce_int(raw, default=default_screen, min_v=1, max_v=64)
+
     def _refresh_ocr_area_buttons(self) -> None:
         select_var = getattr(self, "_ocr_area_select_var", None)
-        clear_var = getattr(self, "_ocr_area_clear_var", None)
         select_menu = getattr(self, "_ocr_area_select_menu", None)
-        clear_menu = getattr(self, "_ocr_area_clear_menu", None)
-        if select_var is None and clear_var is None:
+        if select_var is None:
             return
         count = self._get_ocr_region_count_from_vars()
         options = [str(i) for i in range(1, count + 1)]
@@ -1232,12 +1343,9 @@ class SettingsUI:
             except Exception:
                 pass
 
-        if select_var is not None and select_var.get() not in options:
+        if select_var.get() not in options:
             select_var.set(options[0])
-        if clear_var is not None and clear_var.get() not in options:
-            clear_var.set(options[0])
         _refresh_menu(select_menu, select_var)
-        _refresh_menu(clear_menu, clear_var)
 
     def _build_ocr_screen_buttons(self, parent: tk.Frame) -> None:
         for child in parent.winfo_children():
@@ -1300,41 +1408,45 @@ class SettingsUI:
         except Exception:
             values = {}
 
-        screen_idx = self._coerce_int(values.get("OCR_SCREEN_INDEX", 1), default=1, min_v=1, max_v=64)
         region_count = self._get_ocr_region_count_from_vars()
-        area_any = False
-        area_selected = False
-        select_var = getattr(self, "_ocr_area_select_var", None)
-        select_idx = self._coerce_int(select_var.get(), default=1, min_v=1, max_v=region_count) if select_var else 1
-        for idx in range(1, region_count + 1):
-            suffix = "" if idx == 1 else str(idx)
-            rw = self._coerce_int(values.get(f"OCR_REGION{suffix}_W", 0), default=0)
-            rh = self._coerce_int(values.get(f"OCR_REGION{suffix}_H", 0), default=0)
-            selected = rw > 0 and rh > 0
-            if selected:
-                area_any = True
-                if idx == select_idx:
-                    area_selected = True
+        select_idx = self._get_selected_ocr_area_index()
+        suffix = "" if select_idx == 1 else str(select_idx)
+        rw = self._coerce_int(values.get(f"OCR_REGION{suffix}_W", 0), default=0)
+        rh = self._coerce_int(values.get(f"OCR_REGION{suffix}_H", 0), default=0)
+        area_selected = rw > 0 and rh > 0
+        screen_idx = self._get_ocr_screen_for_region(values, select_idx)
 
         select_btn = getattr(self, "_ocr_area_select_btn", None)
         self._apply_ocr_button_style(select_btn, area_selected)
 
         for idx, btn in getattr(self, "_ocr_screen_buttons", {}).items():
-            active = (not area_any) and (idx == screen_idx)
+            active = (idx == screen_idx)
             self._apply_ocr_button_style(btn, active)
 
     def _set_ocr_screen_index(self, index: int) -> None:
         self._ocr_selected_screen = int(index)
-        var = getattr(self, "_advanced_vars", {}).get("OCR_SCREEN_INDEX")
-        if var is not None:
-            var.set(str(int(index)))
-        region_count = self._get_ocr_region_count_from_vars()
-        for idx in range(1, region_count + 1):
-            self._set_ocr_region_vars(0, 0, 0, 0, index=idx)
+        vars_map = getattr(self, "_advanced_vars", {})
+        global_var = vars_map.get("OCR_SCREEN_INDEX")
+        if global_var is not None:
+            global_var.set(str(int(index)))
+        selected_idx = self._get_selected_ocr_area_index()
+        region_screen_var = vars_map.get(self._get_ocr_region_screen_key(selected_idx))
+        if region_screen_var is not None:
+            region_screen_var.set(str(int(index)))
+        if hasattr(self, "_advanced_status_var"):
+            self._advanced_status_var.set(f"OCR region {selected_idx} screen set to {int(index)}.")
         self._apply_ocr_values_runtime()
         self._update_ocr_screen_button_styles()
 
-    def _set_ocr_region_vars(self, x: int, y: int, w: int, h: int, index: int = 1) -> None:
+    def _set_ocr_region_vars(
+        self,
+        x: int,
+        y: int,
+        w: int,
+        h: int,
+        index: int = 1,
+        screen=None,
+    ) -> None:
         suffix = "" if index == 1 else str(index)
         label = "OCR region" if index == 1 else f"OCR region {index}"
         mapping = {
@@ -1343,6 +1455,8 @@ class SettingsUI:
             f"OCR_REGION{suffix}_W": w,
             f"OCR_REGION{suffix}_H": h,
         }
+        if screen is not None:
+            mapping[self._get_ocr_region_screen_key(index)] = int(screen)
         for key, val in mapping.items():
             var = getattr(self, "_advanced_vars", {}).get(key)
             if var is not None:
@@ -1396,11 +1510,19 @@ class SettingsUI:
         except Exception:
             pass
         self._refresh_ocr_area_buttons()
+        self._update_ocr_screen_button_styles()
 
     def _handle_ocr_read_now(self):
         values = self._get_ocr_values_from_vars()
         try:
             self._on_ocr_read_now(dict(values))
+        except Exception:
+            pass
+
+    def _handle_ocr_sync_now(self):
+        values = self._get_ocr_values_from_vars()
+        try:
+            self._on_ocr_sync_now(dict(values))
         except Exception:
             pass
 
@@ -1412,31 +1534,10 @@ class SettingsUI:
             index = 1
         self._select_ocr_region(index)
 
-    def _handle_clear_ocr_area(self) -> None:
-        var = getattr(self, "_ocr_area_clear_var", None)
-        try:
-            index = int(var.get()) if var is not None else 1
-        except Exception:
-            index = 1
-        self._clear_ocr_region_index(index)
-
-    def _clear_ocr_region(self):
-        self._set_ocr_region_vars(0, 0, 0, 0, index=1)
-        self._apply_ocr_values_runtime()
-
-    def _clear_ocr_region_index(self, index: int):
-        self._set_ocr_region_vars(0, 0, 0, 0, index=index)
-        self._apply_ocr_values_runtime()
-
     def _select_ocr_region(self, index: int = 1):
         values = self._get_ocr_values_from_vars()
-        selected = getattr(self, "_ocr_selected_screen", None)
-        screen_idx = self._coerce_int(
-            selected if selected is not None else values.get("OCR_SCREEN_INDEX", 1),
-            default=1,
-            min_v=1,
-            max_v=64,
-        )
+        screen_idx = self._get_ocr_screen_for_region(values, index)
+        self._ocr_selected_screen = int(screen_idx)
         monitors = get_monitor_rects(self.root)
         if not monitors:
             monitors = [(0, 0, 1920, 1080)]
@@ -1492,9 +1593,9 @@ class SettingsUI:
             w = int(abs(x2 - x1))
             h = int(abs(y2 - y1))
             if w < 5 or h < 5:
-                self._set_ocr_region_vars(0, 0, 0, 0, index=index)
+                self._set_ocr_region_vars(0, 0, 0, 0, index=index, screen=screen_idx)
             else:
-                self._set_ocr_region_vars(x, y, w, h, index=index)
+                self._set_ocr_region_vars(x, y, w, h, index=index, screen=screen_idx)
             self._apply_ocr_values_runtime()
 
         def _on_release(event):
@@ -1545,10 +1646,13 @@ class SettingsUI:
                 if (not text) and ((cfg_val is None) or (not allow_empty)):
                     text = str(spec.get("default", ""))
                 var.set(text)
+        self._sync_advanced_startup_vars_from_runtime()
         try:
-            screen_var = self._advanced_vars.get("OCR_SCREEN_INDEX")
-            if screen_var is not None:
-                self._ocr_selected_screen = self._coerce_int(screen_var.get(), default=1, min_v=1, max_v=64)
+            values = self._get_ocr_values_from_vars()
+            self._ocr_selected_screen = self._get_ocr_screen_for_region(
+                values,
+                self._get_selected_ocr_area_index(),
+            )
         except Exception:
             self._ocr_selected_screen = None
         if hasattr(self, "_advanced_status_var"):
@@ -1688,16 +1792,32 @@ class SettingsUI:
             return None
 
     def _set_entry_value(self, entry, value: float):
+        formatted = self._format_seconds(value)
+        # Update both the StringVar and the entry widget to keep them in sync
+        if entry is self.offset_entry:
+            self.offset_var.set(formatted)
+        elif entry is self.skip_entry:
+            self.skip_var.set(formatted)
         entry.delete(0, tk.END)
-        entry.insert(0, self._format_seconds(value))
+        entry.insert(0, formatted)
 
     def _apply_offset_change(self, value_seconds: float, persist: bool):
         self.slider.config(to=self.total_duration + value_seconds)
         self.update_time_and_subtitle_displays()
         self._on_slider_release(None)
+        self._sync_advanced_startup_vars_from_runtime()
         if persist:
             try:
                 self.config.set("EXTRA_OFFSET", value_seconds)
+            except Exception:
+                pass
+
+    def _apply_skip_change(self, value_seconds: float, persist: bool):
+        """Update skip value and optionally persist to config."""
+        self._sync_advanced_startup_vars_from_runtime()
+        if persist:
+            try:
+                self.config.set("DEFAULT_SKIP", value_seconds)
             except Exception:
                 pass
 
@@ -1733,6 +1853,8 @@ class SettingsUI:
             self._set_entry_value(entry, value)
             if entry is self.offset_entry:
                 self._apply_offset_change(value, persist=True)
+            elif entry is self.skip_entry:
+                self._apply_skip_change(value, persist=True)
         entry.master.focus_set()
 
     def set_total_duration(self, total_duration: float):

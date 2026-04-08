@@ -9,7 +9,7 @@ import os
 import sys
 import tkinter as tk
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "src"))
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "src", "SubtitlePlayer"))
 sys.path.insert(0, ROOT)
 
 from model.config_manager import ConfigManager  # noqa: E402
@@ -72,6 +72,7 @@ def main() -> None:
     overlay.sub_window.bind("<Right>", next_sample)
     overlay.sub_window.bind("<Left>", prev_sample)
     overlay.sub_window.bind("<Escape>", quit_app)
+    root.bind("<Escape>", quit_app)
     overlay.sub_window.focus_set()
 
     render_current()
