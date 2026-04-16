@@ -373,7 +373,11 @@ def bracket_text_to_segments(text: str) -> List[Tuple[str, Optional[str]]]:
         base = m.group(1)
         ruby = m.group(2)
         if base:
-            segments.extend(_split_ruby_base(base, ruby))
+            for sub_base, sub_ruby in _split_ruby_base(base, ruby):
+                if sub_ruby is not None and not any(_is_kanji_char(ch) for ch in sub_base):
+                    segments.append((sub_base, None))
+                else:
+                    segments.append((sub_base, sub_ruby))
         last = m.end()
     tail = (text or "")[last:]
     if tail:

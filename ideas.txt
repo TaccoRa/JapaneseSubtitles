@@ -1,4 +1,6 @@
 To Do:
+some windows like the search button window needs to be autosized 
+changed auto ruby handling check if words like toutou is correct
 the clear OCR area is not needed
 add result if rean now set time not worked
 add warning if anki is not connected

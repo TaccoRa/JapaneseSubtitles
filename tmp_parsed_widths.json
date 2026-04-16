@@ -1,0 +1,95 @@
+[
+  {
+    "clean": "特に肉料理の授業では Ａ評価しか\n取ったことがないっていう すご腕",
+    "top": [
+      {
+        "base": "特",
+        "ruby": "とく",
+        "base_w": 55,
+        "ruby_w": 66,
+        "seg_w": 66
+      },
+      {
+        "base": "に ",
+        "ruby": null,
+        "base_w": 70,
+        "ruby_w": 0,
+        "seg_w": 70
+      },
+      {
+        "base": "肉料理",
+        "ruby": "にくりょうり",
+        "base_w": 165,
+        "ruby_w": 198,
+        "seg_w": 198
+      },
+      {
+        "base": "の ",
+        "ruby": null,
+        "base_w": 70,
+        "ruby_w": 0,
+        "seg_w": 70
+      },
+      {
+        "base": "授業",
+        "ruby": "じゅぎょう",
+        "base_w": 110,
+        "ruby_w": 165,
+        "seg_w": 165
+      },
+      {
+        "base": "では Ａ",
+        "ruby": "えい",
+        "base_w": 180,
+        "ruby_w": 66,
+        "seg_w": 180
+      },
+      {
+        "base": " ",
+        "ruby": null,
+        "base_w": 15,
+        "ruby_w": 0,
+        "seg_w": 15
+      },
+      {
+        "base": "評価",
+        "ruby": "ひょうか",
+        "base_w": 110,
+        "ruby_w": 132,
+        "seg_w": 132
+      },
+      {
+        "base": "しか",
+        "ruby": null,
+        "base_w": 110,
+        "ruby_w": 0,
+        "seg_w": 110
+      }
+    ],
+    "top_total": 1006,
+    "bottom": [
+      {
+        "base": "取",
+        "ruby": "と",
+        "base_w": 55,
+        "ruby_w": 33,
+        "seg_w": 55
+      },
+      {
+        "base": "ったことがないっていうすご ",
+        "ruby": null,
+        "base_w": 730,
+        "ruby_w": 0,
+        "seg_w": 730
+      },
+      {
+        "base": "腕",
+        "ruby": "うで",
+        "base_w": 55,
+        "ruby_w": 66,
+        "seg_w": 66
+      }
+    ],
+    "bottom_total": 851
+  }
+]
