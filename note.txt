@@ -1,0 +1,320 @@
+﻿1. Scope
+Analyzed roots: `src/SubtitlePlayer` (SubtitlePlayer) and `anki_modify` (Modify_anki).
+
+2. Project summary
+SubtitlePlayer is a Tkinter desktop app that loads local or remote SRT/ASS subtitles, builds episode maps, renders ruby annotations on an overlay, and integrates with Anki via AnkiConnect plus optional translation APIs. It uses a controller-driven time loop and background downloads for remote subtitle caching.
+
+Modify_anki is a set of CLI maintenance tools for Anki decks via AnkiConnect, covering front-field normalization, kanji image cleanup, duplicate reporting, stroke media injection, and missing stroke SVG synchronization with optional downloads from KanjiVG.
+
+3. Architecture overview
+- `src/SubtitlePlayer/app.py` bootstraps config, Tk root, startup thread, and UI/model/controller wiring.
+- `src/SubtitlePlayer/controller/controller.py` coordinates input, playback time, episode changes, and Anki actions.
+- `src/SubtitlePlayer/model/subtitle_manager.py` loads/cleans subs, parses SRT/ASS, builds episode maps, and downloads remote files.
+- `src/SubtitlePlayer/model/anki_client.py` talks to AnkiConnect and translation services; manages deck/field routing.
+- `src/SubtitlePlayer/model/renderer.py` draws subtitle/ruby layout onto a Tk canvas.
+- `src/SubtitlePlayer/view/*` implements settings, overlay, popup, and loading UI elements.
+- `src/SubtitlePlayer/utils.py` provides small time parsing/formatting and window dragging helpers.
+- `anki_modify/modify_anki.py` is a multi-operation AnkiConnect CLI (normalize, cleanup, reports, strokes).
+- `anki_modify/remove_kanji_images.py` removes redundant image tags in Front fields.
+- `anki_modify/sync_missing_stroke_svgs.py` syncs KanjiVG SVGs into Anki media.
+
+4. Execution flow
+SubtitlePlayer:
+1. `src/SubtitlePlayer/main.py` creates `SubtitlePlayerApp` and calls `run()`.
+2. `SubtitlePlayerApp` loads `config.json`, builds a hidden Tk root, and shows a LoadingOverlay.
+3. A background thread constructs `SubtitleManager`, loads subtitles, and computes total duration.
+4. On success, UI windows (`SettingsUI`, `SubtitleOverlayUI`, `CopyPopup`) are created, then `SubtitleRenderer` and `SubtitleController` are wired.
+5. Controller starts input listeners and schedules the update loop; Tk mainloop drives rendering and UI updates.
+
+Modify_anki (all scripts follow this pattern):
+1. Parse CLI args and build `http://{host}:{port}` base URL.
+2. Validate AnkiConnect availability via `deckNames`.
+3. `findNotes` and `notesInfo` gather target notes (with sort/limit/offset applied).
+4. Build a plan/preview and print summaries (dry-run unless `--apply` for some scripts).
+5. Apply changes with `updateNoteFields`/`addNote`/`storeMediaFile` as requested.
+
+5. File / module summaries
+SubtitlePlayer:
+- `src/SubtitlePlayer/__init__.py` | 37 bytes | 2 lines | py | Package marker | exports: n/a
+- `src/SubtitlePlayer/app.py` | 9246 bytes | 256 lines | py | App bootstrap and startup threading | exports: `SubtitlePlayerApp()->class`
+- `src/SubtitlePlayer/controller/__init__.py` | 33 bytes | 2 lines | py | Package marker | exports: n/a
+- `src/SubtitlePlayer/controller/controller.py` | 56526 bytes | 1367 lines | py | UI/controller glue, time loop, input handling | exports: `SubtitleController(...)->class`
+- `src/SubtitlePlayer/anki_reading_support/dicrc` | 693 bytes | 30 lines | other | MeCab dictionary config | exports: n/a
+- `src/SubtitlePlayer/anki_reading_support/itaijidict` | 2820 bytes | 565 lines | other | Kakasi itaijidict table | exports: n/a
+- `src/SubtitlePlayer/anki_reading_support/mecabrc` | 0 bytes | 0 lines | other | MeCab runtime config | exports: n/a
+- `src/SubtitlePlayer/github_search/github_search_Ansatsu_Kyoushitsu.json` | 49108 bytes | 1373 lines | json | Cached GitHub search results for Ansatsu Kyoushitsu | exports: n/a
+- `src/SubtitlePlayer/github_search/github_search_Daini_no_Shokugyo.json` | 13726 bytes | 197 lines | json | Cached GitHub search results for Daini no Shokugyo | exports: n/a
+- `src/SubtitlePlayer/github_search/github_search_Death_note.json` | 48159 bytes | 1330 lines | json | Cached GitHub search results for Death Note | exports: n/a
+- `src/SubtitlePlayer/github_search/github_search_Detective_Conan.json` | 244673 bytes | 7016 lines | json | Cached GitHub search results for Detective Conan | exports: n/a
+- `src/SubtitlePlayer/github_search/github_search_Elfen_Lied.json` | 3825 bytes | 128 lines | json | Cached GitHub search results for Elfen Lied | exports: n/a
+- `src/SubtitlePlayer/github_search/github_search_Gintama.json` | 18915 bytes | 409 lines | json | Cached GitHub search results for Gintama | exports: n/a
+- `src/SubtitlePlayer/github_search/github_search_HUNTER_HUNTER.json` | 49960 bytes | 1201 lines | json | Cached GitHub search results for HUNTERxHUNTER | exports: n/a
+- `src/SubtitlePlayer/github_search/github_search_Haikyuu.json` | 166048 bytes | 4483 lines | json | Cached GitHub search results for Haikyuu | exports: n/a
+- `src/SubtitlePlayer/github_search/github_search_High_School_DxD.json` | 1891 bytes | 65 lines | json | Cached GitHub search results for High School DxD | exports: n/a
+- `src/SubtitlePlayer/github_search/github_search_Hitoribocchi_no_Isekai_Kouryaku.json` | 4748 bytes | 113 lines | json | Cached GitHub search results for Hitoribocchi no Isekai Kouryaku | exports: n/a
+- `src/SubtitlePlayer/github_search/github_search_Howl_no_Ugoku_Shiro.json` | 1684 bytes | 51 lines | json | Cached GitHub search results for Howl no Ugoku Shiro | exports: n/a
+- `src/SubtitlePlayer/github_search/github_search_Kimetsu_no_Yaiba.json` | 120580 bytes | 3203 lines | json | Cached GitHub search results for Kimetsu no Yaiba | exports: n/a
+- `src/SubtitlePlayer/github_search/github_search_Mushoku_Tensei.json` | 140608 bytes | 3037 lines | json | Cached GitHub search results for Mushoku Tensei | exports: n/a
+- `src/SubtitlePlayer/github_search/github_search_One_piece.json` | 331745 bytes | 9568 lines | json | Cached GitHub search results for One Piece | exports: n/a
+- `src/SubtitlePlayer/github_search/github_search_SPY_FAMILY.json` | 110188 bytes | 2854 lines | json | Cached GitHub search results for SPYxFAMILY | exports: n/a
+- `src/SubtitlePlayer/github_search/github_search_Shingeki_no_Kyojin.json` | 38417 bytes | 1014 lines | json | Cached GitHub search results for Shingeki no Kyojin | exports: n/a
+- `src/SubtitlePlayer/github_search/github_search_Shuumatsu_no_Valkyrie.json` | 22124 bytes | 587 lines | json | Cached GitHub search results for Shuumatsu no Valkyrie | exports: n/a
+- `src/SubtitlePlayer/github_search/github_search_Sword_Art_Online.json` | 200306 bytes | 4705 lines | json | Cached GitHub search results for Sword Art Online | exports: n/a
+- `src/SubtitlePlayer/github_search/github_search_Tokyo_Ghoul.json` | 53890 bytes | 1548 lines | json | Cached GitHub search results for Tokyo Ghoul | exports: n/a
+- `src/SubtitlePlayer/github_search/github_search_baki-dou.json` | 4007 bytes | 121 lines | json | Cached GitHub search results for Baki-dou | exports: n/a
+- `src/SubtitlePlayer/github_search/github_search_名探偵コナン.json` | 413211 bytes | 8702 lines | json | Cached GitHub search results for 名探偵コナン | exports: n/a
+- `src/SubtitlePlayer/github_search/unparsed_episode_names.tsv` | 231 bytes | 2 lines | other | Log of unparsed filenames | exports: n/a
+- `src/SubtitlePlayer/main.py` | 485 bytes | 14 lines | py | Minimal entry point | exports: n/a
+- `src/SubtitlePlayer/model/__init__.py` | 28 bytes | 2 lines | py | Package marker | exports: n/a
+- `src/SubtitlePlayer/model/anki_client.py` | 37800 bytes | 1014 lines | py | AnkiConnect + translation client | exports: `AnkiClient(...)->class`
+- `src/SubtitlePlayer/model/config_manager.py` | 939 bytes | 34 lines | py | JSON config wrapper | exports: `ConfigManager(...)->class`
+- `src/SubtitlePlayer/model/renderer.py` | 10812 bytes | 278 lines | py | Subtitle rendering on canvas | exports: `SubtitleRenderer(...)->class`
+- `src/SubtitlePlayer/model/anki_ruby.py` | 7956 bytes | 242 lines | py | MeCab/Kakasi ruby generation (add-on logic) | exports: `AddonRubyGenerator(...)->class`
+- `src/SubtitlePlayer/model/subtitle_manager.py` | 151497 bytes | 3363 lines | py | Subtitle parsing, episode maps, downloads | exports: `SubtitleManager(...)->class`
+- `src/SubtitlePlayer/utils.py` | 3317 bytes | 109 lines | py | Time parsing/formatting + dragging | exports: `make_draggable`, `parse_time_value`, `format_time`
+- `src/SubtitlePlayer/view/__init__.py` | 27 bytes | 2 lines | py | Package marker | exports: n/a
+- `src/SubtitlePlayer/view/overlays.py` | 8043 bytes | 250 lines | py | Loading/splash overlays | exports: `_center_toplevel`, `LoadingOverlay`, `_STARTUP_OVERLAY`
+- `src/SubtitlePlayer/view/popup.py` | 8311 bytes | 237 lines | py | Copy popup and Anki add UI | exports: `CopyPopup(...)->class`
+- `src/SubtitlePlayer/view/settings_ui.py` | 59621 bytes | 1312 lines | py | Settings + control windows | exports: `SettingsUI(...)->class`
+- `src/SubtitlePlayer/view/subtitle_overlay.py` | 6652 bytes | 173 lines | py | Subtitle overlay window | exports: `SubtitleOverlayUI(...)->class`
+
+Modify_anki:
+- `anki_modify/modify_anki.py` | 57405 bytes | 1591 lines | py | Multi-operation AnkiConnect CLI | exports: `parse_args`, `process_notes`, `main`
+- `anki_modify/remove_kanji_images.py` | 6042 bytes | 176 lines | py | Remove kanji images from Front field | exports: `parse_args`, `clean_front`, `main`
+- `anki_modify/sync_missing_stroke_svgs.py` | 12679 bytes | 419 lines | py | Sync missing KanjiVG SVG media | exports: `parse_args`, `extract_note_kanji`, `main`
+
+6. Key data structures and formats
+- `display_data` in `SubtitleManager`: list of tuples `(clean_text, start_seconds, top_segments, bottom_segments)`.
+- `subtitles`: list of `srt.Subtitle` objects; ASS files are parsed into the same structure.
+- Episode maps: `remote_episode_map_global` (global index->item) and `remote_episode_map_season` (season->items).
+- `github_search/*.json`: cached GitHub search results with repo metadata and subtitle item lists.
+- `config.json`: JSON configuration controlling UI layout, timing, Anki fields, and remote settings.
+- Advanced toggles: `SUBTITLE_AUTO_RUBY` (auto ruby generation) and `DISABLE_SPACE_HOTKEY` (disable space play/pause).
+- `anki_reading_support/`: bundled MeCab/Kakasi binaries and dictionaries copied from the add-on.
+- `unparsed_episode_names.tsv`: TSV log of filenames failing episode parsing.
+- Modify_anki `PlanItem`: dataclass for note mutation plans (nid, old/new front, flags).
+- AnkiConnect payloads: JSON `{action, version, params}` for find/update/add/media operations.
+- Stroke media naming: `stroke_<codepoint>.svg` (5-hex Unicode codepoint).
+
+7. Known issues and probable runtime errors
+- `src/SubtitlePlayer/model/subtitle_manager.py:145` assumes local paths contain a `subs` folder; otherwise `.index('subs')` throws `ValueError` and startup can crash in local mode.
+- `src/SubtitlePlayer/model/subtitle_manager.py:508` `get_total_duration` uses `self.subtitles[-1]`; empty/failed parses raise `IndexError`.
+- `src/SubtitlePlayer/model/subtitle_manager.py:200` `srt.parse` exceptions are uncaught; malformed SRTs stop loading.
+- `src/SubtitlePlayer/app.py:49` `ConfigManager("config.json")` is cwd-dependent; running from outside repo root fails.
+- `src/SubtitlePlayer/utils.py:49` `parse_time_value` is ambiguous for short inputs (e.g., "90"), risking wrong seek times.
+- `anki_modify/sync_missing_stroke_svgs.py:113` default behavior is APPLY, so missing media may be uploaded without explicit confirmation.
+- Global input hooks (`pynput`, `pyautogui`) can fail on locked desktops or without accessibility permissions.
+- Cache writes occur under `src/SubtitlePlayer/cache_github`; read-only installs will fail to download or log.
+
+Subtitle parsing and timing checks:
+- SRT parsing uses `srt.parse` (expects `HH:MM:SS,mmm`); dot-millis or malformed blocks may raise.
+- ASS parsing supports `H:MM:SS.CS` or 3-digit fractions; unusual formats may be skipped.
+- Auto ruby uses the bundled MeCab/Kakasi support binaries; if unavailable, subtitles remain unchanged.
+- Time comparisons use floats from `total_seconds`; boundary cases can miss cues without epsilon in some paths.
+- Sync drift risk: controller time is driven by wall-clock deltas, not by actual Chrome video time.
+
+Chrome subtitle sync methods (pros/cons/hints):
+1. Chrome DevTools Protocol — Pros: precise `video.currentTime`; Cons: requires remote debugging, may break DRM; Hint: launch Chrome with `--remote-debugging-port`, call `Runtime.evaluate`.
+2. Browser extension content script — Pros: direct access to DOM/video; Cons: extension packaging/install; Hint: send currentTime via WebSocket/native messaging to the app.
+3. User script + local HTTP/WebSocket — Pros: minimal setup; Cons: manual script install, CORS/security concerns; Hint: Tampermonkey injects a `setInterval` that POSTs `currentTime`.
+
+Modify_anki safety checks:
+- Writes happen via AnkiConnect `updateNoteFields`, `addNote`, and `storeMediaFile`; no direct SQLite writes detected.
+- `modify_anki.py` and `remove_kanji_images.py` are dry-run by default; `sync_missing_stroke_svgs.py` is not.
+- No built-in backup or transaction rollback; partial updates are possible on failures.
+
+TODO/FIXME/HACK:
+- `src/SubtitlePlayer/model/subtitle_manager.py:1516` TODO: figure out the anime name of first season.
+
+8. Refactoring opportunities and prioritized action list
+1. Guard local path parsing to avoid `subs` hard dependency.
+file: `src/SubtitlePlayer/model/subtitle_manager.py`
+location: replace function `_extract_and_set_local_episode_metadata(...)` lines 136–163
+new code:
+```python
+def _extract_and_set_local_episode_metadata(self, local_path):
+    if not self.remote_flag:
+        norm = (local_path or "").replace("\\", "/")
+        parts = [p for p in norm.split("/") if p]
+        if "subs" in parts:
+            idx = parts.index("subs")
+            self.anime_folder_name = parts[idx + 1] if idx + 1 < len(parts) else None
+        else:
+            self.anime_folder_name = os.path.basename(os.path.dirname(local_path)) or None
+    self.config.set("LAST_LOCAL_SRT_FILE", local_path)
+
+    s, e, g = self.extract_season_episode_global(os.path.basename(local_path))
+    if s is None and e is None and g is not None:
+        self.current_season, self.current_episode = None, int(g)
+    else:
+        self.current_season, self.current_episode = s, e
+
+    self.is_movie = (s is None and e is None and g is None)
+    self._build_local_episode_map(local_path)
+```
+
+2. Make total duration safe for empty or unsorted subtitle lists.
+file: `src/SubtitlePlayer/model/subtitle_manager.py`
+location: replace function `get_total_duration(...)` line 460
+new code:
+```python
+def get_total_duration(self) -> float:
+    subs = getattr(self, "subtitles", None) or []
+    if not subs:
+        return 0.0
+    try:
+        return max(sub.end.total_seconds() for sub in subs)
+    except Exception:
+        return 0.0
+```
+
+3. Accept seconds-only and mm:ss input without ambiguity.
+file: `src/SubtitlePlayer/utils.py`
+location: replace function `parse_time_value(...)` lines 49–70
+new code:
+```python
+def parse_time_value(time: str, last_subtitle=None) -> float:
+    text = str(time or "").strip().lower()
+    text = text.replace(" ", "").replace("s", "").replace(",", ".")
+    if not text:
+        return 0.0
+
+    if ":" in text:
+        parts = [p or "0" for p in text.split(":")]
+        while len(parts) < 3:
+            parts.insert(0, "0")
+        h_s, m_s, s_s = parts[-3], parts[-2], parts[-1]
+    else:
+        if "." in text:
+            int_part, frac = text.split(".", 1)
+        else:
+            int_part, frac = text, ""
+        if int_part.isdigit() and len(int_part) <= 2:
+            h_s, m_s, s_s = "0", "0", int_part
+        elif int_part.isdigit() and len(int_part) <= 4:
+            int_part = int_part.zfill(4)
+            h_s, m_s, s_s = "0", int_part[:2], int_part[2:]
+        else:
+            int_part = (int_part if int_part.isdigit() else "0").zfill(6)
+            h_s, m_s, s_s = int_part[:2], int_part[2:4], int_part[4:6]
+        if frac:
+            s_s = f"{s_s}.{''.join(ch for ch in frac if ch.isdigit())}"
+
+    if "." in s_s:
+        sec_int, frac = s_s.split(".", 1)
+        sec = int(sec_int or 0)
+        frac = ''.join(ch for ch in frac if ch.isdigit())
+        frac_secs = float("0." + frac) if frac else 0.0
+    else:
+        sec = int(s_s or 0)
+        frac_secs = 0.0
+
+    h = int(h_s or 0)
+    m = int(m_s or 0)
+    m += sec // 60
+    sec %= 60
+    h += m // 60
+    m %= 60
+    return h * 3600 + m * 60 + sec + frac_secs
+```
+
+9. Documentation gaps and suggested README additions
+- Clarify required working directory (`config.json` path) and how to run SubtitlePlayer from root.
+- Document required config keys, defaults, and expected types (e.g., UPDATE_INTERVAL_MS).
+- Explain remote subtitle mode: GitHub search, cache folder, and optional `GITHUB_TOKEN`.
+- Describe AnkiConnect prerequisites and expected model/field names.
+- Note OS permissions for global hotkeys and mouse control (`pynput`, `pyautogui`).
+- Summarize Modify_anki safety model (dry-run defaults, apply flags, backup advice).
+
+10. Suggested tests to add
+- Parse-time inputs: `parse_time_value` for `HH:MM:SS,mmm`, `MM:SS`, and seconds-only.
+- SRT/ASS parsing: malformed blocks, out-of-order cues, and mixed encodings.
+- Episode filename parsing: `extract_season_episode_global` with varied naming patterns.
+- Remote map selection: ensure correct episode chosen when hints/global/season mapping conflicts.
+- AnkiClient error handling: AnkiConnect unreachable, missing fields, translation API failures.
+- Modify_anki: mock AnkiConnect responses to verify no changes on dry-run.
+
+Safe testing with a sample Anki deck:
+- Export a small deck to a temporary profile and run with `--query "deck:Test"` plus `--limit`.
+- Run each script in dry-run mode first and compare previews before `--apply`.
+- For stroke sync, prefer `--dry-run --top 10` to preview missing media.
+
+Recommended commands:
+- `python -m pip install -r requirements.txt` to install runtime dependencies.
+- `python src/SubtitlePlayer/main.py` to launch the app (from repo root).
+- `python anki_modify/modify_anki.py --help` to view CLI options.
+- `python anki_modify/remove_kanji_images.py --help` for dry-run cleanup options.
+- `python anki_modify/sync_missing_stroke_svgs.py --dry-run` to preview missing media.
+
+11. Acceptance Criteria check
+[UNKNOWN] Application starts without errors — depends on GUI environment and config values.
+[FAIL] No obvious runtime crashes — local path `subs` assumption and empty subtitles can crash.
+[UNKNOWN] Configuration loading works — `config.json` present but content not validated.
+[PASS] Modules logically separated — model/view/controller layers are distinct.
+[FAIL] Code documented — high-complexity functions lack detailed docs.
+[UNKNOWN] No dead code — not verified; large conditional paths exist.
+[UNKNOWN] No major architecture problems — workable but SubtitleManager is very large.
+
+12. Code Navigation Map
+1. `src/SubtitlePlayer/main.py`
+2. `src/SubtitlePlayer/app.py`
+3. `src/SubtitlePlayer/controller/controller.py`
+4. `src/SubtitlePlayer/model/subtitle_manager.py`
+5. `src/SubtitlePlayer/model/anki_client.py`
+6. `src/SubtitlePlayer/model/renderer.py`
+7. `src/SubtitlePlayer/view/settings_ui.py`
+8. `src/SubtitlePlayer/view/subtitle_overlay.py`
+9. `anki_modify/modify_anki.py`
+10. `anki_modify/sync_missing_stroke_svgs.py`
+
+13. Questions for the Author
+- Should SubtitlePlayer always be run from repo root so `config.json` resolves?
+- Is the local subtitle library guaranteed to live under a `subs/` folder?
+- Which Anki note model/fields are considered mandatory for Anki integration?
+- Are the GitHub search caches in `github_search/` authoritative or disposable?
+- Should `sync_missing_stroke_svgs.py` require an explicit `--apply` flag?
+
+[ ] Application starts without errors
+[ ] No obvious runtime crashes
+[ ] Configuration loading works
+[ ] Modules logically separated
+[ ] Code documented
+[ ] No dead code
+[ ] No major architecture problems
+
+14. Working Notes (2026-04-08 update)
+- OCR UI now supports per-box screen assignment (`OCR_REGION{N}_SCREEN`) so regions can span multiple monitors.
+- OCR "Clear Area" controls were removed from Advanced OCR actions.
+- Manual OCR read now logs a clear failure line if no timecode is detected.
+- Anki add now shows a warning dialog when AnkiConnect is offline, with an `Anki opened` confirmation that waits and then submits automatically once reachable.
+- Numpad hotkeys are suppressed while a text input is focused; mode 1 no longer maps numpad `4/6` to left/right movement.
+- Advanced window no longer cycles through all tabs on open; tab sizing is now measured lazily per selected tab.
+- Subtitle ruby parsing now keeps source ruby `(かな)` when auto-ruby is off, and strips source ruby markers when auto-ruby is on.
+
+15. Working Notes (2026-04-08 follow-up)
+- Time entry commit now drops focus: pressing Enter in the control time field commits the value and moves focus away from the entry.
+- Clicking outside the control time field now clears its focus so further typing no longer keeps writing into that entry.
+- Advanced Settings > Anki now has a `Check Connection` button that pings AnkiConnect asynchronously and colors green when reachable / red when unreachable.
+- Key repeat queue behavior improved: releasing `4`/`6` (mode 2) or Left/Right now drops queued seek actions immediately, so playback stops stepping as soon as key hold ends.
+- Wiring updates: Settings UI now exposes `bind_anki_check`, and controller binds it to `AnkiClient.ping()` for runtime status checks.
+
+16. Working Notes (2026-04-08 YouTube-style seek)
+- Keyboard second-skip (`go_back` / `go_forward`) is now buffered while a key is held: repeated presses accumulate into a pending delta instead of applying per event.
+- On key release, the accumulated pending delta is applied once as a single seek step, matching YouTube-style buffered scrubbing behavior.
+- Pending seek amount is displayed inline in the time text as `(+/-Ns)` while the key is held.
+- Repeat generation now uses an internal hold loop (initial delay + repeat interval) and stops immediately on release to avoid OS key-repeat queue aftereffects.
+- Time-entry defocus now clears focus to no widget (instead of transferring focus to Play).
+
+
+17. Working Notes (2026-04-08 hold-threshold + focus hardening)
+- Seek key taps are now silent: quick tap does a single skip on key release without showing pending `Ns` preview.
+- Pending `Ns` preview appears only after hold-delay repeat starts; before that threshold no preview text is shown.
+- While held beyond threshold, pending seek accumulates in buffered mode and applies once on release.
+- Time-entry defocus is hardened: Enter now briefly moves focus to Play and then clears focus from the control window, preventing further number input from going back into the time entry.
+- Control-window clicks on non-entry widgets now force widget focus first and then clear focus to avoid sticky entry focus.
+
+18. Working Notes (2026-04-08 focus handoff cleanup)
+- Enter in control time entry now prefers focusing the subtitle window (`sub_window`) to avoid leaving focus on Play.
+- Added fallback behavior that clears focus on the control window when subtitle window focus is unavailable.
+- Control-window click focus handling now forces toplevel focus before clearing, reducing sticky entry focus after button clicks.
+- Text-input focus gating now ignores the control time entry unless `entry_editing` is true, preventing stale entry focus from blocking hotkeys.

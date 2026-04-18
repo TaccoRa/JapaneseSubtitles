@@ -1,0 +1,587 @@
+{
+  "last search": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles/anime_tv extension:srt in:path Shuumatsu no Valkyrie s04",
+  "repo": "Ajatt-Tools/kitsunekko-mirror",
+  "created_at": "2026-02-02T21:14:22.752884Z",
+  "stop_reason": null,
+  "rate_info": {
+    "limit": "10",
+    "remaining": "3",
+    "reset": "1770066920",
+    "retry_after": null
+  },
+  "result_count": 69,
+  "items": [
+    {
+      "name": "終末のワルキューレ.S01E01.ラグナロク.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/終末のワルキューレ.S01E01.ラグナロク.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "Record.of.Ragnarok.S01E01.WEBRip.Netflix.ja.srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/extra/Record.of.Ragnarok.S01E01.WEBRip.Netflix.ja.srt",
+      "season": 1,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "終末のワルキューレ.S01E02.好敵手.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/終末のワルキューレ.S01E02.好敵手.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 2,
+      "global": 2
+    },
+    {
+      "name": "Record.of.Ragnarok.S01E02.WEBRip.Netflix.ja.srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/extra/Record.of.Ragnarok.S01E02.WEBRip.Netflix.ja.srt",
+      "season": 1,
+      "episode": 2,
+      "global": 2
+    },
+    {
+      "name": "終末のワルキューレ.S01E03.必殺技.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/終末のワルキューレ.S01E03.必殺技.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 3,
+      "global": 3
+    },
+    {
+      "name": "Record.of.Ragnarok.S01E03.WEBRip.Netflix.ja.srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/extra/Record.of.Ragnarok.S01E03.WEBRip.Netflix.ja.srt",
+      "season": 1,
+      "episode": 3,
+      "global": 3
+    },
+    {
+      "name": "終末のワルキューレ.S01E04.歓喜.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/終末のワルキューレ.S01E04.歓喜.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 4,
+      "global": 4
+    },
+    {
+      "name": "Record.of.Ragnarok.S01E04.WEBRip.Netflix.ja.srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/extra/Record.of.Ragnarok.S01E04.WEBRip.Netflix.ja.srt",
+      "season": 1,
+      "episode": 4,
+      "global": 4
+    },
+    {
+      "name": "Record.of.Ragnarok.S01E05.WEBRip.Netflix.ja.srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/extra/Record.of.Ragnarok.S01E05.WEBRip.Netflix.ja.srt",
+      "season": 1,
+      "episode": 5,
+      "global": 5
+    },
+    {
+      "name": "終末のワルキューレ.S01E05.File.No.00000000001.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/終末のワルキューレ.S01E05.File.No.00000000001.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 5,
+      "global": 5
+    },
+    {
+      "name": "Record.of.Ragnarok.S01E06.WEBRip.Netflix.ja.srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/extra/Record.of.Ragnarok.S01E06.WEBRip.Netflix.ja.srt",
+      "season": 1,
+      "episode": 6,
+      "global": 6
+    },
+    {
+      "name": "終末のワルキューレ.S01E06.華麗なる模倣.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/終末のワルキューレ.S01E06.華麗なる模倣.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 6,
+      "global": 6
+    },
+    {
+      "name": "Record.of.Ragnarok.S01E07.WEBRip.Netflix.ja.srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/extra/Record.of.Ragnarok.S01E07.WEBRip.Netflix.ja.srt",
+      "season": 1,
+      "episode": 7,
+      "global": 7
+    },
+    {
+      "name": "終末のワルキューレ.S01E07.楽園追放.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/終末のワルキューレ.S01E07.楽園追放.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 7,
+      "global": 7
+    },
+    {
+      "name": "Record.of.Ragnarok.S01E08.WEBRip.Netflix.ja.srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/extra/Record.of.Ragnarok.S01E08.WEBRip.Netflix.ja.srt",
+      "season": 1,
+      "episode": 8,
+      "global": 8
+    },
+    {
+      "name": "終末のワルキューレ.S01E08.あふれる愛.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/終末のワルキューレ.S01E08.あふれる愛.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 8,
+      "global": 8
+    },
+    {
+      "name": "Record.of.Ragnarok.S01E09.WEBRip.Netflix.ja.srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/extra/Record.of.Ragnarok.S01E09.WEBRip.Netflix.ja.srt",
+      "season": 1,
+      "episode": 9,
+      "global": 9
+    },
+    {
+      "name": "終末のワルキューレ.S01E09.大海の暴君.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/終末のワルキューレ.S01E09.大海の暴君.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 9,
+      "global": 9
+    },
+    {
+      "name": "Record.of.Ragnarok.S01E10.WEBRip.Netflix.ja.srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/extra/Record.of.Ragnarok.S01E10.WEBRip.Netflix.ja.srt",
+      "season": 1,
+      "episode": 10,
+      "global": 10
+    },
+    {
+      "name": "終末のワルキューレ.S01E10.最強の敗者.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/終末のワルキューレ.S01E10.最強の敗者.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 10,
+      "global": 10
+    },
+    {
+      "name": "Record.of.Ragnarok.S01E11.WEBRip.Netflix.ja.srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/extra/Record.of.Ragnarok.S01E11.WEBRip.Netflix.ja.srt",
+      "season": 1,
+      "episode": 11,
+      "global": 11
+    },
+    {
+      "name": "終末のワルキューレ.S01E11.燕が見た深淵.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/終末のワルキューレ.S01E11.燕が見た深淵.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 11,
+      "global": 11
+    },
+    {
+      "name": "Record.of.Ragnarok.S01E12.WEBRip.Netflix.ja.srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/extra/Record.of.Ragnarok.S01E12.WEBRip.Netflix.ja.srt",
+      "season": 1,
+      "episode": 12,
+      "global": 12
+    },
+    {
+      "name": "終末のワルキューレ.S01E12.そしてラグナロクはつづく.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie/終末のワルキューレ.S01E12.そしてラグナロクはつづく.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 12,
+      "global": 12
+    },
+    {
+      "name": "Record.of.Ragnarok.S02E01.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/extra/Record.of.Ragnarok.S02E01.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 1,
+      "global": 13
+    },
+    {
+      "name": "終末のワルキューレ.S02E01.正義VS悪.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/終末のワルキューレ.S02E01.正義VS悪.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 1,
+      "global": 13,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Record.of.Ragnarok.S02E02.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/extra/Record.of.Ragnarok.S02E02.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 2,
+      "global": 14
+    },
+    {
+      "name": "終末のワルキューレ.S02E02.不屈の闘神.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/終末のワルキューレ.S02E02.不屈の闘神.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 2,
+      "global": 14,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "終末のワルキューレ.S02E03.怪物の誕生.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/終末のワルキューレ.S02E03.怪物の誕生.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 3,
+      "global": 15
+    },
+    {
+      "name": "Record.of.Ragnarok.S02E03.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/extra/Record.of.Ragnarok.S02E03.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 3,
+      "global": 15,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Record.of.Ragnarok.S02E04.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/extra/Record.of.Ragnarok.S02E04.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 4,
+      "global": 16
+    },
+    {
+      "name": "終末のワルキューレ.S02E04.最後の御業.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/終末のワルキューレ.S02E04.最後の御業.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 4,
+      "global": 16,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Record.of.Ragnarok.S02E05.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/extra/Record.of.Ragnarok.S02E05.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 5,
+      "global": 17
+    },
+    {
+      "name": "終末のワルキューレ.S02E05.鎮魂.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/終末のワルキューレ.S02E05.鎮魂.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 5,
+      "global": 17,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "終末のワルキューレ.S02E06.それぞれの思惑.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/終末のワルキューレ.S02E06.それぞれの思惑.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 6,
+      "global": 18
+    },
+    {
+      "name": "Record.of.Ragnarok.S02E06.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/extra/Record.of.Ragnarok.S02E06.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 6,
+      "global": 18,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Record.of.Ragnarok.S02E07.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/extra/Record.of.Ragnarok.S02E07.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 7,
+      "global": 19
+    },
+    {
+      "name": "終末のワルキューレ.S02E07.百閉.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/終末のワルキューレ.S02E07.百閉.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 7,
+      "global": 19,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Record.of.Ragnarok.S02E08.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/extra/Record.of.Ragnarok.S02E08.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 8,
+      "global": 20
+    },
+    {
+      "name": "終末のワルキューレ.S02E08.１１１６の天辺.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/終末のワルキューレ.S02E08.１１１６の天辺.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 8,
+      "global": 20,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Record.of.Ragnarok.S02E09.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/extra/Record.of.Ragnarok.S02E09.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 9,
+      "global": 21
+    },
+    {
+      "name": "終末のワルキューレ.S02E09.共鳴.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/終末のワルキューレ.S02E09.共鳴.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 9,
+      "global": 21,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Record.of.Ragnarok.S02E10.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/extra/Record.of.Ragnarok.S02E10.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 10,
+      "global": 22
+    },
+    {
+      "name": "終末のワルキューレ.S02E10.崖っぷち.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/終末のワルキューレ.S02E10.崖っぷち.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 10,
+      "global": 22,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Record.of.Ragnarok.S02E11.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/extra/Record.of.Ragnarok.S02E11.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 11,
+      "global": 23
+    },
+    {
+      "name": "終末のワルキューレ.S02E11.第６回戦.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II Part 2/終末のワルキューレ.S02E11.第６回戦.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 11,
+      "global": 23,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Record.of.Ragnarok.S02E12.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/extra/Record.of.Ragnarok.S02E12.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 12,
+      "global": 24
+    },
+    {
+      "name": "終末のワルキューレ.S02E12.零.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II Part 2/終末のワルキューレ.S02E12.零.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 12,
+      "global": 24,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Record.of.Ragnarok.S02E13.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/extra/Record.of.Ragnarok.S02E13.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 13,
+      "global": 25
+    },
+    {
+      "name": "終末のワルキューレ.S02E13.史上最強の思春期.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II Part 2/終末のワルキューレ.S02E13.史上最強の思春期.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 13,
+      "global": 25,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Record.of.Ragnarok.S02E14.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/extra/Record.of.Ragnarok.S02E14.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 14,
+      "global": 26
+    },
+    {
+      "name": "終末のワルキューレ.S02E14.冥界の伝説.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II Part 2/終末のワルキューレ.S02E14.冥界の伝説.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 14,
+      "global": 26,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "Record.of.Ragnarok.S02E15.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II/extra/Record.of.Ragnarok.S02E15.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 15,
+      "global": 27
+    },
+    {
+      "name": "終末のワルキューレ.S02E15.光の道.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie II Part 2/終末のワルキューレ.S02E15.光の道.WEBRip.Netflix.ja[cc].srt",
+      "season": 2,
+      "episode": 15,
+      "global": 27,
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "終末のワルキューレ.S03E01.プロローグ：追憶.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie III/終末のワルキューレ.S03E01.プロローグ：追憶.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 1,
+      "global": 28
+    },
+    {
+      "name": "終末のワルキューレ.S03E02.王VS王.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie III/終末のワルキューレ.S03E02.王VS王.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 2,
+      "global": 29
+    },
+    {
+      "name": "終末のワルキューレ.S03E03.蚩尤.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie III/終末のワルキューレ.S03E03.蚩尤.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 3,
+      "global": 30
+    },
+    {
+      "name": "終末のワルキューレ.S03E04.約束と誓い.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie III/終末のワルキューレ.S03E04.約束と誓い.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 4,
+      "global": 31
+    },
+    {
+      "name": "終末のワルキューレ.S03E05.冥王の矜持.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie III/終末のワルキューレ.S03E05.冥王の矜持.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 5,
+      "global": 32
+    },
+    {
+      "name": "終末のワルキューレ.S03E06.王の帰還.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie III/終末のワルキューレ.S03E06.王の帰還.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 6,
+      "global": 33
+    },
+    {
+      "name": "終末のワルキューレ.S03E07.サタン.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie III/終末のワルキューレ.S03E07.サタン.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 7,
+      "global": 34
+    },
+    {
+      "name": "終末のワルキューレ.S03E08.闇VS光.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie III/終末のワルキューレ.S03E08.闇VS光.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 8,
+      "global": 35
+    },
+    {
+      "name": "終末のワルキューレ.S03E09.呪いと祈り.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie III/終末のワルキューレ.S03E09.呪いと祈り.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 9,
+      "global": 36
+    },
+    {
+      "name": "終末のワルキューレ.S03E10.繋ぐ想い.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie III/終末のワルキューレ.S03E10.繋ぐ想い.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 10,
+      "global": 37
+    },
+    {
+      "name": "終末のワルキューレ.S03E11.前進.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie III/終末のワルキューレ.S03E11.前進.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 11,
+      "global": 38
+    },
+    {
+      "name": "終末のワルキューレ.S03E12.太陽神と反骨の英雄.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie III/終末のワルキューレ.S03E12.太陽神と反骨の英雄.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 12,
+      "global": 39
+    },
+    {
+      "name": "終末のワルキューレ.S03E13.誇りVS意地.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie III/終末のワルキューレ.S03E13.誇りVS意地.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 13,
+      "global": 40
+    },
+    {
+      "name": "終末のワルキューレ.S03E14.汝、自身を知れ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie III/終末のワルキューレ.S03E14.汝、自身を知れ.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 14,
+      "global": 41
+    },
+    {
+      "name": "終末のワルキューレ.S03E15.激突する魂.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Shuumatsu no Valkyrie III/終末のワルキューレ.S03E15.激突する魂.WEBRip.Netflix.ja[cc].srt",
+      "season": 3,
+      "episode": 15,
+      "global": 42
+    }
+  ],
+  "sxexx_to_gxx": {
+    "S01E01": 1,
+    "S01E02": 2,
+    "S01E03": 3,
+    "S01E04": 4,
+    "S01E05": 5,
+    "S01E06": 6,
+    "S01E07": 7,
+    "S01E08": 8,
+    "S01E09": 9,
+    "S01E10": 10,
+    "S01E11": 11,
+    "S01E12": 12,
+    "S02E01": 13,
+    "S02E02": 14,
+    "S02E03": 15,
+    "S02E04": 16,
+    "S02E05": 17,
+    "S02E06": 18,
+    "S02E07": 19,
+    "S02E08": 20,
+    "S02E09": 21,
+    "S02E10": 22,
+    "S02E11": 23,
+    "S02E12": 24,
+    "S02E13": 25,
+    "S02E14": 26,
+    "S02E15": 27,
+    "S03E01": 28,
+    "S03E02": 29,
+    "S03E03": 30,
+    "S03E04": 31,
+    "S03E05": 32,
+    "S03E06": 33,
+    "S03E07": 34,
+    "S03E08": 35,
+    "S03E09": 36,
+    "S03E10": 37,
+    "S03E11": 38,
+    "S03E12": 39,
+    "S03E13": 40,
+    "S03E14": 41,
+    "S03E15": 42
+  }
+}
