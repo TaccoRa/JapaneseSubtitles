@@ -1534,17 +1534,25 @@ class SubtitleManager:
 
     def calculate_geometry(self):
         font = tkFont.Font(family=self.config.get("SUBTITLE_FONT"),size=self.config.get("SUBTITLE_FONT_SIZE"),weight="bold")
+        ruby_font = tkFont.Font(family=font.actual("family"), size=int(font.actual("size") * 0.6), weight="bold")
+
+        def _measure_line_width(segments):
+            width = 0
+            for base, ruby in segments:
+                base_w = font.measure(base)
+                ruby_w = ruby_font.measure(ruby) if ruby else 0
+                width += max(base_w, ruby_w)
+            return width
+
         max_width = 0
-        for clean, time, *_rest in self.display_data:
-            base_text = self.RUBY_PATTERN.sub(r"\1", clean)
-            for line in base_text.splitlines():
-                width = font.measure(line)
-                if max_width < width:
+        for _clean, _time, top, bottom in self.display_data:
+            for segments in (top, bottom):
+                if not segments:
+                    continue
+                width = _measure_line_width(segments)
+                if width > max_width:
                     max_width = width
-                    biggest_line = line
-                    start_time = time
-        # print(format_time(start_time),": ",biggest_line)
-        # print(self.display_data[1:4])
+
         line_height = font.metrics("linespace")
         ruby_height = int(line_height * 0.6)
         pad_x = 5
