@@ -78,6 +78,7 @@ class SubtitleManager:
         self._ruby_generator = None
         self._ruby_generator_failed = False
         self._auto_ruby_cache: Dict[str, object] = {}
+        self._ruby_load_id = 0  # Incremented each time set_subtitle_display_data() is called
 
         if self.remote_flag:
             url = self.config.get("LAST_GITHUB_URL")
@@ -192,6 +193,10 @@ class SubtitleManager:
         self.local_srt_files.sort(key=_sort_key)
 
     def set_subtitle_display_data(self, local_path):
+        # Increment load ID to cancel any old background ruby processing threads
+        self._ruby_load_id += 1
+        current_load_id = self._ruby_load_id
+        
         with open(local_path, 'rb') as f:
             raw = f.read()
         detected = chardet.detect(raw)
@@ -204,31 +209,49 @@ class SubtitleManager:
             self.subtitles = list(srt.parse(text))
 
         # Separate into clean, start times, top and bottom segments.
-        # Cache repeated line parses inside one file load; this is especially important when
-        # auto-ruby is enabled because Mecab/Kakasi processing is expensive.
+        # Cache repeated line parses inside one file load
         line_segment_cache: Dict[str, List[tuple[str, Optional[str]]]] = {}
 
-        def _segments_for_line(line_text: str) -> List[tuple[str, Optional[str]]]:
-            cached = line_segment_cache.get(line_text)
-            if cached is not None:
-                return cached
-            parsed = self._parse_ruby_segments(line_text)
-            line_segment_cache[line_text] = parsed
-            return parsed
-
         self.display_data = []
+        
+        # Get starting time for priority prioritization
+        try:
+            start_time_threshold = float(self.config.get("DEFAULT_START_TIME") or 120.0)
+        except Exception:
+            start_time_threshold = 120.0
+
+        # Process all subtitles' metadata first (cleaned text, lines extracted)
+        # This is fast and doesn't require MeCab/Kakasi
+        sub_metadata = []
         for sub in self.subtitles:
             clean = self._clean_text(sub.content)
             start_times = sub.start.total_seconds()
             lines = [l for l in clean.splitlines() if l.strip()]
-            if not lines:
-                top, bottom = [], []
-            elif len(lines) == 1:
-                top, bottom = [], _segments_for_line(lines[0])
-            else:
-                top = _segments_for_line(lines[0])
-                bottom = _segments_for_line(lines[1])
-            self.display_data.append((clean, start_times, top, bottom))
+            sub_metadata.append({
+                'clean': clean,
+                'start_times': start_times,
+                'lines': lines,
+                'top': None,
+                'bottom': None,
+            })
+
+        # Immediately assemble display_data with empty ruby (will be filled later if auto ruby)
+        for metadata in sub_metadata:
+            self.display_data.append((
+                metadata['clean'],
+                metadata['start_times'],
+                [],  # top - will be filled by background thread if auto ruby enabled
+                []   # bottom - will be filled by background thread if auto ruby enabled
+            ))
+
+        # If auto ruby enabled, start background thread to process ruby asynchronously
+        if self._auto_ruby_enabled():
+            background_thread = threading.Thread(
+                target=self._process_all_ruby_async,
+                args=(sub_metadata, line_segment_cache, start_time_threshold, current_load_id),
+                daemon=True
+            )
+            background_thread.start()
 
     def _clean_text(self, text: str) -> str:
         cleaned = self.CLEAN_PATTERN.sub('', text)
@@ -555,6 +578,107 @@ class SubtitleManager:
             return [tuple(seg) for seg in cached_segments]
         cache[text] = self._AUTO_RUBY_CACHE_MISS
         return None
+
+    def _process_ruby_batch(self, line_texts: List[str], line_segment_cache: Dict[str, List[tuple[str, Optional[str]]]]) -> List[List[tuple[str, Optional[str]]]]:
+        """
+        Process multiple lines with caching. This is NOT used with threading anymore
+        but kept for any potential future use.
+        """
+        results = []
+        for line_text in line_texts:
+            # Check cache first
+            cached = line_segment_cache.get(line_text)
+            if cached is not None:
+                results.append(cached)
+                continue
+            
+            # Parse ruby
+            parsed = self._parse_ruby_segments(line_text)
+            line_segment_cache[line_text] = parsed
+            results.append(parsed)
+        
+        return results
+
+    def _process_all_ruby_async(self, sub_metadata: List[Dict], 
+                                 line_segment_cache: Dict[str, List[tuple[str, Optional[str]]]],
+                                 start_time_threshold: float,
+                                 load_id: int) -> None:
+        """
+        Process ruby for all subtitles asynchronously in background.
+        Prioritizes lines >= start_time_threshold, then processes others.
+        This runs in a separate thread so it doesn't block the main thread.
+        """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        
+        # Exit early if outdated
+        if load_id != self._ruby_load_id:
+            return
+        
+        def _process_line(line_text: str) -> List[tuple[str, Optional[str]]]:
+            """Process a single line through ruby generator."""
+            # Check if we're still the current load
+            if load_id != self._ruby_load_id:
+                return []
+            
+            cached = line_segment_cache.get(line_text)
+            if cached is not None:
+                return cached
+            
+            try:
+                parsed = self._parse_ruby_segments(line_text)
+                line_segment_cache[line_text] = parsed
+                return parsed
+            except Exception:
+                return []
+        
+        # Collect all lines with priority markers
+        priority_tasks = []  # (line_text, sub_idx, position) for lines >= start_time
+        background_tasks = []  # (line_text, sub_idx, position) for lines < start_time
+        
+        for idx, metadata in enumerate(sub_metadata):
+            if load_id != self._ruby_load_id:
+                return
+            
+            lines = metadata['lines']
+            start_times = metadata['start_times']
+            
+            if not lines:
+                continue
+            
+            # Split by priority based on start time
+            is_priority = start_times >= start_time_threshold
+            task_list = priority_tasks if is_priority else background_tasks
+            
+            if len(lines) >= 1:
+                task_list.append((lines[0], idx, 'top'))
+            if len(lines) >= 2:
+                task_list.append((lines[1], idx, 'bottom'))
+        
+        # Use thread pool (4 workers) - process priority first, then background
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            all_tasks = priority_tasks + background_tasks
+            future_map = {
+                executor.submit(_process_line, line_text): (sub_idx, position)
+                for line_text, sub_idx, position in all_tasks
+            }
+            
+            for future in as_completed(future_map):
+                # Check if load is outdated
+                if load_id != self._ruby_load_id:
+                    return
+                
+                try:
+                    sub_idx, position = future_map[future]
+                    segments = future.result()
+                    # Update display_data directly
+                    if 0 <= sub_idx < len(self.display_data):
+                        clean, start_times, top, bottom = self.display_data[sub_idx]
+                        if position == 'top':
+                            self.display_data[sub_idx] = (clean, start_times, segments, bottom)
+                        else:
+                            self.display_data[sub_idx] = (clean, start_times, top, segments)
+                except Exception:
+                    pass  # Silently handle errors in background thread
 # -------------------------helpers-----------------------------
 
 # ---------------------- get data -------------------------
