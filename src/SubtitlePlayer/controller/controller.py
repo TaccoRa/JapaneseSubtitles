@@ -29,6 +29,8 @@ from view.subtitle_overlay import SubtitleOverlayUI
 from utils import parse_time_value, format_time, get_monitor_rects
 from view.popup import CopyPopup
 
+# from video_sync_server import get_video_time
+
 class SubtitleController:
     SHORTCUT_DEFAULTS = {
         "SHORTCUT_TOGGLE_PLAY": "space",
@@ -80,6 +82,10 @@ class SubtitleController:
         self.video_click = self.config.get("VIDEO_CLICK")
         self.anki_busy_cursor = (self.config.get("ANKI_BUSY_CURSOR") or "wait")
         self.anki = AnkiClient(self.config)
+
+        # self.video_sync_interval_ms = self.config.get("VIDEO_SYNC_INTERVAL_MS") or 500
+        # self.video_sync_threshold = self.config.get("VIDEO_SYNC_THRESHOLD") or 0.5
+
 
         self.playing      = False
         self.entry_editing  = False
@@ -163,6 +169,30 @@ class SubtitleController:
         self._schedule_ocr_time_jump("startup")
 
 
+    #     # self.settings.root.after(self.video_sync_interval_ms, self._sync_loop)
+
+
+    # def sync_with_video(self):
+    #     video_time, video_duration = get_video_time()
+
+    #     if video_duration <= 0:
+    #         return
+
+    #     drift = video_time - self.current_time
+
+    #     if abs(drift) > self.video_sync_threshold:
+    #         print(f"[SYNC] correcting drift: {drift:.2f}s → {video_time:.2f}")
+    #         self.set_current_time(video_time)
+
+    # def _sync_loop(self):
+    #     if not self._shutting_down:
+    #         try:
+    #             self.sync_with_video()
+    #         except Exception:
+    #             pass
+    #         self.settings.root.after(self.video_sync_interval_ms, self._sync_loop)
+
+        
     def _update_episode_nav_controls(self) -> None:
         """
         Grey out + / - when we know from the episode maps/index that no prev/next exists.
