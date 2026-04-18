@@ -24,6 +24,13 @@ class SubtitleRenderer:
         self.ruby_font = tkFont.Font(family=self.font.actual("family"), size=int(self.font.actual("size") * 0.6), weight="bold")
 
         self.color=self.config.get("SUBTITLE_COLOR")
+        self.glow_color = str(self.config.get("GLOW_COLOR") or "black")
+        try:
+            glow_radius = int(float(self.config.get("GLOW_RADIUS") or 10))
+        except Exception:
+            glow_radius = 10
+        self.glow_radius = max(0, min(glow_radius, 20))
+        self.ruby_glow_radius = max(0, int(round(self.glow_radius * 0.6667)))
         self.line_height = self.font.metrics("linespace")
         self.ruby_height = int(self.line_height * 0.6)
         base_height = int(self.ruby_height * 2 + self.line_height * 2)  # 2 lines + 2 ruby rows
@@ -65,6 +72,10 @@ class SubtitleRenderer:
             self._render_line(lines[0], y_ruby_top, y_base1, overlay.max_w)
             return
         if len(lines) == 2:
+            block_h = self.line_height + self.ruby_height
+            base2_start = block_h
+            y_base2 = base2_start + self.line_height // 2
+            y_ruby_bot = base2_start + self.line_height + self.ruby_height // 2
             self._render_line(lines[0], y_ruby_top, y_base1, overlay.max_w)
             self._render_line(lines[1], y_ruby_bot, y_base2, overlay.max_w)
             return
@@ -92,31 +103,64 @@ class SubtitleRenderer:
         top_offset = max(0, int((avail_h - total_h) / 2))
 
         for i, segs in enumerate(lines):
-            ruby_y = top_offset + int(i * block_h) + self.ruby_height // 2
-            base_y = top_offset + int(i * block_h) + self.ruby_height + self.line_height // 2
+            block_y = top_offset + int(i * block_h)
+            if i == len(lines) - 1:
+                base_y = block_y + self.line_height // 2
+                ruby_y = block_y + self.line_height + self.ruby_height // 2
+            else:
+                ruby_y = block_y + self.ruby_height // 2
+                base_y = block_y + self.ruby_height + self.line_height // 2
             self._render_line(segs, ruby_y, base_y, overlay.max_w)
 
     def _render_line(self, segments, ruby_y, base_y, max_width):
         if not segments:
             return
-        total_w = sum(self.font.measure(b) for b, _ in segments)
-        cur_x = (max_width - total_w) / 2
-
+        seg_meta = []
+        total_w = 0
         for base, ruby in segments:
             base_w = self.font.measure(base)
-            cx = cur_x + base_w / 2
             if ruby:
-                self.draw_outlined_text(
-                    self.canvas, cx, ruby_y,
-                    ruby, self.ruby_font, fill=self.color,
-                    outline="black", thickness=2
-                )
+                ruby_w = self.ruby_font.measure(ruby)
+                seg_w = max(base_w, ruby_w)
+            else:
+                ruby_w = 0
+                seg_w = base_w
+            seg_meta.append((base, ruby, base_w, ruby_w, seg_w))
+            total_w += seg_w
+        cur_x = (max_width - total_w) / 2
+
+        for base, ruby, base_w, ruby_w, seg_w in seg_meta:
+            cx = cur_x + seg_w / 2
+            if ruby:
+                self._draw_ruby_text(ruby, base_w, ruby_w, cx, ruby_y)
             self.draw_outlined_text(
                 self.canvas, cx, base_y,
                 base, self.font, fill=self.color,
-                outline="black", thickness=3
+                outline=self.glow_color, thickness=self.glow_radius
             )
-            cur_x += base_w
+            cur_x += seg_w
+
+    def _draw_ruby_text(self, ruby: str, base_w: int, ruby_w: int, center_x: float, y: float) -> None:
+        if not ruby:
+            return
+        # If ruby is longer than the base, just center it.
+        if base_w <= 0 or ruby_w >= base_w or len(ruby) <= 1:
+            self.draw_outlined_text(
+                self.canvas, center_x, y,
+                ruby, self.ruby_font, fill=self.color,
+                outline=self.glow_color, thickness=self.ruby_glow_radius
+            )
+            return
+
+        slot = base_w / max(1, len(ruby))
+        start_x = center_x - base_w / 2
+        for i, ch in enumerate(ruby):
+            ch_x = start_x + slot * (i + 0.5)
+            self.draw_outlined_text(
+                self.canvas, ch_x, y,
+                ch, self.ruby_font, fill=self.color,
+                outline=self.glow_color, thickness=self.ruby_glow_radius
+            )
 
     @staticmethod
     def draw_outlined_text(canvas: tk.Canvas, x: int, y: int, text: str,
@@ -168,7 +212,12 @@ class SubtitleRenderer:
         for base, ruby in segments:
             if not base:
                 continue
-            seg_w = self.font.measure(base)
+            base_w = self.font.measure(base)
+            if ruby:
+                ruby_w = self.ruby_font.measure(ruby)
+                seg_w = max(base_w, ruby_w)
+            else:
+                seg_w = base_w
 
             # If it fits on the current line, keep it.
             if cur and (cur_w + seg_w) <= limit:

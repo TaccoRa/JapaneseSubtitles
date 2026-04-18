@@ -29,6 +29,8 @@ import tkinter as tk
 from tkinter import font as tkFont
 from tkinter import filedialog
 
+from model.anki_ruby import AddonRubyGenerator
+
 from model.config_manager import ConfigManager
 from utils import format_time
 from view.overlays import LoadingOverlay, get_startup_overlay, hide_startup_overlay, show_startup_overlay
@@ -41,9 +43,25 @@ class SubtitleManager:
 
     CLEAN_PATTERN = re.compile(r'\{\\an\d+\}')
     TAG_PATTERN = re.compile(r'<[^>]*>')
+    TAG_NAME_PATTERN = re.compile(r'<\s*/?\s*([A-Za-z0-9:_-]+)')
+    SPEAKER_PATTERN = re.compile(r'^\s*[（(]\s*(?P<name>[^)）]{1,60})\s*[）)]\s*[:：]?\s*(?P<rest>.*)$')
+    NON_SPEAKER_HINTS = (
+        "音",
+        "物音",
+        "声",
+        "効果音",
+        "足音",
+        "息",
+        "拍手",
+        "ざわめき",
+        "雑音",
+        "心の声",
+        "モノローグ",
+    )
     SEASON_PATTERN = re.compile(r'S(\d+)', re.IGNORECASE)
     EPISODE_PATTERN = re.compile(r'E(\d+)', re.IGNORECASE)
-    RUBY_PATTERN = regex.compile(r'(\p{Han}+)\(([^)]+)\)')
+    RUBY_PATTERN = regex.compile(r'(\p{Han}+)[(\uFF08]([^\)\uFF09]+)[)\uFF09]')
+    PAREN_NOTE_PATTERN = regex.compile(r'[(\uFF08][^)\uFF09]*[)\uFF09]')
 
     RESOLUTION_RE = re.compile(r'^\d{3,4}p$', re.IGNORECASE)
     RESOLUTION_X_RE = re.compile(r'^\d{3,4}x\d{3,4}$', re.IGNORECASE)
@@ -55,6 +73,8 @@ class SubtitleManager:
         self.config = config
         self.github_token = os.environ.get("GITHUB_TOKEN")
         self.remote_flag = self.config.get("REMOTE_FLAG")
+        self._ruby_generator = None
+        self._ruby_generator_failed = False
 
         if self.remote_flag:
             url = self.config.get("LAST_GITHUB_URL")
@@ -197,11 +217,139 @@ class SubtitleManager:
 
     def _clean_text(self, text: str) -> str:
         cleaned = self.CLEAN_PATTERN.sub('', text)
-        cleaned = self.TAG_PATTERN.sub('', cleaned)
-        cleaned = self.RUBY_PATTERN.sub(r'\1«\2»', cleaned)
-        cleaned = regex.sub(r'[（(].*?[）)]', '', cleaned)
+        cleaned = self._clean_html_tags(cleaned)
+        use_source_ruby = not self._auto_ruby_enabled()
+        if not use_source_ruby:
+            cleaned = self.RUBY_PATTERN.sub(r'\1', cleaned)
+
+        keep_speaker = bool(self.config.get("SUBTITLE_KEEP_SPEAKER_NAMES") or False)
+        strip_paren_notes = self.config.get("SUBTITLE_STRIP_PAREN_NOTES")
+        strip_paren_notes = True if strip_paren_notes is None else bool(strip_paren_notes)
+        speaker_template = str(self.config.get("SUBTITLE_SPEAKER_TEMPLATE") or "<speaker:{name}> ")
+
+        out_lines = []
+        for raw_line in cleaned.splitlines():
+            line = (raw_line or "").strip()
+            if not line:
+                continue
+            name, rest = self._find_leading_speaker_label(line)
+            if name is not None:
+                if keep_speaker and name:
+                    prefix = self._format_speaker_template(speaker_template, name).rstrip()
+                    line = f"{prefix} {rest}".strip() if rest else prefix
+                else:
+                    line = rest
+            if strip_paren_notes and line:
+                line = self._strip_parenthetical_notes(line, keep_ruby=use_source_ruby).strip()
+            if line:
+                out_lines.append(line)
+
+        cleaned = "\n".join(out_lines)
         cleaned = cleaned.replace('«', '(').replace('»', ')')
         return cleaned.replace('&lrm;', '').replace('\u200e', '').strip()
+
+    def _strip_parenthetical_notes(self, line: str, keep_ruby: bool) -> str:
+        if not line:
+            return ""
+        parts = []
+        cursor = 0
+        for match in self.PAREN_NOTE_PATTERN.finditer(line):
+            start, end = match.span()
+            if start > cursor:
+                parts.append(line[cursor:start])
+            keep_group = False
+            if keep_ruby and start > 0:
+                prev_char = line[start - 1]
+                if regex.match(r"\p{Han}", prev_char):
+                    keep_group = True
+            if keep_group:
+                parts.append(match.group(0))
+            cursor = end
+        if cursor < len(line):
+            parts.append(line[cursor:])
+        return "".join(parts)
+
+    def _clean_html_tags(self, text: str) -> str:
+        raw = self.config.get("SUBTITLE_CUSTOM_HTML_TAGS")
+        if raw is None:
+            raw = ""
+        if isinstance(raw, (list, tuple, set)):
+            parts = [str(p).strip() for p in raw]
+        else:
+            parts = re.split(r"[\s,;|]+", str(raw))
+
+        allow = set()
+        for p in parts:
+            tag = str(p or "").strip().lower().strip("<>/")
+            if tag:
+                allow.add(tag)
+
+        if not allow:
+            return self.TAG_PATTERN.sub('', text)
+
+        def _replace(match):
+            token = match.group(0)
+            m = self.TAG_NAME_PATTERN.search(token)
+            if not m:
+                return ""
+            tag_name = (m.group(1) or "").strip().lower()
+            return token if tag_name in allow else ""
+
+        return self.TAG_PATTERN.sub(_replace, text)
+
+    @staticmethod
+    def _format_speaker_template(template: str, name: str) -> str:
+        text = str(template or "<speaker:{name}> ")
+        if "{name}" not in text:
+            text = text + "{name}"
+        try:
+            return text.format(name=name)
+        except Exception:
+            return f"<speaker:{name}> "
+
+    def _find_leading_speaker_label(self, line: str) -> Tuple[Optional[str], str]:
+        current = (line or "").strip()
+        if not current:
+            return None, ""
+
+        # Some subtitle lines have multiple leading (...) tags; we only treat tags
+        # that look like an actual speaker label as speaker names.
+        for _ in range(6):
+            m = self.SPEAKER_PATTERN.match(current)
+            if not m:
+                break
+            candidate = (m.group("name") or "").strip()
+            rest = (m.group("rest") or "").strip()
+            if self._looks_like_speaker_name(candidate):
+                return candidate, rest
+            if not rest or rest == current:
+                break
+            current = rest
+        return None, (line or "").strip()
+
+    @classmethod
+    def _looks_like_speaker_name(cls, text: str) -> bool:
+        value = (text or "").strip()
+        if not value:
+            return False
+
+        # Remove ruby placeholders from the name check (e.g. 刃牙«バキ»).
+        normalized = regex.sub(r'«[^»]*»', '', value)
+        normalized = re.sub(r'\s+', '', normalized)
+        if not normalized:
+            return False
+
+        if len(normalized) > 30:
+            return False
+
+        lower = normalized.lower()
+        if any(token in lower for token in ("sfx", "se", "bgm", "voice", "sound", "noise")):
+            return False
+
+        if any(hint in normalized for hint in cls.NON_SPEAKER_HINTS):
+            return False
+
+        return bool(regex.search(r'[\p{Han}\p{Hiragana}\p{Katakana}A-Za-z]', normalized))
 
     # ---------------------- ASS parsing (minimal) ----------------------
     ASS_OVERRIDE_TAG_RE = re.compile(r'\{[^}]*\}')
@@ -319,16 +467,60 @@ class SubtitleManager:
     def _parse_ruby_segments(self, text: str) -> List[tuple[str, Optional[str]]]:
         segments: List[tuple[str, Optional[str]]] = []
         last = 0
+        found_ruby = False
         for m in self.RUBY_PATTERN.finditer(text):
-            plain = text[last:m.start()].strip()
+            found_ruby = True
+            plain = text[last:m.start()]
             if plain:
                 segments.append((plain, None))
             segments.append((m.group(1), m.group(2)))
             last = m.end()
-        tail = text[last:].strip()
+        tail = text[last:]
         if tail:
             segments.append((tail, None))
+        if found_ruby:
+            return segments
+
+        auto = self._auto_ruby_segments(text)
+        if auto:
+            return auto
         return segments
+
+    def _auto_ruby_enabled(self) -> bool:
+        try:
+            return bool(self.config.get("SUBTITLE_AUTO_RUBY") or False)
+        except Exception:
+            return False
+
+    def _get_ruby_generator(self) -> Optional[AddonRubyGenerator]:
+        if self._ruby_generator is not None or self._ruby_generator_failed:
+            return self._ruby_generator
+        try:
+            self._ruby_generator = AddonRubyGenerator()
+        except Exception:
+            self._ruby_generator_failed = True
+        return self._ruby_generator
+
+    def _auto_ruby_segments(self, text: str) -> Optional[List[tuple[str, Optional[str]]]]:
+        if not self._auto_ruby_enabled():
+            return None
+        if not text or ("[" in text and "]" in text):
+            return None
+        if not regex.search(r"\p{Han}", text or ""):
+            return None
+
+        generator = self._get_ruby_generator()
+        if generator is None:
+            return None
+        try:
+            segments = generator.segments(text)
+        except Exception:
+            return None
+        if not segments:
+            return None
+        if any(ruby for _base, ruby in segments):
+            return segments
+        return None
 # -------------------------helpers-----------------------------
 
 # ---------------------- get data -------------------------
@@ -432,12 +624,22 @@ class SubtitleManager:
         self.remote_path = remote_path
         self.remote_url = f"https://github.com/{owner}/{repo}/blob/{ref}/{remote_path}"
 
-    def change_episode(self, action: str, raw: Optional[int] = None) -> Tuple[Optional[int], Optional[int]]:
+    def change_episode(
+        self,
+        action: str,
+        raw: Optional[int] = None,
+        target_season: Optional[int] = None,
+    ) -> Tuple[Optional[int], Optional[int]]:
         if self.remote_flag:
-            return self.change_episode_remote(action, raw)
-        return self.change_episode_local(action, raw)
+            return self.change_episode_remote(action, raw, target_season)
+        return self.change_episode_local(action, raw, target_season)
 
-    def change_episode_local(self, action: str, raw: Optional[int] = None) -> Tuple[Optional[int], Optional[int]]:
+    def change_episode_local(
+        self,
+        action: str,
+        raw: Optional[int] = None,
+        target_season: Optional[int] = None,
+    ) -> Tuple[Optional[int], Optional[int]]:
         if not getattr(self, "local_srt_files", None):
             self._build_local_episode_map()
 
@@ -495,9 +697,12 @@ class SubtitleManager:
         elif action == "set":
             if not (isinstance(raw, int) and raw > 0):
                 return self.current_season, self.current_episode
+            if target_season is not None:
+                target_rec = find_by_local(int(target_season), raw)
             # interpret as local episode in current season first
-            if cur_s is not None:
-                target_rec = find_by_local(cur_s, raw)
+            if target_rec is None:
+                if cur_s is not None:
+                    target_rec = find_by_local(cur_s, raw)
             # if that failed, also check whether raw matches a global index
             if target_rec is None:
                 target_rec = find_by_global(raw)
@@ -638,7 +843,12 @@ class SubtitleManager:
         except Exception:
             return []
 
-    def change_episode_remote(self, action: str, raw: Optional[int] = None) -> Tuple[Optional[int], Optional[int]]:
+    def change_episode_remote(
+        self,
+        action: str,
+        raw: Optional[int] = None,
+        target_season: Optional[int] = None,
+    ) -> Tuple[Optional[int], Optional[int]]:
         """
         Remote switching: first try to find the file in the local index. If missing, trigger a
         focused windowed download around the target/global (synchronously), refresh local index,
@@ -759,8 +969,41 @@ class SubtitleManager:
         elif action == "set":
             if not (isinstance(raw, int) and raw > 0):
                 return self.current_season, self.current_episode
+            if target_season is not None:
+                ts = int(target_season)
+                target_rec = find_by_local(ts, raw)
+                if target_rec:
+                    if self._load_local_record(target_rec):
+                        return self.current_season, self.current_episode
+
+                g = self.local_to_global(ts, raw)
+                if g is not None:
+                    target_global = int(g)
+                    target_s, target_e = ts, raw
+                else:
+                    try:
+                        if not getattr(self, "remote_episode_map_global", None):
+                            if not getattr(self, "all_results_items", None):
+                                self._create_remote_episode_map_per_season()
+                            self.build_remote_episode_maps()
+                    except Exception:
+                        logger.exception("Failed to build remote maps for season-episode set")
+
+                    season_items = getattr(self, "remote_episode_map_season", {}).get(ts, [])
+                    chosen = None
+                    for item in season_items:
+                        if item.get("episode") == int(raw):
+                            chosen = item
+                            break
+                    if chosen and chosen.get("global") is not None:
+                        target_global = int(chosen.get("global"))
+                        target_s, target_e = ts, raw
+                    else:
+                        logger.info("Episode not found for season set: S%sE%s", ts, raw)
+                        return self.current_season, self.current_episode
+
             # prefer local interpretation: current season + episode raw
-            if cur_s is not None:
+            elif cur_s is not None:
                 target_rec = find_by_local(cur_s, raw)
                 if target_rec:
                     if self._load_local_record(target_rec):
@@ -1074,6 +1317,13 @@ class SubtitleManager:
 
         tk.Label(chooser, text="Select a cached anime query:", anchor="w").pack(padx=8, pady=(8, 4), fill="x")
 
+        filter_row = tk.Frame(chooser)
+        filter_row.pack(padx=8, pady=(0, 6), fill="x")
+        tk.Label(filter_row, text="Filter:", anchor="w").pack(side="left")
+        filter_var = tk.StringVar()
+        filter_entry = tk.Entry(filter_row, textvariable=filter_var)
+        filter_entry.pack(side="left", fill="x", expand=True, padx=(6, 0))
+
         list_frame = tk.Frame(chooser)
         list_frame.pack(padx=8, pady=(0, 8), fill="both", expand=True)
         scrollbar = tk.Scrollbar(list_frame, orient="vertical")
@@ -1088,12 +1338,31 @@ class SubtitleManager:
         listbox.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        for q in queries:
-            listbox.insert(tk.END, q)
-        if queries:
-            listbox.selection_set(0)
-            listbox.activate(0)
+        all_queries = list(queries)
+
+        def _refresh_list(filtered):
+            listbox.delete(0, tk.END)
+            for q in filtered:
+                listbox.insert(tk.END, q)
+            if filtered:
+                listbox.selection_set(0)
+                listbox.activate(0)
+
+        def _apply_filter(_event=None):
+            term = (filter_var.get() or "").strip().lower()
+            if not term:
+                filtered = all_queries
+            else:
+                filtered = [q for q in all_queries if term in q.lower()]
+            _refresh_list(filtered)
+
+        _refresh_list(all_queries)
+        try:
+            filter_entry.focus_set()
+        except Exception:
             listbox.focus_set()
+
+        filter_entry.bind("<KeyRelease>", _apply_filter)
 
         btn_frame = tk.Frame(chooser)
         btn_frame.pack(pady=(0, 8))
@@ -1149,9 +1418,15 @@ class SubtitleManager:
 
         hide_startup_overlay()
         try:
-            dlg = tk.Toplevel()
+            root = getattr(tk, "_default_root", None)
+            dlg = tk.Toplevel(root) if root is not None else tk.Toplevel()
             dlg.title("Remote Subtitle Search")
             dlg.attributes("-topmost", True)
+            if root is not None:
+                try:
+                    dlg.transient(root)
+                except Exception:
+                    pass
             dlg.grab_set()
             dlg.resizable(False, False)
             dlg.update_idletasks()
@@ -1259,17 +1534,25 @@ class SubtitleManager:
 
     def calculate_geometry(self):
         font = tkFont.Font(family=self.config.get("SUBTITLE_FONT"),size=self.config.get("SUBTITLE_FONT_SIZE"),weight="bold")
+        ruby_font = tkFont.Font(family=font.actual("family"), size=int(font.actual("size") * 0.6), weight="bold")
+
+        def _measure_line_width(segments):
+            width = 0
+            for base, ruby in segments:
+                base_w = font.measure(base)
+                ruby_w = ruby_font.measure(ruby) if ruby else 0
+                width += max(base_w, ruby_w)
+            return width
+
         max_width = 0
-        for clean, time, *_rest in self.display_data:
-            base_text = regex.sub(r'\p{Han}+\([^)]+\)', lambda m: regex.match(r'(\p{Han}+)', m.group()).group(), clean)
-            for line in base_text.splitlines():
-                width = font.measure(line)
-                if max_width < width:
+        for _clean, _time, top, bottom in self.display_data:
+            for segments in (top, bottom):
+                if not segments:
+                    continue
+                width = _measure_line_width(segments)
+                if width > max_width:
                     max_width = width
-                    biggest_line = line
-                    start_time = time
-        # print(format_time(start_time),": ",biggest_line)
-        # print(self.display_data[1:4])
+
         line_height = font.metrics("linespace")
         ruby_height = int(line_height * 0.6)
         pad_x = 5
@@ -1538,7 +1821,7 @@ class SubtitleManager:
             logger.exception("Failed to persist remote selection metadata for: %s", local_path)
             return None
 
-        # kick off async windowed download around the chosen global (±20)
+        # kick off async windowed download around the chosen global (Â±20)
         try:
             center_global = target_global
             if center_global is None and target_season is not None and target_episode is not None:
@@ -1674,6 +1957,110 @@ class SubtitleManager:
             logger.exception("Failed to start windowed background downloads for search-query init")
 
         return local_path
+    
+    def _search_remote_candidates_in_path(self, anime_query: str, repo_sub_path: str) -> List[Dict]:
+        """
+        Search GitHub code API for subtitle files under a specific path.
+        Returns normalized items with parsed season/episode/global metadata.
+        """
+        anime_query = (anime_query or "").strip()
+        repo_sub_path = (repo_sub_path or "").strip().strip("/")
+        if not anime_query or not repo_sub_path:
+            return []
+
+        owner = getattr(self, "github_owner", None) or self.config.get("GITHUB_OWNER") or "Ajatt-Tools"
+        repo = getattr(self, "github_repo", None) or self.config.get("GITHUB_REPO") or "kitsunekko-mirror"
+        if not owner or not repo:
+            return []
+
+        api_url = "https://api.github.com/search/code"
+        headers = {
+            "Accept": "application/vnd.github.v3+json",
+            "User-Agent": "subtitle-searcher",
+        }
+        if self.github_token:
+            headers["Authorization"] = f"token {self.github_token}"
+
+        per_page = 100
+        out: List[Dict] = []
+        seen_paths: set[str] = set()
+
+        session = requests.Session()
+        session.headers.update(headers)
+
+        for ext in ("srt", "ass"):
+            q = (f'repo:{owner}/{repo} '
+                 f'path:{repo_sub_path} extension:{ext} in:path "{anime_query}"')
+            page = 1
+            while True:
+                params = {"q": q, "per_page": per_page, "page": page}
+                try:
+                    resp = session.get(api_url, params=params, timeout=15)
+                except requests.RequestException:
+                    logger.exception("GitHub path search failed: query=%s", q)
+                    break
+
+                if resp.status_code != 200:
+                    logger.error("GitHub path search failed (%s): %s", resp.status_code, resp.text)
+                    break
+
+                data = resp.json()
+                items = data.get("items", [])
+                if not items:
+                    break
+
+                for it in items:
+                    path = it.get("path")
+                    if not path or path in seen_paths:
+                        continue
+                    seen_paths.add(path)
+                    name = os.path.basename(path or it.get("name") or "")
+                    s, e, g = self.extract_season_episode_global(name)
+                    if s is None and e is None and g is not None:
+                        e = int(g)
+                    out.append({
+                        "name": name or it.get("name"),
+                        "path": path,
+                        "season": s,
+                        "episode": e,
+                        "global": g,
+                    })
+
+                if len(items) < per_page:
+                    break
+                page += 1
+                time.sleep(0.1)
+
+        try:
+            out.sort(key=self.sort_key_per_season)
+        except Exception:
+            pass
+        return out
+
+    def search_remote_movie_candidates(self, anime_query: str) -> List[Dict]:
+        """
+        Search order for movie subtitles:
+        1) subtitles/anime_movie
+        2) subtitles/drama_movie (fallback only if #1 has zero results)
+        """
+        anime_query = (anime_query or "").strip()
+        if not anime_query:
+            return []
+
+        results = self._search_remote_candidates_in_path(anime_query, "subtitles/anime_movie")
+        if results:
+            return results
+        logger.info("No results in subtitles/anime_movie for '%s'; falling back to subtitles/drama_movie", anime_query)
+        return self._search_remote_candidates_in_path(anime_query, "subtitles/drama_movie")
+
+    def search_remote_drama_tv_candidates(self, anime_query: str) -> List[Dict]:
+        """
+        Search drama TV subtitles under subtitles/drama_tv.
+        """
+        anime_query = (anime_query or "").strip()
+        if not anime_query:
+            return []
+        return self._search_remote_candidates_in_path(anime_query, "subtitles/drama_tv")
     
 
     def _trying_search_queries(self):
@@ -2084,7 +2471,7 @@ class SubtitleManager:
             season += 1
             if season == end_season:
                 break
-            if self.anime_folder_name == "HUNTER×HUNTER" and season == 7:
+            if self.anime_folder_name == "HUNTERÃ—HUNTER" and season == 7:
                 break
             if self.anime_folder_name == "Shingeki no Kyojin" and season == 8:
                 break
@@ -2598,7 +2985,7 @@ class SubtitleManager:
         s = re.sub(r'\[.*?\]', '', s)
         s = re.sub(r'\{.*?\}', '', s)
         s = re.sub(r'\.(mkv|mp4|srt|ass|avi)$', '', s, flags=re.IGNORECASE)
-        s = s.replace('–','-').replace('—','-')
+        s = s.replace('â€“','-').replace('â€”','-')
         s = re.sub(r'\b\d{4}-\d{2}-\d{2}\b', '', s)
         tokens = re.split(r'([.\s_\-()\[\]]+)', s)
         filtered = []
@@ -2643,9 +3030,9 @@ class SubtitleManager:
             score += 25
         if re.search(r'(?i)\bE\d{1,4}\b', text):
             score += 15
-        if re.search(r'第\s*\d{1,4}\s*話', text):
+        if re.search(r'ç¬¬\s*\d{1,4}\s*è©±', text):
             score += 20
-        if re.search(r'(?:シーズン|ｼｰｽﾞﾝ)\s*\d{1,2}\s*[-‐‑–—ー]\s*\d{1,4}', text):
+        if re.search(r'(?:ã‚·ãƒ¼ã‚ºãƒ³|ï½¼ï½°ï½½ï¾žï¾)\s*\d{1,2}\s*[-â€â€‘â€“â€”ãƒ¼]\s*\d{1,4}', text):
             score += 30
 
         # Small provider preference (tie-breaker)
@@ -2680,7 +3067,7 @@ class SubtitleManager:
         # Episode numbers can be up to 4 digits for long-running shows (e.g. One Piece E1135).
         #
         # IMPORTANT: We can't rely on \b boundaries for SxxEyy because many Japanese filenames are like:
-        # "名探偵コナンS10 E1 - 第384話..." (no separator before "S").
+        # "åæŽ¢åµã‚³ãƒŠãƒ³S10 E1 - ç¬¬384è©±..." (no separator before "S").
         # Use an ASCII-only "not preceded by [A-Za-z0-9]" guard instead.
         re_s_e_paren = re.compile(
             r'(?xi)(?<![A-Za-z0-9])S(?P<s>\d{1,2})[ ._\-]*E(?P<e>\d{1,4})(?!\d)'
@@ -2691,10 +3078,10 @@ class SubtitleManager:
         re_episode_number = re.compile(r'(?xi)\b(?:ep|episode|ep\.)[ ._\-#]*(?P<num>\d{1,4})\b')
         # Similar to SxxEyy: don't rely on \b because filenames can contain "_E60_" etc.
         re_e_token = re.compile(r'(?xi)(?<![A-Za-z0-9])E(?P<num>\d{1,4})(?!\d)')
-        # Japanese "第384話" style global episode markers.
+        # Japanese "ç¬¬384è©±" style global episode markers.
         # Use explicit unicode escapes to avoid source-encoding / mojibake issues.
         re_jp_episode = re.compile(r'(?x)\u7b2c\s*(?P<num>\d{1,4})\s*\u8a71')
-        re_jp_season_dash = re.compile(r'(?x)(?:シーズン|ｼｰｽﾞﾝ)\s*(?P<s>\d{1,2})\s*[-‐‑–—ー]\s*(?P<e>\d{1,4})')
+        re_jp_season_dash = re.compile(r'(?x)(?:ã‚·ãƒ¼ã‚ºãƒ³|ï½¼ï½°ï½½ï¾žï¾)\s*(?P<s>\d{1,2})\s*[-â€â€‘â€“â€”ãƒ¼]\s*(?P<e>\d{1,4})')
         re_bracket_number = re.compile(r'[\(\[]\s*(\d{1,4})\s*[\)\]]')
         re_trailing_number = re.compile(r'(?xi)(?:[_\-. ]|^)(?P<num>\d{1,4})(?:\.[a-z0-9]{1,6})?$')
         # Common fansub pattern: "Show Name - 123 [720p].srt" (no season info -> treat as global)
@@ -2719,7 +3106,7 @@ class SubtitleManager:
             return s, e, g
 
         # 2) SxxEyy -> local episode (conservative: do not treat as global unless we have
-        # an explicit global marker like "第384話" in the same filename).
+        # an explicit global marker like "ç¬¬384è©±" in the same filename).
         m = re_s_e.search(n)
         if m:
             try:
@@ -2727,7 +3114,7 @@ class SubtitleManager:
             except Exception:
                 return None, None, None
             # If the filename contains an explicit global episode marker, prefer it.
-            # Example: "名探偵コナンS10 E1 - 第384話...srt" -> s=10,e=1,g=384.
+            # Example: "åæŽ¢åµã‚³ãƒŠãƒ³S10 E1 - ç¬¬384è©±...srt" -> s=10,e=1,g=384.
             m_g = re_jp_episode.search(n)
             if m_g:
                 try:
@@ -2765,7 +3152,7 @@ class SubtitleManager:
                 return s, e, e
             return s, e, None
 
-        # 4b) Japanese "シーズンX-Y" (common on some subtitle sources)
+        # 4b) Japanese "ã‚·ãƒ¼ã‚ºãƒ³X-Y" (common on some subtitle sources)
         m = re_jp_season_dash.search(n)
         if m:
             try:
@@ -2813,7 +3200,7 @@ class SubtitleManager:
                 return s, num, None
             return None, None, num
 
-        # 5c) Japanese "第255話" -> global episode number
+        # 5c) Japanese "ç¬¬255è©±" -> global episode number
         m = re_jp_episode.search(n)
         if m:
             try:
@@ -3021,6 +3408,7 @@ class SubtitleManager:
             logger.error(f"Download failed for {remote_path}: {e}")
 # ---------------------- GitHub searching / downloading ----------------------
 #endregion -------------------------remote handling-----------------------------
+
 
 
 

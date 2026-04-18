@@ -1,30 +1,39 @@
 To Do:
-Add listener for spacebar and arrow keys
-connect anki
-add extra function for searching movies
-add settings button to change for example default start time and so on
-remember last used offset, phone mde ...
+some windows like the search button window needs to be autosized 
+changed auto ruby handling check if words like toutou is correct
+the clear OCR area is not needed
+add result if rean now set time not worked
+add warning if anki is not connected
+if ocr works good add that it jumps to the time when collecting anki cards
 Maybe change how the copy window is displayed.
-Remember also last geometry not only position of settings window
-when local srt file added during runtime cant find it. Probably because dir list done during init.
+hovering over kanji --> in line glossary or/and translation
+Have the option to select muliple boxes across multiple screens so box 1 and box 2 on screen 1 and box 3 on screen 2 for example. 
+change second to ms and so on with certain buttons for Skip 
+Add the html tags inside the subtitle files optional
+add profile settings for multiple users
 
 Bugs:
+when advanced settings window is open and the offset or skip entry is changed and then apply now is clicked inside the advanced settings the offset and skip entry jump back to the default values.  When it is written inside the entries it should also be adjusted inside the advanced settings window. 
+when any number on the numpad is pressed it weirdly jumps around or even tough it is mode1 when 4 or 6 is pressed it jumps around almost like it want to write 4 or 6 insinde the time entry. Also when inside any entry the numpad should be usable without hotkeys
+この間 複合した“宿り木の蔦(つた)” was not correctly ruby shown Hitoribochi 7. 4:57
+default skip is not saved
+switches through the tabs in the advanced settings
 Maybe shift of 1 second if offset 0?
-
-
-Bugs:
-picks last episode in cache if decreasing at first epoisode (because of last anime name not found)
-
-Ideas:
-Detect uncommon words or phrases and let users hover or tap a subtitle segment to 
-    see an in-line glossary or translation—great for educational content
-Change windows size in config (during run time?)
 
 Dont do:
 Change subtitle width to fit current subtitle (maybe flashes --> YES)
 
 
 Added:
+Optional ruby detection
+implement season episode search in search bar in settings window
+add filter when searching in cached(saved) searches
+Add listener for spacebar and arrow keys
+add extra function for searching movies
+add settings button to change for example default start time and so on
+remember last used offset, phone mde ...
+Remember also last geometry not only position of settings window
+connect anki
 dropdown menu for episode entry
 right click on opened window(sub) to select copy
 download splash screen or info
@@ -41,6 +50,9 @@ add config for phone mode default true/false
 
 
 Fixed:
+if i inside the time in the control winodw wihtout changing anything and then press the skip button it should go back to the same value from before
+when local srt file added during runtime cant find it. Probably because dir list done during init.
+picks last episode in cache if decreasing at first epoisode (because of last anime name not found)
 update episode number only if episode found
 creates season folder without finding season?
 Wrong episode when turning off?

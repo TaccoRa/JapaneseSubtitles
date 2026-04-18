@@ -6,6 +6,7 @@ Displays subtitle text and provides a simple context menu for mouse-only copy.
 
 import tkinter as tk
 from tkinter import font as tkFont
+from utils import make_draggable
 
 class CopyPopup:
     
@@ -19,6 +20,7 @@ class CopyPopup:
         self._menu_open = False
         self._entry_widget: tk.Text | None = None
         self._on_add_anki = None
+        self._dragging = False
         self.root.bind("<Destroy>", lambda e: self._cancel_close())
 
         self.bg_color = self.config.get("POPUP_BG_COLOR")
@@ -36,6 +38,7 @@ class CopyPopup:
         popup = tk.Toplevel(self.root)
         self._popup = popup
         self._menu_open = False
+        self._dragging = False
         self._entry_widget = None
         popup.overrideredirect(True)
         # popup.configure(bg=self.bg_color)
@@ -61,6 +64,23 @@ class CopyPopup:
         entry.config(state="disabled")
         entry.pack()
         self._entry_widget = entry
+
+        # Drag grip (no title bar) to move popup without interfering with text selection.
+        drag_grip = tk.Label(
+            popup,
+            text=":::",
+            font=(self.font_name, max(8, int(self.font_size * 0.45))),
+            fg=self.font_color,
+            bg=self.bg_color,
+            cursor="fleur",
+            bd=0,
+            padx=2,
+            pady=0,
+        )
+        drag_grip.place(relx=1.0, rely=1.0, x=-2, y=-2, anchor="se")
+        make_draggable(drag_grip, popup, on_release=self._on_popup_drag_end)
+        drag_grip.bind("<ButtonPress-1>", self._on_popup_drag_start, add="+")
+        drag_grip.bind("<ButtonRelease-1>", self._on_popup_drag_end, add="+")
 
         # Right-click context menu to copy selected text using only the mouse.
         menu = tk.Menu(popup, tearoff=0)
@@ -191,9 +211,18 @@ class CopyPopup:
             self._close_job = self._popup.after(self.close_delay, self._close)
 
     def _on_popup_leave(self) -> None:
-        if self._pinned or self._menu_open:
+        if self._pinned or self._menu_open or self._dragging:
             return
         self._restart_close()
+
+    def _on_popup_drag_start(self, event=None) -> None:
+        self._dragging = True
+        self._cancel_close()
+
+    def _on_popup_drag_end(self, *args, **kwargs) -> None:
+        self._dragging = False
+        if not self._pinned and not self._menu_open:
+            self._restart_close()
 
     def _pin(self, popup: tk.Toplevel) -> None:
         self._cancel_close()
@@ -204,3 +233,4 @@ class CopyPopup:
     def _on_popup_destroy(self) -> None:
         self._popup = None
         self._entry_widget = None
+        self._dragging = False
