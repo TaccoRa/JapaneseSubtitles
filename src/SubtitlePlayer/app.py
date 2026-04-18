@@ -15,10 +15,11 @@ from model.renderer import SubtitleRenderer
 
 from controller.controller import SubtitleController
 
+# from video_sync_server import start_server, get_video_time
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    format="%(name)s: %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,7 @@ class SubtitlePlayerApp:
     # =========================
     def run(self):
         logger.info("Starting SubtitlePlayerApp")
+        # threading.Thread(target=start_server, daemon=True).start()
 
         self._load_config()
         self._build_root()
