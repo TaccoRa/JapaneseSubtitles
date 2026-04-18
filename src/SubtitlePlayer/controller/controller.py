@@ -48,6 +48,14 @@ class SubtitleController:
         "SHORTCUT_EPISODE_DEC": "alt+y",
         "SHORTCUT_JUMP_SUB_END": "ctrl+shift+y",
     }
+    HOTKEY_DISABLE_KEYS = {
+        "toggle_play": "DISABLE_HOTKEY_TOGGLE_PLAY",
+        "go_back": "DISABLE_HOTKEY_GO_BACK",
+        "go_forward": "DISABLE_HOTKEY_GO_FORWARD",
+        "subtitle_back": "DISABLE_HOTKEY_SUBTITLE_BACK",
+        "subtitle_forward": "DISABLE_HOTKEY_SUBTITLE_FORWARD",
+        "jump_sub_end": "DISABLE_HOTKEY_JUMP_SUB_END",
+    }
 
     OCR_TIME_PATTERN = re.compile(
         r"(\d{1,2}:\d{2}(?::\d{2})?)[/\\|](\d{1,2}:\d{2}(?::\d{2})?)"
@@ -597,6 +605,11 @@ class SubtitleController:
                 pass
             if self._hotkeys_disabled():
                 self._reset_hotkey_state()
+        if (
+            "SKIP_BUTTONS_USE_SUBTITLE_SEGMENTS" in values
+            or any(str(k).startswith("DISABLE_HOTKEY_") for k in values.keys())
+        ):
+            self._reset_hotkey_state()
 
         if any(str(k).startswith("ANKI_") for k in values.keys()):
             try:
@@ -933,6 +946,9 @@ class SubtitleController:
     def go_forward(self):
         if self.entry_editing:
             self.control_time_entry_return(None)
+        if self._skip_buttons_use_subtitle_segments():
+            self.jump_subtitle_segment("next")
+            return
         skip = self.settings._last_skip_value
         max_time = self.total_duration + float(self.settings._last_offset_value or 0.0)
         if self.current_time <= max_time:
@@ -942,6 +958,9 @@ class SubtitleController:
     def go_back(self):
         if self.entry_editing:
             self.control_time_entry_return(None)
+        if self._skip_buttons_use_subtitle_segments():
+            self.jump_subtitle_segment("prev")
+            return
         skip = self.settings._last_skip_value
         if self.current_time >= 0:
             self.set_current_time(self.current_time - skip)
@@ -1159,9 +1178,8 @@ class SubtitleController:
             except Exception:
                 break
 
-    @staticmethod
-    def _is_seek_repeat_action(action: str) -> bool:
-        return action in {"go_back", "go_forward"}
+    def _is_seek_repeat_action(self, action: str) -> bool:
+        return (action in {"go_back", "go_forward"}) and (not self._skip_buttons_use_subtitle_segments())
 
     @staticmethod
     def _seek_step_action_name(action: str) -> str | None:
@@ -1185,6 +1203,8 @@ class SubtitleController:
             self._enqueue_input_action(action)
 
     def _seek_delta_for_action(self, action: str) -> float:
+        if not self._is_seek_repeat_action(action):
+            return 0.0
         try:
             skip = float(self.settings._last_skip_value or 0.0)
         except Exception:
@@ -1370,6 +1390,21 @@ class SubtitleController:
         self.set_current_time(float(start_times[target_idx]) + offset)
         self._schedule_hide_controls()
 
+    def _skip_buttons_use_subtitle_segments(self) -> bool:
+        try:
+            return bool(self.config.get("SKIP_BUTTONS_USE_SUBTITLE_SEGMENTS") or False)
+        except Exception:
+            return False
+
+    def _hotkey_action_disabled(self, action: str) -> bool:
+        key = self.HOTKEY_DISABLE_KEYS.get(str(action or "").strip())
+        if not key:
+            return False
+        try:
+            return bool(self.config.get(key) or False)
+        except Exception:
+            return False
+
     @staticmethod
     def _is_numpad_vk_key(key, *codes: int) -> bool:
         try:
@@ -1522,21 +1557,23 @@ class SubtitleController:
         except Exception:
             mode2_numpad = bool(getattr(self.settings, "numpad_mode_enabled", False))
         if mode2_numpad:
-            return [
+            bindings = [
                 ("subtitle_back", self._get_shortcut_value("SHORTCUT_MODE2_SUBTITLE_BACK")),
                 ("subtitle_forward", self._get_shortcut_value("SHORTCUT_MODE2_SUBTITLE_FORWARD")),
                 ("go_back", self._get_shortcut_value("SHORTCUT_MODE2_GO_BACK")),
                 ("go_forward", self._get_shortcut_value("SHORTCUT_MODE2_GO_FORWARD")),
             ]
-        return [
-            ("subtitle_back", self._get_shortcut_value("SHORTCUT_SUBTITLE_BACK")),
-            ("subtitle_forward", self._get_shortcut_value("SHORTCUT_SUBTITLE_FORWARD")),
-            ("go_back", self._get_shortcut_value("SHORTCUT_GO_BACK")),
-            ("go_forward", self._get_shortcut_value("SHORTCUT_GO_FORWARD")),
-        ]
+        else:
+            bindings = [
+                ("subtitle_back", self._get_shortcut_value("SHORTCUT_SUBTITLE_BACK")),
+                ("subtitle_forward", self._get_shortcut_value("SHORTCUT_SUBTITLE_FORWARD")),
+                ("go_back", self._get_shortcut_value("SHORTCUT_GO_BACK")),
+                ("go_forward", self._get_shortcut_value("SHORTCUT_GO_FORWARD")),
+            ]
+        return [(action, binding) for action, binding in bindings if not self._hotkey_action_disabled(action)]
 
     def _single_fire_bindings(self):
-        return [
+        bindings = [
             ("toggle_play", self._get_shortcut_value("SHORTCUT_TOGGLE_PLAY")),
             ("toggle_play", self._get_shortcut_value("SHORTCUT_MODE2_TOGGLE_PLAY")),
             ("alt_x", self._get_shortcut_value("SHORTCUT_BRING_TO_FRONT")),
@@ -1544,6 +1581,7 @@ class SubtitleController:
             ("episode_dec", self._get_shortcut_value("SHORTCUT_EPISODE_DEC")),
             ("jump_sub_end", self._get_shortcut_value("SHORTCUT_JUMP_SUB_END")),
         ]
+        return [(action, binding) for action, binding in bindings if not self._hotkey_action_disabled(action)]
 
     def _hotkeys_disabled(self) -> bool:
         try:
@@ -1673,7 +1711,7 @@ class SubtitleController:
     def on_ocr_sync_now(self, override: dict | None = None) -> None:
         if self._shutting_down:
             return
-        self._start_ocr_live_sync(override=override)
+        self._start_ocr_live_sync(duration_sec=5.0, interval_sec=0.25, override=override)
 
     def _apply_ocr_time_manual(self, seconds: float) -> None:
         if self._shutting_down:
@@ -1683,7 +1721,7 @@ class SubtitleController:
     def _start_ocr_live_sync(
         self,
         duration_sec: float = 5.0,
-        interval_sec: float = 1.0,
+        interval_sec: float = 0.25,
         override: dict | None = None,
     ) -> None:
         if self._shutting_down:
@@ -1699,13 +1737,14 @@ class SubtitleController:
         except Exception:
             interval_sec = 1.0
         duration_sec = max(1.0, duration_sec)
-        interval_sec = max(0.4, interval_sec)
+        interval_sec = max(0.1, interval_sec)
 
         self._ocr_sync_generation += 1
         generation = self._ocr_sync_generation
 
         def worker():
             deadline = time.perf_counter() + duration_sec
+            snapped_initial = False
             while time.perf_counter() < deadline:
                 if self._shutting_down or generation != self._ocr_sync_generation:
                     return
@@ -1716,6 +1755,16 @@ class SubtitleController:
                     base_time = None
                 seconds = self._ocr_find_time_seconds(override=override)
                 if seconds is not None and base_time is not None:
+                    if not snapped_initial:
+                        try:
+                            self.settings.root.after(0, lambda s=seconds: self._apply_ocr_time_manual(s))
+                        except Exception:
+                            pass
+                        snapped_initial = True
+                        sleep_for = interval_sec - (time.perf_counter() - started)
+                        if sleep_for > 0:
+                            time.sleep(sleep_for)
+                        continue
                     elapsed = time.perf_counter() - started
                     if self.playing:
                         base_time += elapsed
@@ -2318,34 +2367,9 @@ class SubtitleController:
             self._reset_hotkey_state()
             return
 
-        try:
-            mode2_numpad = int(getattr(self.settings, "input_mode", 1)) == 2
-        except Exception:
-            mode2_numpad = bool(getattr(self.settings, "numpad_mode_enabled", False))
-        if mode2_numpad:
-            mapping = [
-                (self._get_shortcut_value("SHORTCUT_MODE2_TOGGLE_PLAY"), "toggle_play", True),
-                (self._get_shortcut_value("SHORTCUT_TOGGLE_PLAY"), "toggle_play", True),
-                (self._get_shortcut_value("SHORTCUT_MODE2_SUBTITLE_BACK"), "subtitle_back", False),
-                (self._get_shortcut_value("SHORTCUT_MODE2_SUBTITLE_FORWARD"), "subtitle_forward", False),
-                (self._get_shortcut_value("SHORTCUT_MODE2_GO_BACK"), "go_back", False),
-                (self._get_shortcut_value("SHORTCUT_MODE2_GO_FORWARD"), "go_forward", False),
-            ]
-        else:
-            mapping = [
-                (self._get_shortcut_value("SHORTCUT_TOGGLE_PLAY"), "toggle_play", True),
-                (self._get_shortcut_value("SHORTCUT_SUBTITLE_BACK"), "subtitle_back", False),
-                (self._get_shortcut_value("SHORTCUT_SUBTITLE_FORWARD"), "subtitle_forward", False),
-                (self._get_shortcut_value("SHORTCUT_GO_BACK"), "go_back", False),
-                (self._get_shortcut_value("SHORTCUT_GO_FORWARD"), "go_forward", False),
-            ]
-
-        mapping.extend([
-            (self._get_shortcut_value("SHORTCUT_BRING_TO_FRONT"), "alt_x", True),
-            (self._get_shortcut_value("SHORTCUT_EPISODE_INC"), "episode_inc", True),
-            (self._get_shortcut_value("SHORTCUT_EPISODE_DEC"), "episode_dec", True),
-            (self._get_shortcut_value("SHORTCUT_JUMP_SUB_END"), "jump_sub_end", True),
-        ])
+        mapping = []
+        mapping.extend((binding, action, True) for action, binding in self._single_fire_bindings())
+        mapping.extend((binding, action, False) for action, binding in self._repeat_action_bindings())
 
         for binding, action, single_fire in mapping:
             if not self._shortcut_matches(binding, key):

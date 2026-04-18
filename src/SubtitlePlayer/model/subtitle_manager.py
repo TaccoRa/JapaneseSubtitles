@@ -68,6 +68,8 @@ class SubtitleManager:
     VIDEO_CODEC_RE = re.compile(r'^(x265|h264|av1|hevc|x264)$', re.IGNORECASE)
     NOISE_TOKENS = {'bd','web','webrip','bluray','bdrip','dvd','x264','x265','av1','hevc',
                     'aac','flac','hdtv','bdrip','bs8','netflix','amazon', 'fansub','group','copy','complete','ja[cc]'}
+    AUTO_RUBY_CACHE_LIMIT = 20000
+    _AUTO_RUBY_CACHE_MISS = object()
 
     def __init__(self, config: ConfigManager) -> None:
         self.config = config
@@ -75,6 +77,7 @@ class SubtitleManager:
         self.remote_flag = self.config.get("REMOTE_FLAG")
         self._ruby_generator = None
         self._ruby_generator_failed = False
+        self._auto_ruby_cache: Dict[str, object] = {}
 
         if self.remote_flag:
             url = self.config.get("LAST_GITHUB_URL")
@@ -200,7 +203,19 @@ class SubtitleManager:
         else:
             self.subtitles = list(srt.parse(text))
 
-        #seperate into clean, start times, top and bottom segments
+        # Separate into clean, start times, top and bottom segments.
+        # Cache repeated line parses inside one file load; this is especially important when
+        # auto-ruby is enabled because Mecab/Kakasi processing is expensive.
+        line_segment_cache: Dict[str, List[tuple[str, Optional[str]]]] = {}
+
+        def _segments_for_line(line_text: str) -> List[tuple[str, Optional[str]]]:
+            cached = line_segment_cache.get(line_text)
+            if cached is not None:
+                return cached
+            parsed = self._parse_ruby_segments(line_text)
+            line_segment_cache[line_text] = parsed
+            return parsed
+
         self.display_data = []
         for sub in self.subtitles:
             clean = self._clean_text(sub.content)
@@ -209,10 +224,10 @@ class SubtitleManager:
             if not lines:
                 top, bottom = [], []
             elif len(lines) == 1:
-                top, bottom = [], self._parse_ruby_segments(lines[0])
+                top, bottom = [], _segments_for_line(lines[0])
             else:
-                top = self._parse_ruby_segments(lines[0])
-                bottom = self._parse_ruby_segments(lines[1])
+                top = _segments_for_line(lines[0])
+                bottom = _segments_for_line(lines[1])
             self.display_data.append((clean, start_times, top, bottom))
 
     def _clean_text(self, text: str) -> str:
@@ -509,6 +524,16 @@ class SubtitleManager:
         if not regex.search(r"\p{Han}", text or ""):
             return None
 
+        cache = getattr(self, "_auto_ruby_cache", None)
+        if cache is None:
+            cache = {}
+            self._auto_ruby_cache = cache
+        cached = cache.get(text)
+        if cached is self._AUTO_RUBY_CACHE_MISS:
+            return None
+        if cached is not None:
+            return [tuple(seg) for seg in cached]
+
         generator = self._get_ruby_generator()
         if generator is None:
             return None
@@ -517,9 +542,18 @@ class SubtitleManager:
         except Exception:
             return None
         if not segments:
+            cache[text] = self._AUTO_RUBY_CACHE_MISS
             return None
         if any(ruby for _base, ruby in segments):
-            return segments
+            cached_segments = tuple((base, ruby) for base, ruby in segments)
+            cache[text] = cached_segments
+            while len(cache) > int(self.AUTO_RUBY_CACHE_LIMIT):
+                try:
+                    cache.pop(next(iter(cache)))
+                except Exception:
+                    break
+            return [tuple(seg) for seg in cached_segments]
+        cache[text] = self._AUTO_RUBY_CACHE_MISS
         return None
 # -------------------------helpers-----------------------------
 
@@ -1128,6 +1162,53 @@ class SubtitleManager:
             return None
         return path
 
+    @staticmethod
+    def _fit_dialog_to_screen(
+        dialog: tk.Toplevel,
+        parent=None,
+        min_w: int = 360,
+        min_h: int = 180,
+        max_w_ratio: float = 0.96,
+        max_h_ratio: float = 0.94,
+    ) -> None:
+        if dialog is None:
+            return
+        try:
+            dialog.update_idletasks()
+            sw = int(dialog.winfo_screenwidth() or 1920)
+            sh = int(dialog.winfo_screenheight() or 1080)
+        except Exception:
+            sw, sh = 1920, 1080
+
+        max_w = max(min_w, int(sw * max_w_ratio))
+        max_h = max(min_h, int(sh * max_h_ratio))
+        try:
+            req_w = int(dialog.winfo_reqwidth())
+            req_h = int(dialog.winfo_reqheight())
+        except Exception:
+            req_w, req_h = min_w, min_h
+        width = max(min_w, min(req_w, max_w))
+        height = max(min_h, min(req_h, max_h))
+
+        x = max(0, (sw - width) // 2)
+        y = max(0, (sh - height) // 2)
+        if parent is not None:
+            try:
+                parent.update_idletasks()
+                px = int(parent.winfo_rootx())
+                py = int(parent.winfo_rooty())
+                pw = int(parent.winfo_width())
+                ph = int(parent.winfo_height())
+                x = max(0, min(px + max((pw - width) // 2, 0), sw - width))
+                y = max(0, min(py + max((ph - height) // 2, 0), sh - height))
+            except Exception:
+                pass
+
+        try:
+            dialog.geometry(f"{width}x{height}+{x}+{y}")
+        except Exception:
+            pass
+
     def choose_new_file(self) -> Optional[str]:
         """
         Prompt the user to select a new subtitle source.
@@ -1145,11 +1226,7 @@ class SubtitleManager:
             popup.title("Choose Source")
             popup.attributes("-topmost", True)
             popup.grab_set()
-            w, h = 420, 100
-            popup.update_idletasks()
-            sw, sh = popup.winfo_screenwidth(), popup.winfo_screenheight()
-            x, y = (sw - w) // 2, (sh - h) // 2
-            popup.geometry(f"{w}x{h}+{x}+{y}")
+            popup.resizable(True, True)
 
             tk.Label(popup, text="Select source for subtitle file:", font=("Arial", 12)).pack(pady=(12, 8))
             button_frame = tk.Frame(popup)
@@ -1230,6 +1307,7 @@ class SubtitleManager:
             tk.Button(button_frame, text="Remote URL", width=15, command=choose_remote_url).grid(row=0, column=1, padx=10)
             tk.Button(button_frame, text="Remote Search", width=15, command=choose_remote_search).grid(row=0, column=2, padx=10)
 
+            self._fit_dialog_to_screen(popup, min_w=460, min_h=130)
             popup.wait_window(popup)
             return result["path"]
         finally:
@@ -1244,13 +1322,7 @@ class SubtitleManager:
             dlg.title("Remote subtitle (URL + sXeY)")
             dlg.attributes("-topmost", True)
             dlg.grab_set()
-            dlg.resizable(False, False)
-            dlg.update_idletasks()
-            sw, sh = dlg.winfo_screenwidth(), dlg.winfo_screenheight()
-            w, h = dlg.winfo_reqwidth(), dlg.winfo_reqheight()
-            x = (sw - w) // 2
-            y = (sh - h) // 2
-            dlg.geometry(f"+{x}+{y}")
+            dlg.resizable(True, True)
 
             tk.Label(dlg, text="GitHub subtitle URL:", anchor="w").grid(row=0, column=0, sticky="w", padx=8, pady=(8,2))
             url_entry = tk.Entry(dlg, width=60)
@@ -1273,6 +1345,7 @@ class SubtitleManager:
             tk.Button(btn_frame, text="OK", width=10, command=on_ok).pack(side="left", padx=6)
             tk.Button(btn_frame, text="Cancel", width=10, command=on_cancel).pack(side="left", padx=6)
 
+            self._fit_dialog_to_screen(dlg, min_w=620, min_h=220)
             dlg.wait_window(dlg)
             return result["url"], result["season"], result["episode"]
         finally:
@@ -1313,7 +1386,7 @@ class SubtitleManager:
         chooser.attributes("-topmost", True)
         chooser.transient(parent)
         chooser.grab_set()
-        chooser.resizable(False, False)
+        chooser.resizable(True, True)
 
         tk.Label(chooser, text="Select a cached anime query:", anchor="w").pack(padx=8, pady=(8, 4), fill="x")
 
@@ -1391,16 +1464,7 @@ class SubtitleManager:
         listbox.bind("<KP_Enter>", on_ok)
         chooser.bind("<Escape>", on_cancel)
 
-        try:
-            chooser.update_idletasks()
-            pw, ph = parent.winfo_width(), parent.winfo_height()
-            px, py = parent.winfo_rootx(), parent.winfo_rooty()
-            w, h = chooser.winfo_reqwidth(), chooser.winfo_reqheight()
-            x = px + max((pw - w) // 2, 0)
-            y = py + max((ph - h) // 2, 0)
-            chooser.geometry(f"+{x}+{y}")
-        except Exception:
-            pass
+        self._fit_dialog_to_screen(chooser, parent=parent, min_w=520, min_h=320)
 
         chooser.wait_window(chooser)
         return chosen["query"]
@@ -1428,13 +1492,7 @@ class SubtitleManager:
                 except Exception:
                     pass
             dlg.grab_set()
-            dlg.resizable(False, False)
-            dlg.update_idletasks()
-            sw, sh = dlg.winfo_screenwidth(), dlg.winfo_screenheight()
-            w, h = dlg.winfo_reqwidth(), dlg.winfo_reqheight()
-            x = (sw - w) // 2
-            y = (sh - h) // 2
-            dlg.geometry(f"+{x}+{y}")
+            dlg.resizable(True, True)
             dlg.grid_columnconfigure(0, weight=1)
 
             tk.Label(dlg, text="Anime search query (folder name / season 1 base):", anchor="w").grid(
@@ -1502,6 +1560,7 @@ class SubtitleManager:
             dlg.bind("<Return>", on_enter)
             dlg.bind("<KP_Enter>", on_enter)
 
+            self._fit_dialog_to_screen(dlg, parent=root, min_w=620, min_h=260)
             dlg.wait_window(dlg)
             return result["query"], result["season"], result["episode"]
         finally:

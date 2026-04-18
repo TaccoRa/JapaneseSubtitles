@@ -1,30 +1,25 @@
 To Do:
 some windows like the search button window needs to be autosized 
 changed auto ruby handling check if words like toutou is correct
-the clear OCR area is not needed
-add result if rean now set time not worked
-add warning if anki is not connected
-if ocr works good add that it jumps to the time when collecting anki cards
-Maybe change how the copy window is displayed.
 hovering over kanji --> in line glossary or/and translation
-Have the option to select muliple boxes across multiple screens so box 1 and box 2 on screen 1 and box 3 on screen 2 for example. 
-change second to ms and so on with certain buttons for Skip 
-Add the html tags inside the subtitle files optional
+Add the html tags inside the subtitle files optional (not sure what html tags they use and what for)
 add profile settings for multiple users
+if ocr works good add that it jumps to the time when collecting anki cards (it is okay not very fast but usable not sure how to implement)
+Maybe change how the copy window is displayed.
 
 Bugs:
-when advanced settings window is open and the offset or skip entry is changed and then apply now is clicked inside the advanced settings the offset and skip entry jump back to the default values.  When it is written inside the entries it should also be adjusted inside the advanced settings window. 
-when any number on the numpad is pressed it weirdly jumps around or even tough it is mode1 when 4 or 6 is pressed it jumps around almost like it want to write 4 or 6 insinde the time entry. Also when inside any entry the numpad should be usable without hotkeys
-この間 複合した“宿り木の蔦(つた)” was not correctly ruby shown Hitoribochi 7. 4:57
-default skip is not saved
-switches through the tabs in the advanced settings
 Maybe shift of 1 second if offset 0?
 
 Dont do:
+change second to ms and so on with certain buttons for Skip --> too clunky
 Change subtitle width to fit current subtitle (maybe flashes --> YES)
 
 
 Added:
+Have the option to select muliple boxes across multiple screens so box 1 and box 2 on screen 1 and box 3 on screen 2 for example. 
+the clear OCR area is not needed
+add result if rean now set time not worked
+add warning if anki is not connected
 Optional ruby detection
 implement season episode search in search bar in settings window
 add filter when searching in cached(saved) searches
@@ -50,6 +45,11 @@ add config for phone mode default true/false
 
 
 Fixed:
+when any number on the numpad is pressed it weirdly jumps around or even tough it is mode1 when 4 or 6 is pressed it jumps around almost like it want to write 4 or 6 insinde the time entry. Also when inside any entry the numpad should be usable without hotkeys
+この間 複合した“宿り木の蔦(つた)” was not correctly ruby shown Hitoribochi 7. 4:57
+default skip is not saved
+switches through the tabs in the advanced settings
+when advanced settings window is open and the offset or skip entry is changed and then apply now is clicked inside the advanced settings the offset and skip entry jump back to the default values.  When it is written inside the entries it should also be adjusted inside the advanced settings window. 
 if i inside the time in the control winodw wihtout changing anything and then press the skip button it should go back to the same value from before
 when local srt file added during runtime cant find it. Probably because dir list done during init.
 picks last episode in cache if decreasing at first epoisode (because of last anime name not found)

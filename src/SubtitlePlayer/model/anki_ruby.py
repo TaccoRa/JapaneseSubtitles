@@ -22,7 +22,8 @@ def _is_kanji_char(ch: str) -> bool:
         return False
     code = ord(ch)
     return (
-        (0x4E00 <= code <= 0x9FFF)
+        (code == 0x3005)  # 々 (ideographic iteration mark) should follow kanji ruby too
+        or (0x4E00 <= code <= 0x9FFF)
         or (0x3400 <= code <= 0x4DBF)
         or (0xF900 <= code <= 0xFAFF)
         or (0x20000 <= code <= 0x2A6DF)

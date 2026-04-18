@@ -46,23 +46,24 @@ class CopyPopup:
 
         #calulate size of popup based on text
         font = tkFont.Font(family=self.font_name, size=self.font_size, weight="bold")
-        lines = [l for l in subtitle_text.splitlines() if l.strip()]
+        lines = [l for l in (subtitle_text or "").splitlines() if l.strip()]
         pixel_widths = [font.measure(line) for line in lines]
-        text_width = max(pixel_widths)
+        text_width = max(pixel_widths) if pixel_widths else font.measure((subtitle_text or "").strip() or " ")
         line_height = font.metrics("linespace")
-        text_height = line_height * len(lines)
+        line_count = max(1, len(lines))
+        text_height = line_height * line_count
         pad_x, pad_y = 10,5
         total_width  = text_width  + 2 * pad_x
         total_height = text_height + 2 * pad_y
 
         entry = tk.Text(popup, font=font, wrap="word",padx=8, pady=4,
                         bg=self.bg_color,fg= self.font_color,
-                        cursor="xterm", height=len(lines))
+                        cursor="xterm", height=line_count)
         entry.insert("1.0", subtitle_text)
         entry.tag_configure("center", justify="center")
         entry.tag_add("center", "1.0", "end")
         entry.config(state="disabled")
-        entry.pack()
+        entry.pack(fill="both", expand=True)
         self._entry_widget = entry
 
         # Drag grip (no title bar) to move popup without interfering with text selection.
@@ -150,8 +151,20 @@ class CopyPopup:
 
         entry.bind("<Button-3>", _show_menu)
 
-        x = self.root.winfo_pointerx()
-        y = self.root.winfo_pointery() - total_height - 20
+        try:
+            screen_w = int(popup.winfo_screenwidth() or 1920)
+            screen_h = int(popup.winfo_screenheight() or 1080)
+        except Exception:
+            screen_w, screen_h = 1920, 1080
+        max_w = max(240, int(screen_w * 0.90))
+        max_h = max(120, int(screen_h * 0.60))
+        total_width = min(max_w, int(total_width))
+        total_height = min(max_h, int(total_height))
+
+        x = int(self.root.winfo_pointerx())
+        y = int(self.root.winfo_pointery()) - total_height - 20
+        x = max(0, min(x, max(0, screen_w - total_width)))
+        y = max(0, min(y, max(0, screen_h - total_height)))
         popup.geometry(f"{total_width}x{total_height}+{x}+{y}")
         self.ensure_on_top()
         

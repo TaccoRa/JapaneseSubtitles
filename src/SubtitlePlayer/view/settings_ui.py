@@ -58,11 +58,13 @@ class SettingsUI:
         self.input_mode_btn = None
         self.mode_toggle_btn = None
         self.advanced_settings_btn = None
+        self._phone_mode_toggle_btn = None
         self.play_pause_btn = None
         self.slider = None
         self.advanced_window = None
         self._advanced_notebook = None
         self._advanced_tab_sizes = {}
+        self._advanced_tab_key_map = {}
         self._advanced_resize_job = None
 
         self._build_settings_frame()
@@ -244,14 +246,7 @@ class SettingsUI:
         )
         self.input_mode_btn.pack(side="left", padx=(0, 2))
 
-        self.mode_toggle_btn = tk.Button(
-            mode_tools_frame,
-            text="\N{TELEPHONE RECEIVER}",
-            width=2,
-            height=1,
-            relief="raised",
-            command=self._toggle_phone_mode,
-        )
+        self.mode_toggle_btn = None
         self.advanced_settings_btn = tk.Button(
             mode_tools_frame,
             text="\N{GEAR}",
@@ -260,8 +255,7 @@ class SettingsUI:
             relief="raised",
             command=self._open_advanced_settings_window,
         )
-        self.advanced_settings_btn.pack(side="left", padx=(0, 2))
-        self.mode_toggle_btn.pack(side="left")
+        self.advanced_settings_btn.pack(side="left")
         self._refresh_input_mode_button()
 
         # Row 1: six equal parts (label/value pairs).
@@ -373,12 +367,8 @@ class SettingsUI:
         self.control_drag_handle = tk.Frame(self.handle_settings_frame, bg="gray", width=10, height=10)
         self.control_drag_handle.place(x=0, y=0)
         self.control_drag_handle.lift()
-        if self.default_phone_mode:
-            self._set_phone_mode_styles(self.default_phone_mode)
-            self.mode_toggle_btn.configure(bg="green")
-        else:
-            self._set_phone_mode_styles(self.default_phone_mode)
-            self.mode_toggle_btn.configure(bg="SystemButtonFace")
+        self._set_phone_mode_styles(self.default_phone_mode)
+        self._refresh_phone_toggle_button()
 
         make_draggable(
             self.control_drag_handle,
@@ -581,9 +571,32 @@ class SettingsUI:
         phone_mode = not self.default_phone_mode
         self.default_phone_mode = phone_mode
         self._set_phone_mode_styles(phone_mode)
-        self.mode_toggle_btn.configure(bg="green" if phone_mode else "SystemButtonFace")
+        self._refresh_phone_toggle_button()
         self.control_window.attributes("-topmost", True)
         self._on_show_handle(self.default_phone_mode)
+
+    def _refresh_phone_toggle_button(self):
+        btn = getattr(self, "_phone_mode_toggle_btn", None)
+        if btn is None:
+            return
+        try:
+            active = bool(self.default_phone_mode)
+            if active:
+                btn.configure(
+                    bg="#2f8f4e",
+                    fg="white",
+                    activebackground="#2f8f4e",
+                    activeforeground="white",
+                )
+            else:
+                btn.configure(
+                    bg="SystemButtonFace",
+                    fg="black",
+                    activebackground="SystemButtonFace",
+                    activeforeground="black",
+                )
+        except Exception:
+            pass
 
     def _toggle_input_mode(self):
         if self.input_mode == 1:
@@ -766,9 +779,10 @@ class SettingsUI:
         self._advanced_vars = {}
         self._advanced_meta = {}
         self._advanced_status_var = tk.StringVar(value="")
+        self._advanced_tab_key_map = {}
 
         notebook = ttk.Notebook(body)
-        notebook.pack(fill="x", expand=False, anchor="n", pady=(0, 8))
+        notebook.pack(fill="both", expand=True, anchor="n", pady=(0, 8))
         self._advanced_notebook = notebook
 
         general_tab = tk.Frame(notebook)
@@ -786,7 +800,7 @@ class SettingsUI:
         self._build_advanced_tab(shortcuts_tab, self._advanced_shortcut_columns())
         self._build_advanced_tab(ocr_tab, self._advanced_ocr_columns())
 
-        self._build_anki_actions(anki_tab)
+        self._build_general_actions(general_tab)
         self._build_ocr_actions(ocr_tab)
 
         self._load_advanced_values_into_vars()
@@ -811,21 +825,21 @@ class SettingsUI:
         ).pack(side="left")
         tk.Button(
             btn_row,
-            text="Save Default",
-            width=12,
+            text="Save as Default",
+            width=14,
             command=lambda: self._apply_advanced_settings(persist=True),
         ).pack(side="left", padx=(6, 0))
         tk.Button(
             btn_row,
-            text="Reload",
-            width=10,
+            text="Reload from Config",
+            width=16,
             command=self._load_advanced_values_into_vars,
         ).pack(side="left", padx=(6, 0))
         tk.Button(
             btn_row,
-            text="Reset Defaults",
+            text="Reset This Tab",
             width=13,
-            command=self._reset_advanced_values_to_defaults,
+            command=self._reset_selected_advanced_tab_to_defaults,
         ).pack(side="left", padx=(6, 0))
         tk.Button(btn_row, text="Close", width=10, command=win.destroy).pack(side="right")
 
@@ -850,7 +864,8 @@ class SettingsUI:
             self.advanced_window = None
             self._advanced_notebook = None
             self._advanced_tab_sizes = {}
-            self._anki_check_btn = None
+            self._advanced_tab_key_map = {}
+            self._phone_mode_toggle_btn = None
 
         win.bind("<Destroy>", _on_destroy)
 
@@ -877,13 +892,16 @@ class SettingsUI:
             x = max(0, min(saved_x, sw - w))
             y = max(0, min(saved_y, sh - h))
         else:
+            # Position on the right side of the screen
             try:
                 rw, rh = self.root.winfo_width(), self.root.winfo_height()
                 rx, ry = self.root.winfo_rootx(), self.root.winfo_rooty()
-                x = rx + max((rw - w) // 2, 0)
+                # Place window on the right side
+                x = max(0, min(sw - w - 20, max(rx + rw + 10, sw - w)))
                 y = ry + max((rh - h) // 2, 0)
             except Exception:
-                x = max(0, (sw - w) // 2)
+                # Fallback: position on the right side
+                x = max(0, sw - w - 20)
                 y = max(0, (sh - h) // 2)
         win.geometry(f"{w}x{h}+{x}+{y}")
 
@@ -994,6 +1012,8 @@ class SettingsUI:
                 sh = int(self.root.winfo_vrootheight() or self.root.winfo_screenheight())
             except Exception:
                 sw, sh = 1920, 1080
+            req_w = max(360, min(int(req_w), max(360, sw - 20)))
+            req_h = max(220, min(int(req_h), max(220, sh - 40)))
             x = max(0, min(int(win.winfo_x()), max(0, sw - req_w)))
             y = max(0, min(int(win.winfo_y()), max(0, sh - req_h)))
             if int(win.winfo_width()) != int(req_w) or int(win.winfo_height()) != int(req_h):
@@ -1033,8 +1053,14 @@ class SettingsUI:
             pass
 
     def _build_advanced_tab(self, tab_parent, column_sections):
+        tab_id = str(tab_parent)
+        if not hasattr(self, "_advanced_tab_key_map"):
+            self._advanced_tab_key_map = {}
+        if tab_id not in self._advanced_tab_key_map:
+            self._advanced_tab_key_map[tab_id] = []
+
         content = tk.Frame(tab_parent, padx=8, pady=8)
-        content.pack(fill="x", expand=False, anchor="n")
+        content.pack(fill="both", expand=True, anchor="n")
         for col_idx in range(len(column_sections)):
             content.grid_columnconfigure(col_idx, weight=1)
 
@@ -1047,21 +1073,28 @@ class SettingsUI:
                     col,
                     section_name,
                     specs,
+                    tab_id=tab_id,
                     is_last=(section_idx == len(sections) - 1),
                 )
 
-    def _build_advanced_section(self, parent, section_name, specs, is_last: bool = False):
+    def _build_advanced_section(self, parent, section_name, specs, tab_id: str, is_last: bool = False):
         visible_specs = [spec for spec in specs if not spec.get("hidden")]
 
         def _register_var(spec):
             key = spec["key"]
             if key in self._advanced_vars:
+                keys = self._advanced_tab_key_map.setdefault(tab_id, [])
+                if key not in keys:
+                    keys.append(key)
                 return
             self._advanced_meta[key] = spec
             if spec["type"] == "bool":
                 self._advanced_vars[key] = tk.BooleanVar(value=False)
             else:
                 self._advanced_vars[key] = tk.StringVar(value="")
+            keys = self._advanced_tab_key_map.setdefault(tab_id, [])
+            if key not in keys:
+                keys.append(key)
 
         # If everything is hidden, just register vars without rendering a UI section.
         if not visible_specs:
@@ -1081,12 +1114,53 @@ class SettingsUI:
             key = spec["key"]
             var = self._advanced_vars.get(key)
             if spec["type"] == "bool":
-                chk = tk.Checkbutton(section, text=spec["label"], variable=var, anchor="w")
-                chk.grid(row=row, column=0, columnspan=2, sticky="w", pady=2)
+                chk_frame = tk.Frame(section)
+                chk_frame.grid(row=row, column=0, columnspan=2, sticky="w", pady=2)
+                chk_frame.grid_columnconfigure(0, weight=0)
+                chk_frame.grid_columnconfigure(1, weight=1)
+                
+                chk = tk.Checkbutton(chk_frame, text=spec["label"], variable=var, anchor="w")
+                chk.grid(row=0, column=0, sticky="w")
+                
+                # Add button if spec has button_text
+                if spec.get("button_text"):
+                    btn_text = spec["button_text"]
+                    btn_callback = spec.get("button_callback")
+                    btn = tk.Button(
+                        chk_frame,
+                        text=btn_text,
+                        width=15,
+                        command=btn_callback if btn_callback else self._handle_anki_check
+                    )
+                    btn.grid(row=0, column=1, sticky="w", padx=(8, 0))
+                    if key == "ANKI_ENABLED":
+                        self._anki_check_btn = btn
+                        self._remember_anki_check_defaults(self._anki_check_btn)
+                        self._set_anki_check_button_state(None)
             else:
                 tk.Label(section, text=spec["label"]).grid(row=row, column=0, sticky="w", pady=2)
-                entry = tk.Entry(section, textvariable=var, width=20)
-                entry.grid(row=row, column=1, sticky="ew", padx=(8, 0), pady=2)
+                # Create a frame for entry and optional button
+                entry_frame = tk.Frame(section)
+                entry_frame.grid(row=row, column=1, sticky="ew", padx=(8, 0), pady=2)
+                entry_frame.grid_columnconfigure(0, weight=1)
+                
+                entry = tk.Entry(entry_frame, textvariable=var, width=20)
+                entry.grid(row=0, column=0, sticky="ew")
+                
+                # Add button if spec has button_text
+                if spec.get("button_text"):
+                    btn_text = spec["button_text"]
+                    btn_callback = spec.get("button_callback")
+                    btn = tk.Button(
+                        entry_frame,
+                        text=btn_text,
+                        width=6,
+                        command=btn_callback if btn_callback else self._toggle_phone_mode
+                    )
+                    btn.grid(row=0, column=1, sticky="ew", padx=(4, 0))
+                    if key == "PHONEMODE_WINDOWS_HIDE_DELAY_MS":
+                        self._phone_mode_toggle_btn = btn
+                        self._refresh_phone_toggle_button()
             row += 1
 
     def _advanced_general_columns(self):
@@ -1097,7 +1171,7 @@ class SettingsUI:
                     {"key": "UPDATE_INTERVAL_MS", "label": "Update interval (ms)", "type": "int", "default": 100, "min": 15, "max": 5000},
                     {"key": "SUBTITLE_TIMEOUT_MS", "label": "Subtitle timeout (ms)", "type": "int", "default": 7000, "min": 100, "max": 120000},
                     {"key": "WINDOWS_HIDE_DELAY_MS", "label": "Control hide delay desktop (ms)", "type": "int", "default": 7000, "min": 100, "max": 120000},
-                    {"key": "PHONEMODE_WINDOWS_HIDE_DELAY_MS", "label": "Control hide delay phone (ms)", "type": "int", "default": 6000, "min": 100, "max": 120000},
+                    {"key": "PHONEMODE_WINDOWS_HIDE_DELAY_MS", "label": "Control hide delay phone (ms)", "type": "int", "default": 6000, "min": 100, "max": 120000, "button_text": "Phone"},
                     {"key": "VIDEO_CLICK", "label": "Auto-click video after control actions", "type": "bool", "default": False},
                 ],
             ),
@@ -1116,9 +1190,9 @@ class SettingsUI:
                 "Subtitle Cleaning",
                 [
                     {"key": "SUBTITLE_CUSTOM_HTML_TAGS", "label": "Custom HTML tags to keep", "type": "str", "default": ""},
-                    {"key": "SUBTITLE_KEEP_SPEAKER_NAMES", "label": "Keep speaker names from (Name)", "type": "bool", "default": False},
-                    {"key": "SUBTITLE_SPEAKER_TEMPLATE", "label": "Speaker template ({name})", "type": "str", "default": "<speaker:{name}> "},
-                    {"key": "SUBTITLE_STRIP_PAREN_NOTES", "label": "Strip remaining (...) notes", "type": "bool", "default": False},
+                    {"key": "SUBTITLE_KEEP_SPEAKER_NAMES", "label": "Keep leading speaker labels like (Name)", "type": "bool", "default": False},
+                    {"key": "SUBTITLE_SPEAKER_TEMPLATE", "label": "Speaker output template ({name})", "type": "str", "default": "<speaker:{name}> "},
+                    {"key": "SUBTITLE_STRIP_PAREN_NOTES", "label": "Remove remaining non-speaker (...) notes", "type": "bool", "default": False},
                     {"key": "SUBTITLE_AUTO_RUBY", "label": "Auto-add ruby for kanji-only lines", "type": "bool", "default": False},
                 ],
             ),
@@ -1156,10 +1230,9 @@ class SettingsUI:
             (
                 "Anki Connection",
                 [
-                    {"key": "ANKI_ENABLED", "label": "Enable Anki integration", "type": "bool", "default": True},
+                    {"key": "ANKI_ENABLED", "label": "Enable Anki integration", "type": "bool", "default": True, "button_text": "Check Connection"},
                     {"key": "ANKI_CONNECT_URL", "label": "AnkiConnect URL", "type": "str", "default": "http://127.0.0.1:8765"},
                     {"key": "ANKI_HTTP_TIMEOUT_SEC", "label": "HTTP timeout (sec)", "type": "float", "default": 4.0, "min": 0.5, "max": 120.0},
-                    {"key": "ANKI_BUSY_CURSOR", "label": "Busy cursor", "type": "str", "default": "wait"},
                 ],
             ),
             (
@@ -1198,17 +1271,10 @@ class SettingsUI:
         ]
         return [left, right]
 
-    def _build_anki_actions(self, anki_tab: tk.Frame) -> None:
-        actions = tk.LabelFrame(anki_tab, text="Actions", padx=10, pady=8)
-        actions.pack(fill="x", padx=8, pady=(0, 8), anchor="n")
-
-        row = tk.Frame(actions)
-        row.pack(fill="x", expand=True)
-
-        self._anki_check_btn = tk.Button(row, text="Check Connection", command=self._handle_anki_check)
-        self._anki_check_btn.pack(side="left")
-        self._remember_anki_check_defaults(self._anki_check_btn)
-        self._set_anki_check_button_state(None)
+    def _build_general_actions(self, general_tab: tk.Frame) -> None:
+        # Actions section is now integrated with PHONEMODE_WINDOWS_HIDE_DELAY_MS as a button
+        # This method now only exists for compatibility but doesn't create the Actions button
+        pass
 
     def _remember_anki_check_defaults(self, btn: tk.Button) -> None:
         if btn is None:
@@ -1312,21 +1378,33 @@ class SettingsUI:
                     {"key": "SHORTCUT_MODE2_SUBTITLE_FORWARD", "label": "Forward (subtitle segment)", "type": "str", "default": "alt+6"},
                 ],
             ),
-        ]
-        right = [
-            (
-                "Hotkeys",
-                [
-                    {"key": "SHORTCUTS_DISABLED", "label": "Disable all hotkeys", "type": "bool", "default": False},
-                    {"key": "DISABLE_SPACE_HOTKEY", "label": "Disable space play/pause", "type": "bool", "default": False},
-                ],
-            ),
             (
                 "Other Global",
                 [
                     {"key": "SHORTCUT_BRING_TO_FRONT", "label": "Bring app to front", "type": "str", "default": "alt+x"},
                     {"key": "SHORTCUT_EPISODE_INC", "label": "Episode +", "type": "str", "default": "alt+c"},
                     {"key": "SHORTCUT_EPISODE_DEC", "label": "Episode -", "type": "str", "default": "alt+y"},
+                ],
+            ),
+        ]
+        right = [
+            (
+                "Skip Behavior",
+                [
+                    {"key": "SKIP_BUTTONS_USE_SUBTITLE_SEGMENTS", "label": "Back/forward use subtitle segments", "type": "bool", "default": False},
+                ],
+            ),
+            (
+                "Hotkeys",
+                [
+                    {"key": "SHORTCUTS_DISABLED", "label": "Disable all hotkeys", "type": "bool", "default": False},
+                    {"key": "DISABLE_SPACE_HOTKEY", "label": "Disable space play/pause", "type": "bool", "default": False},
+                    {"key": "DISABLE_HOTKEY_TOGGLE_PLAY", "label": "Disable play/pause hotkey", "type": "bool", "default": False},
+                    {"key": "DISABLE_HOTKEY_GO_BACK", "label": "Disable back hotkey", "type": "bool", "default": False},
+                    {"key": "DISABLE_HOTKEY_GO_FORWARD", "label": "Disable forward hotkey", "type": "bool", "default": False},
+                    {"key": "DISABLE_HOTKEY_SUBTITLE_BACK", "label": "Disable subtitle-back hotkey", "type": "bool", "default": False},
+                    {"key": "DISABLE_HOTKEY_SUBTITLE_FORWARD", "label": "Disable subtitle-forward hotkey", "type": "bool", "default": False},
+                    {"key": "DISABLE_HOTKEY_JUMP_SUB_END", "label": "Disable jump-sub-end hotkey", "type": "bool", "default": False},
                 ],
             ),
         ]
@@ -1338,7 +1416,6 @@ class SettingsUI:
                 "OCR Settings",
                 [
                     {"key": "OCR_ENABLED", "label": "Enable startup/episode OCR sync", "type": "bool", "default": True},
-                    {"key": "OCR_DEBUG", "label": "Debug print OCR text", "type": "bool", "default": True},
                     {"key": "OCR_SYNC_AFTER_ANKI", "label": "OCR sync after Anki add", "type": "bool", "default": False},
                     {"key": "OCR_TESSERACT_CMD", "label": "Tesseract path (exe or folder)", "type": "str", "default": "", "allow_empty": True},
                     {"key": "OCR_TESSERACT_PSM", "label": "Tesseract PSM", "type": "int", "default": 6, "min": 0, "max": 13},
@@ -1394,6 +1471,10 @@ class SettingsUI:
         self._ocr_area_select_btn = tk.Button(left, text="Select OCR Area", command=self._handle_select_ocr_area)
         self._ocr_area_select_btn.pack(side="left")
         self._ocr_area_select_var = tk.StringVar(value="1")
+        try:
+            self._ocr_area_select_var.trace_add("write", self._on_ocr_area_selection_changed)
+        except Exception:
+            pass
         self._ocr_area_select_menu = tk.OptionMenu(left, self._ocr_area_select_var, "1")
         self._ocr_area_select_menu.pack(side="left", padx=(4, 0))
 
@@ -1406,6 +1487,17 @@ class SettingsUI:
         tk.Label(screen_row, text="Screen:").pack(side="left")
         self._build_ocr_screen_buttons(screen_row)
 
+        self._update_ocr_screen_button_styles()
+
+    def _on_ocr_area_selection_changed(self, *_args):
+        try:
+            values = self._get_ocr_values_from_vars()
+            self._ocr_selected_screen = self._get_ocr_screen_for_region(
+                values,
+                self._get_selected_ocr_area_index(),
+            )
+        except Exception:
+            pass
         self._update_ocr_screen_button_styles()
 
     def _get_ocr_region_count_from_vars(self) -> int:
@@ -1770,6 +1862,7 @@ class SettingsUI:
             self._ocr_selected_screen = None
         if hasattr(self, "_advanced_status_var"):
             self._advanced_status_var.set("Loaded values from config.")
+        self._refresh_phone_toggle_button()
         self._refresh_ocr_area_buttons()
         self._update_ocr_screen_button_styles()
 
@@ -1829,10 +1922,39 @@ class SettingsUI:
             return {"errors": errors}
         return {"values": values}
 
-    def _reset_advanced_values_to_defaults(self):
+    def _get_selected_advanced_tab_keys(self):
+        notebook = getattr(self, "_advanced_notebook", None)
+        if notebook is None:
+            return []
+        try:
+            tab_id = notebook.select()
+        except Exception:
+            tab_id = ""
+        if not tab_id:
+            return []
+        keys = getattr(self, "_advanced_tab_key_map", {}).get(str(tab_id), [])
+        return list(keys or [])
+
+    def _reset_selected_advanced_tab_to_defaults(self):
+        keys = self._get_selected_advanced_tab_keys()
+        self._reset_advanced_values_to_defaults(keys=keys)
+        if hasattr(self, "_advanced_status_var"):
+            if keys:
+                self._advanced_status_var.set("Reset current tab to built-in defaults.")
+            else:
+                self._advanced_status_var.set("No tab selected to reset.")
+
+    def _reset_advanced_values_to_defaults(self, keys=None):
         if not hasattr(self, "_advanced_vars") or not hasattr(self, "_advanced_meta"):
             return
-        for key, spec in self._advanced_meta.items():
+        if keys:
+            target_keys = [k for k in keys if k in self._advanced_meta]
+        else:
+            target_keys = list(self._advanced_meta.keys())
+        for key in target_keys:
+            spec = self._advanced_meta.get(key)
+            if spec is None:
+                continue
             if key not in self._advanced_vars:
                 continue
             default = spec.get("default")
@@ -1851,8 +1973,6 @@ class SettingsUI:
                     var.set("0")
             else:
                 var.set(str(default or ""))
-        if hasattr(self, "_advanced_status_var"):
-            self._advanced_status_var.set("Loaded built-in default values.")
 
     def _apply_advanced_settings(self, persist: bool):
         result = self._collect_advanced_values()
@@ -1874,16 +1994,23 @@ class SettingsUI:
             pass
 
         if persist:
-            for key, value in values.items():
-                try:
-                    self.config.set(key, value)
-                except Exception:
-                    pass
+            try:
+                if hasattr(self.config, "set_many"):
+                    self.config.set_many(values)
+                else:
+                    for key, value in values.items():
+                        self.config.set(key, value)
+            except Exception:
+                for key, value in values.items():
+                    try:
+                        self.config.set(key, value)
+                    except Exception:
+                        pass
             if hasattr(self, "_advanced_status_var"):
-                self._advanced_status_var.set("Saved to config and applied.")
+                self._advanced_status_var.set("Saved as default and applied.")
         else:
             if hasattr(self, "_advanced_status_var"):
-                self._advanced_status_var.set("Applied for current session.")
+                self._advanced_status_var.set("Applied for current session (not saved).")
         
     def _format_number(self, value: float) -> str:
         value = float(value)
