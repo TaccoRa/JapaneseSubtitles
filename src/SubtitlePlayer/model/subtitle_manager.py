@@ -78,6 +78,14 @@ class SubtitleManager:
         self._ruby_generator = None
         self._ruby_generator_failed = False
         self._auto_ruby_cache: Dict[str, object] = {}
+        # Profiling stats
+        self._ruby_stats = {
+            "cache_hits": 0,
+            "cache_misses": 0,
+            "generator_calls": 0,
+            "generator_time": 0.0,
+            "episode_load_times": [],
+        }
 
         if self.remote_flag:
             url = self.config.get("LAST_GITHUB_URL")
@@ -192,6 +200,8 @@ class SubtitleManager:
         self.local_srt_files.sort(key=_sort_key)
 
     def set_subtitle_display_data(self, local_path):
+        episode_start = time.time()
+        
         with open(local_path, 'rb') as f:
             raw = f.read()
         detected = chardet.detect(raw)
@@ -229,6 +239,28 @@ class SubtitleManager:
                 top = _segments_for_line(lines[0])
                 bottom = _segments_for_line(lines[1])
             self.display_data.append((clean, start_times, top, bottom))
+        
+        episode_end = time.time()
+        episode_time = episode_end - episode_start
+        self._ruby_stats["episode_load_times"].append(episode_time)
+        
+        # Log profiling summary
+        auto_ruby_enabled = self._auto_ruby_enabled()
+        logger.info(
+            f"Episode load time: {episode_time:.2f}s | "
+            f"Subtitles: {len(self.display_data)} | "
+            f"AutoRuby: {auto_ruby_enabled} | "
+            f"Cache hits: {self._ruby_stats['cache_hits']} | "
+            f"Cache misses: {self._ruby_stats['cache_misses']} | "
+            f"Generator calls: {self._ruby_stats['generator_calls']} | "
+            f"Generator time: {self._ruby_stats['generator_time']:.2f}s | "
+            f"Global cache size: {len(self._auto_ruby_cache)}"
+        )
+        # Reset stats for next episode
+        self._ruby_stats["cache_hits"] = 0
+        self._ruby_stats["cache_misses"] = 0
+        self._ruby_stats["generator_calls"] = 0
+        self._ruby_stats["generator_time"] = 0.0
 
     def _clean_text(self, text: str) -> str:
         cleaned = self.CLEAN_PATTERN.sub('', text)
@@ -530,17 +562,27 @@ class SubtitleManager:
             self._auto_ruby_cache = cache
         cached = cache.get(text)
         if cached is self._AUTO_RUBY_CACHE_MISS:
+            self._ruby_stats["cache_misses"] += 1
             return None
         if cached is not None:
+            self._ruby_stats["cache_hits"] += 1
             return [tuple(seg) for seg in cached]
 
         generator = self._get_ruby_generator()
         if generator is None:
             return None
+        
+        # Time the generator call
+        gen_start = time.time()
         try:
             segments = generator.segments(text)
         except Exception:
             return None
+        gen_end = time.time()
+        
+        self._ruby_stats["generator_calls"] += 1
+        self._ruby_stats["generator_time"] += (gen_end - gen_start)
+        
         if not segments:
             cache[text] = self._AUTO_RUBY_CACHE_MISS
             return None

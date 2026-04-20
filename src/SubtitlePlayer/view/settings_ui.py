@@ -1129,7 +1129,7 @@ class SettingsUI:
                     btn = tk.Button(
                         chk_frame,
                         text=btn_text,
-                        width=15,
+                        width=13,
                         command=btn_callback if btn_callback else self._handle_anki_check
                     )
                     btn.grid(row=0, column=1, sticky="w", padx=(8, 0))
