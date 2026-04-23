@@ -86,8 +86,6 @@ class SubtitleManager:
             "generator_time": 0.0,
             "episode_load_times": [],
         }
-        self._search_dialog_open_count = 0
-        self._search_dialog_lock = threading.Lock()
 
         if self.remote_flag:
             url = self.config.get("LAST_GITHUB_URL")
@@ -213,64 +211,33 @@ class SubtitleManager:
         else:
             self.subtitles = list(srt.parse(text))
 
-        auto_ruby_enabled = self._auto_ruby_enabled()
-        # Cache repeated line parses inside one file load.
-        # Keyed by (line_text, allow_auto) so source-only and auto-ruby variants can coexist.
-        line_segment_cache: Dict[Tuple[str, bool], List[tuple[str, Optional[str]]]] = {}
-
-        def _segments_for_line(line_text: str, allow_auto: bool) -> List[tuple[str, Optional[str]]]:
-            cache_key = (line_text, bool(allow_auto))
-            cached = line_segment_cache.get(cache_key)
-            if cached is not None:
-                return cached
-            result = self._parse_ruby_segments(line_text, allow_auto=allow_auto)
-            line_segment_cache[cache_key] = result if result else []
-            return line_segment_cache[cache_key]
+        # Separate into clean, start times, top and bottom segments.
+        # Cache repeated line parses inside one file load
+        line_segment_cache: Dict[str, List[tuple[str, Optional[str]]]] = {}
 
         self.display_data = []
-        self.display_start_times = []
-        self._auto_ruby_ready_indices = set()
         
-        # Use start time as a warm area for eager auto-ruby, lazy-load everything else on demand.
+        # Get starting time for priority prioritization
         try:
             start_time_threshold = float(self.config.get("DEFAULT_START_TIME") or 120.0)
         except Exception:
             start_time_threshold = 120.0
-        try:
-            eager_window_sec = float(self.config.get("AUTO_RUBY_EAGER_WINDOW_SEC") or 180.0)
-        except Exception:
-            eager_window_sec = 180.0
-        eager_start = max(0.0, float(start_time_threshold) - 30.0)
-        eager_end = float(start_time_threshold) + max(0.0, float(eager_window_sec))
 
-        episode_start = time.time()
-
-        for idx, sub in enumerate(self.subtitles):
+        # Process all subtitles' metadata first (cleaned text, lines extracted)
+        # This is fast and doesn't require MeCab/Kakasi
+        sub_metadata = []
+        for sub in self.subtitles:
             clean = self._clean_text(sub.content)
             start_times = sub.start.total_seconds()
             lines = [l for l in clean.splitlines() if l.strip()]
-            self.display_start_times.append(start_times)
-            allow_auto_for_idx = (not auto_ruby_enabled) or (eager_start <= start_times <= eager_end)
             if not lines:
                 top, bottom = [], []
             elif len(lines) == 1:
-                top, bottom = [], _segments_for_line(lines[0], allow_auto=allow_auto_for_idx)
+                top, bottom = [], _segments_for_line(lines[0])
             else:
-                top = _segments_for_line(lines[0], allow_auto=allow_auto_for_idx)
-                bottom = _segments_for_line(lines[1], allow_auto=allow_auto_for_idx)
+                top = _segments_for_line(lines[0])
+                bottom = _segments_for_line(lines[1])
             self.display_data.append((clean, start_times, top, bottom))
-            if allow_auto_for_idx:
-                self._auto_ruby_ready_indices.add(int(idx))
-        
-        episode_time = time.time() - episode_start
-        if hasattr(self, '_ruby_stats'):
-            self._ruby_stats["episode_load_times"].append(episode_time)
-            logger.info(f"Episode load time: {episode_time:.2f}s")
-            # Reset stats for next episode
-            self._ruby_stats["cache_hits"] = 0
-            self._ruby_stats["cache_misses"] = 0
-            self._ruby_stats["generator_calls"] = 0
-            self._ruby_stats["generator_time"] = 0.0
 
     def _clean_text(self, text: str) -> str:
         cleaned = self.CLEAN_PATTERN.sub('', text)
@@ -521,7 +488,7 @@ class SubtitleManager:
         subs.sort(key=lambda s: (s.start, s.end, s.index))
         return subs
      
-    def _parse_ruby_segments(self, text: str, allow_auto: bool = True) -> List[tuple[str, Optional[str]]]:
+    def _parse_ruby_segments(self, text: str) -> List[tuple[str, Optional[str]]]:
         segments: List[tuple[str, Optional[str]]] = []
         last = 0
         found_ruby = False
@@ -538,7 +505,7 @@ class SubtitleManager:
         if found_ruby:
             return segments
 
-        auto = self._auto_ruby_segments(text) if allow_auto else None
+        auto = self._auto_ruby_segments(text)
         if auto:
             return auto
         return segments
@@ -607,44 +574,6 @@ class SubtitleManager:
             return [tuple(seg) for seg in cached_segments]
         cache[text] = self._AUTO_RUBY_CACHE_MISS
         return None
-
-    def ensure_auto_ruby_for_index(self, idx: int) -> None:
-        """
-        Lazily enrich one subtitle cue with auto-ruby.
-        Used by the controller right before rendering to avoid full-episode MeCab work on episode switch.
-        """
-        if not self._auto_ruby_enabled():
-            return
-        if idx is None:
-            return
-        try:
-            i = int(idx)
-        except Exception:
-            return
-        if i < 0 or i >= len(getattr(self, "display_data", [])):
-            return
-
-        ready = getattr(self, "_auto_ruby_ready_indices", None)
-        if ready is None:
-            ready = set()
-            self._auto_ruby_ready_indices = ready
-        if i in ready:
-            return
-
-        clean, start_times, top, bottom = self.display_data[i]
-        lines = [l for l in (clean or "").splitlines() if l.strip()]
-        if not lines:
-            ready.add(i)
-            return
-
-        if len(lines) == 1:
-            new_top, new_bottom = [], self._parse_ruby_segments(lines[0], allow_auto=True)
-        else:
-            new_top = self._parse_ruby_segments(lines[0], allow_auto=True)
-            new_bottom = self._parse_ruby_segments(lines[1], allow_auto=True)
-
-        self.display_data[i] = (clean, start_times, new_top, new_bottom)
-        ready.add(i)
 
     def _process_ruby_batch(self, line_texts: List[str], line_segment_cache: Dict[str, List[tuple[str, Optional[str]]]]) -> List[List[tuple[str, Optional[str]]]]:
         """
@@ -1366,85 +1295,39 @@ class SubtitleManager:
             return
         try:
             dialog.update_idletasks()
+            sw = int(dialog.winfo_screenwidth() or 1920)
+            sh = int(dialog.winfo_screenheight() or 1080)
         except Exception:
-            pass
+            sw, sh = 1920, 1080
 
+        max_w = max(min_w, int(sw * max_w_ratio))
+        max_h = max(min_h, int(sh * max_h_ratio))
         try:
             req_w = int(dialog.winfo_reqwidth())
             req_h = int(dialog.winfo_reqheight())
         except Exception:
             req_w, req_h = min_w, min_h
-
-        mon_x = 0
-        mon_y = 0
-        mon_w = 1920
-        mon_h = 1080
-        try:
-            probe_x = int(dialog.winfo_pointerx())
-            probe_y = int(dialog.winfo_pointery())
-            if parent is not None:
-                parent.update_idletasks()
-                probe_x = int(parent.winfo_rootx() + (parent.winfo_width() // 2))
-                probe_y = int(parent.winfo_rooty() + (parent.winfo_height() // 2))
-            rects = list(get_monitor_rects(parent or dialog) or [])
-            for rx, ry, rw, rh in rects:
-                if rx <= probe_x < rx + rw and ry <= probe_y < ry + rh:
-                    mon_x, mon_y, mon_w, mon_h = int(rx), int(ry), int(rw), int(rh)
-                    break
-            else:
-                if rects:
-                    rx, ry, rw, rh = min(
-                        rects,
-                        key=lambda r: abs(probe_x - (r[0] + (r[2] // 2))) + abs(probe_y - (r[1] + (r[3] // 2))),
-                    )
-                    mon_x, mon_y, mon_w, mon_h = int(rx), int(ry), int(rw), int(rh)
-        except Exception:
-            try:
-                mon_w = int(dialog.winfo_screenwidth() or 1920)
-                mon_h = int(dialog.winfo_screenheight() or 1080)
-            except Exception:
-                mon_w, mon_h = 1920, 1080
-            mon_x, mon_y = 0, 0
-
-        max_w = max(min_w, int(mon_w * max_w_ratio))
-        max_h = max(min_h, int(mon_h * max_h_ratio))
         width = max(min_w, min(req_w, max_w))
         height = max(min_h, min(req_h, max_h))
 
-        x = mon_x + max(0, (mon_w - width) // 2)
-        y = mon_y + max(0, (mon_h - height) // 2)
+        x = max(0, (sw - width) // 2)
+        y = max(0, (sh - height) // 2)
+        if parent is not None:
+            try:
+                parent.update_idletasks()
+                px = int(parent.winfo_rootx())
+                py = int(parent.winfo_rooty())
+                pw = int(parent.winfo_width())
+                ph = int(parent.winfo_height())
+                x = max(0, min(px + max((pw - width) // 2, 0), sw - width))
+                y = max(0, min(py + max((ph - height) // 2, 0), sh - height))
+            except Exception:
+                pass
 
         try:
             dialog.geometry(f"{width}x{height}+{x}+{y}")
         except Exception:
             pass
-
-    def _set_search_dialog_active(self, active: bool) -> None:
-        try:
-            with self._search_dialog_lock:
-                if active:
-                    self._search_dialog_open_count += 1
-                else:
-                    self._search_dialog_open_count = max(0, self._search_dialog_open_count - 1)
-        except Exception:
-            pass
-
-    def is_search_dialog_active(self) -> bool:
-        try:
-            with self._search_dialog_lock:
-                return bool(self._search_dialog_open_count > 0)
-        except Exception:
-            return False
-
-    @staticmethod
-    def _normalize_search_query_text(text: str) -> str:
-        return re.sub(r"\s+", " ", str(text or "").strip())
-
-    def _safe_search_query_name(self, query: str) -> str:
-        normalized = self._normalize_search_query_text(query)
-        safe = "".join(c if c.isalnum() or c in "._-" else "_" for c in normalized)
-        safe = re.sub(r"_+", "_", safe).strip(" _.-")
-        return (safe[:200] or "result")
 
     def choose_new_file(self) -> Optional[str]:
         """
@@ -1485,7 +1368,7 @@ class SubtitleManager:
                 _done(path)
 
             def choose_remote_url():
-                url, s, e, is_movie_mode = self.ask_remote_srt_with_hint()
+                url, s, e = self.ask_remote_srt_with_hint()
                 if not url:
                     return
                 hint = (s, e) if (s is not None or e is not None) else None
@@ -1508,19 +1391,13 @@ class SubtitleManager:
                             anchor_window=root,
                             y_offset=0,
                         )
-                    result["path"] = self._initialize_remote_path(url, hint=hint, movie_mode=is_movie_mode)
-                except Exception as exc:
-                    logger.exception("Remote URL initialization failed")
-                    try:
-                        messagebox.showerror("Remote URL Error", str(exc))
-                    except Exception:
-                        pass
+                    result["path"] = self._initialize_remote_path(url, hint=hint)
                 finally:
                     if overlay:
                         overlay.close()
 
             def choose_remote_search():
-                anime_query, s, e, is_movie_mode = self.ask_remote_search_query()
+                anime_query, s, e = self.ask_remote_search_query()
                 if not anime_query:
                     return
                 hint = (s, e) if (s is not None or e is not None) else None
@@ -1541,17 +1418,7 @@ class SubtitleManager:
                             anchor_window=root,
                             y_offset=0,
                         )
-                    result["path"] = self._initialize_remote_from_search_query(
-                        anime_query,
-                        hint=hint,
-                        movie_mode=is_movie_mode,
-                    )
-                except Exception as exc:
-                    logger.exception("Remote search initialization failed")
-                    try:
-                        messagebox.showerror("Remote Search Error", str(exc))
-                    except Exception:
-                        pass
+                    result["path"] = self._initialize_remote_from_search_query(anime_query, hint=hint)
                 finally:
                     if overlay:
                         overlay.close()
@@ -1567,10 +1434,9 @@ class SubtitleManager:
             # Ensure the splash returns even if the user cancels/closes the dialog.
             show_startup_overlay()
 
-    def ask_remote_srt_with_hint(self) -> Tuple[Optional[str], Optional[int], Optional[int], bool]:
-        result = {"url": None, "season": None, "episode": None, "is_movie": False}
+    def ask_remote_srt_with_hint(self) -> Tuple[Optional[str], Optional[int], Optional[int]]:
+        result = {"url": None, "season": None, "episode": None}
         hide_startup_overlay()
-        self._set_search_dialog_active(True)
         try:
             dlg = tk.Toplevel()
             dlg.title("Remote subtitle (URL + sXeY)")
@@ -1585,33 +1451,24 @@ class SubtitleManager:
             tk.Label(dlg, text="Season/Episode (e.g. s2e1 or s02e01):", anchor="w").grid(row=2, column=0, sticky="w", padx=8, pady=(8,2))
             se_entry = tk.Entry(dlg, width=30)
             se_entry.grid(row=3, column=0, padx=8)
-            movie_var = tk.BooleanVar(value=False)
-            tk.Checkbutton(
-                dlg,
-                text="Movie mode (no season/episode constraints)",
-                variable=movie_var,
-                anchor="w",
-            ).grid(row=4, column=0, sticky="w", padx=8, pady=(6, 0))
 
             btn_frame = tk.Frame(dlg)
-            btn_frame.grid(row=5, column=0, pady=10)
+            btn_frame.grid(row=4, column=0, pady=10)
 
             def on_ok():
                 u = url_entry.get().strip()
                 s, e, global_e = self.extract_season_episode_global(se_entry.get().strip().lower())
                 result["url"], result["season"], result["episode"] = (u or None, s, e)
-                result["is_movie"] = bool(movie_var.get())
                 dlg.destroy()
             def on_cancel():
                 dlg.destroy()
             tk.Button(btn_frame, text="OK", width=10, command=on_ok).pack(side="left", padx=6)
             tk.Button(btn_frame, text="Cancel", width=10, command=on_cancel).pack(side="left", padx=6)
 
-            self._fit_dialog_to_screen(dlg, min_w=620, min_h=260)
+            self._fit_dialog_to_screen(dlg, min_w=620, min_h=220)
             dlg.wait_window(dlg)
-            return result["url"], result["season"], result["episode"], bool(result.get("is_movie"))
+            return result["url"], result["season"], result["episode"]
         finally:
-            self._set_search_dialog_active(False)
             show_startup_overlay()
 
     def _cached_github_search_dir(self) -> str:
@@ -1631,19 +1488,7 @@ class SubtitleManager:
             safe_name = fn[len(prefix):-len(suffix)]
             if not safe_name:
                 continue
-            query_text = safe_name.replace("_", " ")
-            try:
-                path = os.path.join(folder_dir, fn)
-                with open(path, "r", encoding="utf-8") as fh:
-                    payload = json.load(fh)
-                candidate = payload.get("anime_query")
-                if isinstance(candidate, str) and candidate.strip():
-                    query_text = candidate
-            except Exception:
-                pass
-            normalized = self._normalize_search_query_text(query_text)
-            if normalized:
-                queries.append(normalized)
+            queries.append(safe_name.replace("_", " "))
         return sorted(set(queries), key=str.casefold)
 
     def _ask_cached_github_search_query(self, parent) -> Optional[str]:
@@ -1656,99 +1501,95 @@ class SubtitleManager:
             return None
 
         chosen = {"query": None}
-        self._set_search_dialog_active(True)
+        chooser = tk.Toplevel(parent)
+        chooser.title("Choose cached search")
+        chooser.attributes("-topmost", True)
+        chooser.transient(parent)
+        chooser.grab_set()
+        chooser.resizable(True, True)
+
+        tk.Label(chooser, text="Select a cached anime query:", anchor="w").pack(padx=8, pady=(8, 4), fill="x")
+
+        filter_row = tk.Frame(chooser)
+        filter_row.pack(padx=8, pady=(0, 6), fill="x")
+        tk.Label(filter_row, text="Filter:", anchor="w").pack(side="left")
+        filter_var = tk.StringVar()
+        filter_entry = tk.Entry(filter_row, textvariable=filter_var)
+        filter_entry.pack(side="left", fill="x", expand=True, padx=(6, 0))
+
+        list_frame = tk.Frame(chooser)
+        list_frame.pack(padx=8, pady=(0, 8), fill="both", expand=True)
+        scrollbar = tk.Scrollbar(list_frame, orient="vertical")
+        listbox = tk.Listbox(
+            list_frame,
+            width=56,
+            height=min(12, len(queries)),
+            yscrollcommand=scrollbar.set,
+            exportselection=False,
+        )
+        scrollbar.config(command=listbox.yview)
+        listbox.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        all_queries = list(queries)
+
+        def _refresh_list(filtered):
+            listbox.delete(0, tk.END)
+            for q in filtered:
+                listbox.insert(tk.END, q)
+            if filtered:
+                listbox.selection_set(0)
+                listbox.activate(0)
+
+        def _apply_filter(_event=None):
+            term = (filter_var.get() or "").strip().lower()
+            if not term:
+                filtered = all_queries
+            else:
+                filtered = [q for q in all_queries if term in q.lower()]
+            _refresh_list(filtered)
+
+        _refresh_list(all_queries)
         try:
-            chooser = tk.Toplevel(parent)
-            chooser.title("Choose cached search")
-            chooser.attributes("-topmost", True)
-            chooser.transient(parent)
-            chooser.grab_set()
-            chooser.resizable(True, True)
+            filter_entry.focus_set()
+        except Exception:
+            listbox.focus_set()
 
-            tk.Label(chooser, text="Select a cached anime query:", anchor="w").pack(padx=8, pady=(8, 4), fill="x")
+        filter_entry.bind("<KeyRelease>", _apply_filter)
 
-            filter_row = tk.Frame(chooser)
-            filter_row.pack(padx=8, pady=(0, 6), fill="x")
-            tk.Label(filter_row, text="Filter:", anchor="w").pack(side="left")
-            filter_var = tk.StringVar()
-            filter_entry = tk.Entry(filter_row, textvariable=filter_var)
-            filter_entry.pack(side="left", fill="x", expand=True, padx=(6, 0))
+        btn_frame = tk.Frame(chooser)
+        btn_frame.pack(pady=(0, 8))
 
-            list_frame = tk.Frame(chooser)
-            list_frame.pack(padx=8, pady=(0, 8), fill="both", expand=True)
-            scrollbar = tk.Scrollbar(list_frame, orient="vertical")
-            listbox = tk.Listbox(
-                list_frame,
-                width=56,
-                height=min(12, len(queries)),
-                yscrollcommand=scrollbar.set,
-                exportselection=False,
-            )
-            scrollbar.config(command=listbox.yview)
-            listbox.pack(side="left", fill="both", expand=True)
-            scrollbar.pack(side="right", fill="y")
-
-            all_queries = list(queries)
-
-            def _refresh_list(filtered):
-                listbox.delete(0, tk.END)
-                for q in filtered:
-                    listbox.insert(tk.END, q)
-                if filtered:
-                    listbox.selection_set(0)
-                    listbox.activate(0)
-
-            def _apply_filter(_event=None):
-                term = (filter_var.get() or "").strip().lower()
-                if not term:
-                    filtered = all_queries
-                else:
-                    filtered = [q for q in all_queries if term in q.lower()]
-                _refresh_list(filtered)
-
-            _refresh_list(all_queries)
-            try:
-                filter_entry.focus_set()
-            except Exception:
-                listbox.focus_set()
-
-            filter_entry.bind("<KeyRelease>", _apply_filter)
-
-            btn_frame = tk.Frame(chooser)
-            btn_frame.pack(pady=(0, 8))
-
-            def on_ok(event=None):
-                selection = listbox.curselection()
-                if not selection:
-                    try:
-                        chooser.bell()
-                    except Exception:
-                        pass
-                    return "break"
-                chosen["query"] = self._normalize_search_query_text((listbox.get(selection[0]) or "").strip()) or None
-                chooser.destroy()
+        def on_ok(event=None):
+            selection = listbox.curselection()
+            if not selection:
+                try:
+                    chooser.bell()
+                except Exception:
+                    pass
                 return "break"
+            chosen["query"] = (listbox.get(selection[0]) or "").strip() or None
+            chooser.destroy()
+            return "break"
 
-            def on_cancel(event=None):
-                chooser.destroy()
-                return "break"
+        def on_cancel(event=None):
+            chooser.destroy()
+            return "break"
 
-            tk.Button(btn_frame, text="Use Selected", width=12, command=on_ok).pack(side="left", padx=6)
-            tk.Button(btn_frame, text="Cancel", width=10, command=on_cancel).pack(side="left", padx=6)
+        tk.Button(btn_frame, text="Use Selected", width=12, command=on_ok).pack(side="left", padx=6)
+        tk.Button(btn_frame, text="Cancel", width=10, command=on_cancel).pack(side="left", padx=6)
 
-            listbox.bind("<Double-Button-1>", on_ok)
-            listbox.bind("<Return>", on_ok)
-            listbox.bind("<KP_Enter>", on_ok)
-            chooser.bind("<Escape>", on_cancel)
+        listbox.bind("<Double-Button-1>", on_ok)
+        listbox.bind("<Return>", on_ok)
+        listbox.bind("<KP_Enter>", on_ok)
+        chooser.bind("<Escape>", on_cancel)
 
-            self._fit_dialog_to_screen(chooser, parent=parent, min_w=520, min_h=320)
+        self._fit_dialog_to_screen(chooser, parent=parent, min_w=520, min_h=320)
 
-            chooser.wait_window(chooser)
-            return chosen["query"]
-        finally:
-            self._set_search_dialog_active(False)
+        chooser.wait_window(chooser)
+        return chosen["query"]
 
-    def ask_remote_search_query(self) -> Tuple[Optional[str], Optional[int], Optional[int], bool]:
+    def ask_remote_search_query(self) -> Tuple[Optional[str], Optional[int], Optional[int]]:
         """
         Ask the user for a GitHub search query (anime name) and an optional episode hint.
 
@@ -1757,10 +1598,9 @@ class SubtitleManager:
         - "130" (global episode)
         - "e254" (global episode)
         """
-        result = {"query": None, "season": None, "episode": None, "is_movie": False}
+        result = {"query": None, "season": None, "episode": None}
 
         hide_startup_overlay()
-        self._set_search_dialog_active(True)
         try:
             root = getattr(tk, "_default_root", None)
             dlg = tk.Toplevel(root) if root is not None else tk.Toplevel()
@@ -1806,19 +1646,12 @@ class SubtitleManager:
             )
             hint_entry = tk.Entry(dlg, width=30)
             hint_entry.grid(row=3, column=0, sticky="w", padx=8)
-            movie_var = tk.BooleanVar(value=False)
-            tk.Checkbutton(
-                dlg,
-                text="Movie search (anime/drama movie folders first)",
-                variable=movie_var,
-                anchor="w",
-            ).grid(row=4, column=0, sticky="w", padx=8, pady=(6, 0))
 
             btn_frame = tk.Frame(dlg)
-            btn_frame.grid(row=5, column=0, pady=10)
+            btn_frame.grid(row=4, column=0, pady=10)
 
             def on_ok():
-                q = self._normalize_search_query_text(query_entry.get() or "")
+                q = (query_entry.get() or "").strip()
                 hint_raw = (hint_entry.get() or "").strip().lower()
                 s = e = g = None
                 if hint_raw:
@@ -1828,7 +1661,6 @@ class SubtitleManager:
                 if s is None and e is None and g is not None:
                     e = int(g)
                 result["query"], result["season"], result["episode"] = (q or None, s, e)
-                result["is_movie"] = bool(movie_var.get())
                 dlg.destroy()
 
             def on_cancel():
@@ -1848,11 +1680,10 @@ class SubtitleManager:
             dlg.bind("<Return>", on_enter)
             dlg.bind("<KP_Enter>", on_enter)
 
-            self._fit_dialog_to_screen(dlg, parent=root, min_w=620, min_h=300)
+            self._fit_dialog_to_screen(dlg, parent=root, min_w=620, min_h=260)
             dlg.wait_window(dlg)
-            return result["query"], result["season"], result["episode"], bool(result.get("is_movie"))
+            return result["query"], result["season"], result["episode"]
         finally:
-            self._set_search_dialog_active(False)
             show_startup_overlay()
     
     def ask_local_srt_file(self) -> Optional[str]:
@@ -1905,11 +1736,6 @@ class SubtitleManager:
         ruby_height = int(line_height * 0.6)
         pad_x = 5
         total_height = ruby_height * 2 + line_height * 2
-
-        # In lazy auto-ruby mode, not all cues are fully enriched at load time.
-        # Keep a safety margin so later ruby expansions are less likely to exceed current overlay width.
-        if self._auto_ruby_enabled():
-            max_width = int(max_width * 1.15)
 
         # If we wrap long lines at a fixed pixel limit, the overlay doesn't need to grow beyond that limit.
         # Keep this in sync with SubtitleRenderer._wrap_segments()' default padding (40px each side),
@@ -2057,71 +1883,18 @@ class SubtitleManager:
                 pass
             return False
 
-    def _initialize_remote_path(
-        self,
-        init_url: Optional[str] = None,
-        hint: Optional[Tuple[Optional[int], Optional[int]]] = None,
-        movie_mode: bool = False,
-    ) -> Optional[str]:
+    def _initialize_remote_path(self, init_url: Optional[str] = None, hint: Optional[Tuple[Optional[int], Optional[int]]] = None) -> Optional[str]:
         url = init_url
         prompt_hint = None
-        prompt_movie_mode = bool(movie_mode)
         if not url:
-            url, h_s, h_e, prompt_movie_mode = self.ask_remote_srt_with_hint()
+            url, h_s, h_e = self.ask_remote_srt_with_hint()
             prompt_hint = (h_s, h_e) if (h_s is not None or h_e is not None) else None
             if not url:
                 return None
 
-        use_movie_mode = bool(movie_mode or prompt_movie_mode)
-
         # download/gather metadata for the chosen URL, then build maps once
         self._extract_and_set_remote_episode_metadata(url)
-
-        remote_norm = (self.remote_path or "").replace("\\", "/")
-        is_movie_url = (
-            "/anime_movie/" in remote_norm
-            or "/drama_movie/" in remote_norm
-            or remote_norm.startswith("subtitles/anime_movie/")
-            or remote_norm.startswith("subtitles/drama_movie/")
-        )
-
-        # For direct movie file URLs, load exactly that file (avoid season map rebuilds that can pick old anime state).
-        try:
-            parsed = self._parse_github_url(url)
-        except Exception:
-            parsed = {}
-        if (use_movie_mode or is_movie_url) and parsed.get("is_file") and self.remote_path:
-            try:
-                season_dir = self._season_cache_dir(None)
-                filename = self.sanitize_filename(os.path.basename(self.remote_path))
-                local_path = os.path.join(season_dir, filename)
-                raw_url = self._get_raw_url(self.remote_path)
-                self._download_file(raw_url, local_path)
-            except Exception:
-                logger.exception("Failed to download direct movie URL: %s", self.remote_path)
-                return None
-            try:
-                self.remote_url = url
-                self.config.set("LAST_GITHUB_URL", url)
-                if getattr(self, "anime_folder_name", None):
-                    self.config.set("LAST_ANIME_NAME", self.anime_folder_name)
-            except Exception:
-                pass
-            self.all_results_items = [{
-                "name": os.path.basename(self.remote_path),
-                "path": self.remote_path,
-                "season": None,
-                "episode": None,
-                "global": None,
-            }]
-            self.build_remote_episode_maps()
-            return local_path
-
-        try:
-            self._create_remote_episode_map_per_season()
-        except Exception:
-            logger.exception("Failed to build remote episode map from URL: %s", url)
-            return None
+        self._create_remote_episode_map_per_season()
         self.build_remote_episode_maps()
 
         # allow caller-provided hint (highest priority), otherwise prefer prompt hint
@@ -2258,12 +2031,7 @@ class SubtitleManager:
         url_anime_name = self._extract_anime_name_from_url(self.remote_path)
 
         remote_norm = (self.remote_path or "").replace("\\", "/")
-        is_movie_url = (
-            "/anime_movie/" in remote_norm
-            or "/drama_movie/" in remote_norm
-            or remote_norm.startswith("subtitles/anime_movie/")
-            or remote_norm.startswith("subtitles/drama_movie/")
-        )
+        is_movie_url = "/anime_movie/" in remote_norm or remote_norm.startswith("subtitles/anime_movie/")
 
         # TV shows: keep the name of season 1 (user preference), since later seasons can have
         # slightly different folder names. Movies: always use the movie folder name.
@@ -2276,7 +2044,6 @@ class SubtitleManager:
         self,
         anime_query: str,
         hint: Optional[Tuple[Optional[int], Optional[int]]] = None,
-        movie_mode: bool = False,
     ) -> Optional[str]:
         """
         Remote "init" without a URL: use a user-provided anime query to build the episode map,
@@ -2285,7 +2052,7 @@ class SubtitleManager:
         This stores a synthesized LAST_GITHUB_URL pointing to the chosen file so the next startup
         can resume in URL-based remote init.
         """
-        anime_query = self._normalize_search_query_text(anime_query or "")
+        anime_query = (anime_query or "").strip()
         if not anime_query:
             return None
 
@@ -2300,37 +2067,8 @@ class SubtitleManager:
         except Exception:
             pass
 
-        if movie_mode:
-            search_paths = (
-                "subtitles/anime_movie",
-                "subtitles/drama_movie",
-                "subtitles/anime_tv",
-                "subtitles/drama_tv",
-            )
-            merged: List[Dict] = []
-            seen_paths: set[str] = set()
-            for sub_path in search_paths:
-                for it in self._search_remote_candidates_in_path(anime_query, sub_path):
-                    p = it.get("path")
-                    if not p or p in seen_paths:
-                        continue
-                    seen_paths.add(p)
-                    merged.append(it)
-            self.all_results_items = merged
-            if not self.all_results_items:
-                logger.info("No movie-mode remote subtitle candidates found for search query: %s", anime_query)
-                return None
-            try:
-                self.all_results_items.sort(key=self.sort_key_per_season)
-            except Exception:
-                pass
-        else:
-            # Build / load the remote episode listing and maps.
-            try:
-                self._create_remote_episode_map_per_season()
-            except Exception:
-                logger.exception("Failed to build remote episode map from search query: %s", anime_query)
-                return None
+        # Build / load the remote episode listing and maps.
+        self._create_remote_episode_map_per_season()
         self.build_remote_episode_maps()
 
         chosen_item = None
@@ -2350,15 +2088,6 @@ class SubtitleManager:
             if keys:
                 chosen_item = self.remote_episode_map_global[keys[0]]
 
-        if not chosen_item and getattr(self, "all_results_items", None):
-            try:
-                chosen_item = max(
-                    self.all_results_items,
-                    key=lambda it: self._subtitle_candidate_score(it.get("name"), it.get("path")),
-                )
-            except Exception:
-                chosen_item = None
-
         if not chosen_item:
             logger.info("No remote subtitle candidates found for search query: %s", anime_query)
             return None
@@ -2368,10 +2097,8 @@ class SubtitleManager:
         target_episode = chosen_item.get("episode")
         target_global = chosen_item.get("global")
 
-        if movie_mode and target_season is None and target_episode is None and target_global is None:
-            self.current_season, self.current_episode = None, None
-        elif target_season is None and target_episode is None and target_global is not None:
-            # If the chosen item only has global numbering, keep current_episode set so UI doesn't treat it as a movie.
+        # If the chosen item only has global numbering, keep current_episode set so UI doesn't treat it as a movie.
+        if target_season is None and target_episode is None and target_global is not None:
             self.current_season, self.current_episode = None, int(target_global)
         else:
             self.current_season, self.current_episode = target_season, target_episode
@@ -2399,15 +2126,14 @@ class SubtitleManager:
             pass
 
         # Start background download window around the chosen global if available.
-        if not movie_mode:
-            try:
-                center_global = target_global
-                if center_global is None and target_season is not None and target_episode is not None:
-                    center_global = self.local_to_global(target_season, target_episode)
-                if center_global is not None:
-                    self._schedule_prefetch_window(center_global)
-            except Exception:
-                logger.exception("Failed to start windowed background downloads for search-query init")
+        try:
+            center_global = target_global
+            if center_global is None and target_season is not None and target_episode is not None:
+                center_global = self.local_to_global(target_season, target_episode)
+            if center_global is not None:
+                self._schedule_prefetch_window(center_global)
+        except Exception:
+            logger.exception("Failed to start windowed background downloads for search-query init")
 
         return local_path
     
@@ -2416,7 +2142,7 @@ class SubtitleManager:
         Search GitHub code API for subtitle files under a specific path.
         Returns normalized items with parsed season/episode/global metadata.
         """
-        anime_query = self._normalize_search_query_text(anime_query or "")
+        anime_query = (anime_query or "").strip()
         repo_sub_path = (repo_sub_path or "").strip().strip("/")
         if not anime_query or not repo_sub_path:
             return []
@@ -2496,7 +2222,7 @@ class SubtitleManager:
         1) subtitles/anime_movie
         2) subtitles/drama_movie (fallback only if #1 has zero results)
         """
-        anime_query = self._normalize_search_query_text(anime_query or "")
+        anime_query = (anime_query or "").strip()
         if not anime_query:
             return []
 
@@ -2510,7 +2236,7 @@ class SubtitleManager:
         """
         Search drama TV subtitles under subtitles/drama_tv.
         """
-        anime_query = self._normalize_search_query_text(anime_query or "")
+        anime_query = (anime_query or "").strip()
         if not anime_query:
             return []
         return self._search_remote_candidates_in_path(anime_query, "subtitles/drama_tv")
@@ -2578,12 +2304,11 @@ class SubtitleManager:
                     sxexx_to_gxx[key] = int(g)
 
         if all_results_items:
-            safe_name = self._safe_search_query_name(self.anime_folder_name or "")
+            safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in (self.anime_folder_name or ""))[:200] or "result"
             folder_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),"github_search")
             os.makedirs(folder_dir, exist_ok=True)
             json_path = os.path.join(folder_dir, f"github_search_{safe_name}.json")
             payload = {
-                "anime_query": self._normalize_search_query_text(self.anime_folder_name or ""),
                 "last search": q,
                 "repo": f"{self.github_owner}/{self.github_repo}",
                 "created_at": datetime.datetime.utcnow().isoformat() + "Z",
@@ -2648,23 +2373,9 @@ class SubtitleManager:
 
         # If we already have a cached episode map JSON for this anime, prefer it over
         # hitting the GitHub Search API again (avoids rate limits / repeat work).
-        safe_name = self._safe_search_query_name(self.anime_folder_name or "")
+        safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in (self.anime_folder_name or ""))[:200] or "result"
         folder_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "github_search")
         cache_path = os.path.join(folder_dir, f"github_search_{safe_name}.json")
-        if not os.path.isfile(cache_path) and os.path.isdir(folder_dir):
-            normalized_query = self._normalize_search_query_text(self.anime_folder_name or "")
-            prefix = "github_search_"
-            suffix = ".json"
-            for fn in os.listdir(folder_dir):
-                if not (fn.startswith(prefix) and fn.endswith(suffix)):
-                    continue
-                legacy_safe = fn[len(prefix):-len(suffix)]
-                if not legacy_safe:
-                    continue
-                legacy_query = self._normalize_search_query_text(legacy_safe.replace("_", " "))
-                if legacy_query == normalized_query:
-                    cache_path = os.path.join(folder_dir, fn)
-                    break
         if os.path.isfile(cache_path):
             try:
                 with open(cache_path, "r", encoding="utf-8") as fh:
@@ -2887,10 +2598,7 @@ class SubtitleManager:
                                 print(f"Abuse detection triggered: {msg}. Sleeping 120s then retrying...")
                                 time.sleep(120)
                                 continue
-                            logger.error("GitHub search failed: %s, %s", resp.status_code, resp.text)
-                            stop_reason = f"http_{resp.status_code}"
-                            stop_season_loop = True
-                            break
+                            raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
                         # Search API 1000-results cap
                         if resp.status_code == 422:
                             print("Search API 422 (cannot access beyond the first 1000 results). Stopping and returning partial results.")
@@ -2898,10 +2606,7 @@ class SubtitleManager:
                             if not season_searching:
                                 stop_season_loop = True
                             break
-                        logger.error("GitHub search failed: %s, %s", resp.status_code, resp.text)
-                        stop_reason = f"http_{resp.status_code}"
-                        stop_season_loop = True
-                        break
+                        raise RuntimeError(f"GitHub search failed: {resp.status_code}, {resp.text}")
 
                     if provider_found or stop_season_loop:
                         break
@@ -2966,12 +2671,11 @@ class SubtitleManager:
                     sxexx_to_gxx[key] = int(g)
 
         if all_results_items:
-            safe_name = self._safe_search_query_name(self.anime_folder_name or "")
+            safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in (self.anime_folder_name or ""))[:200] or "result"
             folder_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),"github_search")
             os.makedirs(folder_dir, exist_ok=True)
             json_path = os.path.join(folder_dir, f"github_search_{safe_name}.json")
             payload = {
-                "anime_query": self._normalize_search_query_text(self.anime_folder_name or ""),
                 "last search": q,
                 "repo": f"{self.github_owner}/{self.github_repo}",
                 "created_at": datetime.datetime.utcnow().isoformat() + "Z",
