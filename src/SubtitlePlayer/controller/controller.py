@@ -130,6 +130,7 @@ class SubtitleController:
         self._anki_wait_thread = None
         self._pending_anki_payload = None
         self._restore_startup_time_and_mode()
+        self._hover_box_cache_key = None
 
         self.settings.bind_back(self.go_back)
         self.settings.bind_forward(self.go_forward)
@@ -160,6 +161,8 @@ class SubtitleController:
         self.settings.bind_update_display            (self.update_time_and_subtitle_displays)
         
         self.overlay.subtitle_canvas.bind("<Button-3>", self._on_copy_popup)
+        self.overlay.subtitle_canvas.bind("<Motion>", self._on_overlay_motion, add="+")
+        self.overlay.subtitle_canvas.bind("<Leave>", self._on_overlay_leave, add="+")
         self.popup.bind_add_to_anki(self._add_selection_to_anki)
         self.overlay.bind_sub_window_enter(self.sub_window_enter)
         self.overlay.bind_sub_window_leave(self.sub_window_leave)
@@ -277,6 +280,53 @@ class SubtitleController:
         self.popup.open_copy_popup(self.last_subtitle_raw)
         self.simulate_video_click()
         return "break"
+
+    def _on_overlay_motion(self, event=None):
+        if event is None:
+            return
+        if not self.shift_pressed:
+            self._clear_hover_overlay()
+            return
+        try:
+            box = self.renderer.find_hover_box(float(event.x), float(event.y))
+        except Exception:
+            box = None
+        if not box:
+            self._clear_hover_overlay()
+            return
+        key = (
+            str(box.get("token") or ""),
+            int(float(box.get("x0") or 0.0)),
+            int(float(box.get("y0") or 0.0)),
+            int(float(box.get("x1") or 0.0)),
+            int(float(box.get("y1") or 0.0)),
+        )
+        if key == self._hover_box_cache_key:
+            return
+        self._hover_box_cache_key = key
+        try:
+            self.renderer.canvas.delete("hover_box")
+            self.renderer.canvas.create_rectangle(
+                float(box["x0"]),
+                float(box["y0"]),
+                float(box["x1"]),
+                float(box["y1"]),
+                outline="#80ed99",
+                width=2,
+                tags=("hover_box",),
+            )
+        except Exception:
+            pass
+
+    def _on_overlay_leave(self, _event=None):
+        self._clear_hover_overlay()
+
+    def _clear_hover_overlay(self):
+        self._hover_box_cache_key = None
+        try:
+            self.renderer.canvas.delete("hover_box")
+        except Exception:
+            pass
 
     def _add_selection_to_anki(self, selected_text: str, subtitle_text: str = "") -> None:
         selected = (selected_text or "").strip()
@@ -805,6 +855,7 @@ class SubtitleController:
             self.last_subtitle_text = joined
             self.subtitle_deleted   = False
             self.renderer.render_subtitle(top, bottom, self.overlay)
+            self._clear_hover_overlay()
 
             self.subtitle_timeout_job = self.overlay.root.after(
                 self.hide_subtitles_ms,
@@ -812,6 +863,7 @@ class SubtitleController:
 
     def _reset_canvas(self):
         self.renderer.canvas.delete("all")
+        self._clear_hover_overlay()
         self.subtitle_deleted = True
         self.last_subtitle_text = ""
 
@@ -1420,6 +1472,8 @@ class SubtitleController:
             self._apply_pending_seek()
         elif action == "clear_pending_seek":
             self._clear_pending_seek_preview()
+        elif action == "clear_hover_overlay":
+            self._clear_hover_overlay()
 
     def jump_subtitle_segment(self, direction: str) -> None:
         """
@@ -2464,6 +2518,7 @@ class SubtitleController:
 
         if key in (Key.shift_l, Key.shift_r):
             self.shift_pressed = False
+            self._enqueue_input_action("clear_hover_overlay")
         if key in (Key.alt_l, Key.alt_r):
             self.alt_pressed = False
         if key in (Key.ctrl_l, Key.ctrl_r):

@@ -15,11 +15,17 @@ from view.subtitle_overlay import SubtitleOverlayUI
 from model.config_manager import ConfigManager
 
 class SubtitleRenderer:
+    TOKEN_RE = re.compile(
+        r"([0-9A-Za-z]+|[\u3040-\u30ff\u4e00-\u9fff\u3400-\u4dbf\u3005]+|[^\s])"
+    )
+
     def __init__(self, canvas: tk.Canvas, config: ConfigManager) -> None:
         self.config = config
         self.canvas = canvas
+        self.last_hover_boxes = []
 
     def render_subtitle(self, top_segments, bottom_segments, overlay: SubtitleOverlayUI) -> None:
+        self.last_hover_boxes = []
         self.font = tkFont.Font(family=self.config.get("SUBTITLE_FONT"),size=self.config.get("SUBTITLE_FONT_SIZE"),weight="bold")
         self.ruby_font = tkFont.Font(family=self.font.actual("family"), size=int(self.font.actual("size") * 0.6), weight="bold")
 
@@ -138,6 +144,7 @@ class SubtitleRenderer:
                 base, self.font, fill=self.color,
                 outline=self.glow_color, thickness=self.glow_radius
             )
+            self._append_hover_boxes_for_base(base, seg_left=cur_x, seg_w=seg_w, base_y=base_y)
             cur_x += seg_w
 
     def _draw_ruby_text(self, ruby: str, base_w: int, ruby_w: int, center_x: float, y: float) -> None:
@@ -175,6 +182,43 @@ class SubtitleRenderer:
     def update_canvas(self, canvas: tk.Canvas):
         """Switch the renderer to a different canvas (after overlay update)."""
         self.canvas = canvas
+
+    def _append_hover_boxes_for_base(self, base: str, seg_left: float, seg_w: float, base_y: float) -> None:
+        if not base:
+            return
+        try:
+            base_w = float(self.font.measure(base))
+        except Exception:
+            return
+        base_left = float(seg_left + max(0.0, (float(seg_w) - base_w) / 2.0))
+        y0 = float(base_y - (self.line_height / 2.0))
+        y1 = float(y0 + self.line_height)
+        for m in self.TOKEN_RE.finditer(base):
+            token = m.group(0)
+            if not token or not token.strip():
+                continue
+            x0 = base_left + float(self.font.measure(base[: m.start()]))
+            x1 = base_left + float(self.font.measure(base[: m.end()]))
+            if x1 <= x0:
+                continue
+            self.last_hover_boxes.append(
+                {
+                    "token": token,
+                    "x0": x0,
+                    "y0": y0,
+                    "x1": x1,
+                    "y1": y1,
+                }
+            )
+
+    def find_hover_box(self, x: float, y: float):
+        for box in self.last_hover_boxes:
+            try:
+                if box["x0"] <= x <= box["x1"] and box["y0"] <= y <= box["y1"]:
+                    return box
+            except Exception:
+                continue
+        return None
 
     # ---------------------- Wrapping helpers ----------------------
     def _wrap_segments(

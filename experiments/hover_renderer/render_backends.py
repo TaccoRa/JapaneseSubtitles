@@ -77,14 +77,16 @@ class _Layout:
             x += w
         return out
 
-    def token_boxes_for_segment(self, base: str, x: float, y0: float, y1: float) -> List[HoverBox]:
+    def token_boxes_for_segment(self, base: str, seg_x: float, seg_w: int, y0: float, y1: float) -> List[HoverBox]:
         if not base:
             return []
+        base_w = float(self.base_font.measure(base))
+        base_x = float(seg_x + max(0.0, (float(seg_w) - base_w) / 2.0))
         spans: List[TokenSpan] = tokenize_for_hover(base)
         out: List[HoverBox] = []
         for span in spans:
-            left = x + float(self.base_font.measure(base[: span.start]))
-            right = x + float(self.base_font.measure(base[: span.end]))
+            left = base_x + float(self.base_font.measure(base[: span.start]))
+            right = base_x + float(self.base_font.measure(base[: span.end]))
             if right <= left:
                 continue
             out.append(HoverBox(token=span.text, x0=left, y0=y0, x1=right, y1=y1))
@@ -135,7 +137,15 @@ class CanvasTextBackend(BaseBackend):
                     style.outline_color,
                     max(0, int(style.outline_radius)),
                 )
-                hover_boxes.extend(layout.token_boxes_for_segment(base=base, x=x, y0=base_box_top, y1=base_box_bottom))
+                hover_boxes.extend(
+                    layout.token_boxes_for_segment(
+                        base=base,
+                        seg_x=x,
+                        seg_w=seg_w,
+                        y0=base_box_top,
+                        y1=base_box_bottom,
+                    )
+                )
 
         return RenderResult(hover_boxes=hover_boxes, cache_hit=False)
 
@@ -198,7 +208,15 @@ class CanvasImageBackend(BaseBackend):
                     outline=style.outline_color,
                     thickness=max(0, int(style.outline_radius)),
                 )
-                hover_boxes.extend(layout.token_boxes_for_segment(base=base, x=x, y0=base_box_top, y1=base_box_bottom))
+                hover_boxes.extend(
+                    layout.token_boxes_for_segment(
+                        base=base,
+                        seg_x=x,
+                        seg_w=seg_w,
+                        y0=base_box_top,
+                        y1=base_box_bottom,
+                    )
+                )
 
         photo = ImageTk.PhotoImage(img)
         self._cache[key] = (photo, list(hover_boxes))
@@ -265,4 +283,3 @@ def _load_pillow_fonts(style: Style) -> Tuple[ImageFont.ImageFont, ImageFont.Ima
         except Exception:
             pass
     return ImageFont.load_default(), ImageFont.load_default()
-
