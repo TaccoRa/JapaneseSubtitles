@@ -821,14 +821,8 @@ class SettingsUI:
             btn_row,
             text="Apply Now",
             width=12,
-            command=lambda: self._apply_advanced_settings(persist=False),
-        ).pack(side="left")
-        tk.Button(
-            btn_row,
-            text="Save as Default",
-            width=14,
             command=lambda: self._apply_advanced_settings(persist=True),
-        ).pack(side="left", padx=(6, 0))
+        ).pack(side="left")
         tk.Button(
             btn_row,
             text="Reload from Config",
@@ -837,8 +831,8 @@ class SettingsUI:
         ).pack(side="left", padx=(6, 0))
         tk.Button(
             btn_row,
-            text="Reset This Tab",
-            width=13,
+            text="Reset to Defaults",
+            width=14,
             command=self._reset_selected_advanced_tab_to_defaults,
         ).pack(side="left", padx=(6, 0))
         tk.Button(btn_row, text="Close", width=10, command=win.destroy).pack(side="right")
@@ -892,17 +886,8 @@ class SettingsUI:
             x = max(0, min(saved_x, sw - w))
             y = max(0, min(saved_y, sh - h))
         else:
-            # Position on the right side of the screen
-            try:
-                rw, rh = self.root.winfo_width(), self.root.winfo_height()
-                rx, ry = self.root.winfo_rootx(), self.root.winfo_rooty()
-                # Place window on the right side
-                x = max(0, min(sw - w - 20, max(rx + rw + 10, sw - w)))
-                y = ry + max((rh - h) // 2, 0)
-            except Exception:
-                # Fallback: position on the right side
-                x = max(0, sw - w - 20)
-                y = max(0, (sh - h) // 2)
+            x = max(0, (sw - w) // 2)
+            y = max(0, (sh - h) // 2)
         win.geometry(f"{w}x{h}+{x}+{y}")
 
     def _save_advanced_window_geometry(self, win):
@@ -956,7 +941,7 @@ class SettingsUI:
         win.after(0, self._reset_advanced_tab_focus)
 
     def _on_advanced_apply_now_key(self, _event=None):
-        self._apply_advanced_settings(persist=False)
+        self._apply_advanced_settings(persist=True)
         return "break"
 
     def _clear_advanced_entry_selection(self, parent):
@@ -1937,12 +1922,14 @@ class SettingsUI:
 
     def _reset_selected_advanced_tab_to_defaults(self):
         keys = self._get_selected_advanced_tab_keys()
-        self._reset_advanced_values_to_defaults(keys=keys)
-        if hasattr(self, "_advanced_status_var"):
-            if keys:
-                self._advanced_status_var.set("Reset current tab to built-in defaults.")
-            else:
+        if not keys:
+            if hasattr(self, "_advanced_status_var"):
                 self._advanced_status_var.set("No tab selected to reset.")
+            return
+        self._reset_advanced_values_to_defaults(keys=keys)
+        self._apply_advanced_settings(persist=True)
+        if hasattr(self, "_advanced_status_var"):
+            self._advanced_status_var.set("Reset current tab to defaults and saved.")
 
     def _reset_advanced_values_to_defaults(self, keys=None):
         if not hasattr(self, "_advanced_vars") or not hasattr(self, "_advanced_meta"):
@@ -2007,7 +1994,7 @@ class SettingsUI:
                     except Exception:
                         pass
             if hasattr(self, "_advanced_status_var"):
-                self._advanced_status_var.set("Saved as default and applied.")
+                self._advanced_status_var.set("Saved and applied.")
         else:
             if hasattr(self, "_advanced_status_var"):
                 self._advanced_status_var.set("Applied for current session (not saved).")

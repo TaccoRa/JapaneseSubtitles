@@ -6,7 +6,7 @@ Displays subtitle text and provides a simple context menu for mouse-only copy.
 
 import tkinter as tk
 from tkinter import font as tkFont
-from utils import make_draggable
+from utils import make_draggable, get_monitor_rects
 
 class CopyPopup:
     
@@ -152,19 +152,47 @@ class CopyPopup:
         entry.bind("<Button-3>", _show_menu)
 
         try:
-            screen_w = int(popup.winfo_screenwidth() or 1920)
-            screen_h = int(popup.winfo_screenheight() or 1080)
+            pointer_x = int(self.root.winfo_pointerx())
+            pointer_y = int(self.root.winfo_pointery())
         except Exception:
-            screen_w, screen_h = 1920, 1080
+            pointer_x, pointer_y = 0, 0
+
+        monitor_rect = None
+        try:
+            rects = list(get_monitor_rects(self.root) or [])
+            for rx, ry, rw, rh in rects:
+                if rx <= pointer_x < rx + rw and ry <= pointer_y < ry + rh:
+                    monitor_rect = (rx, ry, rw, rh)
+                    break
+            if monitor_rect is None and rects:
+                monitor_rect = min(
+                    rects,
+                    key=lambda r: (abs(pointer_x - (r[0] + (r[2] // 2))) + abs(pointer_y - (r[1] + (r[3] // 2)))),
+                )
+        except Exception:
+            monitor_rect = None
+
+        if monitor_rect is not None:
+            screen_x, screen_y, screen_w, screen_h = monitor_rect
+        else:
+            try:
+                screen_x, screen_y = 0, 0
+                screen_w = int(popup.winfo_screenwidth() or 1920)
+                screen_h = int(popup.winfo_screenheight() or 1080)
+            except Exception:
+                screen_x, screen_y, screen_w, screen_h = 0, 0, 1920, 1080
+
         max_w = max(240, int(screen_w * 0.90))
         max_h = max(120, int(screen_h * 0.60))
         total_width = min(max_w, int(total_width))
         total_height = min(max_h, int(total_height))
 
-        x = int(self.root.winfo_pointerx())
-        y = int(self.root.winfo_pointery()) - total_height - 20
-        x = max(0, min(x, max(0, screen_w - total_width)))
-        y = max(0, min(y, max(0, screen_h - total_height)))
+        x = int(pointer_x - (total_width // 2))
+        y = int(pointer_y - total_height - 16)
+        max_x = screen_x + max(0, screen_w - total_width)
+        max_y = screen_y + max(0, screen_h - total_height)
+        x = max(screen_x, min(x, max_x))
+        y = max(screen_y, min(y, max_y))
         popup.geometry(f"{total_width}x{total_height}+{x}+{y}")
         self.ensure_on_top()
         

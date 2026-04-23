@@ -81,6 +81,7 @@ class SubtitleController:
         self.settings.root.protocol("WM_DELETE_WINDOW", self._on_app_close)
         self.default_start_time = self.config.get("DEFAULT_START_TIME")
         self.current_time = self.default_start_time
+        self._startup_resume_play = False
         self.default_skip = self.config.get("DEFAULT_SKIP")
         self.default_offset = self.config.get("EXTRA_OFFSET")
         self.phone_windows_hide_control_ms = self.config.get("PHONEMODE_WINDOWS_HIDE_DELAY_MS")   # hides control window after # ms in phone mode
@@ -128,6 +129,7 @@ class SubtitleController:
         self._anki_wait_status_var = None
         self._anki_wait_thread = None
         self._pending_anki_payload = None
+        self._restore_startup_time_and_mode()
 
         self.settings.bind_back(self.go_back)
         self.settings.bind_forward(self.go_forward)
@@ -172,8 +174,14 @@ class SubtitleController:
         self._repeat_job = self.settings.root.after(16, self._process_repeat_actions)
 
         self.last_update  = time.time()
-        self.update_time_and_subtitle_displays()
+        # Use the normal setter so restored startup time updates slider + all UI surfaces consistently.
+        self.set_current_time(float(self.current_time or 0.0))
         self._update_episode_nav_controls()
+        if self._startup_resume_play:
+            try:
+                self.toggle_play()
+            except Exception:
+                pass
         self._schedule_ocr_time_jump("startup")
 
 
@@ -222,6 +230,47 @@ class SubtitleController:
             self.settings.set_episode_values(values)
         except Exception:
             pass
+
+    @staticmethod
+    def _normalize_anime_key(value) -> str:
+        try:
+            return re.sub(r"\s+", " ", str(value or "").strip()).casefold()
+        except Exception:
+            return ""
+
+    def _restore_startup_time_and_mode(self) -> None:
+        self._startup_resume_play = False
+        try:
+            current_anime = self._normalize_anime_key(self.sub_manager.get_anime_name())
+            last_anime = self._normalize_anime_key(self.config.get("LAST_SESSION_ANIME"))
+            if not current_anime or current_anime != last_anime:
+                self.current_time = float(self.default_start_time or 0.0)
+                return
+
+            saved_time = self.config.get("LAST_SESSION_TIME_SEC")
+            if saved_time is None:
+                saved_time = self.config.get("LAST_SESSION_TIME")
+            if saved_time is not None:
+                try:
+                    self.current_time = max(0.0, float(saved_time))
+                except Exception:
+                    self.current_time = float(self.default_start_time or 0.0)
+            else:
+                self.current_time = float(self.default_start_time or 0.0)
+
+            play_mode = self.config.get("LAST_SESSION_PLAY_MODE")
+            if play_mode is None:
+                play_mode = self.config.get("LAST_SESSION_PLAYING")
+            self._startup_resume_play = bool(play_mode)
+        except Exception:
+            self.current_time = float(self.default_start_time or 0.0)
+            self._startup_resume_play = False
+
+    def _get_display_start_times(self):
+        start_times = getattr(self.sub_manager, "display_start_times", None)
+        if isinstance(start_times, list) and start_times:
+            return start_times
+        return [item[1] for item in getattr(self.sub_manager, "display_data", [])]
 
     def _on_copy_popup(self, event=None):
         # Create popup first so we can click relative to its position.
@@ -733,13 +782,17 @@ class SubtitleController:
             self._reset_canvas()
             return
         
-        start_times = [item[1] for item in self.sub_manager.display_data]
+        start_times = self._get_display_start_times()
         idx = bisect.bisect_right(start_times, sub_t) - 1
         if idx < 0:
             self._reset_canvas()
             return
+        try:
+            self.sub_manager.ensure_auto_ruby_for_index(idx)
+        except Exception:
+            pass
         clean, _, top, bottom = self.sub_manager.display_data[idx]
-        joined = ''.join(base for base, _ in (top + bottom))
+        joined = "".join(f"{base}[{ruby or ''}]" for base, ruby in (top + bottom))
         self.last_subtitle_raw = clean
         if joined == self.last_subtitle_text:
             return
@@ -889,13 +942,17 @@ class SubtitleController:
         # Immediately re-render the subtitle at current_time (same logic as _update_subtitle_display)
         offset = self.settings._last_offset_value
         sub_t = self.current_time - offset
-        start_times = [item[1] for item in self.sub_manager.display_data]
+        start_times = self._get_display_start_times()
         idx = bisect.bisect_right(start_times, sub_t) - 1
         if idx < 0:
             # nothing to draw
             self.renderer.canvas.delete("all")
             return
 
+        try:
+            self.sub_manager.ensure_auto_ruby_for_index(idx)
+        except Exception:
+            pass
         _, _, top_segments, bottom_segments = self.sub_manager.display_data[idx]
         # render freshly using updated overlay/canvas
         try:
@@ -967,7 +1024,7 @@ class SubtitleController:
             self._schedule_hide_controls()
 
     def on_jump_sub_end(self, event=None):
-        start_times = [item[1] for item in getattr(self.sub_manager, "display_data", [])]
+        start_times = self._get_display_start_times()
         if not start_times:
             return
 
@@ -1370,7 +1427,7 @@ class SubtitleController:
         - prev: start of current segment (or previous if already at boundary)
         - next: start of next segment
         """
-        start_times = [item[1] for item in getattr(self.sub_manager, "display_data", [])]
+        start_times = self._get_display_start_times()
         if not start_times:
             return
 
@@ -1585,6 +1642,11 @@ class SubtitleController:
 
     def _hotkeys_disabled(self) -> bool:
         try:
+            if bool(getattr(self.sub_manager, "is_search_dialog_active", lambda: False)()):
+                return True
+        except Exception:
+            pass
+        try:
             if int(getattr(self.settings, "input_mode", 1)) == 3:
                 return True
         except Exception:
@@ -1711,6 +1773,11 @@ class SubtitleController:
     def on_ocr_sync_now(self, override: dict | None = None) -> None:
         if self._shutting_down:
             return
+        if not self.playing:
+            try:
+                self.toggle_play()
+            except Exception:
+                pass
         self._start_ocr_live_sync(duration_sec=5.0, interval_sec=0.25, override=override)
 
     def _apply_ocr_time_manual(self, seconds: float) -> None:
@@ -2514,6 +2581,20 @@ class SubtitleController:
                           self.config.get("LAST_SETTINGS_WINDOW_HEIGHT")):
                 self.config.set("LAST_SETTINGS_WINDOW_WIDTH", w)
                 self.config.set("LAST_SETTINGS_WINDOW_HEIGHT", h)
+        except Exception:
+            pass
+        try:
+            session_anime = self.sub_manager.get_anime_name()
+            updates = {
+                "LAST_SESSION_ANIME": str(session_anime or ""),
+                "LAST_SESSION_TIME_SEC": float(self.current_time or 0.0),
+                "LAST_SESSION_PLAY_MODE": bool(self.playing),
+            }
+            if hasattr(self.config, "set_many"):
+                self.config.set_many(updates)
+            else:
+                for key, value in updates.items():
+                    self.config.set(key, value)
         except Exception:
             pass
         try:

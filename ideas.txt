@@ -1,9 +1,6 @@
 To Do:
-some windows like the search button window needs to be autosized 
-changed auto ruby handling check if words like toutou is correct
-hovering over kanji --> in line glossary or/and translation
-Add the html tags inside the subtitle files optional (not sure what html tags they use and what for)
-add profile settings for multiple users
+automatically find timebox (machinelearning)
+hovering over kanji --> in line glossary or/and translationadd profile settings for multiple users
 if ocr works good add that it jumps to the time when collecting anki cards (it is okay not very fast but usable not sure how to implement)
 Maybe change how the copy window is displayed.
 
@@ -16,6 +13,9 @@ Change subtitle width to fit current subtitle (maybe flashes --> YES)
 
 
 Added:
+Add the html tags inside the subtitle files optional (not sure what html tags they use and what for)
+changed auto ruby handling check if words like toutou is correct
+some windows like the search button window needs to be autosized 
 Have the option to select muliple boxes across multiple screens so box 1 and box 2 on screen 1 and box 3 on screen 2 for example. 
 the clear OCR area is not needed
 add result if rean now set time not worked
