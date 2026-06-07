@@ -7,86 +7,11 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Optional
 
-
-def _center_toplevel(
-    win: tk.Toplevel,
-    root: tk.Tk,
-    anchor_window: Optional[tk.Misc] = None,
-    y_offset: int = 0,
-    margin: int = 20,
-) -> None:
-    """Center a toplevel on screen or relative to an anchor window (clamped to desktop)."""
-    win.update_idletasks()
-    w = int(win.winfo_reqwidth())
-    h = int(win.winfo_reqheight())
-
-    # Virtual desktop bounds (handles multi-monitor + negative origins on Windows).
-    try:
-        vx = int(root.winfo_vrootx())
-        vy = int(root.winfo_vrooty())
-        vw = int(root.winfo_vrootwidth())
-        vh = int(root.winfo_vrootheight())
-    except Exception:
-        vx = 0
-        vy = 0
-        vw = int(win.winfo_screenwidth())
-        vh = int(win.winfo_screenheight())
-
-    def _primary_screen_size() -> tuple[int, int]:
-        try:
-            import ctypes
-            user32 = ctypes.windll.user32  # pyright: ignore[reportAttributeAccessIssue]
-            sw = int(user32.GetSystemMetrics(0))
-            sh = int(user32.GetSystemMetrics(1))
-            if sw > 0 and sh > 0:
-                return sw, sh
-        except Exception:
-            pass
-        return int(win.winfo_screenwidth()), int(win.winfo_screenheight())
-
-    x: int
-    y: int
-    if anchor_window is not None:
-        try:
-            anchor_window.update_idletasks()
-        except Exception:
-            pass
-        try:
-            # rootx/rooty are always screen coords even for nested widgets.
-            ax = int(anchor_window.winfo_rootx())
-            ay = int(anchor_window.winfo_rooty())
-            aw = int(anchor_window.winfo_width()) or int(anchor_window.winfo_reqwidth())
-            ah = int(anchor_window.winfo_height()) or int(anchor_window.winfo_reqheight())
-            cx = ax + aw / 2
-            cy = ay + ah / 2
-            x = int(cx - w / 2)
-            y = int(cy - h / 2) + int(y_offset)
-        except Exception:
-            sw, sh = _primary_screen_size()
-            x = int((sw - w) / 2)
-            y = int((sh - h) / 2) + int(y_offset)
-    else:
-        sw, sh = _primary_screen_size()
-        x = int((sw - w) / 2)
-        y = int((sh - h) / 2) + int(y_offset)
-
-    x = max(vx + margin, min(x, vx + vw - margin - w))
-    y = max(vy + margin, min(y, vy + vh - margin - h))
-    win.geometry(f"{w}x{h}+{x}+{y}")
-
-
 class LoadingOverlay:
     """
     Simple modal "loading" overlay that blocks UI interaction (grab_set).
     """
-    def __init__(
-        self,
-        root: tk.Tk,
-        text: str = "Loading...",
-        modal: bool = True,
-        anchor_window: Optional[tk.Misc] = None,
-        y_offset: int = 0,
-    ) -> None:
+    def __init__(self, root: tk.Tk, text: str = "Loading...", modal: bool = True, anchor_window: Optional[tk.Misc] = None, y_offset: int = 0) -> None:
         self.root = root
         self.anchor_window = anchor_window
         self.y_offset = int(y_offset or 0)
@@ -177,6 +102,71 @@ class LoadingOverlay:
         except Exception:
             pass
 
+def _center_toplevel(
+    win: tk.Toplevel,
+    root: tk.Tk,
+    anchor_window: Optional[tk.Misc] = None,
+    y_offset: int = 0,
+    margin: int = 20,
+) -> None:
+    """Center a toplevel on screen or relative to an anchor window (clamped to desktop)."""
+    win.update_idletasks()
+    w = int(win.winfo_reqwidth())
+    h = int(win.winfo_reqheight())
+
+    # Virtual desktop bounds (handles multi-monitor + negative origins on Windows).
+    try:
+        vx = int(root.winfo_vrootx())
+        vy = int(root.winfo_vrooty())
+        vw = int(root.winfo_vrootwidth())
+        vh = int(root.winfo_vrootheight())
+    except Exception:
+        vx = 0
+        vy = 0
+        vw = int(win.winfo_screenwidth())
+        vh = int(win.winfo_screenheight())
+
+    def _primary_screen_size() -> tuple[int, int]:
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32  # pyright: ignore[reportAttributeAccessIssue]
+            sw = int(user32.GetSystemMetrics(0))
+            sh = int(user32.GetSystemMetrics(1))
+            if sw > 0 and sh > 0:
+                return sw, sh
+        except Exception:
+            pass
+        return int(win.winfo_screenwidth()), int(win.winfo_screenheight())
+
+    x: int
+    y: int
+    if anchor_window is not None:
+        try:
+            anchor_window.update_idletasks()
+        except Exception:
+            pass
+        try:
+            # rootx/rooty are always screen coords even for nested widgets.
+            ax = int(anchor_window.winfo_rootx())
+            ay = int(anchor_window.winfo_rooty())
+            aw = int(anchor_window.winfo_width()) or int(anchor_window.winfo_reqwidth())
+            ah = int(anchor_window.winfo_height()) or int(anchor_window.winfo_reqheight())
+            cx = ax + aw / 2
+            cy = ay + ah / 2
+            x = int(cx - w / 2)
+            y = int(cy - h / 2) + int(y_offset)
+        except Exception:
+            sw, sh = _primary_screen_size()
+            x = int((sw - w) / 2)
+            y = int((sh - h) / 2) + int(y_offset)
+    else:
+        sw, sh = _primary_screen_size()
+        x = int((sw - w) / 2)
+        y = int((sh - h) / 2) + int(y_offset)
+
+    x = max(vx + margin, min(x, vx + vw - margin - w))
+    y = max(vy + margin, min(y, vy + vh - margin - h))
+    win.geometry(f"{w}x{h}+{x}+{y}")
 
 # ---------------------- Startup Splash Control ----------------------
 # The app keeps a single "startup splash" overlay alive while background initialization runs.

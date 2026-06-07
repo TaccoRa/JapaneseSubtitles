@@ -817,7 +817,7 @@ class SubtitleController:
             self.settings.control_time_str.set(text)
         self._update_subtitle_display()
 
-    def _update_subtitle_display(self):
+    def _update_subtitle_display(self, force: bool = False):
         offset = self.settings._last_offset_value
         sub_t = self.current_time - offset
         if sub_t < 0 or sub_t > self.total_duration:
@@ -837,9 +837,9 @@ class SubtitleController:
         copy_text = self._segments_to_copy_text(top, bottom) or clean
         joined = copy_text
         self.last_subtitle_raw = copy_text
-        if joined == self.last_subtitle_text:
+        if joined == self.last_subtitle_text and not force:
             return
-        if joined != self.last_subtitle_text:
+        if joined != self.last_subtitle_text or force:
             if self.subtitle_timeout_job:
                 self.overlay.root.after_cancel(self.subtitle_timeout_job)
                 self.subtitle_timeout_job = None

@@ -20,7 +20,7 @@ from urllib.parse import urlparse, unquote
 from typing import List, Optional, Tuple, Dict
 import threading
 from collections import defaultdict, Counter
-import statistics
+import heapq
 
 import regex
 import srt
@@ -91,6 +91,9 @@ class SubtitleManager:
             "episode_load_times": [],
         }
         self._search_dialog_open_count = 0
+        self._font_cache_key = None
+        self._cached_font = None
+        self._cached_ruby_font = None
         self._search_dialog_lock = threading.Lock()
 
         if self.remote_flag:
@@ -269,7 +272,6 @@ class SubtitleManager:
         episode_time = time.time() - episode_start
         if hasattr(self, '_ruby_stats'):
             self._ruby_stats["episode_load_times"].append(episode_time)
-            logger.info(f"Episode load time: {episode_time:.2f}s")
             # Reset stats for next episode
             self._ruby_stats["cache_hits"] = 0
             self._ruby_stats["cache_misses"] = 0
@@ -767,6 +769,86 @@ class SubtitleManager:
     def get_anime_name(self)-> Optional[str]: return self.anime_folder_name
     def get_subtitle_display_data(self): return self.display_data
     def get_subtitle_geometry(self): return self.calculate_geometry()
+    def calculate_geometry_for_longest_lines(self, top_n: int = 10):
+
+        def line_score(segments):
+            return sum(len(base or "") + len(ruby or "") for base, ruby in segments)
+
+        lines = []
+        for clean, start_time, top, bottom in self.display_data:
+            for segments in (top, bottom):
+                if segments:
+                    lines.append((line_score(segments), start_time, segments))
+
+        if not lines:
+            return self.calculate_geometry()
+
+        top_lines = heapq.nlargest(top_n, lines, key=lambda item: item[0])
+        font, ruby_font = self._get_subtitle_fonts()
+        max_width = 0
+        for _, _, segments in top_lines:
+            if self._auto_ruby_enabled() and not any(ruby for _, ruby in segments):
+                line_text = "".join(base for base, _ in segments)
+                parsed = self._parse_ruby_segments(line_text, allow_auto=True)
+                if parsed:
+                    segments = parsed
+            width = self._measure_line_width(segments, font, ruby_font)
+            max_width = max(max_width, width)
+
+        return self._geometry_from_measured_width(max_width)
+
+    def _get_subtitle_fonts(self):
+        family = self.config.get("SUBTITLE_FONT") or "Arial"
+        size = self.config.get("SUBTITLE_FONT_SIZE") or 18
+        try:
+            size = int(size)
+        except Exception:
+            size = 18
+        key = (family, size, "bold")
+        if self._font_cache_key != key or self._cached_font is None or self._cached_ruby_font is None:
+            self._cached_font = tkFont.Font(family=family, size=size, weight="bold")
+            self._cached_ruby_font = tkFont.Font(
+                family=self._cached_font.actual("family"),
+                size=int(self._cached_font.actual("size") * 0.6),
+                weight="bold",
+            )
+            self._font_cache_key = key
+        return self._cached_font, self._cached_ruby_font
+
+    def _measure_line_width(self, segments, font, ruby_font):
+        width = 0
+        for base, ruby in segments:
+            base_w = font.measure(base)
+            ruby_w = ruby_font.measure(ruby) if ruby else 0
+            width += max(base_w, ruby_w)
+        return width
+
+    def _geometry_from_measured_width(self, max_width):
+        font, _ = self._get_subtitle_fonts()
+        line_height = font.metrics("linespace")
+        ruby_height = int(line_height * 0.6)
+        pad_x = 5
+        total_height = ruby_height * 2 + line_height * 2
+
+        try:
+            wrap_limit_px = int(self.config.get("SUBTITLE_WRAP_LIMIT_PX") or 0)
+        except Exception:
+            wrap_limit_px = 0
+
+        if wrap_limit_px > 0:
+            renderer_padding = 40
+            max_width = min(max_width, wrap_limit_px)
+            total_width = max_width + 2 * renderer_padding
+        else:
+            total_width  = max_width + 2 * pad_x
+
+        return (total_width, total_height)
+
+    def _calculate_geometry_from_line_segments(self, segments):
+        font, ruby_font = self._get_subtitle_fonts()
+        max_width = self._measure_line_width(segments, font, ruby_font)
+        return self._geometry_from_measured_width(max_width)
+
     def get_episode_metadata(self): return (self.github_owner, self.github_repo, self.remote_path,
                                             self.anime_folder_name, self.file_name, self.current_season, self.current_episode)
     def get_total_duration(self) -> float: return self.subtitles[-1].end.total_seconds()
@@ -1896,8 +1978,7 @@ class SubtitleManager:
             show_startup_overlay()
 
     def calculate_geometry(self):
-        font = tkFont.Font(family=self.config.get("SUBTITLE_FONT"),size=self.config.get("SUBTITLE_FONT_SIZE"),weight="bold")
-        ruby_font = tkFont.Font(family=font.actual("family"), size=int(font.actual("size") * 0.6), weight="bold")
+        font, ruby_font = self._get_subtitle_fonts()
 
         def _measure_line_width(segments):
             width = 0
@@ -1921,14 +2002,6 @@ class SubtitleManager:
         pad_x = 5
         total_height = ruby_height * 2 + line_height * 2
 
-        # In lazy auto-ruby mode, not all cues are fully enriched at load time.
-        # Keep a safety margin so later ruby expansions are less likely to exceed current overlay width.
-        if self._auto_ruby_enabled():
-            max_width = int(max_width * 1.15)
-
-        # If we wrap long lines at a fixed pixel limit, the overlay doesn't need to grow beyond that limit.
-        # Keep this in sync with SubtitleRenderer._wrap_segments()' default padding (40px each side),
-        # otherwise we might wrap sooner than intended.
         try:
             wrap_limit_px = int(self.config.get("SUBTITLE_WRAP_LIMIT_PX") or 0)
         except Exception:
@@ -2691,14 +2764,7 @@ class SubtitleManager:
                 else:
                     cached_items = payload.get("items")
                     if isinstance(cached_items, list) and cached_items:
-                        logger.info(
-                            "Using cached GitHub search results: %s (created_at=%s, upgraded_at=%s)",
-                            cache_path,
-                            payload.get("created_at"),
-                            payload.get("upgraded_at"),
-                        )
 
-                        # Trust the cache as-is (no reparsing, no "upgrade" rewrite).
                         # Rewriting a large JSON and re-running regex parsing can be noticeably CPU-heavy.
                         out_items: List[Dict] = []
                         for it in cached_items:
@@ -3883,8 +3949,9 @@ class SubtitleManager:
                 # logger.exception("Failed to remove cached file: %s", fn)
 
     def _download_file(self,remote_path, local_path, session=None):
-        if not os.path.exists(local_path):
-            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        if os.path.exists(local_path):
+            return
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
         try:
             getter = session.get if session is not None else requests.get
             r = getter(remote_path, timeout=15)

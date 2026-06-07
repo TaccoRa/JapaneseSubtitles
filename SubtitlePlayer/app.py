@@ -2,7 +2,6 @@
 import tkinter as tk
 import logging
 import threading
-from threading import Thread
 
 from view.settings_ui import SettingsUI
 from view.subtitle_overlay import SubtitleOverlayUI
@@ -22,37 +21,30 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(name)s: %(message)s",
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("SubtitlePlayer.App")
 
 
 class SubtitlePlayerApp:
     def __init__(self):
-        # Core state
         self.root = None
         self.config = None
 
-        # Startup state
         self._startup_done = threading.Event()
-        self._startup_error = None
-        self._startup_result = None
-        self._startup_thread = None
-        self._startup_overlay = None
+        self._startup_error = self._startup_result = self._startup_thread = self._startup_overlay = None
 
-        # App components
         self.sub_manager = None
-        self.total_duration = None
         self.renderer = None
         self.controller = None
         self.settings_ui = None
         self.sub_overlay_ui = None
         self.popup = None
+        self.total_duration = None
 
     def run(self):
         logger.info("Starting SubtitlePlayerApp")
 
         self._load_config()
         self._build_root()
-
         self._show_startup_overlay()
         self._start_startup_worker()
 
@@ -76,18 +68,11 @@ class SubtitlePlayerApp:
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _show_startup_overlay(self):
-        self._startup_overlay = LoadingOverlay(
-            self.root,
-            text="Starting SubtitlePlayer...",
-            modal=False,
-        )
+        self._startup_overlay = LoadingOverlay(self.root,text="Starting SubtitlePlayer...",modal=False)
         set_startup_overlay(self._startup_overlay)
 
     def _start_startup_worker(self):
-        self._startup_thread = Thread(
-            target=self._startup_worker,
-            daemon=True
-        )
+        self._startup_thread = threading.Thread(target=self._startup_worker,daemon=True)
         self._startup_thread.start()
 
     def _startup_worker(self):
@@ -104,32 +89,28 @@ class SubtitlePlayerApp:
         if not self._startup_done.is_set():
             self.root.after(50, self._check_startup_worker)
             return
-
-        self._finish_startup()
+        self.root.after(0, self._finish_startup)
 
     def _finish_startup(self):
-        self._close_startup_overlay()
-
         if self._startup_error or not self._startup_result:
+            self._close_startup_overlay()
             logger.exception("Startup failed", exc_info=self._startup_error)
             self.root.destroy()
             return
 
         self.sub_manager, self.total_duration = self._startup_result
+        self.root.after(0, self._finish_startup_ui)
 
+    def _finish_startup_ui(self):
         self._build_ui()
         self._build_renderer()
         self._build_controller()
 
         self._update_title()
-
         self.root.deiconify()
+        self._close_startup_overlay()
         self.sub_overlay_ui.show()
-
-        self.root.after(
-            self.config.get("UPDATE_INTERVAL_MS"),
-            self.controller.update_loop,
-        )
+        self.root.after(self.config.get("UPDATE_INTERVAL_MS"), self.controller.update_loop)
 
     def _close_startup_overlay(self):
         if self._startup_overlay:
@@ -146,12 +127,13 @@ class SubtitlePlayerApp:
     def _build_ui(self):
         self.popup = CopyPopup(root=self.root, config=self.config)
 
-        overlay_geometry = self.sub_manager.get_subtitle_geometry()
+        overlay_geometry = self.sub_manager.calculate_geometry_for_longest_lines(5)
+        cleaned_subs = [item[0] for item in self.sub_manager.display_data]
 
         self.sub_overlay_ui = SubtitleOverlayUI(
             root=self.root,
             config=self.config,
-            cleaned_subs=[item[0] for item in self.sub_manager.display_data],
+            cleaned_subs=cleaned_subs,
             overlay_geometry=overlay_geometry,
             start_hidden=True,
         )
