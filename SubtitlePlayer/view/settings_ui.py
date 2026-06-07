@@ -9,7 +9,13 @@ from tkinter import ttk
 import threading
 from re import fullmatch
 from model.config_manager import ConfigManager
-from utils import make_draggable, format_time, get_monitor_rects
+from utils import (
+    make_draggable,
+    format_time,
+    get_monitor_rects,
+    make_nonactivating_window,
+    show_window_no_activate_minimizable,
+)
 
 class SettingsUI:
     NUMBER_PATTERN = r"\s*([-+]?\d+(?:[.,]\d+)?)\s*(?:s|sec|secs|second|seconds)?\s*"
@@ -66,9 +72,17 @@ class SettingsUI:
         self._advanced_tab_sizes = {}
         self._advanced_tab_key_map = {}
         self._advanced_resize_job = None
+        self._root_topmost_before_advanced = None
+        self._ocr_region_count_trace_var = None
+        self._ocr_region_count_refresh_job = None
 
         self._build_settings_frame()
         self._build_control_window()
+        try:
+            make_nonactivating_window(self.root)
+            self.root.after(0, lambda: make_nonactivating_window(self.root))
+        except Exception:
+            pass
         if self._start_hidden:
             try:
                 self.control_window.withdraw()
@@ -157,10 +171,10 @@ class SettingsUI:
                      "time_entry_return", "time_entry_clear",
                      "advanced_apply",
                      "ocr_read_now", "ocr_sync_now",
-                     "anki_check"):
+                     "anki_check", "settings_open"):
             setattr(self, f"_on_{name}", self._noop)
 
-    # â€”â€”â€” SETTINGS FRAME â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”
+    # --------- SETTINGS FRAME ------------------------------------------------------------------------------------
     def _build_settings_frame(self):
         self.settings_frame = tk.LabelFrame(self.root)
         self.settings_frame.pack(fill="both", expand=True, padx=5, pady=5)
@@ -323,7 +337,7 @@ class SettingsUI:
         self.slider.bind("<ButtonRelease-1>", lambda e: self._on_slider_release(e))
         self.update_time_overlay_position()
 
-    # â€”â€”â€” CONTROL WINDOW â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”
+    # --------- CONTROL WINDOW ------------------------------------------------------------------------------------------------------------------
     def _build_control_window(self):
         self.control_window = tk.Toplevel(self.root)
         self.control_window.overrideredirect(True)
@@ -386,8 +400,8 @@ class SettingsUI:
         self.time_entry.bind("<Return>", lambda ev:   self._on_time_entry_return(ev))
         self.control_window.bind("<ButtonPress-1>", self._on_control_window_click, add="+")
 
-        self.control_window.bind("<Enter>", lambda ev: self._on_control_window_enter(ev))
-        self.control_window.bind("<Leave>", lambda ev: self._on_control_window_leave(ev))
+        self.control_window.bind("<Enter>", lambda ev: self.bind_control_window_enter(ev))
+        self.control_window.bind("<Leave>", lambda ev: self.bind_control_window_leave(ev))
 
     def show(self) -> None:
         """Show the floating control window (used after startup splash)."""
@@ -445,7 +459,7 @@ class SettingsUI:
         if abs(self._last_skip_value - saved_skip) > 0.001:
             self.config.set("DEFAULT_SKIP", self._last_skip_value)
             
-    # â€”â€”â€” PUBLIC binders â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”
+    # --------- PUBLIC binders ------------------------------------------------------------------------------------------------------------------
     # Settings window
     def bind_episode_change(self, on_ent, on_inc, on_dec):
         self._on_ep_entry_change = on_ent
@@ -539,6 +553,7 @@ class SettingsUI:
     def bind_ocr_read_now(self, cb):         self._on_ocr_read_now = cb
     def bind_ocr_sync_now(self, cb):         self._on_ocr_sync_now = cb
     def bind_anki_check(self, cb):           self._on_anki_check = cb
+    def bind_settings_open(self, cb):        self._on_settings_open = cb
 
     def update_time_overlay_position(self):
         self.root.update_idletasks()
@@ -565,7 +580,7 @@ class SettingsUI:
         self._on_slider_change(str(new_val))
         return "break"
 
-    # â€”â€”â€” PHONE MODE UI ADJUSTMENT â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”
+    # --------- PHONE MODE UI ADJUSTMENT ------------------------------------------------------------------------------------
 
     def _toggle_phone_mode(self):
         phone_mode = not self.default_phone_mode
@@ -699,11 +714,13 @@ class SettingsUI:
                 pass
 
 
-
-    # â€”â€”â€” HELPERS â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”â€”
+    #HELPERS
     def _on_settings(self, event):#button to lift the root window
-        self.root.deiconify()
-        self.root.lift()
+        show_window_no_activate_minimizable(self.root, topmost=True)
+        try:
+            self._on_settings_open()
+        except Exception:
+            pass
 
     def _flush_pending_entry_changes(self):
         """Force any pending changes in offset/skip entry fields to be saved to config."""
@@ -719,7 +736,7 @@ class SettingsUI:
                     if abs(parsed - current_value) > 0.001:  # Value has changed
                         setattr(self, attr_name, parsed)
                         if entry is self.offset_entry:
-                            apply_method(parsed, persist=True)
+                            apply_method(parsed, persist=True, previous_value=current_value)
                         elif entry is self.skip_entry:
                             apply_method(parsed, persist=True)
             except Exception:
@@ -746,11 +763,10 @@ class SettingsUI:
     def _open_advanced_settings_window(self):
         # Flush any pending changes in the main UI before opening the advanced window
         self._flush_pending_entry_changes()
+        self._keep_main_settings_clickable_with_advanced()
         
         if self.advanced_window is not None and self.advanced_window.winfo_exists():
-            self.advanced_window.deiconify()
-            self.advanced_window.lift()
-            self.advanced_window.attributes("-topmost", True)
+            show_window_no_activate_minimizable(self.advanced_window)
             self._load_advanced_values_into_vars()
             self._prepare_advanced_tab_sizes()
             self.root.after(0, self._fit_advanced_window_to_selected_tab)
@@ -759,10 +775,16 @@ class SettingsUI:
             return
 
         win = tk.Toplevel(self.root)
+        win.withdraw()
         self.advanced_window = win
         win.title("Advanced Settings")
         win.attributes("-topmost", True)
+        make_nonactivating_window(win)
         win.resizable(True, True)
+        try:
+            win.grab_release()
+        except Exception:
+            pass
         self._restore_advanced_window_geometry(win)
 
         body = tk.Frame(win, padx=12, pady=12)
@@ -780,6 +802,8 @@ class SettingsUI:
         self._advanced_meta = {}
         self._advanced_status_var = tk.StringVar(value="")
         self._advanced_tab_key_map = {}
+        self._ocr_region_count_trace_var = None
+        self._ocr_region_count_refresh_job = None
 
         notebook = ttk.Notebook(body)
         notebook.pack(fill="both", expand=True, anchor="n", pady=(0, 8))
@@ -844,6 +868,7 @@ class SettingsUI:
         win.after(0, self._fit_advanced_window_to_selected_tab)
         win.after(80, self._fit_advanced_window_to_selected_tab)
         win.after(0, self._reset_advanced_tab_focus)
+        show_window_no_activate_minimizable(win)
 
         def _on_destroy(_event):
             if _event.widget is not win:
@@ -854,14 +879,43 @@ class SettingsUI:
                 except Exception:
                     pass
                 self._advanced_resize_job = None
+            if self._ocr_region_count_refresh_job is not None:
+                try:
+                    win.after_cancel(self._ocr_region_count_refresh_job)
+                except Exception:
+                    pass
+                self._ocr_region_count_refresh_job = None
             self._save_advanced_window_geometry(win)
             self.advanced_window = None
             self._advanced_notebook = None
             self._advanced_tab_sizes = {}
             self._advanced_tab_key_map = {}
             self._phone_mode_toggle_btn = None
+            self._ocr_region_count_trace_var = None
+            self._restore_main_settings_topmost_after_advanced()
 
         win.bind("<Destroy>", _on_destroy)
+
+    def _keep_main_settings_clickable_with_advanced(self) -> None:
+        if self._root_topmost_before_advanced is None:
+            try:
+                self._root_topmost_before_advanced = bool(self.root.attributes("-topmost"))
+            except Exception:
+                self._root_topmost_before_advanced = False
+        try:
+            self.root.attributes("-topmost", True)
+        except Exception:
+            pass
+
+    def _restore_main_settings_topmost_after_advanced(self) -> None:
+        previous = self._root_topmost_before_advanced
+        self._root_topmost_before_advanced = None
+        if previous is None:
+            return
+        try:
+            self.root.attributes("-topmost", bool(previous))
+        except Exception:
+            pass
 
     def _restore_advanced_window_geometry(self, win):
         try:
@@ -1077,6 +1131,8 @@ class SettingsUI:
                 self._advanced_vars[key] = tk.BooleanVar(value=False)
             else:
                 self._advanced_vars[key] = tk.StringVar(value="")
+            if key == "OCR_REGION_COUNT":
+                self._install_ocr_region_count_trace(self._advanced_vars[key])
             keys = self._advanced_tab_key_map.setdefault(tab_id, [])
             if key not in keys:
                 keys.append(key)
@@ -1148,6 +1204,37 @@ class SettingsUI:
                         self._refresh_phone_toggle_button()
             row += 1
 
+    def _install_ocr_region_count_trace(self, var) -> None:
+        if var is None or self._ocr_region_count_trace_var is var:
+            return
+        self._ocr_region_count_trace_var = var
+        try:
+            var.trace_add("write", self._on_ocr_region_count_changed)
+        except Exception:
+            pass
+
+    def _on_ocr_region_count_changed(self, *_args) -> None:
+        root = getattr(self, "root", None)
+        if root is None:
+            return
+        if self._ocr_region_count_refresh_job is not None:
+            try:
+                root.after_cancel(self._ocr_region_count_refresh_job)
+            except Exception:
+                pass
+        try:
+            self._ocr_region_count_refresh_job = root.after(80, self._refresh_ocr_count_runtime)
+        except Exception:
+            self._refresh_ocr_count_runtime()
+
+    def _refresh_ocr_count_runtime(self) -> None:
+        self._ocr_region_count_refresh_job = None
+        try:
+            self._refresh_ocr_area_buttons()
+            self._apply_ocr_values_runtime()
+        except Exception:
+            pass
+
     def _advanced_general_columns(self):
         left = [
             (
@@ -1175,10 +1262,12 @@ class SettingsUI:
                 "Subtitle Cleaning",
                 [
                     {"key": "SUBTITLE_CUSTOM_HTML_TAGS", "label": "Custom HTML tags to keep", "type": "str", "default": ""},
-                    {"key": "SUBTITLE_KEEP_SPEAKER_NAMES", "label": "Keep leading speaker labels like (Name)", "type": "bool", "default": False},
-                    {"key": "SUBTITLE_SPEAKER_TEMPLATE", "label": "Speaker output template ({name})", "type": "str", "default": "<speaker:{name}> "},
+                    {"key": "SUBTITLE_SPEAKER_MODE", "label": "Speaker mode: hide, anime, template", "type": "str", "default": "hide"},
+                    {"key": "SUBTITLE_KEEP_SPEAKER_NAMES", "label": "Legacy: keep leading speaker labels", "type": "bool", "default": False},
+                    {"key": "SUBTITLE_SPEAKER_TEMPLATE", "label": "Custom speaker template ({name})", "type": "str", "default": "{name}: "},
                     {"key": "SUBTITLE_STRIP_PAREN_NOTES", "label": "Remove remaining non-speaker (...) notes", "type": "bool", "default": False},
                     {"key": "SUBTITLE_AUTO_RUBY", "label": "Auto-add ruby for kanji-only lines", "type": "bool", "default": False},
+                    {"key": "SUBTITLE_HOVER_RUBY", "label": "Show ruby only on kanji hover", "type": "bool", "default": False},
                 ],
             ),
         ]
@@ -1232,6 +1321,12 @@ class SettingsUI:
             ),
         ]
         right = [
+            (
+                "Audio Clip Timing",
+                [
+                    {"key": "AUDIO_PADDING", "label": "Subtitle-end audio padding (s)", "type": "float", "default": 0.1, "min": -10.0, "max": 10.0},
+                ],
+            ),
             (
                 "Language",
                 [
@@ -2028,8 +2123,18 @@ class SettingsUI:
         entry.delete(0, tk.END)
         entry.insert(0, formatted)
 
-    def _apply_offset_change(self, value_seconds: float, persist: bool):
+    def _apply_offset_change(self, value_seconds: float, persist: bool, previous_value=None):
+        try:
+            previous = float(previous_value)
+            delta = float(value_seconds) - previous
+        except Exception:
+            delta = 0.0
         self.slider.config(to=self.total_duration + value_seconds)
+        if abs(delta) >= 0.001:
+            try:
+                self.slider.set(float(self.slider.get()) + delta)
+            except Exception:
+                pass
         self.update_time_and_subtitle_displays()
         self._on_slider_release(None)
         self._sync_advanced_startup_vars_from_runtime()
@@ -2076,10 +2181,11 @@ class SettingsUI:
             self._set_entry_value(entry, last_val)
         else:
             value = parsed
+            previous = last_val
             setattr(self, attr, value)
             self._set_entry_value(entry, value)
             if entry is self.offset_entry:
-                self._apply_offset_change(value, persist=True)
+                self._apply_offset_change(value, persist=True, previous_value=previous)
             elif entry is self.skip_entry:
                 self._apply_skip_change(value, persist=True)
         entry.master.focus_set()

@@ -6,7 +6,7 @@ Displays subtitle text and provides a simple context menu for mouse-only copy.
 
 import tkinter as tk
 from tkinter import font as tkFont
-from utils import make_draggable, get_monitor_rects
+from utils import make_draggable, get_monitor_rects, make_nonactivating_tool_window, show_window_no_activate
 
 class CopyPopup:
     
@@ -19,6 +19,7 @@ class CopyPopup:
         self._pinned = False
         self._menu_open = False
         self._entry_widget: tk.Text | None = None
+        self._drag_grip: tk.Label | None = None
         self._on_add_anki = None
         self._dragging = False
         self.root.bind("<Destroy>", lambda e: self._cancel_close())
@@ -40,9 +41,12 @@ class CopyPopup:
         self._menu_open = False
         self._dragging = False
         self._entry_widget = None
+        self._drag_grip = None
+        popup.withdraw()
         popup.overrideredirect(True)
         # popup.configure(bg=self.bg_color)
         popup.attributes("-topmost", True)
+        make_nonactivating_tool_window(popup)
 
         #calulate size of popup based on text
         font = tkFont.Font(family=self.font_name, size=self.font_size, weight="bold")
@@ -79,6 +83,7 @@ class CopyPopup:
             pady=0,
         )
         drag_grip.place(relx=1.0, rely=1.0, x=-2, y=-2, anchor="se")
+        self._drag_grip = drag_grip
         make_draggable(drag_grip, popup, on_release=self._on_popup_drag_end)
         drag_grip.bind("<ButtonPress-1>", self._on_popup_drag_start, add="+")
         drag_grip.bind("<ButtonRelease-1>", self._on_popup_drag_end, add="+")
@@ -194,7 +199,7 @@ class CopyPopup:
         x = max(screen_x, min(x, max_x))
         y = max(screen_y, min(y, max_y))
         popup.geometry(f"{total_width}x{total_height}+{x}+{y}")
-        self.ensure_on_top()
+        show_window_no_activate(popup)
         
         self._pinned  = False
         popup.bind("<Enter>", lambda e: self._cancel_close())
@@ -215,8 +220,7 @@ class CopyPopup:
         if not popup:
             return
         try:
-            popup.attributes("-topmost", True)
-            popup.lift()
+            show_window_no_activate(popup)
         except Exception:
             pass
 
@@ -224,6 +228,8 @@ class CopyPopup:
         popup = getattr(self, "_popup", None)
         if not popup:
             return
+        if cursor:
+            self._cancel_close()
         try:
             popup.configure(cursor=cursor)
         except Exception:
@@ -235,10 +241,44 @@ class CopyPopup:
             except Exception:
                 pass
 
+    def mark_anki_success(self, duration_ms: int = 1200) -> None:
+        popup = getattr(self, "_popup", None)
+        if not popup:
+            return
+        try:
+            if not popup.winfo_exists():
+                return
+        except Exception:
+            return
+
+        success_bg = "#168a3a"
+        self._cancel_close()
+        try:
+            popup.configure(bg=success_bg, cursor="")
+        except Exception:
+            pass
+        entry = getattr(self, "_entry_widget", None)
+        if entry is not None:
+            try:
+                entry.configure(bg=success_bg, cursor="xterm")
+            except Exception:
+                pass
+        grip = getattr(self, "_drag_grip", None)
+        if grip is not None:
+            try:
+                grip.configure(bg=success_bg)
+            except Exception:
+                pass
+        try:
+            self._close_job = popup.after(max(300, int(duration_ms)), self._close)
+        except Exception:
+            self._restart_close()
+
     def _close(self) -> None:
         if self._popup: self._popup.destroy()
         self._popup = None
         self._entry_widget = None
+        self._drag_grip = None
         self._close_job = None
 
     def _cancel_close(self) -> None:
@@ -274,4 +314,5 @@ class CopyPopup:
     def _on_popup_destroy(self) -> None:
         self._popup = None
         self._entry_widget = None
+        self._drag_grip = None
         self._dragging = False

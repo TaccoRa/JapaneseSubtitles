@@ -44,7 +44,11 @@ class SubtitleManager:
     CLEAN_PATTERN = re.compile(r'\{\\an\d+\}')
     TAG_PATTERN = re.compile(r'<[^>]*>')
     TAG_NAME_PATTERN = re.compile(r'<\s*/?\s*([A-Za-z0-9:_-]+)')
-    SPEAKER_PATTERN = re.compile(r'^\s*[（(]\s*(?P<name>[^)）]{1,60})\s*[）)]\s*[:：]?\s*(?P<rest>.*)$')
+    SPEAKER_PATTERN = re.compile(
+        r'^\s*(?P<dash>[-\u2010-\u2015\u2212\uff0d]\s*)?'
+        r'[\uFF08(]\s*(?P<name>[^)\uFF09]{1,60})\s*[\uFF09)]\s*'
+        r'[:\uFF1A]?\s*(?P<rest>.*)$'
+    )
     NON_SPEAKER_HINTS = (
         "音",
         "物音",
@@ -279,21 +283,31 @@ class SubtitleManager:
         if not use_source_ruby:
             cleaned = self.RUBY_PATTERN.sub(r'\1', cleaned)
 
-        keep_speaker = bool(self.config.get("SUBTITLE_KEEP_SPEAKER_NAMES") or False)
+        speaker_mode = str(self.config.get("SUBTITLE_SPEAKER_MODE") or "").strip().lower()
+        if not speaker_mode:
+            speaker_mode = "template" if bool(self.config.get("SUBTITLE_KEEP_SPEAKER_NAMES") or False) else "hide"
+        elif speaker_mode in {"off", "none", "false", "0"}:
+            speaker_mode = "hide"
+        elif speaker_mode in {"source", "original"}:
+            speaker_mode = "anime"
+        elif speaker_mode not in {"hide", "anime", "template"}:
+            speaker_mode = "hide"
         strip_paren_notes = self.config.get("SUBTITLE_STRIP_PAREN_NOTES")
         strip_paren_notes = True if strip_paren_notes is None else bool(strip_paren_notes)
-        speaker_template = str(self.config.get("SUBTITLE_SPEAKER_TEMPLATE") or "<speaker:{name}> ")
+        speaker_template = str(self.config.get("SUBTITLE_SPEAKER_TEMPLATE") or "{name}: ")
 
         out_lines = []
         for raw_line in cleaned.splitlines():
             line = (raw_line or "").strip()
             if not line:
                 continue
-            name, rest = self._find_leading_speaker_label(line)
+            name, rest, anime_prefix = self._find_leading_speaker_label(line)
             if name is not None:
-                if keep_speaker and name:
+                if speaker_mode == "template" and name:
                     prefix = self._format_speaker_template(speaker_template, name).rstrip()
                     line = f"{prefix} {rest}".strip() if rest else prefix
+                elif speaker_mode == "anime" and anime_prefix:
+                    line = f"{anime_prefix}{rest}".strip() if rest else anime_prefix
                 else:
                     line = rest
             if strip_paren_notes and line:
@@ -356,18 +370,18 @@ class SubtitleManager:
 
     @staticmethod
     def _format_speaker_template(template: str, name: str) -> str:
-        text = str(template or "<speaker:{name}> ")
+        text = str(template or "{name}: ")
         if "{name}" not in text:
             text = text + "{name}"
         try:
             return text.format(name=name)
         except Exception:
-            return f"<speaker:{name}> "
+            return f"{name}: "
 
-    def _find_leading_speaker_label(self, line: str) -> Tuple[Optional[str], str]:
+    def _find_leading_speaker_label(self, line: str) -> Tuple[Optional[str], str, str]:
         current = (line or "").strip()
         if not current:
-            return None, ""
+            return None, "", ""
 
         # Some subtitle lines have multiple leading (...) tags; we only treat tags
         # that look like an actual speaker label as speaker names.
@@ -378,11 +392,12 @@ class SubtitleManager:
             candidate = (m.group("name") or "").strip()
             rest = (m.group("rest") or "").strip()
             if self._looks_like_speaker_name(candidate):
-                return candidate, rest
+                dash = "-" if (m.group("dash") or "").strip() else ""
+                return candidate, rest, f"{dash}\uFF08{candidate}\uFF09"
             if not rest or rest == current:
                 break
             current = rest
-        return None, (line or "").strip()
+        return None, (line or "").strip(), ""
 
     @classmethod
     def _looks_like_speaker_name(cls, text: str) -> bool:

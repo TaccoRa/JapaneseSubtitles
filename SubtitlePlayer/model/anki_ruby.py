@@ -4,6 +4,17 @@ import subprocess
 import sys
 from typing import List, Optional, Tuple
 
+try:
+    from SubtitlePlayer.furigana_splitter import split_furigana
+except ImportError:
+    try:
+        from furigana_splitter import split_furigana
+    except ImportError:
+        _package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        if _package_dir not in sys.path:
+            sys.path.insert(0, _package_dir)
+        from furigana_splitter import split_furigana
+
 IS_WIN = sys.platform == "win32"
 IS_MAC = sys.platform == "darwin"
 
@@ -123,39 +134,12 @@ def _split_kanji_kana_core(base: str, ruby: str) -> Optional[List[Tuple[str, Opt
     return out or None
 
 
-def _split_ruby_base(base: str, ruby: str) -> List[Tuple[str, Optional[str]]]:
+def _split_ruby_base(base: str, ruby: str, single_kanji_reader=None) -> List[Tuple[str, Optional[str]]]:
     if not base:
         return []
     if not ruby:
         return [(base, None)]
-    first = None
-    for i, ch in enumerate(base):
-        if _is_kanji_char(ch):
-            first = i
-            break
-    if first is None:
-        return [(base, ruby)]
-    last = None
-    for i in range(len(base) - 1, -1, -1):
-        if _is_kanji_char(base[i]):
-            last = i
-            break
-    if last is None or last < first:
-        return [(base, ruby)]
-    prefix = base[:first]
-    core = base[first:last + 1]
-    suffix = base[last + 1:]
-    out: List[Tuple[str, Optional[str]]] = []
-    if prefix:
-        out.append((prefix, None))
-    core_split = _split_kanji_kana_core(core, ruby)
-    if core_split:
-        out.extend(core_split)
-    else:
-        out.append((core, ruby))
-    if suffix:
-        out.append((suffix, None))
-    return out
+    return split_furigana(base, ruby, single_kanji_reader)
 
 
 def strip_html(text: str) -> str:
@@ -355,16 +339,33 @@ class AddonRubyGenerator:
         self.support_dir = support_dir or DEFAULT_SUPPORT_DIR
         self.kakasi = KakasiController(self.support_dir)
         self.mecab = MecabController(self.support_dir, self.kakasi)
+        self._single_kanji_reading_cache: dict[str, str] = {}
 
     def reading(self, text: str) -> str:
         return self.mecab.reading(text)
 
+    def single_kanji_reading(self, ch: str) -> str:
+        if ch in self._single_kanji_reading_cache:
+            return self._single_kanji_reading_cache[ch]
+        if not _is_kanji_char(ch) or ch == "々":
+            return ""
+        raw = self.reading(ch).strip()
+        match = BRACKET_RUBY_RE.fullmatch(raw)
+        if match and match.group(1) == ch:
+            value = _kata_to_hira(match.group(2))
+        elif raw and raw != ch and "[" not in raw and "]" not in raw:
+            value = _kata_to_hira(raw)
+        else:
+            value = ""
+        self._single_kanji_reading_cache[ch] = value
+        return value
+
     def segments(self, text: str) -> List[Tuple[str, Optional[str]]]:
         ruby_text = self.reading(text)
-        return bracket_text_to_segments(ruby_text)
+        return bracket_text_to_segments(ruby_text, self.single_kanji_reading)
 
 
-def bracket_text_to_segments(text: str) -> List[Tuple[str, Optional[str]]]:
+def bracket_text_to_segments(text: str, single_kanji_reader=None) -> List[Tuple[str, Optional[str]]]:
     segments: List[Tuple[str, Optional[str]]] = []
     last = 0
     for m in BRACKET_RUBY_RE.finditer(text or ""):
@@ -374,7 +375,7 @@ def bracket_text_to_segments(text: str) -> List[Tuple[str, Optional[str]]]:
         base = m.group(1)
         ruby = m.group(2)
         if base:
-            for sub_base, sub_ruby in _split_ruby_base(base, ruby):
+            for sub_base, sub_ruby in _split_ruby_base(base, ruby, single_kanji_reader):
                 if sub_ruby is not None and not any(_is_kanji_char(ch) for ch in sub_base):
                     segments.append((sub_base, None))
                 else:

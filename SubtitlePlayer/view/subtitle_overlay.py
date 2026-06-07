@@ -8,7 +8,7 @@ import tkinter as tk
 from typing import List, Optional
 
 from model.config_manager import ConfigManager
-from utils import make_draggable
+from utils import make_draggable, make_nonactivating_tool_window, show_window_no_activate
 
 class SubtitleOverlayUI:
 
@@ -28,6 +28,7 @@ class SubtitleOverlayUI:
         self.sub_window: tk.Toplevel = None 
         self.subtitle_canvas: tk.Canvas = None
         self.subtitle_handle = None
+        self._handle_width = 80
         self.max_w, self.max_h = overlay_geometry
         self.center_x = self.config.get("LAST_SUB_CENTER_X")
         self.center_y = self.config.get("LAST_SUB_CENTER_Y")
@@ -73,8 +74,7 @@ class SubtitleOverlayUI:
         else:
             self.hide_handle()
         
-        make_draggable(self.sub_window, self.sub_window,
-                       on_release=self._save_center_position)
+        self._bind_subtitle_drag()
 
         self.sub_window.bind("<Enter>", lambda ev: self.on_sub_window_enter(ev))
         self.sub_window.bind("<Leave>", lambda ev: self.on_sub_window_leave(ev))
@@ -116,20 +116,62 @@ class SubtitleOverlayUI:
 
         # Apply geometry
         self.sub_window.geometry(f"{self.max_w}x{self.max_h}+{x}+{y}")
+        self._sync_handle_to_subtitle()
         # Resize canvas to match coordinate system the renderer expects
         self.subtitle_canvas.config(width=self.max_w, height=self.max_h)
         self.subtitle_canvas.update_idletasks()
 
+    def _sync_handle_to_subtitle(self):
+        if not self.subtitle_handle:
+            return
+        try:
+            if not self.subtitle_handle.winfo_exists():
+                return
+            self.sub_window.update_idletasks()
+            sub_x = self.sub_window.winfo_x()
+            sub_y = self.sub_window.winfo_y()
+            drag_w = int(self._handle_width)
+            drag_h = self.sub_window.winfo_height()
+            self.subtitle_handle.geometry(f"{drag_w}x{drag_h}+{sub_x}+{sub_y}")
+        except Exception:
+            pass
+
+    def _bind_subtitle_drag(self):
+        sync_windows = None
+        try:
+            if (
+                self.subtitle_handle
+                and self.subtitle_handle.winfo_exists()
+                and str(self.subtitle_handle.state()) != "withdrawn"
+            ):
+                sync_windows = [self.subtitle_handle]
+        except Exception:
+            sync_windows = None
+        make_draggable(
+            self.sub_window,
+            self.sub_window,
+            sync_windows=sync_windows,
+            on_release=self._save_center_position,
+        )
 
     def show_handle(self):
+        if self.subtitle_handle:
+            try:
+                if self.subtitle_handle.winfo_exists():
+                    self._sync_handle_to_subtitle()
+                    self.subtitle_handle.attributes("-alpha", 0.05)
+                    show_window_no_activate(self.subtitle_handle)
+                    self._bind_subtitle_drag()
+                    return
+            except Exception:
+                self.subtitle_handle = None
+
         self.subtitle_handle = tk.Toplevel(self.root)
+        self.subtitle_handle.withdraw()
         self.subtitle_handle.overrideredirect(True)
         self.subtitle_handle.attributes("-topmost", True)
-        self.sub_window.update_idletasks()
-        sub_x = self.sub_window.winfo_x()
-        sub_y = self.sub_window.winfo_y()
-        drag_w, drag_h = 80, self.sub_window.winfo_height()
-        self.subtitle_handle.geometry(f"{drag_w}x{drag_h}+{sub_x}+{sub_y}")
+        make_nonactivating_tool_window(self.subtitle_handle)
+        self._sync_handle_to_subtitle()
         self.subtitle_handle.attributes("-alpha", 0.05)
 
         self.subtitle_handle.bind("<Enter>", lambda ev: self.on_handle_enter(ev))
@@ -144,10 +186,20 @@ class SubtitleOverlayUI:
                 self.subtitle_handle.withdraw()
             except Exception:
                 pass
+        else:
+            show_window_no_activate(self.subtitle_handle)
+        self._bind_subtitle_drag()
 
     def hide_handle(self):
         if self.subtitle_handle:
-            self.subtitle_handle.attributes("-alpha", 0.0)
+            try:
+                self.subtitle_handle.withdraw()
+            except Exception:
+                try:
+                    self.subtitle_handle.attributes("-alpha", 0.0)
+                except Exception:
+                    pass
+        self._bind_subtitle_drag()
 
     def _save_center_position(self, x, y, w, h):
         self.center_x = x + w / 2
@@ -160,6 +212,7 @@ class SubtitleOverlayUI:
 
     def show(self) -> None:
         """Show overlay (and handle if enabled). Used after startup splash."""
+        self._start_hidden = False
         try:
             self.sub_window.deiconify()
             self.sub_window.lift()
@@ -167,9 +220,7 @@ class SubtitleOverlayUI:
         except Exception:
             pass
         try:
-            if self.subtitle_handle and self.config.get("PHONEMODE_DEFAULT"):
-                self.subtitle_handle.deiconify()
-                self.subtitle_handle.lift()
-                self.subtitle_handle.attributes("-topmost", True)
+            if self.config.get("PHONEMODE_DEFAULT"):
+                self.show_handle()
         except Exception:
             pass

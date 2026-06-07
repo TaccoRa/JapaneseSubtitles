@@ -1,20 +1,11 @@
 To Do:
-Also make rubies copyable in popup
-When i adjust the offset it should also jump by that offset: from 0 to -1 --> from 10:45(my)10:44(he) to 10:44(my)
-Only affect the windows which are actually in the OCr boxes to hide
-when ocr boxes are changed i does not immedietly take affect
-Maybe change position of audio_padding variable in advanced window
 automatically find timebox (machinelearning)
 hovering over kanji --> in line glossary or/and translationadd profile settings for multiple users
 if ocr works good add that it jumps to the time when collecting anki cards (it is okay not very fast but usable not sure how to implement)
 Maybe change how the copy window is displayed.
 
 Bugs:
-when pressing pause and play it does not synchr pause and play. Ours is faster. Or not faster because the time continues earlier.
-when moving the subtitle window in phone mode the little white handle on the left is not moved simoultaniously
 Maybe shift of 1 second if offset 0?
-the subtitle window obstructs from using the main window
-if advanced window not fully visible have scroller and adjust size
 
 Dont do:
 change second to ms and so on with certain buttons for Skip --> too clunky
@@ -22,7 +13,6 @@ Change subtitle width to fit current subtitle (maybe flashes --> YES)
 
 
 Added:
-main window not usable during advanced settings window open (wanted?)
 Add the html tags inside the subtitle files optional (not sure what html tags they use and what for)
 changed auto ruby handling check if words like toutou is correct
 some windows like the search button window needs to be autosized 
@@ -55,7 +45,6 @@ add config for phone mode default true/false
 
 
 Fixed:
-I think there is an extra window open which is unused.
 when any number on the numpad is pressed it weirdly jumps around or even tough it is mode1 when 4 or 6 is pressed it jumps around almost like it want to write 4 or 6 insinde the time entry. Also when inside any entry the numpad should be usable without hotkeys
 この間 複合した“宿り木の蔦(つた)” was not correctly ruby shown Hitoribochi 7. 4:57
 default skip is not saved

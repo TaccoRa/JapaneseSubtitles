@@ -1,0 +1,663 @@
+## Front Template
+```html
+<span class="kanji">
+  {{furigana:Front}}
+  {{#Sound}}
+    <span class="sound">{{Sound}}</span>
+  {{/Sound}}
+</span>
+
+{{#SentenceJA}}
+  <span class="sentenceJA">{{furigana:SentenceJA}}</span>
+{{/SentenceJA}}
+
+<script src="stroke_auto_runtime.js"></script>
+
+<script>
+(function () {
+  function buildFlatMapping(container) {
+    let flat = "";
+    const mapping = [];
+    function walk(node) {
+      if (!node) return;
+      if (node.nodeType === 3) {
+        for (let i = 0; i < node.nodeValue.length; i++) {
+          mapping.push({ node: node, offset: i });
+          flat += node.nodeValue.charAt(i);
+        }
+      } else if (node.nodeType === 1) {
+        const tag = node.tagName.toLowerCase();
+        if (tag === "rt") return;
+        if (tag === "ruby") {
+          Array.from(node.childNodes).forEach(function (c) {
+            if (c.nodeType === 1 && c.tagName && c.tagName.toLowerCase() === "rt") return;
+            walk(c);
+          });
+        } else {
+          Array.from(node.childNodes).forEach(walk);
+        }
+      }
+    }
+    walk(container);
+    return { flat: flat, mapping: mapping };
+  }
+
+  function rangesByNode(mapping, rangesList) {
+    const nodeMap = new Map();
+    rangesList.forEach(function (pair) {
+      const start = pair[0];
+      const end = pair[1];
+      for (let i = start; i < end; i++) {
+        const m = mapping[i];
+        if (!m) continue;
+        const node = m.node;
+        const idx = m.offset;
+        if (!nodeMap.has(node)) nodeMap.set(node, []);
+        const arr = nodeMap.get(node);
+        const last = arr.length ? arr[arr.length - 1] : null;
+        if (last && last[1] === idx) last[1] = idx + 1;
+        else arr.push([idx, idx + 1]);
+      }
+    });
+    return nodeMap;
+  }
+
+  function wrapRanges(nodeMap) {
+    nodeMap.forEach(function (ranges, node) {
+      const txt = node.nodeValue || "";
+      const frag = document.createDocumentFragment();
+      let last = 0;
+      ranges.forEach(function (pair) {
+        const s = pair[0];
+        const e = pair[1];
+        if (s > last) frag.appendChild(document.createTextNode(txt.slice(last, s)));
+        const span = document.createElement("span");
+        span.className = "highlight";
+        span.textContent = txt.slice(s, e);
+        frag.appendChild(span);
+        last = e;
+      });
+      if (last < txt.length) frag.appendChild(document.createTextNode(txt.slice(last)));
+      node.parentNode.replaceChild(frag, node);
+    });
+  }
+
+  function highlightExactExpressionInSentence(sentenceEl, expression) {
+    if (!sentenceEl || !expression) return false;
+    const built = buildFlatMapping(sentenceEl);
+    const flat = built.flat;
+    const mapping = built.mapping;
+    if (!flat) return false;
+    const ranges = [];
+    let pos = 0;
+    while (true) {
+      const idx = flat.indexOf(expression, pos);
+      if (idx === -1) break;
+      ranges.push([idx, idx + expression.length]);
+      pos = idx + expression.length;
+    }
+    if (!ranges.length) return false;
+    wrapRanges(rangesByNode(mapping, ranges));
+    return true;
+  }
+
+  function getMainExpression(kanjiEl) {
+    if (!kanjiEl) return "";
+    const clone = kanjiEl.cloneNode(true);
+    clone.querySelectorAll("rt").forEach(function (rt) { rt.remove(); });
+    return (clone.textContent || "").replace(/\[[^\]]*]/g, "").replace(/\s+/g, "").trim();
+  }
+
+  function bindRubyTapOnce() {
+    if (window.__rubyTapFixBound) return;
+    window.__rubyTapFixBound = true;
+    let lastTapAt = 0;
+    function onRubyTap(e) {
+      const ruby = e.target && e.target.closest ? e.target.closest("ruby") : null;
+      if (!ruby) return;
+      const now = Date.now();
+      if (e.type === "click" && now - lastTapAt < 300) return;
+      if (e.type !== "click") lastTapAt = now;
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+      ruby.classList.toggle("show");
+    }
+    if (window.PointerEvent) {
+      document.addEventListener("pointerdown", onRubyTap, true);
+    } else {
+      document.addEventListener("touchstart", onRubyTap, true);
+    }
+    document.addEventListener("click", onRubyTap, true);
+  }
+
+  function runFront() {
+    bindRubyTapOnce();
+
+    const kanjiEl = document.querySelector(".kanji");
+    if (kanjiEl) {
+      const mainExpression = getMainExpression(kanjiEl);
+      if (mainExpression) {
+        document.querySelectorAll(".sentenceJA").forEach(function (s) {
+          highlightExactExpressionInSentence(s, mainExpression);
+        });
+      }
+    }
+
+  }
+
+  if (typeof onUpdateHook !== "undefined") onUpdateHook.push(runFront);
+  if (typeof onShownHook !== "undefined") onShownHook.push(runFront);
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", runFront);
+  } else {
+    runFront();
+  }
+  setTimeout(runFront, 0);
+  setTimeout(runFront, 120);
+})();
+</script>
+
+
+<script>
+(function () {
+  const MIN_STROKE_SIZE = 24;
+  const VIEWPORT_PADDING = 4;
+
+  function px(value) {
+    const n = parseFloat(value);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function getVisibleRect(el) {
+    if (!el || el.nodeType !== 1) return null;
+    const tag = el.tagName ? el.tagName.toLowerCase() : "";
+    if (tag === "script" || tag === "style") return null;
+    const style = getComputedStyle(el);
+    if (style.display === "none" || style.visibility === "hidden") return null;
+    if (style.position === "absolute" || style.position === "fixed") return null;
+    const rect = el.getBoundingClientRect();
+    if (rect.width <= 0 && rect.height <= 0) return null;
+    return rect;
+  }
+
+  function outerHeight(el) {
+    const rect = getVisibleRect(el);
+    if (!rect) return 0;
+    const style = getComputedStyle(el);
+    return rect.height + px(style.marginTop) + px(style.marginBottom);
+  }
+
+  function viewportHeight() {
+    const visual = window.visualViewport && window.visualViewport.height;
+    return visual || window.innerHeight || document.documentElement.clientHeight || 0;
+  }
+
+  function isMeasureBoundary(el) {
+    return !!(el && el.id === "answer");
+  }
+
+  function hasPreviousBoundary(row) {
+    let prev = row.previousElementSibling;
+    while (prev) {
+      if (isMeasureBoundary(prev)) return true;
+      prev = prev.previousElementSibling;
+    }
+    return false;
+  }
+
+  function scopedPreviousHeight(row) {
+    let total = 0;
+    let prev = row.previousElementSibling;
+    while (prev && !isMeasureBoundary(prev)) {
+      total += outerHeight(prev);
+      prev = prev.previousElementSibling;
+    }
+    return total;
+  }
+
+  function scopedFollowingHeight(row) {
+    let total = 0;
+    let next = row.nextElementSibling;
+    while (next && !isMeasureBoundary(next)) {
+      if (!next.classList || !next.classList.contains("stroke-order-row")) {
+        total += outerHeight(next);
+      }
+      next = next.nextElementSibling;
+    }
+    return total;
+  }
+
+  function availableRowHeight(row) {
+    const rect = row.getBoundingClientRect();
+    const before = scopedPreviousHeight(row);
+    const after = scopedFollowingHeight(row);
+    const scopeTop = hasPreviousBoundary(row)
+      ? VIEWPORT_PADDING
+      : Math.max(VIEWPORT_PADDING, rect.top - before);
+    const raw = viewportHeight() - VIEWPORT_PADDING - scopeTop - before - after;
+    return Math.max(MIN_STROKE_SIZE, Math.floor(raw));
+  }
+
+  function fitStrokeRow(row) {
+    if (!row) return;
+
+    const items = row.querySelectorAll(".stroke-order-media");
+    const n = items.length;
+    if (!n) return;
+
+    const cols = n === 1 ? 1 : 2;
+    const rows = Math.ceil(n / 2);
+    row.style.setProperty("--stroke-cols", String(cols));
+    row.setAttribute("data-stroke-count", String(n));
+
+    const style = getComputedStyle(row);
+    const gapX = parseFloat(style.columnGap || style.gap) || 0;
+    const gapY = parseFloat(style.rowGap || style.gap) || gapX;
+
+    const rowRect = row.getBoundingClientRect();
+    const w = row.clientWidth || rowRect.width;
+    const h = availableRowHeight(row);
+    if (!w || !h) return;
+
+    const maxByWidth = (w - gapX * (cols - 1)) / cols;
+    const maxByHeight = (h - gapY * (rows - 1)) / rows;
+    const size = Math.max(MIN_STROKE_SIZE, Math.floor(Math.min(maxByWidth, maxByHeight)));
+    const rowHeight = Math.min(h, Math.ceil(size * rows + gapY * (rows - 1)));
+
+    row.style.height = rowHeight + "px";
+    row.style.flex = "0 0 " + rowHeight + "px";
+    row.style.setProperty("--stroke-size", size + "px");
+  }
+
+  function fitStrokeRows() {
+    document.querySelectorAll(".stroke-order-row").forEach(fitStrokeRow);
+  }
+
+  function scheduleFitStrokeRow() {
+    requestAnimationFrame(function () {
+      fitStrokeRows();
+      requestAnimationFrame(fitStrokeRows);
+    });
+  }
+
+  function initStrokeFront() {
+    if (!window.strokeAutoInit) return false;
+    window.strokeAutoInit({
+      prefix: "stroke_",
+      autoplay: 0,
+      idleFinal: 1,
+      maxKanji: 0
+    });
+    return true;
+  }
+
+  function runStrokeFront() {
+    if (!initStrokeFront()) {
+      for (let i = 1; i <= 60; i++) setTimeout(initStrokeFront, i * 50);
+      return;
+    }
+    scheduleFitStrokeRow();
+  }
+
+  if (typeof onUpdateHook !== "undefined") onUpdateHook.push(runStrokeFront);
+  if (typeof onShownHook !== "undefined") onShownHook.push(runStrokeFront);
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", runStrokeFront);
+  } else {
+    runStrokeFront();
+  }
+
+  setTimeout(scheduleFitStrokeRow, 0);
+  setTimeout(scheduleFitStrokeRow, 60);
+  setTimeout(scheduleFitStrokeRow, 180);
+  setTimeout(scheduleFitStrokeRow, 400);
+
+  if (!window.__strokeResizeBound) {
+    window.__strokeResizeBound = true;
+    window.addEventListener("resize", scheduleFitStrokeRow);
+    window.addEventListener("orientationchange", scheduleFitStrokeRow);
+  }
+})();
+</script>
+```
+## Back Template
+```html
+{{FrontSide}}
+<hr id=answer>
+
+{{#Back}}
+  <span class="transl">{{Back}}</span><br>
+{{/Back}}
+
+{{#SentenceDE}}
+  <span class="sentenceDE">{{SentenceDE}}</span><br>
+{{/SentenceDE}}
+
+{{#Image}}
+  {{Image}}
+{{/Image}}
+
+<script src="stroke_auto_runtime.js"></script>
+
+<script>
+(function () {
+  function buildFlatMapping(container) {
+    let flat = "";
+    const mapping = [];
+    function walk(node) {
+      if (!node) return;
+      if (node.nodeType === 3) {
+        for (let i = 0; i < node.nodeValue.length; i++) {
+          mapping.push({ node: node, offset: i });
+          flat += node.nodeValue.charAt(i);
+        }
+      } else if (node.nodeType === 1) {
+        const tag = node.tagName.toLowerCase();
+        if (tag === "rt") return;
+        if (tag === "ruby") {
+          Array.from(node.childNodes).forEach(function (c) {
+            if (c.nodeType === 1 && c.tagName && c.tagName.toLowerCase() === "rt") return;
+            walk(c);
+          });
+        } else {
+          Array.from(node.childNodes).forEach(walk);
+        }
+      }
+    }
+    walk(container);
+    return { flat: flat, mapping: mapping };
+  }
+
+  function rangesByNode(mapping, rangesList) {
+    const nodeMap = new Map();
+    rangesList.forEach(function (pair) {
+      const start = pair[0];
+      const end = pair[1];
+      for (let i = start; i < end; i++) {
+        const m = mapping[i];
+        if (!m) continue;
+        const node = m.node;
+        const idx = m.offset;
+        if (!nodeMap.has(node)) nodeMap.set(node, []);
+        const arr = nodeMap.get(node);
+        const last = arr.length ? arr[arr.length - 1] : null;
+        if (last && last[1] === idx) last[1] = idx + 1;
+        else arr.push([idx, idx + 1]);
+      }
+    });
+    return nodeMap;
+  }
+
+  function wrapRanges(nodeMap) {
+    nodeMap.forEach(function (ranges, node) {
+      const txt = node.nodeValue || "";
+      const frag = document.createDocumentFragment();
+      let last = 0;
+      ranges.forEach(function (pair) {
+        const s = pair[0];
+        const e = pair[1];
+        if (s > last) frag.appendChild(document.createTextNode(txt.slice(last, s)));
+        const span = document.createElement("span");
+        span.className = "highlight";
+        span.textContent = txt.slice(s, e);
+        frag.appendChild(span);
+        last = e;
+      });
+      if (last < txt.length) frag.appendChild(document.createTextNode(txt.slice(last)));
+      node.parentNode.replaceChild(frag, node);
+    });
+  }
+
+  function highlightExactExpressionInSentence(sentenceEl, expression) {
+    if (!sentenceEl || !expression) return false;
+    const built = buildFlatMapping(sentenceEl);
+    const flat = built.flat;
+    const mapping = built.mapping;
+    if (!flat) return false;
+    const ranges = [];
+    let pos = 0;
+    while (true) {
+      const idx = flat.indexOf(expression, pos);
+      if (idx === -1) break;
+      ranges.push([idx, idx + expression.length]);
+      pos = idx + expression.length;
+    }
+    if (!ranges.length) return false;
+    wrapRanges(rangesByNode(mapping, ranges));
+    return true;
+  }
+
+  function getMainExpression(kanjiEl) {
+    if (!kanjiEl) return "";
+    const clone = kanjiEl.cloneNode(true);
+    clone.querySelectorAll("rt").forEach(function (rt) { rt.remove(); });
+    return (clone.textContent || "").replace(/\[[^\]]*]/g, "").replace(/\s+/g, "").trim();
+  }
+
+  function bindRubyTapOnce() {
+    if (window.__rubyTapFixBound) return;
+    window.__rubyTapFixBound = true;
+    let lastTapAt = 0;
+    function onRubyTap(e) {
+      const ruby = e.target && e.target.closest ? e.target.closest("ruby") : null;
+      if (!ruby) return;
+      const now = Date.now();
+      if (e.type === "click" && now - lastTapAt < 300) return;
+      if (e.type !== "click") lastTapAt = now;
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+      ruby.classList.toggle("show");
+    }
+    if (window.PointerEvent) {
+      document.addEventListener("pointerdown", onRubyTap, true);
+    } else {
+      document.addEventListener("touchstart", onRubyTap, true);
+    }
+    document.addEventListener("click", onRubyTap, true);
+  }
+
+  function initStrokeAuto() {
+    if (!window.strokeAutoInit) return false;
+    window.strokeAutoInit({
+      prefix: "stroke_",
+      autoplay: 1,
+      idleFinal: 1,
+      maxKanji: 0
+    });
+    return true;
+  }
+
+  function runBack() {
+    bindRubyTapOnce();
+
+    const kanjiEl = document.querySelector(".kanji");
+    if (kanjiEl) {
+      const mainExpression = getMainExpression(kanjiEl);
+      if (mainExpression) {
+        document.querySelectorAll(".sentenceDE").forEach(function (s) {
+          const hadMatch = highlightExactExpressionInSentence(s, mainExpression);
+          if (hadMatch) {
+            s.querySelectorAll("ruby").forEach(function (ruby) {
+              if (ruby.querySelector(".highlight")) ruby.classList.add("show");
+            });
+          }
+        });
+      }
+      kanjiEl.querySelectorAll("ruby").forEach(function (ruby) {
+        ruby.classList.add("show");
+      });
+    }
+
+    if (!initStrokeAuto()) {
+      for (let i = 1; i <= 60; i++) {
+        setTimeout(initStrokeAuto, i * 50);
+      }
+    }
+  }
+
+  if (typeof onUpdateHook !== "undefined") onUpdateHook.push(runBack);
+  if (typeof onShownHook !== "undefined") onShownHook.push(runBack);
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", runBack);
+  } else {
+    runBack();
+  }
+  setTimeout(runBack, 0);
+  setTimeout(runBack, 120);
+})();
+</script>
+
+```
+## Styling
+```css
+.card {
+  font-family: arial;
+  font-size: 28px;
+  text-align: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.kanji {
+  display: block;
+  flex: 0 0 auto;
+  font-size: 1.6em;
+  font-weight: 600;
+  line-height: 1.15;
+  white-space: nowrap;
+  min-height: 1.15em;
+}
+
+.kanji .sound {
+  display: inline-block;
+  font-size: 0.55em;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.sentenceJA {
+  display: block;
+  flex: 0 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 0.9em;
+  line-height: 1.25;
+  color: black;
+}
+.transl { font-size: 1.2em; font-weight: bold; }
+.sentenceDE { font-size: 0.6em; color: black }
+
+.night_mode .sentenceJA,
+.night_mode .sentenceDE,
+.nightMode .sentenceJA,
+.nightMode .sentenceDE {
+  color: white;
+}
+
+ruby rt {
+  visibility: hidden;
+  opacity: 0;
+  font-size: 0.55em;
+  transition: opacity 0.5s ease;
+  line-height: 0.5;
+}
+
+ruby.show rt {
+  visibility: visible;
+  opacity: 1;
+}
+
+ruby {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.highlight {
+  color: #ffcc33;
+  font-weight: bold;
+}
+
+ruby:has(.highlight) rt {
+  color: #ffcc33;
+  font-weight: 700;
+}
+
+.kanji .highlight { 
+  color: inherit; 
+  background: none; 
+  padding: 0; 
+  border-radius: 0; 
+}
+
+
+.stroke-order-row {
+  --stroke-cols: 2;
+  --stroke-size: min(48vw, 42vh);
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(var(--stroke-cols), var(--stroke-size));
+  grid-auto-rows: var(--stroke-size);
+  gap: 0;
+  justify-content: center;
+  align-content: center;
+  justify-items: center;
+  align-items: center;
+  overflow: hidden;
+  margin: 0.35em 0;
+}
+
+.stroke-order-media {
+
+  width: var(--stroke-size);
+  height: var(--stroke-size);
+  aspect-ratio: 1 / 1;
+
+  overflow: hidden;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  contain: paint;
+  -webkit-tap-highlight-color: transparent;
+
+  --stroke-speed: 2.0;
+  --stroke-gap: 0;
+  --stroke-brush: 1;
+  --stroke-backward: 0;
+  --stroke-autoplay: 0;
+  --stroke-idle-final: 1;
+
+  --stroke-bg: #52514f;
+  --stroke-line: #060503;
+  --stroke-brush-fill: #e53935;
+  --stroke-brush-stroke: #555;
+
+  --stroke-grid: 1;
+  --stroke-grid-color: #50463a;
+  --stroke-grid-width: 2;
+  --stroke-grid-border-width: 2;
+  --stroke-grid-border-color: #50463a;
+  --stroke-grid-dash: 3 2;
+  --stroke-grid-center-hole: 2;
+  --stroke-grid-opacity: 1;
+
+  position: relative;
+}
+
+.stroke-order-row > .stroke-order-media:last-child:nth-child(odd):not(:only-child) {
+  grid-column: 1 / -1;
+  justify-self: center;
+}
+```

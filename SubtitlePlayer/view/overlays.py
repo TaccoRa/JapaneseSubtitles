@@ -2,10 +2,6 @@
 UI overlays used by SubtitlePlayer.
 
 This module currently provides LoadingOverlay: a small runtime "please wait" overlay.
-
-Important: Animations only advance while Tk's event loop is running. If the main thread
-is blocked by a long operation, the overlay will still show, but it won't animate until
-the UI thread is free again.
 """
 import tkinter as tk
 from tkinter import ttk
@@ -37,11 +33,8 @@ def _center_toplevel(
         vh = int(win.winfo_screenheight())
 
     def _primary_screen_size() -> tuple[int, int]:
-        # On Windows, Tk's "screenwidth" can behave like the virtual desktop width on multi-monitor
-        # setups. For the startup splash we want the primary monitor.
         try:
-            import ctypes  # type: ignore
-
+            import ctypes
             user32 = ctypes.windll.user32  # pyright: ignore[reportAttributeAccessIssue]
             sw = int(user32.GetSystemMetrics(0))
             sh = int(user32.GetSystemMetrics(1))
@@ -85,11 +78,7 @@ def _center_toplevel(
 class LoadingOverlay:
     """
     Simple modal "loading" overlay that blocks UI interaction (grab_set).
-
-    Note: If you run a long blocking task on the main thread, the progress bar won't animate,
-    but the window will at least be visible so the user knows something is happening.
     """
-
     def __init__(
         self,
         root: tk.Tk,
@@ -109,8 +98,6 @@ class LoadingOverlay:
         if modal:
             self._win.grab_set()
 
-        # When showing a runtime overlay, bring the anchor/settings window to the front too
-        # (but keep the overlay above it).
         if self.anchor_window is not None:
             try:
                 self._anchor_prev_topmost = bool(self.anchor_window.attributes("-topmost"))
@@ -201,7 +188,6 @@ _STARTUP_HIDE_COUNT: int = 0
 def set_startup_overlay(overlay: Optional[LoadingOverlay]) -> None:
     """
     Register the current startup overlay.
-
     When set to None, the hidden-counter is reset as well.
     """
     global _STARTUP_OVERLAY, _STARTUP_HIDE_COUNT

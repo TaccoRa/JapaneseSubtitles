@@ -14,6 +14,7 @@ from model.subtitle_manager import SubtitleManager
 from model.renderer import SubtitleRenderer
 
 from controller.controller import SubtitleController
+from controller.playback_controller import PlaybackController
 
 # from video_sync_server import start_server, get_video_time
 
@@ -46,12 +47,8 @@ class SubtitlePlayerApp:
         self.sub_overlay_ui = None
         self.popup = None
 
-    # =========================
-    # Public API
-    # =========================
     def run(self):
         logger.info("Starting SubtitlePlayerApp")
-        # threading.Thread(target=start_server, daemon=True).start()
 
         self._load_config()
         self._build_root()
@@ -62,9 +59,6 @@ class SubtitlePlayerApp:
         self.root.after(50, self._check_startup_worker)
         self.root.mainloop()
 
-    # =========================
-    # Startup
-    # =========================
     def _load_config(self):
         try:
             self.config = ConfigManager("config.json")
@@ -176,6 +170,7 @@ class SubtitlePlayerApp:
         )
 
     def _build_controller(self):
+        self.playback = PlaybackController(self)
         self.controller = SubtitleController(
             manager=self.sub_manager,
             renderer=self.renderer,
@@ -183,8 +178,10 @@ class SubtitlePlayerApp:
             overlay_ui=self.sub_overlay_ui,
             popup=self.popup,
             config=self.config,
+            playback=self.playback,
             total_duration=self.total_duration,
         )
+        self.playback.set_controller(self.controller)
 
     # =========================
     # Window / UI helpers

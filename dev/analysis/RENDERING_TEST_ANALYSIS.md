@@ -12,17 +12,17 @@ I found three different rendering approaches in your test code. Let me analyze e
 - **Glow**: Drawn via 21×21 offset text items per character
 
 ### **Test Approach 1: PIL + Tkinter Canvas**
-- **File**: [tests/Testing_subtitle/Testing_subtitle_shadow.py](tests/Testing_subtitle/Testing_subtitle_shadow.py) (first two commented versions)
+- **File**: [dev/tests/Testing_subtitle/Testing_subtitle_shadow.py](../../dev/tests/Testing_subtitle/Testing_subtitle_shadow.py) (first two commented versions)
 - **Method**: Render to PIL image, convert to PhotoImage, display on Canvas
 - **Glow**: Gaussian blur in PIL, then composite layers
 
 ### **Test Approach 2: Win32 Layered Window**
-- **File**: [tests/Testing_subtitle/Testing_subtitle_shadow.py](tests/Testing_subtitle/Testing_subtitle_shadow.py) (Win32 version)
+- **File**: [dev/tests/Testing_subtitle/Testing_subtitle_shadow.py](../../dev/tests/Testing_subtitle/Testing_subtitle_shadow.py) (Win32 version)
 - **Method**: Native Windows API (DIB section + UpdateLayeredWindow)
 - **Glow**: PIL rendering, then direct bitmap to Win32
 
 ### **Test Approach 3: PyQt5**
-- **File**: [tests/Testing_subtitle/pyqt_test](tests/Testing_subtitle/pyqt_test)
+- **File**: [dev/tests/Testing_subtitle/pyqt_test](../../dev/tests/Testing_subtitle/pyqt_test)
 - **Method**: PIL + PyQt5 QLabel with native transparency
 - **Glow**: Same PIL approach as Approach 1, but Qt rendering
 

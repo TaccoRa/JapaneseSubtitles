@@ -3,14 +3,25 @@ AnkiConnect client used to create notes from popup selections.
 """
 
 from __future__ import annotations
-
 import base64
 import os
 import re
+import sys
 from html import escape
 from typing import Dict, List, Optional
 
 import requests
+
+try:
+    from SubtitlePlayer.furigana_splitter import split_furigana, split_moras
+except ImportError:
+    try:
+        from furigana_splitter import split_furigana, split_moras
+    except ImportError:
+        _package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        if _package_dir not in sys.path:
+            sys.path.insert(0, _package_dir)
+        from furigana_splitter import split_furigana, split_moras
 
 try:
     from fugashi import Tagger
@@ -293,13 +304,18 @@ class AnkiClient:
                 continue
             prev_had_ruby = i > 0 and segments[i - 1][1] is not None
             if (
-                sentence_spacing
-                and ruby
+                ruby
                 and self._starts_with_kanji(base)
                 and out
                 and not out[-1].endswith((" ", "\n", "\t"))
                 and not out[-1].endswith(("[", "(", "{", "<", "\u300c", "\u300e"))
-                and (not prev_had_ruby or not self._has_okurigana_continuation(segments, i))
+                and (
+                    prev_had_ruby
+                    or (
+                        sentence_spacing
+                        and not self._has_okurigana_continuation(segments, i)
+                    )
+                )
             ):
                 out.append(" ")
             if ruby:
@@ -402,107 +418,135 @@ class AnkiClient:
             return [(surface, None)]
         if self._looks_numeric(surface):
             return [(surface, None)]
-        if self._is_all_kanji(surface) and len(surface) > 1:
-            char_split = self._split_all_kanji_chars(surface, reading)
-            if char_split:
-                return char_split
+        return split_furigana(surface, reading, self._single_kanji_reading_for_split)
 
-        place_r = 0
-        max_suffix = min(len(surface), len(reading)) - 1
-        for i in range(1, max_suffix + 1):
-            if surface[-i] != reading[-i]:
-                break
-            place_r = i
-
-        place_l = 0
-        max_prefix = min(len(surface) - 1, len(reading))
-        for i in range(0, max_prefix):
-            if surface[i] != reading[i]:
-                break
-            place_l = i + 1
-
-        if place_l == 0 and place_r == 0:
-            return [(surface, reading)]
-        if place_l == 0:
-            base = surface[:-place_r] if place_r else surface
-            ruby = reading[:-place_r] if place_r else reading
-            suffix = reading[-place_r:] if place_r else ""
-            if not base or not ruby:
-                return [(surface, reading)]
-            out: List[tuple[str, Optional[str]]] = [(base, ruby)]
-            if suffix:
-                out.append((suffix, None))
-            return out
-
-        if place_r == 0:
-            prefix = reading[:place_l]
-            base = surface[place_l:]
-            ruby = reading[place_l:]
-            if not base or not ruby:
-                return [(surface, reading)]
-            out: List[tuple[str, Optional[str]]] = []
-            if prefix:
-                out.append((prefix, None))
-            out.append((base, ruby))
-            return out
-
-        prefix = reading[:place_l]
-        base = surface[place_l:-place_r]
-        ruby = reading[place_l:-place_r]
-        suffix = reading[-place_r:]
-        if not base or not ruby:
-            return [(surface, reading)]
-        out: List[tuple[str, Optional[str]]] = []
-        if prefix:
-            out.append((prefix, None))
-        out.append((base, ruby))
-        if suffix:
-            out.append((suffix, None))
-        return out
+    def _single_kanji_reading_for_split(self, ch: str) -> str:
+        if self._tagger is None or not self._is_kanji_char(ch):
+            return ""
+        try:
+            tokens = list(self._tagger(ch))
+        except Exception:
+            return ""
+        if len(tokens) != 1:
+            return ""
+        token = tokens[0]
+        if str(getattr(token, "surface", "") or "") != ch:
+            return ""
+        return self._katakana_to_hiragana(self._token_reading(token))
 
     def _split_all_kanji_chars(
         self,
         surface: str,
         reading: str,
     ) -> List[tuple[str, Optional[str]]] | None:
-        # Heuristic split: distribute token reading across kanji chars.
         if not surface or not reading:
             return None
         if not self._is_all_kanji(surface):
             return None
 
+        reading = self._katakana_to_hiragana(reading)
         moras = self._split_moras(reading)
-        n = len(surface)
-        if len(moras) < n:
+        n_chars = len(surface)
+        n_moras = len(moras)
+
+        if n_moras < n_chars:
             return None
 
-        result: List[tuple[str, Optional[str]]] = []
-        idx = 0
-        for i, ch in enumerate(surface):
-            remaining_moras = len(moras) - idx
-            remaining_chars = n - i
-            if remaining_chars <= 1:
-                take = remaining_moras
+        def score_take(length: int, is_last: bool) -> float:
+            if length == 1:
+                score = 2.0
+            elif length == 2:
+                score = 5.0
+            elif length == 3:
+                score = 4.0
+            elif length == 4:
+                score = 2.0
             else:
-                take = max(1, remaining_moras // remaining_chars)
-            chunk = "".join(moras[idx: idx + take])
-            idx += take
-            if not chunk:
+                score = 1.0 - 0.5 * (length - 4)
+
+            if is_last and length == 1:
+                score -= 4.0
+            return score
+
+        def materialize(lengths: tuple[int, ...]) -> List[tuple[str, Optional[str]]]:
+            out: List[tuple[str, Optional[str]]] = []
+            idx = 0
+            for ch, take in zip(surface, lengths):
+                chunk = "".join(moras[idx:idx + take])
+                if not chunk:
+                    return []
+                out.append((ch, chunk))
+                idx += take
+            return out
+
+        # Special handling for 々
+        if n_chars == 2 and surface[1] == "々":
+            first_len = max(1, n_moras // 2)
+            first = "".join(moras[:first_len])
+            if not first:
                 return None
-            result.append((ch, chunk))
-        return result
+            return [(surface[0], first), ("々", first)]
+
+        # Strong, explicit rules for 2-kanji compounds
+        if n_chars == 2:
+            if n_moras == 2:
+                return materialize((1, 1))
+            if n_moras == 3:
+                return materialize((1, 2))
+            if n_moras == 4:
+                return materialize((2, 2))
+            if n_moras == 5:
+                return materialize((2, 3))
+
+        @functools.lru_cache(maxsize=None)
+        def best(start: int, parts_left: int) -> tuple[float, tuple[int, ...]] | None:
+            if parts_left == 1:
+                take = n_moras - start
+                if take < 1:
+                    return None
+                return score_take(take, True), (take,)
+
+            best_score: float | None = None
+            best_lengths: tuple[int, ...] | None = None
+
+            max_take = n_moras - start - (parts_left - 1)
+            if max_take < 1:
+                return None
+
+            for take in range(1, max_take + 1):
+                rest = best(start + take, parts_left - 1)
+                if rest is None:
+                    continue
+
+                rest_score, rest_lengths = rest
+                score = score_take(take, False) + rest_score
+
+                if rest_lengths:
+                    if take <= rest_lengths[0]:
+                        score += 0.8
+                    else:
+                        score -= 0.8
+
+                if best_score is None or score > best_score:
+                    best_score = score
+                    best_lengths = (take,) + rest_lengths
+
+            if best_score is None or best_lengths is None:
+                return None
+            return best_score, best_lengths
+
+        result = best(0, n_chars)
+        if result is None:
+            return None
+
+        _, lengths = result
+        if len(lengths) != n_chars:
+            return None
+
+        return materialize(lengths)
 
     def _split_moras(self, reading: str) -> List[str]:
-        small = set(
-            "\u3083\u3085\u3087\u3041\u3043\u3045\u3047\u3049\u308e\u308e\u3095\u3096\u3063\u309d\u309e\u30fc"
-        )
-        moras: List[str] = []
-        for ch in reading:
-            if ch in small and moras:
-                moras[-1] += ch
-            else:
-                moras.append(ch)
-        return moras
+        return split_moras(reading)
 
     def _katakana_to_hiragana(self, text: str) -> str:
         out = []
@@ -515,19 +559,13 @@ class AnkiClient:
         return "".join(out)
 
     def _contains_kanji(self, text: str) -> bool:
-        for ch in text:
-            code = ord(ch)
-            if (0x4E00 <= code <= 0x9FFF) or (0x3400 <= code <= 0x4DBF):
-                return True
-        return False
+        return any(self._is_kanji_char(ch) for ch in text or "")
 
     def _starts_with_kanji(self, text: str) -> bool:
-        if not text:
-            return False
-        return self._contains_kanji(text[0])
+        return bool(text) and self._is_kanji_char(text[0])
 
     def _is_all_kanji(self, text: str) -> bool:
-        return bool(text) and all(self._contains_kanji(ch) for ch in text)
+        return bool(text) and all(self._is_kanji_char(ch) for ch in text)
 
     def _starts_with_kana(self, text: str) -> bool:
         if not text:
@@ -957,13 +995,17 @@ class AnkiClient:
         return out
 
     def _is_kanji_char(self, ch: str) -> bool:
+        if not ch:
+            return False
         code = ord(ch)
         return (
-            0x3400 <= code <= 0x4DBF
+            code == 0x3005
+            or 0x3400 <= code <= 0x4DBF
             or 0x4E00 <= code <= 0x9FFF
             or 0xF900 <= code <= 0xFAFF
             or 0x20000 <= code <= 0x2A6DF
-            or 0x2A700 <= code <= 0x2B81F
+            or 0x2A700 <= code <= 0x2B73F
+            or 0x2B740 <= code <= 0x2B81F
             or 0x2B820 <= code <= 0x2CEAF
         )
 

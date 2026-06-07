@@ -26,10 +26,13 @@ from model.subtitle_manager import SubtitleManager
 from model.renderer import SubtitleRenderer
 from view.settings_ui import SettingsUI
 from view.subtitle_overlay import SubtitleOverlayUI
-from utils import parse_time_value, format_time, get_monitor_rects
+from utils import parse_time_value, format_time, get_monitor_rects, make_nonactivating_tool_window, show_window_no_activate
 from view.popup import CopyPopup
 
 # from video_sync_server import get_video_time
+
+from controller.playback_controller import PlaybackController
+
 
 class SubtitleController:
     SHORTCUT_DEFAULTS = {
@@ -69,7 +72,8 @@ class SubtitleController:
                 overlay_ui: SubtitleOverlayUI,
                 popup: CopyPopup,
                 config: ConfigManager,
-                total_duration: float):
+                playback: PlaybackController | None = None,
+                total_duration: float = 0.0):
         
         self.sub_manager = manager
         self.renderer = renderer
@@ -77,6 +81,12 @@ class SubtitleController:
         self.overlay = overlay_ui
         self.popup   = popup
         self.config  = config
+
+
+        self.playback = playback or PlaybackController()
+        self.playback.set_controller(self)
+
+
         self.total_duration = total_duration
         self.settings.root.protocol("WM_DELETE_WINDOW", self._on_app_close)
         self.default_start_time = self.config.get("DEFAULT_START_TIME")
@@ -84,6 +94,7 @@ class SubtitleController:
         self._startup_resume_play = False
         self.default_skip = self.config.get("DEFAULT_SKIP")
         self.default_offset = self.config.get("EXTRA_OFFSET")
+        self.audio_padding = self._coerce_float(self.config.get("AUDIO_PADDING"), default=0.1)
         self.phone_windows_hide_control_ms = self.config.get("PHONEMODE_WINDOWS_HIDE_DELAY_MS")   # hides control window after # ms in phone mode
         self.windows_hide_control_ms = self.config.get("WINDOWS_HIDE_DELAY_MS")   # hides control window after # ms in phone mode
         self.hide_subtitles_ms = self.config.get("SUBTITLE_TIMEOUT_MS")                     # clears subtitle canvas after # ms
@@ -130,10 +141,12 @@ class SubtitleController:
         self._anki_wait_thread = None
         self._pending_anki_payload = None
         self._restore_startup_time_and_mode()
+        self._anki_success_popup = None
+        self._anki_success_popup_job = None
 
-        self.settings.bind_back(self.go_back)
-        self.settings.bind_forward(self.go_forward)
-        self.settings.bind_play_pause(self.toggle_play)
+        self.settings.bind_back(self.playback.go_back)
+        self.settings.bind_forward(self.playback.go_forward)
+        self.settings.bind_play_pause(self.playback.toggle_play)
         self.settings.bind_slider(
             on_chg    = self.on_slider_change,
             on_pr     = self.on_slider_press,
@@ -156,6 +169,7 @@ class SubtitleController:
         self.settings.bind_ocr_read_now              (self.on_ocr_read_now)
         self.settings.bind_ocr_sync_now              (self.on_ocr_sync_now)
         self.settings.bind_anki_check                (self.on_anki_check_connection)
+        self.settings.bind_settings_open             (self._hide_subtitle_handle_for_settings)
 
         self.settings.bind_update_display            (self.update_time_and_subtitle_displays)
         
@@ -164,6 +178,8 @@ class SubtitleController:
         self.overlay.bind_sub_window_enter(self.sub_window_enter)
         self.overlay.bind_sub_window_leave(self.sub_window_leave)
         self.overlay.bind_sub_handel_enter(self.sub_handel_enter)   
+        self.settings.root.bind("<Enter>", lambda _e: self._hide_subtitle_handle_for_settings(), add="+")
+        self.settings.root.bind("<Leave>", lambda _e: self._restore_subtitle_handle_after_settings(), add="+")
 
 
         self._mouse_listener = MouseListener(on_click=self._on_global_click)
@@ -175,11 +191,11 @@ class SubtitleController:
 
         self.last_update  = time.time()
         # Use the normal setter so restored startup time updates slider + all UI surfaces consistently.
-        self.set_current_time(float(self.current_time or 0.0))
+        self.playback.set_current_time(float(self.current_time or 0.0))
         self._update_episode_nav_controls()
         if self._startup_resume_play:
             try:
-                self.toggle_play()
+                self.playback.toggle_play()
             except Exception:
                 pass
         self._schedule_ocr_time_jump("startup")
@@ -198,7 +214,7 @@ class SubtitleController:
 
     #     if abs(drift) > self.video_sync_threshold:
     #         print(f"[SYNC] correcting drift: {drift:.2f}s → {video_time:.2f}")
-    #         self.set_current_time(video_time)
+    #         self.playback.set_current_time(video_time)
 
     # def _sync_loop(self):
     #     if not self._shutting_down:
@@ -208,7 +224,13 @@ class SubtitleController:
     #             pass
     #         self.settings.root.after(self.video_sync_interval_ms, self._sync_loop)
 
-        
+    def get_offset_value(self) -> float: return float(self.settings._last_offset_value)
+    
+
+
+
+
+
     def _update_episode_nav_controls(self) -> None:
         """
         Grey out + / - when we know from the episode maps/index that no prev/next exists.
@@ -278,6 +300,24 @@ class SubtitleController:
         self.simulate_video_click()
         return "break"
 
+    @staticmethod
+    def _segments_to_copy_text(top_segments, bottom_segments) -> str:
+        def _line_text(segments) -> str:
+            out = []
+            for base, ruby in segments or []:
+                if ruby:
+                    out.append(f"{base}[{ruby}]")
+                else:
+                    out.append(str(base or ""))
+            return "".join(out).strip()
+
+        lines = []
+        for segments in (top_segments, bottom_segments):
+            text = _line_text(segments)
+            if text:
+                lines.append(text)
+        return "\n".join(lines)
+
     def _add_selection_to_anki(self, selected_text: str, subtitle_text: str = "") -> None:
         selected = (selected_text or "").strip()
         if not selected:
@@ -335,6 +375,11 @@ class SubtitleController:
                     self.settings.root.after(0, self._schedule_ocr_sync_after_anki)
                 except Exception:
                     pass
+                try:
+                    self.settings.root.after(0, self.popup.mark_anki_success)
+                except Exception:
+                    pass
+                print("Anki card added.")
             except Exception as e:
                 print(f"Anki add failed: {e}")
             finally:
@@ -549,6 +594,12 @@ class SubtitleController:
             except Exception:
                 pass
 
+        if "AUDIO_PADDING" in values:
+            try:
+                self.audio_padding = float(values.get("AUDIO_PADDING"))
+            except Exception:
+                self.audio_padding = 0.1
+
         if "POPUP_CLOSE_TIMER" in values:
             try:
                 self.popup.close_delay = max(100, int(values.get("POPUP_CLOSE_TIMER")))
@@ -598,6 +649,7 @@ class SubtitleController:
             "SUBTITLE_FONT_SIZE",
             "SUBTITLE_COLOR",
             "SUBTITLE_WRAP_LIMIT_PX",
+            "SUBTITLE_HOVER_RUBY",
             "GLOW_COLOR",
             "GLOW_RADIUS",
         }
@@ -608,7 +660,15 @@ class SubtitleController:
             except Exception:
                 pass
 
-        if "SUBTITLE_AUTO_RUBY" in values:
+        subtitle_cleaning_keys = {
+            "SUBTITLE_AUTO_RUBY",
+            "SUBTITLE_CUSTOM_HTML_TAGS",
+            "SUBTITLE_SPEAKER_MODE",
+            "SUBTITLE_KEEP_SPEAKER_NAMES",
+            "SUBTITLE_SPEAKER_TEMPLATE",
+            "SUBTITLE_STRIP_PAREN_NOTES",
+        }
+        if any(k in values for k in subtitle_cleaning_keys):
             try:
                 srt_path = getattr(self.sub_manager, "srt_file", None)
                 if srt_path:
@@ -627,10 +687,11 @@ class SubtitleController:
             try:
                 if "EXTRA_OFFSET" in values:
                     off = float(values.get("EXTRA_OFFSET"))
+                    old_off = float(getattr(self.settings, "_last_offset_value", self.default_offset) or 0.0)
                     self.default_offset = off
                     self.settings._last_offset_value = off
                     self.settings.offset_var.set(f"{self.settings._format_number(off)} s")
-                    self.settings._apply_offset_change(off, persist=False)
+                    self.settings._apply_offset_change(off, persist=False, previous_value=old_off)
             except Exception:
                 pass
             try:
@@ -668,38 +729,19 @@ class SubtitleController:
                 pass
 
 
-    # ——— Loop & scheduling ———————————————————————————————————
+    # ——— Time handling ———————————————————————————————————
     def update_loop(self):
-        if self.playing:
-            now = time.time()
-            delta = now - self.last_update
-            self.last_update = now
-            self.set_current_time(self.current_time + delta)
-            
-        self.schedule_update()
+        return self.playback.update_loop()
 
     def schedule_update(self):
-        self.overlay.root.after(self.update_interval_ms, self.update_loop)
+        return self.playback.schedule_update()
 
-
-    # ——— Time handling ———————————————————————————————————
     def set_current_time(self, t: float):
-        if t is None:
-            return
-        offset   = self.settings._last_offset_value
-        t = max(0, min(t, self.total_duration + offset))
-        
-        if t - offset >= self.total_duration and self.playing:
-            self.toggle_play()
-
-        self.current_time = t
-        if not self.slider_dragging:
-            self.settings.slider.set(t)
-            self.update_time_and_subtitle_displays()
+        return self.playback.set_current_time(t)
 
     def on_set_to_return(self, text: str):
         secs = parse_time_value(text)
-        self.set_current_time(secs)
+        self.playback.set_current_time(secs)
         self.settings.setto_entry.delete(0, tk.END)
         self.settings.root.focus_set()
 
@@ -746,12 +788,12 @@ class SubtitleController:
             self._release_time_entry_focus()
             return
         new_time = parse_time_value(text)
-        self.set_current_time(new_time)
+        self.playback.set_current_time(new_time)
         self._release_time_entry_focus()
 
     def control_clear_time_entry(self, event):
         if self.playing:
-            self.toggle_play()
+            self.playback.toggle_play()
         self.entry_editing  = True
         event.widget.delete(0, tk.END)
 
@@ -792,8 +834,9 @@ class SubtitleController:
         except Exception:
             pass
         clean, _, top, bottom = self.sub_manager.display_data[idx]
-        joined = "".join(f"{base}[{ruby or ''}]" for base, ruby in (top + bottom))
-        self.last_subtitle_raw = clean
+        copy_text = self._segments_to_copy_text(top, bottom) or clean
+        joined = copy_text
+        self.last_subtitle_raw = copy_text
         if joined == self.last_subtitle_text:
             return
         if joined != self.last_subtitle_text:
@@ -924,7 +967,7 @@ class SubtitleController:
         title= f'S{self.sub_manager.get_current_season()}E{self.sub_manager.get_current_episode()} {self.sub_manager.get_anime_name()}'
         self.settings.root.title(title)
         self.current_time = self.default_start_time
-        self.set_current_time(self.current_time)
+        self.playback.set_current_time(self.current_time)
         self._schedule_ocr_time_jump("episode_change")
         
     def update_max_width(self) -> None:
@@ -981,68 +1024,19 @@ class SubtitleController:
 
     # ——— Playback controls ———————————————————————————————————
     def toggle_play(self):
-        if self.entry_editing:
-            self.control_time_entry_return(None)
-        self.playing = not self.playing 
-        if self.playing:
-            self.settings.play_pause_btn.config(text="Stop", bg="red", activebackground="red")
-            self.last_update = time.time()
-            self.schedule_update()
-        else:
-            self.settings.play_pause_btn.config(text="Play", bg="green", activebackground="green")
-            if self.subtitle_timeout_job:
-                self.overlay.root.after_cancel(self.subtitle_timeout_job)
-                self.subtitle_timeout_job = None
-            if self.subtitle_deleted and self.last_subtitle_text:
-                self.subtitle_deleted = False
-        if self.video_click: self.simulate_video_click()
-        # self.control_time_entry_return()
-        self.update_time_and_subtitle_displays()
-        self._schedule_hide_controls()
+        return self.playback.toggle_play()
 
     def go_forward(self):
-        if self.entry_editing:
-            self.control_time_entry_return(None)
-        if self._skip_buttons_use_subtitle_segments():
-            self.jump_subtitle_segment("next")
-            return
-        skip = self.settings._last_skip_value
-        max_time = self.total_duration + float(self.settings._last_offset_value or 0.0)
-        if self.current_time <= max_time:
-            self.set_current_time(self.current_time + skip)
-            self._schedule_hide_controls()
+        return self.playback.go_forward()
 
     def go_back(self):
-        if self.entry_editing:
-            self.control_time_entry_return(None)
-        if self._skip_buttons_use_subtitle_segments():
-            self.jump_subtitle_segment("prev")
-            return
-        skip = self.settings._last_skip_value
-        if self.current_time >= 0:
-            self.set_current_time(self.current_time - skip)
-            self._schedule_hide_controls()
+        return self.playback.go_back()
+
+    def jump_subtitle_segment(self, direction: str) -> None:
+        return self.playback.jump_subtitle_segment(direction)
 
     def on_jump_sub_end(self, event=None):
-        start_times = self._get_display_start_times()
-        if not start_times:
-            return
-
-        offset = float(self.settings._last_offset_value or 0.0)
-        sub_t = max(0.0, float(self.current_time) - offset)
-        epsilon = 0.05
-
-        idx = bisect.bisect_right(start_times, sub_t + epsilon) - 1
-        if idx < 0 or idx >= len(self.sub_manager.subtitles):
-            return
-
-        sub = self.sub_manager.subtitles[idx]
-
-        padding = 0.1  # 100 ms
-        target_time = sub.end.total_seconds() + padding + offset
-
-        self.set_current_time(target_time)
-        self._schedule_hide_controls()
+        return self.playback.on_jump_sub_end(event)
 
     def _schedule_hide_controls(self):
         if self.settings.default_phone_mode:
@@ -1070,7 +1064,7 @@ class SubtitleController:
         self.slider_dragging = True
     def on_slider_release(self, event):
         self.slider_dragging = False
-        self.set_current_time(self.settings.slider.get())
+        self.playback.set_current_time(self.settings.slider.get())
 
     def simulate_video_click(self, above_window=None):
         if not self.video_click: return
@@ -1296,7 +1290,7 @@ class SubtitleController:
         if abs(delta) < 0.000001:
             return
         self._pending_seek_delta = 0.0
-        self.set_current_time(self.current_time + delta)
+        self.playback.set_current_time(self.current_time + delta)
         self._schedule_hide_controls()
 
     def _hold_repeat_action(self, action: str) -> bool:
@@ -1388,17 +1382,17 @@ class SubtitleController:
 
     def _dispatch_input_action(self, action: str) -> None:
         if action == "toggle_play":
-            self.toggle_play()
+            self.playback.toggle_play()
         elif action == "go_back":
-            self.go_back()
+            self.playback.go_back()
         elif action == "go_forward":
-            self.go_forward()
+            self.playback.go_forward()
         elif action == "subtitle_back":
-            self.jump_subtitle_segment("prev")
+            self.playback.jump_subtitle_segment("prev")
         elif action == "subtitle_forward":
-            self.jump_subtitle_segment("next")
+            self.playback.jump_subtitle_segment("next")
         elif action == "jump_sub_end":
-            self.on_jump_sub_end()
+            self.playback.on_jump_sub_end()
         elif action == "alt_x":
             self.on_alt_x()
         elif action == "episode_inc":
@@ -1420,32 +1414,6 @@ class SubtitleController:
             self._apply_pending_seek()
         elif action == "clear_pending_seek":
             self._clear_pending_seek_preview()
-
-    def jump_subtitle_segment(self, direction: str) -> None:
-        """
-        Jump to subtitle boundaries:
-        - prev: start of current segment (or previous if already at boundary)
-        - next: start of next segment
-        """
-        start_times = self._get_display_start_times()
-        if not start_times:
-            return
-
-        offset = float(self.settings._last_offset_value or 0.0)
-        sub_t = max(0.0, float(self.current_time) - offset)
-        epsilon = 0.05
-
-        if direction == "prev":
-            target_idx = bisect.bisect_right(start_times, sub_t - epsilon) - 1
-        elif direction == "next":
-            target_idx = bisect.bisect_right(start_times, sub_t + epsilon)
-        else:
-            return
-
-        if target_idx < 0 or target_idx >= len(start_times):
-            return
-        self.set_current_time(float(start_times[target_idx]) + offset)
-        self._schedule_hide_controls()
 
     def _skip_buttons_use_subtitle_segments(self) -> bool:
         try:
@@ -1733,23 +1701,149 @@ class SubtitleController:
                     return
             except Exception:
                 pass
-        self.set_current_time(seconds)
+        self.playback.set_current_time(seconds)
+
+    @staticmethod
+    def _rects_intersect(a, b) -> bool:
+        if not a or not b:
+            return False
+        ax, ay, aw, ah = a
+        bx, by, bw, bh = b
+        return (ax < bx + bw and ax + aw > bx and ay < by + bh and ay + ah > by)
+
+    @staticmethod
+    def _window_screen_rect(win):
+        if win is None:
+            return None
+        try:
+            if not win.winfo_exists():
+                return None
+            win.update_idletasks()
+            x = int(win.winfo_rootx())
+            y = int(win.winfo_rooty())
+            w = int(win.winfo_width()) or int(win.winfo_reqwidth())
+            h = int(win.winfo_height()) or int(win.winfo_reqheight())
+            if w <= 0 or h <= 0:
+                return None
+            return (x, y, w, h)
+        except Exception:
+            return None
+
+    def _temporarily_hide_windows_for_ocr(self, override: dict | None = None):
+        try:
+            ocr_regions = [tuple(region) for _idx, region, _custom in self._get_ocr_capture_regions(override)]
+        except Exception:
+            ocr_regions = []
+        if not ocr_regions:
+            return lambda: None
+
+        windows = [
+            getattr(self.settings, "control_window", None),
+            getattr(self.overlay, "sub_window", None),
+            getattr(self.overlay, "subtitle_handle", None),
+            getattr(self.settings, "advanced_window", None),
+            getattr(self.settings, "root", None),
+            getattr(self.popup, "_popup", None),
+            getattr(self, "_anki_wait_window", None),
+            getattr(self, "_anki_success_popup", None),
+        ]
+        hidden = []
+        seen = set()
+
+        for win in windows:
+            if win is None:
+                continue
+            try:
+                key = str(win)
+            except Exception:
+                key = id(win)
+            if key in seen:
+                continue
+            seen.add(key)
+            try:
+                if not win.winfo_exists():
+                    continue
+                state = str(win.state())
+                if state == "withdrawn":
+                    continue
+                rect = self._window_screen_rect(win)
+                if not any(self._rects_intersect(rect, region) for region in ocr_regions):
+                    continue
+                hidden.append((win, state))
+                win.withdraw()
+            except Exception:
+                pass
+
+        try:
+            self.settings.root.update_idletasks()
+        except Exception:
+            pass
+
+        passive_windows = {
+            getattr(self.overlay, "subtitle_handle", None),
+            getattr(self.popup, "_popup", None),
+            getattr(self, "_anki_success_popup", None),
+        }
+
+        def restore():
+            for win, state in hidden:
+                try:
+                    if not win.winfo_exists():
+                        continue
+                    if state == "iconic":
+                        win.iconify()
+                        continue
+                    if win in passive_windows:
+                        show_window_no_activate(win)
+                    else:
+                        win.deiconify()
+                        try:
+                            if win is getattr(self.settings, "control_window", None):
+                                win.attributes("-topmost", True)
+                            elif win is getattr(self.overlay, "sub_window", None):
+                                win.attributes("-topmost", True)
+                            elif win is getattr(self.settings, "advanced_window", None):
+                                win.attributes("-topmost", True)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+            try:
+                self.popup.ensure_on_top()
+            except Exception:
+                pass
+
+        return restore
 
     def on_ocr_read_now(self, override: dict | None = None) -> None:
         if self._shutting_down:
             return
 
-        def worker():
-            seconds = self._ocr_find_time_seconds(override=override)
-            if seconds is None:
-                self._log_ocr_read_failure(override=override)
-                return
-            try:
-                self.settings.root.after(0, lambda: self._apply_ocr_time_manual(seconds))
-            except Exception:
-                pass
+        restore_windows = self._temporarily_hide_windows_for_ocr(override=override)
 
-        threading.Thread(target=worker, daemon=True).start()
+        def start_worker():
+            def worker():
+                try:
+                    seconds = self._ocr_find_time_seconds(override=override)
+                    if seconds is None:
+                        self._log_ocr_read_failure(override=override)
+                        return
+                    try:
+                        self.settings.root.after(0, lambda: self._apply_ocr_time_manual(seconds))
+                    except Exception:
+                        pass
+                finally:
+                    try:
+                        self.settings.root.after(0, restore_windows)
+                    except Exception:
+                        restore_windows()
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        try:
+            self.settings.root.after(140, start_worker)
+        except Exception:
+            start_worker()
 
     def _log_ocr_read_failure(self, override: dict | None = None) -> None:
         try:
@@ -1775,7 +1869,7 @@ class SubtitleController:
             return
         if not self.playing:
             try:
-                self.toggle_play()
+                self.playback.toggle_play()
             except Exception:
                 pass
         self._start_ocr_live_sync(duration_sec=5.0, interval_sec=0.25, override=override)
@@ -1783,7 +1877,7 @@ class SubtitleController:
     def _apply_ocr_time_manual(self, seconds: float) -> None:
         if self._shutting_down:
             return
-        self.set_current_time(seconds)
+        self.playback.set_current_time(seconds)
 
     def _start_ocr_live_sync(
         self,
@@ -1918,7 +2012,7 @@ class SubtitleController:
             new_time = float(self.current_time) + delta
         except Exception:
             return
-        self.set_current_time(new_time)
+        self.playback.set_current_time(new_time)
         print(f"OCR sync: adjusted by {delta:+.2f}s")
 
     def _ocr_find_time_seconds(self, override: dict | None = None):
@@ -2156,6 +2250,13 @@ class SubtitleController:
         except Exception:
             return int(default)
 
+    @staticmethod
+    def _coerce_float(value, default: float = 0.0) -> float:
+        try:
+            return float(str(value).strip().replace(",", "."))
+        except Exception:
+            return float(default)
+
     def _ocr_debug_enabled(self, override: dict | None = None) -> bool:
         if override and "OCR_DEBUG" in override:
             return self._coerce_bool(override.get("OCR_DEBUG"), default=True)
@@ -2321,100 +2422,6 @@ class SubtitleController:
         except Exception:
             return None
 
-    # def _on_key_press(self, key):
-    #     # don't return for modifier presses — only update flags
-    #     if self._hotkeys_disabled():
-    #         self._reset_hotkey_state()
-    #         return
-
-    #     if key in (Key.shift_l, Key.shift_r):
-    #         self.shift_pressed = True
-    #     if key in (Key.alt_l, Key.alt_r):
-    #         self.alt_pressed = True
-    #     if key in (Key.ctrl_l, Key.ctrl_r):
-    #         self.ctrl_pressed = True
-
-    #     try:
-    #         mode2_numpad = int(getattr(self.settings, "input_mode", 1)) == 2
-    #     except Exception:
-    #         mode2_numpad = bool(getattr(self.settings, "numpad_mode_enabled", False))
-
-    #     if mode2_numpad:
-    #         mapping = [
-    #             (self._get_shortcut_value("SHORTCUT_MODE2_TOGGLE_PLAY"), "toggle_play", True),
-    #             (self._get_shortcut_value("SHORTCUT_TOGGLE_PLAY"), "toggle_play", True),
-    #             (self._get_shortcut_value("SHORTCUT_MODE2_SUBTITLE_BACK"), "subtitle_back", False),
-    #             (self._get_shortcut_value("SHORTCUT_MODE2_SUBTITLE_FORWARD"), "subtitle_forward", False),
-    #             (self._get_shortcut_value("SHORTCUT_MODE2_GO_BACK"), "go_back", False),
-    #             (self._get_shortcut_value("SHORTCUT_MODE2_GO_FORWARD"), "go_forward", False),
-    #         ]
-    #     else:
-    #         mapping = [
-    #             (self._get_shortcut_value("SHORTCUT_TOGGLE_PLAY"), "toggle_play", True),
-    #             (self._get_shortcut_value("SHORTCUT_SUBTITLE_BACK"), "subtitle_back", False),
-    #             (self._get_shortcut_value("SHORTCUT_SUBTITLE_FORWARD"), "subtitle_forward", False),
-    #             (self._get_shortcut_value("SHORTCUT_GO_BACK"), "go_back", False),
-    #             (self._get_shortcut_value("SHORTCUT_GO_FORWARD"), "go_forward", False),
-    #         ]
-
-    #     # keep jump_sub_end out of the press-mapping; we'll trigger on release
-    #     mapping.extend([
-    #         (self._get_shortcut_value("SHORTCUT_BRING_TO_FRONT"), "alt_x", True),
-    #         (self._get_shortcut_value("SHORTCUT_EPISODE_INC"), "episode_inc", True),
-    #         (self._get_shortcut_value("SHORTCUT_EPISODE_DEC"), "episode_dec", True),
-    #     ])
-
-    #     for binding, action, single_fire in mapping:
-    #         if not self._shortcut_matches(binding, key):
-    #             continue
-    #         if single_fire and action in self._single_fire_actions:
-    #             return
-    #         if single_fire:
-    #             self._single_fire_actions.add(action)
-    #         self._enqueue_input_action(action)
-    #         return
-        
-    # def _on_key_release(self, key):
-    #     if self._hotkeys_disabled():
-    #         self._reset_hotkey_state()
-    #         return
-
-    #     # capture modifier state BEFORE clearing it
-    #     was_shift = self.shift_pressed
-    #     was_ctrl = self.ctrl_pressed
-    #     was_alt = self.alt_pressed
-
-    #     # figure out released character (if any)
-    #     released_char = None
-    #     try:
-    #         if hasattr(key, "char") and key.char:
-    #             released_char = str(key.char).lower()
-    #     except Exception:
-    #         released_char = None
-
-    #     # trigger our combo on release: ctrl+shift + release of 'y'
-    #     if released_char == "y" and was_shift and was_ctrl:
-    #         # ensure this action can be repeated each time (don't mark as single-fire here)
-    #         self._enqueue_input_action("jump_sub_end")
-
-    #     # now clear modifier flags if modifiers were actually released
-    #     if key in (Key.shift_l, Key.shift_r):
-    #         self.shift_pressed = False
-    #     if key in (Key.alt_l, Key.alt_r):
-    #         self.alt_pressed = False
-    #     if key in (Key.ctrl_l, Key.ctrl_r):
-    #         self.ctrl_pressed = False
-
-    #     # cleanup for single-fire actions when their key token is released
-    #     released_tokens = self._key_tokens(key)
-    #     for action, binding in self._single_fire_bindings():
-    #         _, key_token = self._split_shortcut(binding)
-    #         if key_token and key_token in released_tokens:
-    #             self._single_fire_actions.discard(action)
-
-
-
-
     def _on_key_press(self, key):
         if self._hotkeys_disabled():
             self._reset_hotkey_state()
@@ -2548,6 +2555,20 @@ class SubtitleController:
         else:
             self.overlay.hide_handle()
 
+    def _hide_subtitle_handle_for_settings(self):
+        try:
+            if self.settings.default_phone_mode:
+                self.overlay.hide_handle()
+        except Exception:
+            pass
+
+    def _restore_subtitle_handle_after_settings(self):
+        try:
+            if self.settings.default_phone_mode:
+                self.overlay.show_handle()
+        except Exception:
+            pass
+
     def _on_app_close(self):
         self._shutting_down = True
         def _read_settings_geometry():
@@ -2634,3 +2655,103 @@ class SubtitleController:
                 except: pass
 
         self.settings.root.destroy()
+
+
+    def _show_anki_success_popup(self, message: str = "Anki card added") -> None:
+        try:
+            existing = getattr(self, "_anki_success_popup", None)
+            if existing is not None and existing.winfo_exists():
+                existing.destroy()
+        except Exception:
+            pass
+
+        root = self.settings.root
+        popup = tk.Toplevel(root)
+        self._anki_success_popup = popup
+
+        popup.withdraw()
+        popup.overrideredirect(True)
+        popup.attributes("-topmost", True)
+        make_nonactivating_tool_window(popup)
+        popup.resizable(False, False)
+
+        popup.configure(bg="white")
+
+        border = tk.Frame(
+            popup,
+            bg="white",
+            bd=1,
+            relief="solid",
+            padx=0,
+            pady=0,
+        )
+        border.pack(fill="both", expand=True)
+
+        body = tk.Frame(
+            border,
+            bg="white",
+            padx=22,
+            pady=12,
+        )
+        body.pack(fill="both", expand=True)
+
+        text_label = tk.Label(
+            body,
+            text=message,
+            font=("Segoe UI", 14, "bold"),
+            bg="white",
+            fg="black",
+            justify="left",
+        )
+        text_label.pack()
+
+        popup.update_idletasks()
+
+        popup_w = popup.winfo_reqwidth()
+        popup_h = popup.winfo_reqheight()
+
+        try:
+            sub_win = getattr(self.overlay, "sub_window", None)
+            sub_win.update_idletasks()
+            anchor_x = sub_win.winfo_rootx() + (sub_win.winfo_width() // 2)
+            anchor_y = sub_win.winfo_rooty() + (sub_win.winfo_height() // 2)
+        except Exception:
+            anchor_x = root.winfo_rootx() + (root.winfo_width() // 2)
+            anchor_y = root.winfo_rooty() + (root.winfo_height() // 2)
+
+        monitors = get_monitor_rects(root)
+        monitor = None
+        for rect in monitors:
+            mx, my, mw, mh = rect
+            if mx <= anchor_x < mx + mw and my <= anchor_y < my + mh:
+                monitor = rect
+                break
+        if monitor is None:
+            monitor = min(
+                monitors,
+                key=lambda r: (anchor_x - (r[0] + r[2] / 2)) ** 2 + (anchor_y - (r[1] + r[3] / 2)) ** 2,
+            )
+
+        mx, my, mw, mh = monitor
+        x = max(mx + (mw - popup_w) // 2, mx)
+        y = max(my + (mh - popup_h) // 2, my)
+
+        popup.geometry(f"{popup_w}x{popup_h}+{x}+{y}")
+        show_window_no_activate(popup)
+
+        if self._anki_success_popup_job is not None:
+            try:
+                root.after_cancel(self._anki_success_popup_job)
+            except Exception:
+                pass
+
+        def close_popup():
+            try:
+                if popup.winfo_exists():
+                    popup.destroy()
+            except Exception:
+                pass
+            self._anki_success_popup = None
+            self._anki_success_popup_job = None
+
+        self._anki_success_popup_job = root.after(1000, close_popup)
