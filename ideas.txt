@@ -10,7 +10,7 @@ if ocr works good add that it jumps to the time when collecting anki cards (it i
 Maybe change how the copy window is displayed.
 
 Bugs:
-
+when in remote switching to local and then to remote i think the flag is not set and it still searches in "subs"
 when pressing pause and play it does not synchr pause and play. Ours is faster. Or not faster because the time continues earlier.
 the subtitle window obstructs from using the main window (now only the minimize etc buttons)
 

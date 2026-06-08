@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import logging
 import re
-import time
 import tkinter as tk
 from tkinter import font as tkFont
 from typing import Dict, List, Optional, Tuple
@@ -35,17 +34,6 @@ class SubtitleRenderer:
         self.ruby_font: Optional[tkFont.Font] = None
         self._font_settings = None
 
-        self._timing_enabled = False
-        self._timing_data = {
-            "render_subtitle_time": 0.0,
-            "font_creation_time": 0.0,
-            "wrap_segments_time": 0.0,
-            "split_text_to_fit_time": 0.0,
-            "font_measure_time": 0.0,
-            "draw_outlined_text_time": 0.0,
-            "render_count": 0,
-        }
-
         self.hover_ruby_enabled = False
         self.color = "white"
         self.glow_color = "black"
@@ -67,83 +55,74 @@ class SubtitleRenderer:
         self._layout_cache_misses = 0
 
     def render_subtitle(self, top_segments, bottom_segments, overlay: SubtitleOverlayUI) -> None:
-        start = time.perf_counter()
-        if self._timing_enabled:
-            self._timing_data["render_count"] += 1
+        self._refresh_fonts_if_needed()
 
-        try:
-            self._refresh_fonts_if_needed()
+        self._hover_regions = []
+        self._hover_active_region = None
 
-            self._hover_regions = []
-            self._hover_active_region = None
+        base_height = int(self.ruby_height * 2 + self.line_height * 2)
+        y_ruby_top = self.ruby_height // 2
+        y_base1 = self.ruby_height + self.line_height // 2
 
-            base_height = int(self.ruby_height * 2 + self.line_height * 2)
-            y_ruby_top = self.ruby_height // 2
-            y_base1 = self.ruby_height + self.line_height // 2
+        wrap_limit_px = self._get_wrap_limit_px()
 
-            wrap_limit_px = self._get_wrap_limit_px()
+        if int(overlay.max_w) != int(self._last_overlay_width or 0):
+            self._layout_cache.clear()
+            self._last_overlay_width = overlay.max_w
 
-            if int(overlay.max_w) != int(self._last_overlay_width or 0):
-                self._layout_cache.clear()
-                self._last_overlay_width = overlay.max_w
+        layout_cache_key = (
+            repr(top_segments),
+            repr(bottom_segments),
+            int(overlay.max_w),
+            self._font_settings,
+            int(wrap_limit_px) if wrap_limit_px else -1,
+        )
+        cached_layout = self._layout_cache.get(layout_cache_key)
+        if cached_layout is not None:
+            self._layout_cache_hits += 1
+            wrapped_top = cached_layout["wrapped_top"]
+            wrapped_bottom = cached_layout["wrapped_bottom"]
+        else:
+            self._layout_cache_misses += 1
+            wrapped_top = self._wrap_segments(top_segments, overlay.max_w, line_limit_px=wrap_limit_px) if top_segments else []
+            wrapped_bottom = self._wrap_segments(bottom_segments, overlay.max_w, line_limit_px=wrap_limit_px) if bottom_segments else []
+            self._layout_cache[layout_cache_key] = {
+                "wrapped_top": wrapped_top,
+                "wrapped_bottom": wrapped_bottom,
+            }
 
-            layout_cache_key = (
-                repr(top_segments),
-                repr(bottom_segments),
-                int(overlay.max_w),
-                self._font_settings,
-                int(wrap_limit_px) if wrap_limit_px else -1,
-            )
-            cached_layout = self._layout_cache.get(layout_cache_key)
-            if cached_layout is not None:
-                self._layout_cache_hits += 1
-                wrapped_top = cached_layout["wrapped_top"]
-                wrapped_bottom = cached_layout["wrapped_bottom"]
-            else:
-                self._layout_cache_misses += 1
-                wrapped_top = self._wrap_segments(top_segments, overlay.max_w, line_limit_px=wrap_limit_px) if top_segments else []
-                wrapped_bottom = self._wrap_segments(bottom_segments, overlay.max_w, line_limit_px=wrap_limit_px) if bottom_segments else []
-                self._layout_cache[layout_cache_key] = {
-                    "wrapped_top": wrapped_top,
-                    "wrapped_bottom": wrapped_bottom,
-                }
+        lines = wrapped_top + wrapped_bottom
 
-            lines = wrapped_top + wrapped_bottom
+        self.canvas.delete("hover_ruby")
 
-            self.canvas.delete("hover_ruby")
-
-            if not lines:
-                self._finish_hover_bindings()
-                return
-
-            if len(lines) <= 2:
-                try:
-                    if int(overlay.max_h) != int(base_height):
-                        overlay.update_geometry(int(overlay.max_w), int(base_height))
-                except Exception:
-                    pass
-            else:
-                block_h = self.line_height + self.ruby_height
-                needed_h = int(block_h * len(lines))
-
-                try:
-                    sh = overlay.root.winfo_vrootheight()
-                    max_h_allowed = max(80, int(sh) - 40)
-                except Exception:
-                    max_h_allowed = overlay.max_h
-
-                target_h = max(int(base_height), needed_h)
-                target_h = min(target_h, max_h_allowed)
-
-                if int(overlay.max_h) != int(target_h):
-                    overlay.update_geometry(int(overlay.max_w), int(target_h))
-
-            self._render_subtitle_lines(lines, y_ruby_top, y_base1, overlay)
+        if not lines:
             self._finish_hover_bindings()
+            return
 
-        finally:
-            if self._timing_enabled:
-                self._timing_data["render_subtitle_time"] += time.perf_counter() - start
+        if len(lines) <= 2:
+            try:
+                if int(overlay.max_h) != int(base_height):
+                    overlay.update_geometry(int(overlay.max_w), int(base_height))
+            except Exception:
+                pass
+        else:
+            block_h = self.line_height + self.ruby_height
+            needed_h = int(block_h * len(lines))
+
+            try:
+                sh = overlay.root.winfo_vrootheight()
+                max_h_allowed = max(80, int(sh) - 40)
+            except Exception:
+                max_h_allowed = overlay.max_h
+
+            target_h = max(int(base_height), needed_h)
+            target_h = min(target_h, max_h_allowed)
+
+            if int(overlay.max_h) != int(target_h):
+                overlay.update_geometry(int(overlay.max_w), int(target_h))
+
+        self._render_subtitle_lines(lines, y_ruby_top, y_base1, overlay)
+        self._finish_hover_bindings()
 
     def _get_wrap_limit_px(self) -> Optional[int]:
         wrap_limit_px = None
@@ -256,7 +235,6 @@ class SubtitleRenderer:
         settings = (font_family, font_size, hover_ruby_enabled, color, glow_color, glow_radius)
 
         if settings != self._font_settings or self.font is None or self.ruby_font is None:
-            font_start = time.perf_counter()
             self.font = tkFont.Font(family=font_family, size=font_size, weight="bold")
             ruby_size = max(1, int(round(int(self.font.actual("size")) * 0.6)))
             self.ruby_font = tkFont.Font(family=self.font.actual("family"), size=ruby_size, weight="bold")
@@ -272,9 +250,6 @@ class SubtitleRenderer:
 
             self._font_settings = settings
             self._invalidate_measure_caches()
-
-            if self._timing_enabled:
-                self._timing_data["font_creation_time"] += time.perf_counter() - font_start
 
     def _invalidate_measure_caches(self) -> None:
         self._measure_cache.clear()
@@ -302,7 +277,6 @@ class SubtitleRenderer:
         if cached is not None:
             return [list(line) for line in cached]
 
-        start = time.perf_counter()
         try:
             if not segments:
                 return []
@@ -366,8 +340,7 @@ class SubtitleRenderer:
             self._wrap_cache[cache_key] = tuple(wrapped)
             return lines
         finally:
-            if self._timing_enabled:
-                self._timing_data["wrap_segments_time"] += time.perf_counter() - start
+            pass
 
     def _measure_text(self, font_obj: Optional[tkFont.Font], text: str) -> int:
         if font_obj is None:
@@ -381,11 +354,8 @@ class SubtitleRenderer:
         if cached is not None:
             return cached
 
-        start = time.perf_counter()
         value = int(font_obj.measure(s))
         self._measure_cache[key] = value
-        if self._timing_enabled:
-            self._timing_data["font_measure_time"] += time.perf_counter() - start
         return value
 
     def _get_outline_offsets(self, thickness: int) -> List[Tuple[int, int]]:
@@ -416,15 +386,11 @@ class SubtitleRenderer:
         anchor: str = "center",
         tags=(),
     ) -> None:
-        start = time.perf_counter()
-
         thickness = max(0, int(thickness))
         text = text or ""
 
         if thickness == 0:
             canvas.create_text(x, y, text=text, fill=fill, font=font, anchor=anchor, tags=tags)
-            if self._timing_enabled:
-                self._timing_data["draw_outlined_text_time"] += time.perf_counter() - start
             return
 
         create_text = canvas.create_text
@@ -444,9 +410,6 @@ class SubtitleRenderer:
             )
 
         create_text(x, y, text=text, fill=fill, font=font, anchor=anchor, tags=tags)
-
-        if self._timing_enabled:
-            self._timing_data["draw_outlined_text_time"] += time.perf_counter() - start
 
     def _get_approximate_outline_offsets(self, thickness: int) -> List[Tuple[int, int]]:
         thickness = max(0, int(thickness))
@@ -521,48 +484,44 @@ class SubtitleRenderer:
             )
 
     def _split_text_to_fit(self, text: str, max_width: int) -> List[str]:
-        start = time.perf_counter()
-        try:
-            out: List[str] = []
-            s = (text or "").replace("\t", " ")
-            cache_key = (s, int(max_width), id(self.font))
-            cached = self._split_cache.get(cache_key)
-            if cached is not None:
-                return list(cached)
+        out: List[str] = []
+        s = (text or "").replace("\t", " ")
+        cache_key = (s, int(max_width), id(self.font))
+        cached = self._split_cache.get(cache_key)
+        if cached is not None:
+            return list(cached)
 
-            while s:
-                if self._measure_text(self.font, s) <= max_width:
-                    out.append(s)
-                    break
+        while s:
+            if self._measure_text(self.font, s) <= max_width:
+                out.append(s)
+                break
 
-                lo, hi = 1, len(s)
-                best = 1
-                while lo <= hi:
-                    mid = (lo + hi) // 2
-                    if self._measure_text(self.font, s[:mid]) <= max_width:
-                        best = mid
-                        lo = mid + 1
-                    else:
-                        hi = mid - 1
+            lo, hi = 1, len(s)
+            best = 1
+            while lo <= hi:
+                mid = (lo + hi) // 2
+                if self._measure_text(self.font, s[:mid]) <= max_width:
+                    best = mid
+                    lo = mid + 1
+                else:
+                    hi = mid - 1
 
-                cut = best
-                prefix = s[:best]
+            cut = best
+            prefix = s[:best]
 
-                m = re.search(r"[ \u3000、。，,.!?！？:：;；)\]】」』]\s*$", prefix)
-                if m:
-                    cut = m.end()
-                    if cut < max(1, int(best * 0.5)):
-                        cut = best
+            m = re.search(r"[ \u3000、。，,.!?！？:：;；)\]】」』]\s*$", prefix)
+            if m:
+                cut = m.end()
+                if cut < max(1, int(best * 0.5)):
+                    cut = best
 
-                chunk = s[:cut].rstrip()
-                if chunk:
-                    out.append(chunk)
-                s = s[cut:].lstrip()
+            chunk = s[:cut].rstrip()
+            if chunk:
+                out.append(chunk)
+            s = s[cut:].lstrip()
 
-            self._split_cache[cache_key] = tuple(out)
-            return out
-        finally:
-            self._timing_data["split_text_to_fit_time"] += time.perf_counter() - start
+        self._split_cache[cache_key] = tuple(out)
+        return out
 
     def _finish_hover_bindings(self) -> None:
         if self.hover_ruby_enabled and self._hover_regions:
