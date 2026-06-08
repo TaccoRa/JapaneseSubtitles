@@ -119,6 +119,7 @@ class SubtitleController:
         self.last_subtitle_raw = ""
         self.sub_hidden = False
         self.slider_dragging = False
+        self.last_rendered_index = None
         self.last_rendered_sub_time = None
         self._shutting_down = False
         self._input_actions: "queue.Queue[str]" = queue.Queue()
@@ -820,43 +821,68 @@ class SubtitleController:
     def _update_subtitle_display(self, force: bool = False):
         offset = self.settings._last_offset_value
         sub_t = self.current_time - offset
+
         if sub_t < 0 or sub_t > self.total_duration:
+            self.last_rendered_index = None
+            self.last_subtitle_text = ""
             self._reset_canvas()
             return
-        
+
         start_times = self._get_display_start_times()
         idx = bisect.bisect_right(start_times, sub_t) - 1
+
         if idx < 0:
+            self.last_rendered_index = None
+            self.last_subtitle_text = ""
             self._reset_canvas()
             return
+
+        clean, _, top, bottom = self.sub_manager.display_data[idx]
+        copy_text = self._segments_to_copy_text(top, bottom) or clean
+        self.last_subtitle_raw = copy_text
+
+        if (
+            not force
+            and not self.subtitle_deleted
+            and idx == self.last_rendered_index
+            and copy_text == self.last_subtitle_text
+        ):
+            return
+
         try:
             self.sub_manager.ensure_auto_ruby_for_index(idx)
         except Exception:
             pass
+
         clean, _, top, bottom = self.sub_manager.display_data[idx]
         copy_text = self._segments_to_copy_text(top, bottom) or clean
-        joined = copy_text
         self.last_subtitle_raw = copy_text
-        if joined == self.last_subtitle_text and not force:
-            return
-        if joined != self.last_subtitle_text or force:
-            if self.subtitle_timeout_job:
-                self.overlay.root.after_cancel(self.subtitle_timeout_job)
-                self.subtitle_timeout_job = None
 
-            self.renderer.canvas.delete("all")
-            self.last_subtitle_text = joined
-            self.subtitle_deleted   = False
-            self.renderer.render_subtitle(top, bottom, self.overlay)
+        if self.subtitle_timeout_job:
+            self.overlay.root.after_cancel(self.subtitle_timeout_job)
+            self.subtitle_timeout_job = None
 
-            self.subtitle_timeout_job = self.overlay.root.after(
-                self.hide_subtitles_ms,
-                self._hide_subtitles_temporarily)
+        self.renderer.canvas.delete("all")
+
+        # add this only if overlay may recreate the canvas
+        self.renderer.update_canvas(self.overlay.subtitle_canvas)
+
+        self.last_subtitle_text = copy_text
+        self.last_rendered_index = idx
+        self.subtitle_deleted = False
+
+        self.renderer.render_subtitle(top, bottom, self.overlay)
+
+        self.subtitle_timeout_job = self.overlay.root.after(
+            self.hide_subtitles_ms,
+            self._hide_subtitles_temporarily
+        )
 
     def _reset_canvas(self):
         self.renderer.canvas.delete("all")
-        self.subtitle_deleted = True
+        self.last_rendered_index = None
         self.last_subtitle_text = ""
+        self.subtitle_deleted = True
 
     def _hide_subtitles_temporarily(self):
         if not self.playing:
@@ -865,6 +891,7 @@ class SubtitleController:
         if not self.subtitle_deleted:
             self.renderer.canvas.delete("all")
             self.subtitle_deleted = True
+            self.last_rendered_index = None
         self.subtitle_timeout_job = None
 
     def on_refresh_subtitles(self, event):
