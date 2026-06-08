@@ -10,13 +10,12 @@ if ocr works good add that it jumps to the time when collecting anki cards (it i
 Maybe change how the copy window is displayed.
 
 Bugs:
+
 when pressing pause and play it does not synchr pause and play. Ours is faster. Or not faster because the time continues earlier.
-when moving the subtitle window in phone mode the little white handle on the left is not moved simoultaniously
-Maybe shift of 1 second if offset 0?
-the subtitle window obstructs from using the main window
-if advanced window not fully visible have scroller and adjust size
+the subtitle window obstructs from using the main window (now only the minimize etc buttons)
 
 Dont do:
+if advanced window not fully visible have scroller and adjust size (wierd format maybe later)
 change second to ms and so on with certain buttons for Skip --> too clunky
 Change subtitle width to fit current subtitle (maybe flashes --> YES)
 
@@ -55,6 +54,7 @@ add config for phone mode default true/false
 
 
 Fixed:
+when moving the subtitle window in phone mode the little white handle on the left is not moved simoultaniously
 I think there is an extra window open which is unused.
 when any number on the numpad is pressed it weirdly jumps around or even tough it is mode1 when 4 or 6 is pressed it jumps around almost like it want to write 4 or 6 insinde the time entry. Also when inside any entry the numpad should be usable without hotkeys
 この間 複合した“宿り木の蔦(つた)” was not correctly ruby shown Hitoribochi 7. 4:57
