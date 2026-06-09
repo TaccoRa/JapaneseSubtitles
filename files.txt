@@ -1,0 +1,52 @@
+"""
+Controller glue between:
+- SubtitleManager (model)
+- SettingsUI + SubtitleOverlayUI + CopyPopup (view)
+- SubtitleRenderer (rendering)
+
+Handles input (buttons, keyboard, global mouse), time updates, and episode changes.
+"""
+
+import time
+import threading
+import queue
+import os
+import re
+import subprocess
+import tempfile
+import tkinter as tk
+from pynput.mouse import Button, Listener as MouseListener
+from pynput.keyboard import Key, Listener as KeyboardListener
+import pyautogui
+import bisect
+from PIL import ImageOps, ImageGrab, ImageStat
+from model.config_manager import ConfigManager
+from model.anki_client import AnkiClient
+from model.subtitle_manager import SubtitleManager
+from model.renderer import SubtitleRenderer
+from view.settings_ui import SettingsUI
+from view.subtitle_overlay import SubtitleOverlayUI
+from utils import parse_time_value, format_time, get_monitor_rects, make_nonactivating_tool_window, show_window_no_activate
+from view.popup import CopyPopup
+
+# from video_sync_server import get_video_time
+
+from controller.playback_controller import PlaybackController
+from controller.clipboard_controller import ClipboardController
+from controller.subtitle_navigation import SubtitleNavigationController
+from controller.episode_controller import EpisodeController
+from controller.overlay_controller import OverlayController
+from controller.mouse_controller import MouseController
+from controller.hotkey_controller import HotkeyController
+from controller.anki_controller import AnkiController
+from controller.ocr_controller import OCRController
+
+in init
+self.clipboard = ClipboardController(self)
+self.subtitle_navigation = SubtitleNavigationController(self)
+self.episode_controller = EpisodeController(self)
+self.overlay_controller = OverlayController(self)
+self.mouse_controller = MouseController(self)
+self.hotkey_controller = HotkeyController(self)
+self.anki_controller = AnkiController(self)
+self.ocr_controller = OCRController(self)

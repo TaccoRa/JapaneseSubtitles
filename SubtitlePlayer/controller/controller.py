@@ -32,7 +32,7 @@ from view.popup import CopyPopup
 # from video_sync_server import get_video_time
 
 from controller.playback_controller import PlaybackController
-
+from controller.clipboard_controller import ClipboardController
 
 class SubtitleController:
     SHORTCUT_DEFAULTS = {
@@ -59,11 +59,9 @@ class SubtitleController:
         "subtitle_forward": "DISABLE_HOTKEY_SUBTITLE_FORWARD",
         "jump_sub_end": "DISABLE_HOTKEY_JUMP_SUB_END",
     }
-
     OCR_TIME_PATTERN = re.compile(
         r"(\d{1,2}:\d{2}(?::\d{2})?)[/\\|](\d{1,2}:\d{2}(?::\d{2})?)"
     )
-    
     
     def __init__(self,
                 manager: SubtitleManager,
@@ -72,7 +70,6 @@ class SubtitleController:
                 overlay_ui: SubtitleOverlayUI,
                 popup: CopyPopup,
                 config: ConfigManager,
-                playback: PlaybackController | None = None,
                 total_duration: float = 0.0):
         
         self.sub_manager = manager
@@ -81,11 +78,8 @@ class SubtitleController:
         self.overlay = overlay_ui
         self.popup   = popup
         self.config  = config
-
-
-        self.playback = playback or PlaybackController()
-        self.playback.set_controller(self)
-
+        self.clipboard = ClipboardController(self)
+        self.playback = PlaybackController(self)
 
         self.total_duration = total_duration
         self.settings.root.protocol("WM_DELETE_WINDOW", self._on_app_close)
@@ -202,28 +196,6 @@ class SubtitleController:
         self._schedule_ocr_time_jump("startup")
 
 
-    #     # self.settings.root.after(self.video_sync_interval_ms, self._sync_loop)
-
-
-    # def sync_with_video(self):
-    #     video_time, video_duration = get_video_time()
-
-    #     if video_duration <= 0:
-    #         return
-
-    #     drift = video_time - self.current_time
-
-    #     if abs(drift) > self.video_sync_threshold:
-    #         print(f"[SYNC] correcting drift: {drift:.2f}s → {video_time:.2f}")
-    #         self.playback.set_current_time(video_time)
-
-    # def _sync_loop(self):
-    #     if not self._shutting_down:
-    #         try:
-    #             self.sync_with_video()
-    #         except Exception:
-    #             pass
-    #         self.settings.root.after(self.video_sync_interval_ms, self._sync_loop)
 
     def get_offset_value(self) -> float: return float(self.settings._last_offset_value)
     
@@ -296,28 +268,11 @@ class SubtitleController:
         return [item[1] for item in getattr(self.sub_manager, "display_data", [])]
 
     def _on_copy_popup(self, event=None):
-        # Create popup first so we can click relative to its position.
-        self.popup.open_copy_popup(self.last_subtitle_raw)
-        self.simulate_video_click()
-        return "break"
+        return self.clipboard.on_copy_popup(event)
 
-    @staticmethod
-    def _segments_to_copy_text(top_segments, bottom_segments) -> str:
-        def _line_text(segments) -> str:
-            out = []
-            for base, ruby in segments or []:
-                if ruby:
-                    out.append(f"{base}[{ruby}]")
-                else:
-                    out.append(str(base or ""))
-            return "".join(out).strip()
-
-        lines = []
-        for segments in (top_segments, bottom_segments):
-            text = _line_text(segments)
-            if text:
-                lines.append(text)
-        return "\n".join(lines)
+    def _segments_to_copy_text(self, top_segments, bottom_segments) -> str:
+        return self.clipboard.segments_to_copy_text(top_segments, bottom_segments)
+    
 
     def _add_selection_to_anki(self, selected_text: str, subtitle_text: str = "") -> None:
         selected = (selected_text or "").strip()
@@ -862,7 +817,7 @@ class SubtitleController:
             self.overlay.root.after_cancel(self.subtitle_timeout_job)
             self.subtitle_timeout_job = None
 
-        self.renderer.canvas.delete("all")
+        # self.renderer.canvas.delete("all")
 
         # add this only if overlay may recreate the canvas
         self.renderer.update_canvas(self.overlay.subtitle_canvas)
@@ -2782,3 +2737,27 @@ class SubtitleController:
             self._anki_success_popup_job = None
 
         self._anki_success_popup_job = root.after(1000, close_popup)
+
+
+    #     # self.settings.root.after(self.video_sync_interval_ms, self._sync_loop)
+
+
+    # def sync_with_video(self):
+    #     video_time, video_duration = get_video_time()
+
+    #     if video_duration <= 0:
+    #         return
+
+    #     drift = video_time - self.current_time
+
+    #     if abs(drift) > self.video_sync_threshold:
+    #         print(f"[SYNC] correcting drift: {drift:.2f}s → {video_time:.2f}")
+    #         self.playback.set_current_time(video_time)
+
+    # def _sync_loop(self):
+    #     if not self._shutting_down:
+    #         try:
+    #             self.sync_with_video()
+    #         except Exception:
+    #             pass
+    #         self.settings.root.after(self.video_sync_interval_ms, self._sync_loop)
