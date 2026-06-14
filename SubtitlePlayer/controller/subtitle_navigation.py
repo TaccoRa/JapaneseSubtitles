@@ -209,6 +209,9 @@ class SubtitleNavigationController(_ControllerProxy):
 
             self.update_time_and_subtitle_displays()
 
+    def on_slider_press(self, event):
+            self.slider_dragging = True
+
     def on_slider_change(self, value):
             if self.slider_dragging:
                 text = format_time(float(value))
@@ -218,9 +221,6 @@ class SubtitleNavigationController(_ControllerProxy):
                     self.settings.control_time_str.set(text)
                 self.current_time = float(value)
                 self._update_subtitle_display()
-
-    def on_slider_press(self, event):
-            self.slider_dragging = True
 
     def on_slider_release(self, event):
             self.slider_dragging = False

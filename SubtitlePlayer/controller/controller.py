@@ -190,6 +190,15 @@ class SubtitleController:
         self._schedule_ocr_time_jump("startup")
         if self._startup_resume_play: self.playback.toggle_play()
 
+    def _process_repeat_actions(self):
+        return self.hotkey_controller._process_repeat_actions()
+
+    def _process_input_queue(self):
+        return self.hotkey_controller._process_input_queue()
+    
+    def _schedule_ocr_time_jump(self, reason: str) -> None:
+        return self.ocr_controller._schedule_ocr_time_jump(reason)
+
     def get_offset_value(self) -> float:
         return self.subtitle_navigation.get_offset_value()
 
@@ -452,161 +461,15 @@ class SubtitleController:
     def _hide_controls_after(self, ms: int):
         return self.overlay_controller._hide_controls_after(ms)
 
+    def on_slider_press(self, event):
+        return self.subtitle_navigation.on_slider_press(event)
+    
     def on_slider_change(self, value):
         return self.subtitle_navigation.on_slider_change(value)
 
-    def on_slider_press(self, event):
-        return self.subtitle_navigation.on_slider_press(event)
+    
     def on_slider_release(self, event):
         return self.subtitle_navigation.on_slider_release(event)
-
-    # ——— Keyboard handlers —————————————————————————————————————
-    def _enqueue_input_action(self, action: str) -> None:
-        return self.hotkey_controller._enqueue_input_action(action)
-
-    def _drop_pending_input_actions(self, actions_to_remove: set[str]) -> None:
-        return self.hotkey_controller._drop_pending_input_actions(actions_to_remove)
-
-    def _is_seek_repeat_action(self, action: str) -> bool:
-        return self.hotkey_controller._is_seek_repeat_action(action)
-
-    def _queue_repeat_step(self, action: str) -> None:
-        return self.hotkey_controller._queue_repeat_step(action)
-
-    def _seek_delta_for_action(self, action: str) -> float:
-        return self.hotkey_controller._seek_delta_for_action(action)
-
-    def _accumulate_pending_seek(self, action: str) -> None:
-        return self.hotkey_controller._accumulate_pending_seek(action)
-
-    def _clear_pending_seek_preview(self) -> None:
-        return self.hotkey_controller._clear_pending_seek_preview()
-
-    def _apply_pending_seek(self) -> None:
-        return self.hotkey_controller._apply_pending_seek()
-
-    def _hold_repeat_action(self, action: str) -> bool:
-        return self.hotkey_controller._hold_repeat_action(action)
-
-    def _process_repeat_actions(self):
-        return self.hotkey_controller._process_repeat_actions()
-
-    def _process_input_queue(self):
-        return self.hotkey_controller._process_input_queue()
-
-    def _dispatch_input_action(self, action: str) -> None:
-        return self.hotkey_controller._dispatch_input_action(action)
-
-    def _skip_buttons_use_subtitle_segments(self) -> bool:
-        return self.hotkey_controller._skip_buttons_use_subtitle_segments()
-
-    def _hotkey_action_disabled(self, action: str) -> bool:
-        return self.hotkey_controller._hotkey_action_disabled(action)
-
-    def _get_shortcut_value(self, config_key: str) -> str:
-        return self.hotkey_controller._get_shortcut_value(config_key)
-
-    def _split_shortcut(self, binding: str):
-        return self.hotkey_controller._split_shortcut(binding)
-
-    def _is_text_input_focused(self) -> bool:
-        return self.hotkey_controller._is_text_input_focused()
-
-    def _key_tokens(self, key) -> set[str]:
-        return self.hotkey_controller._key_tokens(key)
-
-    def _shortcut_matches(self, binding: str, key) -> bool:
-        return self.hotkey_controller._shortcut_matches(binding, key)
-
-    def _repeat_action_bindings(self):
-        return self.hotkey_controller._repeat_action_bindings()
-
-    def _single_fire_bindings(self):
-        return self.hotkey_controller._single_fire_bindings()
-
-    def _hotkeys_disabled(self) -> bool:
-        return self.hotkey_controller._hotkeys_disabled()
-
-    def _reset_hotkey_state(self) -> None:
-        return self.hotkey_controller._reset_hotkey_state()
-
-    def _toggle_m3_mode(self) -> None:
-        return self.hotkey_controller._toggle_m3_mode()
-
-    def _schedule_ocr_time_jump(self, reason: str) -> None:
-        return self.ocr_controller._schedule_ocr_time_jump(reason)
-
-    def _run_ocr_time_jump_async(self, generation: int) -> None:
-        return self.ocr_controller._run_ocr_time_jump_async(generation)
-
-    def _apply_ocr_time(self, seconds: float, generation: int) -> None:
-        return self.ocr_controller._apply_ocr_time(seconds, generation)
-
-    def _temporarily_hide_windows_for_ocr(self, override: dict | None=None):
-        return self.ocr_controller._temporarily_hide_windows_for_ocr(override)
-
-    def on_ocr_read_now(self, override: dict | None=None) -> None:
-        return self.ocr_controller.on_ocr_read_now(override)
-
-    def _log_ocr_read_failure(self, override: dict | None=None) -> None:
-        return self.ocr_controller._log_ocr_read_failure(override)
-
-    def on_ocr_sync_now(self, override: dict | None=None) -> None:
-        return self.ocr_controller.on_ocr_sync_now(override)
-
-    def _apply_ocr_time_manual(self, seconds: float) -> None:
-        return self.ocr_controller._apply_ocr_time_manual(seconds)
-
-    def _start_ocr_live_sync(self, duration_sec: float=5.0, interval_sec: float=0.25, override: dict | None=None) -> None:
-        return self.ocr_controller._start_ocr_live_sync(duration_sec, interval_sec, override)
-
-    def _schedule_ocr_sync_after_anki(self, duration_sec: float=5.0, interval_sec: float=1.0) -> None:
-        return self.ocr_controller._schedule_ocr_sync_after_anki(duration_sec, interval_sec)
-
-    def _apply_ocr_sync_delta(self, delta: float) -> None:
-        return self.ocr_controller._apply_ocr_sync_delta(delta)
-
-    def _ocr_find_time_seconds(self, override: dict | None=None):
-        return self.ocr_controller._ocr_find_time_seconds(override)
-
-    def _ocr_image_to_text(self, image, override: dict | None=None) -> str:
-        return self.ocr_controller._ocr_image_to_text(image, override)
-
-    def _extract_time_from_ocr_text(self, text: str, override: dict | None=None):
-        return self.ocr_controller._extract_time_from_ocr_text(text, override)
-
-    def coerce_int(self, value, default: int=0) -> int:
-        return self.ocr_controller.coerce_int(value, default)
-
-    def _ocr_debug_enabled(self, override: dict | None=None) -> bool:
-        return self.ocr_controller._ocr_debug_enabled(override)
-
-    def _ocr_sync_after_anki_enabled(self) -> bool:
-        return self.ocr_controller._ocr_sync_after_anki_enabled()
-
-    def _build_tesseract_config(self, override: dict | None=None):
-        return self.ocr_controller._build_tesseract_config(override)
-
-    def _resolve_tesseract_cmd(self, override: dict | None=None):
-        return self.ocr_controller._resolve_tesseract_cmd(override)
-
-    def _get_ocr_setting(self, key: str, override: dict | None=None, default=None):
-        return self.ocr_controller._get_ocr_setting(key, override, default)
-
-    def _get_ocr_region_count(self, override: dict | None=None) -> int:
-        return self.ocr_controller._get_ocr_region_count(override)
-
-    def _get_ocr_capture_regions(self, override: dict | None=None):
-        return self.ocr_controller._get_ocr_capture_regions(override)
-
-    def _get_ocr_base_rect(self, override: dict | None=None):
-        return self.ocr_controller._get_ocr_base_rect(override)
-
-    def _get_ocr_capture_region(self, override: dict | None=None):
-        return self.ocr_controller._get_ocr_capture_region(override)
-
-    def _capture_ocr_image(self, region):
-        return self.ocr_controller._capture_ocr_image(region)
 
     def _on_key_press(self, key):
         return self.hotkey_controller._on_key_press(key)
@@ -730,6 +593,12 @@ class SubtitleController:
                 except: pass
 
         self.settings.root.destroy()
+    
+    def on_ocr_read_now(self, override: dict | None=None) -> None:
+        return self.ocr_controller.on_ocr_read_now(override)
+    
+    def on_ocr_sync_now(self, override: dict | None=None) -> None:
+        return self.ocr_controller.on_ocr_sync_now(override)
 
     def _show_anki_success_popup(self, message: str='Anki card added') -> None:
         return self.anki_controller._show_anki_success_popup(message)
