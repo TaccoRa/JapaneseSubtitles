@@ -262,7 +262,7 @@ class SubtitleRenderer:
     def _refresh_fonts_if_needed(self) -> None:
         font_family = self.config.get("SUBTITLE_FONT")
         font_size = int(self.config.get("SUBTITLE_FONT_SIZE") or 12)
-        hover_ruby_enabled = self._coerce_bool(self.config.get("SUBTITLE_HOVER_RUBY"))
+        hover_ruby_enabled = self.config.get("SUBTITLE_HOVER_RUBY")
         color = self.config.get("SUBTITLE_COLOR")
         glow_color = str(self.config.get("GLOW_COLOR") or "black")
 
@@ -598,14 +598,6 @@ class SubtitleRenderer:
         self._hover_active_region = None
 
     @staticmethod
-    def _coerce_bool(value) -> bool:
-        if isinstance(value, bool):
-            return value
-        if value is None:
-            return False
-        return str(value).strip().lower() in ("1", "true", "yes", "on")
-
-    @staticmethod
     def _contains_kanji(text: str) -> bool:
         for ch in text or "":
             code = ord(ch)
@@ -851,7 +843,7 @@ class SubtitleRenderer:
 #     def _refresh_fonts_if_needed(self) -> None:
 #         font_family = self.config.get("SUBTITLE_FONT")
 #         font_size = int(self.config.get("SUBTITLE_FONT_SIZE") or 12)
-#         hover_ruby_enabled = self._coerce_bool(self.config.get("SUBTITLE_HOVER_RUBY"))
+#         hover_ruby_enabled = self.config.get("SUBTITLE_HOVER_RUBY")
 #         color = self.config.get("SUBTITLE_COLOR")
 #         glow_color = str(self.config.get("GLOW_COLOR") or "black")
 
@@ -1199,14 +1191,6 @@ class SubtitleRenderer:
 #         except Exception:
 #             pass
 #         self._hover_active_region = None
-
-#     @staticmethod
-#     def _coerce_bool(value) -> bool:
-#         if isinstance(value, bool):
-#             return value
-#         if value is None:
-#             return False
-#         return str(value).strip().lower() in ("1", "true", "yes", "on")
 
 #     @staticmethod
 #     def _contains_kanji(text: str) -> bool:

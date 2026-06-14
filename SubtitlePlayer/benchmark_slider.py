@@ -17,6 +17,8 @@ from model.subtitle_manager import SubtitleManager
 from model.renderer import SubtitleRenderer
 from view.subtitle_overlay import SubtitleOverlayUI
 from controller.controller import SubtitleController
+from controller.subtitle_navigation import SubtitleNavigationController
+from controller.episode_controller import EpisodeController
 
 # -----------------------------
 # Benchmark settings
@@ -110,7 +112,7 @@ def build_test_environment(srt_path: Path):
         canvas=overlay.subtitle_canvas,
         config=config,
     )
-
+    
     controller = object.__new__(SubtitleController)
     controller.sub_manager = manager
     controller.renderer = renderer
@@ -129,6 +131,9 @@ def build_test_environment(srt_path: Path):
     controller._pending_seek_delta = 0.0
     controller.hide_subtitles_ms = config.get("SUBTITLE_TIMEOUT_MS")
     controller._hide_subtitles_temporarily = lambda: None
+    controller.subtitle_navigation = SubtitleNavigationController(controller)
+    controller.episode_controller = EpisodeController(controller)
+
 
     def _reset_canvas():
         renderer.canvas.delete("all")

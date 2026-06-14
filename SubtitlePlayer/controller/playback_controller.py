@@ -27,6 +27,7 @@ class PlaybackController:
             return
 
         offset = self.controller.get_offset_value()
+        # print(offset, "test")##testing
         t = max(0, min(t, self.controller.total_duration + offset))
 
         if t - offset >= self.controller.total_duration and self.controller.playing:
@@ -54,9 +55,6 @@ class PlaybackController:
                 self.controller.subtitle_timeout_job = None
             if self.controller.subtitle_deleted and self.controller.last_subtitle_text:
                 self.controller.subtitle_deleted = False
-
-        if self.controller.video_click:
-            self.controller.simulate_video_click()
 
         self.controller.update_time_and_subtitle_displays()
         self.controller._schedule_hide_controls()

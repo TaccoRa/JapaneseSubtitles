@@ -1,4 +1,8 @@
 To Do:
+if buttonx2 is pressed and M3 is activated it should also be visible tick inside advanced window
+x1button text dissapears if pressed again reappears (same for button in control window)
+if string in control window it sets number to 0 instead of the one it was before
+remove remaining non speaker modes is not correcting for deleting the line it is in
 Also make rubies copyable in popup
 When i adjust the offset it should also jump by that offset: from 0 to -1 --> from 10:45(my)10:44(he) to 10:44(my)
 Only affect the windows which are actually in the OCr boxes to hide

@@ -6,11 +6,15 @@ This module is the main user-facing UI for controlling time, offsets, episodes, 
 
 import tkinter as tk
 from tkinter import ttk
-import threading
 from re import fullmatch
 from model.config_manager import ConfigManager
+from utils import (
+    make_draggable,
+    format_time,
+    make_nonactivating_window,
+    show_window_no_activate_minimizable,
+)
 from view.settings_advanced_ui import SettingsAdvancedUI
-from utils import (make_draggable,format_time,get_monitor_rects,make_nonactivating_window,show_window_no_activate_minimizable)
 
 class SettingsUI:
     NUMBER_PATTERN = r"\s*([-+]?\d+(?:[.,]\d+)?)\s*(?:s|sec|secs|second|seconds)?\s*"
@@ -53,6 +57,7 @@ class SettingsUI:
         self._init_defaults()
         self._init_vars()
         self._init_callbacks()
+        self.advanced_ui = SettingsAdvancedUI(self)
 
         self.episode_inc_btn = None
         self.episode_dec_btn = None
@@ -70,7 +75,7 @@ class SettingsUI:
         self._root_topmost_before_advanced = None
         self._ocr_region_count_trace_var = None
         self._ocr_region_count_refresh_job = None
-        self.adv_settings = SettingsAdvancedUI(self)
+
         self._build_settings_frame()
         self._build_control_window()
         try:
@@ -550,6 +555,9 @@ class SettingsUI:
     def bind_anki_check(self, cb):           self._on_anki_check = cb
     def bind_settings_open(self, cb):        self._on_settings_open = cb
 
+    def _open_advanced_settings_window(self):
+        return self.advanced_ui._open_advanced_settings_window()
+
     def update_time_overlay_position(self):
         self.root.update_idletasks()
         root_width = self.root.winfo_width()
@@ -717,11 +725,26 @@ class SettingsUI:
         except Exception:
             pass
 
-    def _sync_advanced_startup_vars_from_runtime(self) -> None:
-        return self.adv_settings._sync_advanced_startup_vars_from_runtime()
-
-    def _open_advanced_settings_window(self):
-        return self.adv_settings._open_advanced_settings_window()
+    def _flush_pending_entry_changes(self):
+        """Force any pending changes in offset/skip entry fields to be saved to config."""
+        for entry, attr_name, apply_method in [
+            (self.offset_entry, "_last_offset_value", self._apply_offset_change),
+            (self.skip_entry, "_last_skip_value", self._apply_skip_change),
+        ]:
+            try:
+                text = entry.get().replace(",", ".").strip()
+                parsed = self._parse_number(text)
+                if parsed is not None and hasattr(self, attr_name):
+                    current_value = getattr(self, attr_name)
+                    if abs(parsed - current_value) > 0.001:  # Value has changed
+                        setattr(self, attr_name, parsed)
+                        if entry is self.offset_entry:
+                            apply_method(parsed, persist=True, previous_value=current_value)
+                        elif entry is self.skip_entry:
+                            apply_method(parsed, persist=True)
+            except Exception:
+                pass
+        self._sync_advanced_startup_vars_from_runtime()
 
     def _format_number(self, value: float) -> str:
         value = float(value)
@@ -751,6 +774,36 @@ class SettingsUI:
             self.skip_var.set(formatted)
         entry.delete(0, tk.END)
         entry.insert(0, formatted)
+
+    def _apply_offset_change(self, value_seconds: float, persist: bool, previous_value=None):
+        try:
+            previous = float(previous_value)
+            delta = float(value_seconds) - previous
+        except Exception:
+            delta = 0.0
+        self.slider.config(to=self.total_duration + value_seconds)
+        if abs(delta) >= 0.001:
+            try:
+                self.slider.set(float(self.slider.get()) + delta)
+            except Exception:
+                pass
+        self.update_time_and_subtitle_displays()
+        self._on_slider_release(None)
+        self._sync_advanced_startup_vars_from_runtime()
+        if persist:
+            try:
+                self.config.set("EXTRA_OFFSET", value_seconds)
+            except Exception:
+                pass
+
+    def _apply_skip_change(self, value_seconds: float, persist: bool):
+        """Update skip value and optionally persist to config."""
+        self._sync_advanced_startup_vars_from_runtime()
+        if persist:
+            try:
+                self.config.set("DEFAULT_SKIP", value_seconds)
+            except Exception:
+                pass
 
     def _get_last_value(self, entry):
         if entry is self.offset_entry:
@@ -788,36 +841,6 @@ class SettingsUI:
             elif entry is self.skip_entry:
                 self._apply_skip_change(value, persist=True)
         entry.master.focus_set()
-
-    def _apply_offset_change(self, value_seconds: float, persist: bool, previous_value=None):
-        try:
-            previous = float(previous_value)
-            delta = float(value_seconds) - previous
-        except Exception:
-            delta = 0.0
-        self.slider.config(to=self.total_duration + value_seconds)
-        if abs(delta) >= 0.001:
-            try:
-                self.slider.set(float(self.slider.get()) + delta)
-            except Exception:
-                pass
-        self.update_time_and_subtitle_displays()
-        self._on_slider_release(None)
-        self._sync_advanced_startup_vars_from_runtime()
-        if persist:
-            try:
-                self.config.set("EXTRA_OFFSET", value_seconds)
-            except Exception:
-                pass
-
-    def _apply_skip_change(self, value_seconds: float, persist: bool):
-        """Update skip value and optionally persist to config."""
-        self._sync_advanced_startup_vars_from_runtime()
-        if persist:
-            try:
-                self.config.set("DEFAULT_SKIP", value_seconds)
-            except Exception:
-                pass
 
     def set_total_duration(self, total_duration: float):
         self.total_duration = total_duration

@@ -56,7 +56,6 @@ class SubtitlePlayerApp:
         except Exception:
             logger.exception("Failed to load config.json")
             raise SystemExit(1)
-
     def _build_root(self):
         self.root = tk.Tk()
         self.root.withdraw()
