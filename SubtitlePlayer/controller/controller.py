@@ -215,15 +215,6 @@ class SubtitleController:
     def _add_selection_to_anki(self, selected_text: str, subtitle_text: str='') -> None:
         return self.anki_controller._add_selection_to_anki(selected_text, subtitle_text)
 
-    def _start_anki_add_worker(self, selected_text: str, subtitle_text: str='') -> None:
-        return self.anki_controller._start_anki_add_worker(selected_text, subtitle_text)
-
-    def _show_anki_wait_dialog(self, selected_text: str, subtitle_text: str='') -> None:
-        return self.anki_controller._show_anki_wait_dialog(selected_text, subtitle_text)
-
-    def _format_translation_csv(self, value: str) -> str:
-        return self.anki_controller._format_translation_csv(value)
-
     def _set_busy_cursor(self, busy: bool) -> None:
         return self.anki_controller._set_busy_cursor(busy)
 
@@ -507,6 +498,12 @@ class SubtitleController:
     def _restore_subtitle_handle_after_settings(self):
         return self.overlay_controller._restore_subtitle_handle_after_settings()
 
+    def on_ocr_read_now(self, override: dict | None=None) -> None:
+        return self.ocr_controller.on_ocr_read_now(override)
+    
+    def on_ocr_sync_now(self, override: dict | None=None) -> None:
+        return self.ocr_controller.on_ocr_sync_now(override)
+
     def _on_app_close(self):
         self._shutting_down = True
         def _read_settings_geometry():
@@ -594,26 +591,13 @@ class SubtitleController:
 
         self.settings.root.destroy()
     
-    def on_ocr_read_now(self, override: dict | None=None) -> None:
-        return self.ocr_controller.on_ocr_read_now(override)
-    
-    def on_ocr_sync_now(self, override: dict | None=None) -> None:
-        return self.ocr_controller.on_ocr_sync_now(override)
-
-    def _show_anki_success_popup(self, message: str='Anki card added') -> None:
-        return self.anki_controller._show_anki_success_popup(message)
+# #wrappers for benchmark
+    def _segments_to_copy_text(self, top_segments, bottom_segments):
+        return self.subtitle_navigation.segments_to_copy_text(top_segments, bottom_segments)
 
     def _update_subtitle_display(self, force: bool = False):
         return self.subtitle_navigation._update_subtitle_display(force)
     
-
-#wrappers for benchmark
-    def _segments_to_copy_text(self, top_segments, bottom_segments):
-        return self.subtitle_navigation.segments_to_copy_text(top_segments, bottom_segments)
-
-
-
-
 
     #     # self.settings.root.after(self.video_sync_interval_ms, self._sync_loop)
 
