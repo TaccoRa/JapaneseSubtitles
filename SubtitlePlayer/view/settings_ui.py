@@ -705,10 +705,12 @@ class SettingsUI:
 
         if not text or not fullmatch(r"[\d:.]+", text):
             self.setto_entry.delete(0, tk.END)
+            self.setto_entry.master.focus_set()
             return "break"
 
         if callable(self._on_set_to_return):
             self._on_set_to_return(text)
+        self.setto_entry.master.focus_set()
 
         return "break"
     
@@ -730,7 +732,7 @@ class SettingsUI:
                 self._apply_offset_change(value, persist=True, previous_value=previous)
             elif entry is self.skip_entry:
                 self._apply_skip_change(value, persist=True)
-        # entry.master.focus_set()
+        entry.master.focus_set()
 
     def _apply_offset_change(self, value_seconds: float, persist: bool, previous_value=None):
         try:

@@ -87,7 +87,7 @@ class SubtitleOverlayUI:
     # Subtitle overlay
     def bind_sub_window_enter(self, cb): self.on_sub_window_enter = cb
     def bind_sub_window_leave(self, cb): self.on_sub_window_leave = cb
-    def bind_sub_handel_enter(self, cb): self.on_handle_enter = cb
+    def bind_sub_handle_enter(self, cb): self.on_handle_enter = cb
 
     def update_geometry(self, new_w, new_h):
         """Resize overlay window and internal canvas to the new width/height (integers)."""

@@ -64,7 +64,7 @@ class OverlayController(_ControllerProxy):
         if not self.settings.default_phone_mode:
             self._hide_controls_after(self.windows_hide_control_ms)
 
-    def sub_handel_enter(self, event):
+    def sub_handle_enter(self, event):
         if not self._windows_alive():
             return
         self.settings.control_window.attributes("-topmost", True)
