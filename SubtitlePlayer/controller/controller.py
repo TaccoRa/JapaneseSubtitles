@@ -109,8 +109,7 @@ class SubtitleController:
         self.last_subtitle_raw = ""
         self.last_rendered_index = None
         self.last_rendered_sub_time = None
-
-
+        self.settings.root.protocol("WM_DELETE_WINDOW", self._on_app_close)
 
         self._single_fire_actions = set()
         self._input_actions: "queue.Queue[str]" = queue.Queue()
@@ -141,9 +140,9 @@ class SubtitleController:
 
         self.episode_controller.restore_startup_time_and_mode()
 
+        self.settings.bind_play_pause(self.playback.toggle_play)
         self.settings.bind_back(self.playback.go_back)
         self.settings.bind_forward(self.playback.go_forward)
-        self.settings.bind_play_pause(self.playback.toggle_play)
         self.settings.bind_slider(
             on_chg    = self.on_slider_change,
             on_pr     = self.on_slider_press,
@@ -155,26 +154,24 @@ class SubtitleController:
             on_dec    = lambda: self.change_episode('dec')
         )
         self.settings.bind_open_srt                  (self.episode_controller.on_open_srt)
-        self.settings.bind_set_to_return             (self.on_set_to_return)
-        self.settings.bind_time_entry_return         (self.control_time_entry_return)
-        self.settings.bind_time_entry_clear          (self.control_clear_time_entry)
-        self.settings.bind_control_window_enter      (self.control_window_enter)
-        self.settings.bind_control_window_leave      (self.control_window_leave)
-        self.settings.bind_show_subtitle_handle      (self.show_subtitle_handle)
-        self.settings.bind_refresh_subtitles         (self.on_refresh_subtitles)
+        self.settings.bind_set_to_return             (self.subtitle_navigation.on_set_to_return)
+        self.settings.bind_time_entry_return         (self.subtitle_navigation.control_time_entry_return)
+        self.settings.bind_time_entry_clear          (self.subtitle_navigation.control_clear_time_entry)
+        self.settings.bind_control_window_enter      (self.overlay_controller.control_window_enter)
+        self.settings.bind_control_window_leave      (self.overlay_controller.control_window_leave)
+        self.settings.bind_show_subtitle_handle      (self.overlay_controller.show_subtitle_handle)
+        self.settings.bind_refresh_subtitles         (self.subtitle_navigation.on_refresh_subtitles)
         self.settings.bind_advanced_apply            (self.apply_advanced_settings)
-        self.settings.bind_ocr_read_now              (self.on_ocr_read_now)
-        self.settings.bind_ocr_sync_now              (self.on_ocr_sync_now)
-        self.settings.bind_anki_check                (self.on_anki_check_connection)
+        self.settings.bind_ocr_read_now              (self.ocr_controller.on_ocr_read_now)
+        self.settings.bind_ocr_sync_now              (self.ocr_controller.on_ocr_sync_now)
+        self.settings.bind_anki_check                (self.anki_controller.on_anki_check_connection)
         self.settings.bind_settings_open             (self._hide_subtitle_handle_for_settings)
-
         self.settings.bind_update_display            (self.update_time_and_subtitle_displays)
-        
-        self.overlay.subtitle_canvas.bind("<Button-3>", self._on_copy_popup)
-        self.popup.bind_add_to_anki(self._add_selection_to_anki)
-        self.overlay.bind_sub_window_enter(self.sub_window_enter)
-        self.overlay.bind_sub_window_leave(self.sub_window_leave)
-        self.overlay.bind_sub_handel_enter(self.sub_handel_enter)   
+        self.overlay.subtitle_canvas.bind            ("<Button-3>", self._on_copy_popup)
+        self.popup.bind_add_to_anki                  (self._add_selection_to_anki)
+        self.overlay.bind_sub_window_enter           (self.sub_window_enter)
+        self.overlay.bind_sub_window_leave           (self.sub_window_leave)
+        self.overlay.bind_sub_handel_enter           (self.sub_handel_enter)   
         self.settings.root.bind("<Enter>", lambda _e: self._hide_subtitle_handle_for_settings(), add="+")
         self.settings.root.bind("<Leave>", lambda _e: self._restore_subtitle_handle_after_settings(), add="+")
 
@@ -190,7 +187,6 @@ class SubtitleController:
         self.update_episode_nav_controls()
         self._schedule_ocr_time_jump("startup")
         if self._startup_resume_play: self.playback.toggle_play()
-        self.settings.root.protocol("WM_DELETE_WINDOW", self._on_app_close)
 
     def _process_repeat_actions(self):
         return self.hotkey_controller._process_repeat_actions()
@@ -222,9 +218,6 @@ class SubtitleController:
 
     def _set_busy_cursor(self, busy: bool) -> None:
         return self.anki_controller._set_busy_cursor(busy)
-
-    def on_anki_check_connection(self) -> bool:
-        return self.anki_controller.on_anki_check_connection()
 
     def apply_advanced_settings(self, values: dict) -> None:
         if not isinstance(values, dict):
@@ -350,28 +343,11 @@ class SubtitleController:
     def set_current_time(self, t: float):
         return self.playback.set_current_time(t)
 
-    def on_set_to_return(self, text: str):
-        return self.subtitle_navigation.on_set_to_return(text)
-
-    def _release_time_entry_focus(self) -> None:
-        return self.subtitle_navigation._release_time_entry_focus()
-
-    def control_time_entry_return(self, event):
-        return self.subtitle_navigation.control_time_entry_return(event)
-
-    def control_clear_time_entry(self, event):
-        return self.subtitle_navigation.control_clear_time_entry(event)
-
-
-
 
     # ——— Updating Logic —————————————————————————————————————
 
     def update_time_and_subtitle_displays(self):
         return self.subtitle_navigation.update_time_and_subtitle_displays()
-
-    def on_refresh_subtitles(self, event):
-        return self.subtitle_navigation.on_refresh_subtitles(event)
 
 
     # ——— Change srt file ———————————————————————————————————
@@ -440,21 +416,12 @@ class SubtitleController:
     def sub_handel_enter(self, event):
         return self.overlay_controller.sub_handel_enter(event)
 
-    def control_window_enter(self, event):
-        return self.overlay_controller.control_window_enter(event)
-
-    def control_window_leave(self, event):
-        return self.overlay_controller.control_window_leave(event)
-
-    def show_subtitle_handle(self, is_phone):
-        return self.overlay_controller.show_subtitle_handle(is_phone)
-
     def _hide_subtitle_handle_for_settings(self):
         return self.overlay_controller._hide_subtitle_handle_for_settings()
 
     def _restore_subtitle_handle_after_settings(self):
         return self.overlay_controller._restore_subtitle_handle_after_settings()
-
+    
     def on_ocr_read_now(self, override: dict | None=None) -> None:
         return self.ocr_controller.on_ocr_read_now(override)
     
@@ -462,29 +429,24 @@ class SubtitleController:
         return self.ocr_controller.on_ocr_sync_now(override)
 
     def _on_app_close(self):
+        if getattr(self, "_shutting_down", False):
+            return
         self._shutting_down = True
+        root = self.settings.root
+        if root is None or not root.winfo_exists():
+            return
+        
         def _read_settings_geometry():
-            try:
-                geo = self.settings.root.winfo_geometry()
-                size, pos = geo.split("+", 1)
-                w_s, h_s = size.split("x", 1)
-                x_s, y_s = pos.split("+", 1)
-                return int(x_s), int(y_s), int(w_s), int(h_s)
-            except Exception:#
-                try:
-                    return (
-                        int(self.settings.root.winfo_x()),
-                        int(self.settings.root.winfo_y()),
-                        int(self.settings.root.winfo_width()),
-                        int(self.settings.root.winfo_height()),
-                    )
-                except Exception:#
-                    return None
+            geo = self.settings.root.winfo_geometry()
+            size, pos = geo.split("+", 1)
+            w_s, h_s = size.split("x", 1)
+            x_s, y_s = pos.split("+", 1)
+            return int(x_s), int(y_s), int(w_s), int(h_s)
+        
         # Persist window positions/state before destroying any windows.
         geom = _read_settings_geometry()
-        if geom is None:
-            raise ValueError("Could not read settings geometry")
         x, y, w, h = geom
+
         if (x, y) != (self.config.get("LAST_SETTINGS_WINDOW_X"),
                         self.config.get("LAST_SETTINGS_WINDOW_Y")):
             self.config.set("LAST_SETTINGS_WINDOW_X", x)
@@ -509,20 +471,20 @@ class SubtitleController:
         self.overlay.save_state()   # subtitle overlay center position
         self.sub_manager.save_state()
 
-        for job in ("subtitle_timeout_job", "_con_hide_job", "_input_pump_job", "_repeat_job", "_ocr_job"):
-            handle = getattr(self, job, None)
-            if handle is not None:
-                self.settings.root.after_cancel(handle)
         for listener_attr in ("_mouse_listener", "_keyboard_listener"):
             listener = getattr(self, listener_attr, None)
             if listener is not None:
                 listener.stop()
-        self.popup._cancel_close()
-        for w in (self.settings.control_window, self.overlay.sub_window, self.popup._popup):
-            if w:
-                w.destroy()
 
-        self.settings.root.destroy()
+        for job in ("subtitle_timeout_job", "_con_hide_job", "_input_pump_job", "_repeat_job", "_ocr_job"):
+            handle = getattr(self, job, None)
+            if handle is not None:
+                root.after_cancel(handle)
+                setattr(self, job, None)
+
+        self.popup._cancel_close()
+
+        root.destroy()
     
 
 

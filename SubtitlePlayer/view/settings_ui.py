@@ -6,7 +6,6 @@ This module is the main user-facing UI for controlling time, offsets, episodes, 
 
 import tkinter as tk
 from tkinter import ttk
-import threading
 from re import fullmatch
 from model.config_manager import ConfigManager
 from view.settings_advanced_ui import SettingsAdvancedUI
@@ -259,7 +258,8 @@ class SettingsUI:
         tk.Label(setto_pair, text="Set to", font=("Arial", 12), bg="#f0f0f0").grid(row=0, column=0, sticky="w", padx=(0, 2))
         self.setto_entry = tk.Entry(setto_pair, textvariable=self.setto_var, font=("Arial", 12), width=4)
         self.setto_entry.grid(row=0, column=1, sticky="ew")
-        self.setto_entry.bind("<Return>", lambda e: self._on_set_to_return(self.setto_var.get()))
+        self.setto_entry.bind("<Return>", self._on_set_to_commit)
+        self.setto_entry.bind("<FocusOut>", self._on_set_to_commit)
 
         offset_pair = tk.Frame(options_frame, bg="#f0f0f0")
         offset_pair.grid(row=1, column=2, columnspan=2, padx=(2, 2), pady=(2, 5), sticky="ew")
@@ -424,52 +424,7 @@ class SettingsUI:
         saved_skip = float(self.config.get("DEFAULT_SKIP") or 1.0)
         if abs(self._last_skip_value - saved_skip) > 0.001:
             self.config.set("DEFAULT_SKIP", self._last_skip_value)
-            
-    # --------- PUBLIC binders ------------------------------------------------------------------------------------------------------------------
-    # Settings window
-    def bind_episode_change(self, on_ent, on_inc, on_dec):
-        self._on_ep_entry_change = on_ent
-        self._on_ep_inc          = on_inc
-        self._on_ep_dec          = on_dec
 
-    def set_episode_nav_state(self, can_dec: bool, can_inc: bool, is_movie: bool = False) -> None:
-        self.episode_dec_btn.configure(state=(tk.NORMAL if can_dec else tk.DISABLED))
-        self.episode_inc_btn.configure(state=(tk.NORMAL if can_inc else tk.DISABLED))
-        self.episode_entry.configure(state=(tk.DISABLED if is_movie else tk.NORMAL))
-
-    def set_episode_values(self, values) -> None:
-        """
-        Update the dropdown list for the episode combobox.
-        Values should be an iterable of ints/strings (will be converted to strings).
-        """
-        self.episode_entry.configure(values=[str(v) for v in (values or [])])
-
-    def _on_episode_entry_click(self, event):
-        elem = event.widget.identify(event.x, event.y)
-        if elem and "downarrow" in str(elem).lower():
-            return
-        self._last_episode_value = self.episode_var.get() or ""
-        self.episode_var.set("")
-
-    def _on_episode_entry_focus_out(self, event):
-        """
-        Restore last value if the entry is left empty (or invalid) without pressing Enter.
-        This must NOT trigger subtitle loading.
-        """
-        text = (self.episode_var.get() or "").strip() or ""
-        if not text:
-            self.episode_var.set(self._last_episode_value)
-            return
-        if text.lower() == "movie":
-            self.episode_var.set(self._last_episode_value)
-            return
-        try:
-            n = int(text)
-            if n <= 0:
-                raise ValueError()
-        except Exception as e:
-            print(e)
-            self.episode_var.set(self._last_episode_value)
     def bind_slider(self,   on_chg, on_pr, on_rl):
         self._on_slider_change   = on_chg
         self._on_slider_press    = on_pr
@@ -698,7 +653,65 @@ class SettingsUI:
         if parsed is not None:
             setattr(self, attr, parsed)
         entry.delete(0, tk.END)
+            
+    # --------- PUBLIC binders ------------------------------------------------------------------------------------------------------------------
+    # Settings window
+    def bind_episode_change(self, on_ent, on_inc, on_dec):
+        self._on_ep_entry_change = on_ent
+        self._on_ep_inc          = on_inc
+        self._on_ep_dec          = on_dec
 
+    def set_episode_nav_state(self, can_dec: bool, can_inc: bool, is_movie: bool = False) -> None:
+        self.episode_dec_btn.configure(state=(tk.NORMAL if can_dec else tk.DISABLED))
+        self.episode_inc_btn.configure(state=(tk.NORMAL if can_inc else tk.DISABLED))
+        self.episode_entry.configure(state=(tk.DISABLED if is_movie else tk.NORMAL))
+
+    def set_episode_values(self, values) -> None:
+        """
+        Update the dropdown list for the episode combobox.
+        Values should be an iterable of ints/strings (will be converted to strings).
+        """
+        self.episode_entry.configure(values=[str(v) for v in (values or [])])
+
+    def _on_episode_entry_click(self, event):
+        elem = event.widget.identify(event.x, event.y)
+        if elem and "downarrow" in str(elem).lower():
+            return
+        self._last_episode_value = self.episode_var.get() or ""
+        self.episode_var.set("")
+
+    def _on_episode_entry_focus_out(self, event):
+        """
+        Restore last value if the entry is left empty (or invalid) without pressing Enter.
+        This must NOT trigger subtitle loading.
+        """
+        text = (self.episode_var.get() or "").strip() or ""
+        if not text:
+            self.episode_var.set(self._last_episode_value)
+            return
+        if text.lower() == "movie":
+            self.episode_var.set(self._last_episode_value)
+            return
+        try:
+            n = int(text)
+            if n <= 0:
+                raise ValueError()
+        except Exception as e:
+            print(e)
+            self.episode_var.set(self._last_episode_value)
+
+    def _on_set_to_commit(self, event=None) -> str:
+        text = (self.setto_var.get() or "").strip()
+
+        if not text or not fullmatch(r"[\d:.]+", text):
+            self.setto_entry.delete(0, tk.END)
+            return "break"
+
+        if callable(self._on_set_to_return):
+            self._on_set_to_return(text)
+
+        return "break"
+    
     def _on_entry_focus_out(self, event):
         entry = event.widget
         attr, last_val = self._get_last_value(entry)
@@ -717,7 +730,7 @@ class SettingsUI:
                 self._apply_offset_change(value, persist=True, previous_value=previous)
             elif entry is self.skip_entry:
                 self._apply_skip_change(value, persist=True)
-        entry.master.focus_set()
+        # entry.master.focus_set()
 
     def _apply_offset_change(self, value_seconds: float, persist: bool, previous_value=None):
         try:

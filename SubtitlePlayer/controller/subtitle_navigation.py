@@ -35,15 +35,45 @@ class SubtitleNavigationController(_ControllerProxy):
             return text if text else "0"
 
     def on_set_to_return(self, text: str):
-            self.settto_editing = False
-            if not re.fullmatch(r"[\d:.]+", text):
-                self.settings.control_time_str.set(format_time(self.current_time))
-                self._release_time_entry_focus()
-                return
+        self.settto_editing = False
+        text = (text or "").strip()
+
+        if not text or text.lower() == "unused":
+            self.settings.setto_var.set("")
+            try:
+                self.settings.setto_entry.delete(0, tk.END)
+            except Exception:
+                pass
+            self._release_time_entry_focus()
+            return
+
+        if not re.fullmatch(r"[\d:.]+", text):
+            self.settings.setto_var.set("")
+            try:
+                self.settings.setto_entry.delete(0, tk.END)
+            except Exception:
+                pass
+            self._release_time_entry_focus()
+            return
+
+        try:
             secs = parse_time_value(text)
-            self.playback.set_current_time(secs)
+        except Exception:
+            self.settings.setto_var.set("")
+            try:
+                self.settings.setto_entry.delete(0, tk.END)
+            except Exception:
+                pass
+            self._release_time_entry_focus()
+            return
+
+        self.playback.set_current_time(secs)
+        self.settings.setto_var.set("")
+        try:
             self.settings.setto_entry.delete(0, tk.END)
-            self.settings.root.focus_set()
+        except Exception:
+            pass
+        self._release_time_entry_focus()
 
     def _release_time_entry_focus(self) -> None:
             try:
@@ -157,6 +187,7 @@ class SubtitleNavigationController(_ControllerProxy):
                 self.hide_subtitles_ms,
                 self._hide_subtitles_temporarily
             )
+    
     @staticmethod
     def segments_to_copy_text(top_segments, bottom_segments) -> str:
         def _line_text(segments) -> str:
@@ -192,13 +223,11 @@ class SubtitleNavigationController(_ControllerProxy):
             self.subtitle_timeout_job = None
 
     def on_refresh_subtitles(self, event):
-            # 1) cancel any pending hide‐job
             if self.subtitle_timeout_job:
                 self.overlay.root.after_cancel(self.subtitle_timeout_job)
                 self.subtitle_timeout_job = None
             self.last_subtitle_text = ""
             self.subtitle_deleted    = False
-
             self.update_time_and_subtitle_displays()
 
     def on_slider_press(self, event):
