@@ -30,10 +30,7 @@ class HotkeyController(_ControllerProxy):
     def _enqueue_input_action(self, action: str) -> None:
             if self._shutting_down:
                 return
-            try:
-                self._input_actions.put_nowait(action)
-            except Exception:
-                pass
+            self._input_actions.put_nowait(action)
 
     def _drop_pending_input_actions(self, actions_to_remove: set[str]) -> None:
             if not actions_to_remove:
@@ -42,16 +39,16 @@ class HotkeyController(_ControllerProxy):
             while True:
                 try:
                     action = self._input_actions.get_nowait()
-                except queue.Empty:
+                except queue.Empty:#
                     break
-                except Exception:
+                except Exception:#
                     break
                 if action not in actions_to_remove:
                     kept.append(action)
             for action in kept:
                 try:
                     self._input_actions.put_nowait(action)
-                except Exception:
+                except Exception:#
                     break
 
     def _is_seek_repeat_action(self, action: str) -> bool:
@@ -81,10 +78,7 @@ class HotkeyController(_ControllerProxy):
     def _seek_delta_for_action(self, action: str) -> float:
             if not self._is_seek_repeat_action(action):
                 return 0.0
-            try:
-                skip = float(self.settings._last_skip_value or 0.0)
-            except Exception:
-                skip = 0.0
+            skip = float(self.settings._last_skip_value or 0.0)
             if action == "go_back":
                 return -skip
             if action == "go_forward":
@@ -97,7 +91,8 @@ class HotkeyController(_ControllerProxy):
                 return
             try:
                 self._pending_seek_delta = float(self._pending_seek_delta) + delta
-            except Exception:
+            except Exception:#
+                print("I dont know man :)")
                 self._pending_seek_delta = delta
             self.update_time_and_subtitle_displays()
 
@@ -108,10 +103,7 @@ class HotkeyController(_ControllerProxy):
             self.update_time_and_subtitle_displays()
 
     def _apply_pending_seek(self) -> None:
-            try:
-                delta = float(self._pending_seek_delta or 0.0)
-            except Exception:
-                delta = 0.0
+            delta = float(self._pending_seek_delta or 0.0)
             if abs(delta) < 0.000001:
                 return
             self._pending_seek_delta = 0.0
@@ -149,10 +141,7 @@ class HotkeyController(_ControllerProxy):
             if released_seek_actions:
                 seek_still_held = bool(still_held & {"go_back", "go_forward"})
                 if not seek_still_held:
-                    try:
-                        pending = float(getattr(self, "_pending_seek_delta", 0.0) or 0.0)
-                    except Exception:
-                        pending = 0.0
+                    pending = float(getattr(self, "_pending_seek_delta", 0.0) or 0.0)
                     if settle_seek:
                         if abs(pending) >= 0.000001:
                             self._enqueue_input_action("apply_pending_seek")
@@ -186,7 +175,8 @@ class HotkeyController(_ControllerProxy):
 
             try:
                 self._repeat_job = self.settings.root.after(16, self._process_repeat_actions)
-            except Exception:
+            except Exception as e:
+                print(e)
                 self._repeat_job = None
 
     def _process_input_queue(self):
@@ -196,13 +186,14 @@ class HotkeyController(_ControllerProxy):
                 for _ in range(50):
                     try:
                         action = self._input_actions.get_nowait()
-                    except queue.Empty:
+                    except queue.Empty:#
                         break
                     self._dispatch_input_action(action)
             finally:
                 try:
                     self._input_pump_job = self.settings.root.after(15, self._process_input_queue)
-                except Exception:
+                except Exception as e:
+                    print(e)
                     self._input_pump_job = None
 
     def _dispatch_input_action(self, action: str) -> None:
@@ -241,24 +232,20 @@ class HotkeyController(_ControllerProxy):
                 self._clear_pending_seek_preview()
 
     def _skip_buttons_use_subtitle_segments(self) -> bool:
-            try:
-                return bool(self.config.get("SKIP_BUTTONS_USE_SUBTITLE_SEGMENTS") or False)
-            except Exception:
-                return False
+            return bool(self.config.get("SKIP_BUTTONS_USE_SUBTITLE_SEGMENTS") or False)
 
     def _hotkey_action_disabled(self, action: str) -> bool:
             key = self.HOTKEY_DISABLE_KEYS.get(str(action or "").strip())
             if not key:
                 return False
-            try:
-                return bool(self.config.get(key) or False)
-            except Exception:
-                return False
+            return bool(self.config.get(key) or False)
+    
     @staticmethod
     def _is_numpad_vk_key(key, *codes: int) -> bool:
             try:
                 return hasattr(key, "vk") and int(getattr(key, "vk")) in codes
-            except Exception:
+            except Exception as e:
+                print(e)
                 return False
 
     def _get_shortcut_value(self, config_key: str) -> str:
@@ -270,12 +257,9 @@ class HotkeyController(_ControllerProxy):
                 value = raw
             value = str(value).strip().lower()
             if config_key == "SHORTCUT_TOGGLE_PLAY":
-                try:
-                    if bool(self.config.get("DISABLE_SPACE_HOTKEY") or False):
-                        if self._normalize_shortcut_token(value) == "space":
-                            return ""
-                except Exception:
-                    pass
+                if bool(self.config.get("DISABLE_SPACE_HOTKEY") or False):
+                    if self._normalize_shortcut_token(value) == "space":
+                        return ""
             return value
     
     @staticmethod
@@ -314,10 +298,7 @@ class HotkeyController(_ControllerProxy):
     def _is_text_input_widget(widget) -> bool:
             if widget is None:
                 return False
-            try:
-                cls = str(widget.winfo_class() or "").lower()
-            except Exception:
-                cls = ""
+            cls = str(widget.winfo_class() or "").lower()
             return cls in {
                 "entry",
                 "tentry",
@@ -342,14 +323,12 @@ class HotkeyController(_ControllerProxy):
                     continue
                 try:
                     widget = owner.focus_get()
-                except Exception:
+                except Exception as e:
+                    print(e)
                     widget = None
-                try:
-                    # Treat control time entry as text-focused only while actively editing.
-                    if widget is getattr(self.settings, "time_entry", None) and not bool(self.entry_editing):
-                        continue
-                except Exception:
-                    pass
+                # Treat control time entry as text-focused only while actively editing.
+                if widget is getattr(self.settings, "time_entry", None) and not bool(self.entry_editing):
+                    continue
                 if self._is_text_input_widget(widget):
                     return True
             return False
@@ -403,7 +382,8 @@ class HotkeyController(_ControllerProxy):
     def _repeat_action_bindings(self):
             try:
                 mode2_numpad = int(getattr(self.settings, "input_mode", 1)) == 2
-            except Exception:
+            except Exception as e:
+                print(e)
                 mode2_numpad = bool(getattr(self.settings, "numpad_mode_enabled", False))
             if mode2_numpad:
                 bindings = [
@@ -433,20 +413,11 @@ class HotkeyController(_ControllerProxy):
             return [(action, binding) for action, binding in bindings if not self._hotkey_action_disabled(action)]
 
     def _hotkeys_disabled(self) -> bool:
-            try:
-                if bool(getattr(self.sub_manager, "is_search_dialog_active", lambda: False)()):
-                    return True
-            except Exception:
-                pass
-            try:
-                if int(getattr(self.settings, "input_mode", 1)) == 3:
-                    return True
-            except Exception:
-                pass
-            try:
-                return bool(self.config.get("SHORTCUTS_DISABLED") or False)
-            except Exception:
-                return False
+            if bool(getattr(self.sub_manager, "is_search_dialog_active", lambda: False)()):
+                return True
+            if int(getattr(self.settings, "input_mode", 1)) == 3:
+                return True
+            return bool(self.config.get("SHORTCUTS_DISABLED") or False)
 
     def _reset_hotkey_state(self) -> None:
             self.shift_pressed = False
@@ -460,7 +431,8 @@ class HotkeyController(_ControllerProxy):
             enable_m3 = not self._hotkeys_disabled()
             try:
                 self.settings.set_hotkeys_disabled(enable_m3)
-            except Exception:
+            except Exception as e:
+                print(e)
                 return
             # Clear any stuck modifier state when toggling hotkeys on/off.
             self._reset_hotkey_state()
@@ -536,10 +508,7 @@ class HotkeyController(_ControllerProxy):
 
     def on_alt_x(self, event=None):
             self.settings.control_window.attributes("-topmost", True)
-            try:
-                self.popup.ensure_on_top()
-            except Exception:
-                pass
+            self.popup.ensure_on_top()
 
     def _on_global_click(self, x, y, button, pressed):
             if button == Button.x2 and pressed:

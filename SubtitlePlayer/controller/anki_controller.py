@@ -46,11 +46,7 @@ class AnkiController(_ControllerProxy):
             if not selected:
                 print("Add Selection To Anki: no text selected.")
                 return
-
-            try:
-                self._set_busy_cursor(True)
-            except Exception:
-                pass
+            self._set_busy_cursor(True)
 
             def worker():
                 started = time.perf_counter()
@@ -80,27 +76,80 @@ class AnkiController(_ControllerProxy):
                     fields = result.get("stroke_svg_sync_fields")
                     if fields:
                         self.anki.sync_missing_stroke_svgs_async(selected, fields)
-                    try:
-                        self.settings.root.after(0, self._schedule_ocr_sync_after_anki)
-                    except Exception:
-                        pass
-                    try:
-                        self.settings.root.after(0, self.popup.mark_anki_success)
-                    except Exception:
-                        pass
+                    self.settings.root.after(0, self._schedule_ocr_sync_after_anki)
+                    self.settings.root.after(0, self.popup.mark_anki_success)
                     print("Anki card added.")
                 except Exception as e:
                     print(f"Anki add failed: {e}")
                 finally:
-                    try:
-                        self.settings.root.after(0, lambda: self._set_busy_cursor(False))
-                    except Exception:
-                        try:
-                            self._set_busy_cursor(False)
-                        except Exception:
-                            pass
+                    self.settings.root.after(0, lambda: self._set_busy_cursor(False))
 
             threading.Thread(target=worker, daemon=True).start()
+
+
+
+    def _schedule_ocr_sync_after_anki(self, duration_sec: float = 5.0, interval_sec: float = 1.0) -> None:
+            if self._shutting_down:
+                return
+            if not self.config.get("OCR_ENABLED"):
+                return
+            if not self._ocr_sync_after_anki_enabled():
+                return
+            try:
+                duration_sec = float(duration_sec)
+            except Exception:
+                duration_sec = 5.0
+            try:
+                interval_sec = float(interval_sec)
+            except Exception:
+                interval_sec = 1.0
+            duration_sec = max(1.0, duration_sec)
+            interval_sec = max(0.4, interval_sec)
+
+            self._ocr_sync_generation += 1
+            generation = self._ocr_sync_generation
+
+            def worker():
+                diffs = []
+                deadline = time.perf_counter() + duration_sec
+                while time.perf_counter() < deadline:
+                    if self._shutting_down or generation != self._ocr_sync_generation:
+                        return
+                    started = time.perf_counter()
+                    try:
+                        base_time = float(self.current_time)
+                    except Exception:
+                        base_time = None
+                    seconds = self._ocr_find_time_seconds(override={"OCR_DEBUG": False})
+                    if seconds is not None and base_time is not None:
+                        elapsed = time.perf_counter() - started
+                        if self.playing:
+                            base_time += elapsed
+                        diffs.append(seconds - base_time)
+                    sleep_for = interval_sec - (time.perf_counter() - started)
+                    if sleep_for > 0:
+                        time.sleep(sleep_for)
+                if not diffs:
+                    return
+                diffs.sort()
+                mid = len(diffs) // 2
+                if len(diffs) % 2 == 1:
+                    median = diffs[mid]
+                else:
+                    median = (diffs[mid - 1] + diffs[mid]) / 2.0
+                try:
+                    self.settings.root.after(0, lambda: self._apply_ocr_sync_delta(median))
+                except Exception:
+                    pass
+
+            self._ocr_sync_thread = threading.Thread(target=worker, daemon=True)
+            self._ocr_sync_thread.start()
+
+    def _ocr_sync_after_anki_enabled(self) -> bool:
+            raw = self.config.get("OCR_SYNC_AFTER_ANKI")
+            if raw is None:
+                return True
+            return bool(raw)
 
     def _show_anki_wait_dialog(self, selected_text: str, subtitle_text: str = "") -> None:
             self._pending_anki_payload = {
@@ -110,14 +159,11 @@ class AnkiController(_ControllerProxy):
 
             existing = getattr(self, "_anki_wait_window", None)
             if existing is not None:
-                try:
-                    if existing.winfo_exists():
-                        existing.deiconify()
-                        existing.lift()
-                        existing.attributes("-topmost", True)
-                        return
-                except Exception:
-                    pass
+                if existing.winfo_exists():
+                    existing.deiconify()
+                    existing.lift()
+                    existing.attributes("-topmost", True)
+                    return
 
             parent = getattr(self.settings, "root", None)
             win = tk.Toplevel(parent) if parent is not None else tk.Toplevel()
@@ -125,14 +171,8 @@ class AnkiController(_ControllerProxy):
             win.title("Anki Not Connected")
             win.attributes("-topmost", True)
             win.resizable(False, False)
-            try:
-                win.transient(parent)
-            except Exception:
-                pass
-            try:
-                win.grab_set()
-            except Exception:
-                pass
+            win.transient(parent)
+            win.grab_set()
 
             body = tk.Frame(win, padx=12, pady=10)
             body.pack(fill="both", expand=True)
@@ -157,19 +197,13 @@ class AnkiController(_ControllerProxy):
             def _set_status(text: str) -> None:
                 status = getattr(self, "_anki_wait_status_var", None)
                 if status is not None:
-                    try:
-                        status.set(text)
-                    except Exception:
-                        pass
+                    status.set(text)
 
             def _begin_wait_for_anki() -> None:
                 if wait_state["running"]:
                     return
                 wait_state["running"] = True
-                try:
-                    open_btn.configure(state="disabled")
-                except Exception:
-                    pass
+                open_btn.configure(state="disabled")
                 _set_status("Waiting for AnkiConnect...")
 
                 def wait_worker():
@@ -186,11 +220,8 @@ class AnkiController(_ControllerProxy):
                             payload = dict(self._pending_anki_payload or {})
 
                             def _finish():
-                                try:
-                                    if win_ref.winfo_exists():
-                                        win_ref.destroy()
-                                except Exception:
-                                    pass
+                                if win_ref.winfo_exists():
+                                    win_ref.destroy()
                                 self._start_anki_add_worker(
                                     selected_text=payload.get("selected_text", ""),
                                     subtitle_text=payload.get("subtitle_text", ""),

@@ -31,44 +31,36 @@ class EpisodeController(_ControllerProxy):
             """
             try:
                 can_dec, can_inc, is_movie = self.sub_manager.get_episode_nav_state()
-            except Exception:
+            except Exception:#
                 # Unknown -> keep enabled, don't break the UI.
                 can_dec, can_inc = True, True
                 is_movie = (self.sub_manager.current_episode is None)
-            try:
-                self.settings.set_episode_nav_state(can_dec=can_dec, can_inc=can_inc, is_movie=is_movie)
-            except Exception:
-                pass
+            self.settings.set_episode_nav_state(can_dec=can_dec, can_inc=can_inc, is_movie=is_movie)
+            values = self.sub_manager.get_episode_dropdown_values()
+            self.settings.set_episode_values(values)
 
-            # Update dropdown values for the episode entry (combobox).
-            try:
-                values = self.sub_manager.get_episode_dropdown_values()
-                self.settings.set_episode_values(values)
-            except Exception:
-                pass
-
+    @staticmethod
     def _normalize_anime_key(value) -> str:
             try:
                 return re.sub(r"\s+", " ", str(value or "").strip()).casefold()
-            except Exception:
+            except Exception:#
+                print("Normalizing Anime failed")
                 return ""
 
     def restore_startup_time_and_mode(self) -> None:
             self._startup_resume_play = False
             try:
                 current_anime = self._normalize_anime_key(self.sub_manager.get_anime_name())
-                last_anime = self._normalize_anime_key(self.config.get("LAST_SESSION_ANIME"))
+                last_anime = self._normalize_anime_key(self.config.get("LAST_ANIME_NAME"))
                 if not current_anime or current_anime != last_anime:
                     self.current_time = float(self.default_start_time or 0.0)
                     return
-
                 saved_time = self.config.get("LAST_SESSION_TIME_SEC")
-                if saved_time is None:
-                    saved_time = self.config.get("LAST_SESSION_TIME")
                 if saved_time is not None:
                     try:
                         self.current_time = max(0.0, float(saved_time))
-                    except Exception:
+                    except Exception:#
+                        print("Saved time is invalid")
                         self.current_time = float(self.default_start_time or 0.0)
                 else:
                     self.current_time = float(self.default_start_time or 0.0)
@@ -77,7 +69,8 @@ class EpisodeController(_ControllerProxy):
                 if play_mode is None:
                     play_mode = self.config.get("LAST_SESSION_PLAYING")
                 self._startup_resume_play = bool(play_mode)
-            except Exception:
+            except Exception:#
+                print("Saved time or animename or playmode is invalid")
                 self.current_time = float(self.default_start_time or 0.0)
                 self._startup_resume_play = False
 
@@ -122,10 +115,12 @@ class EpisodeController(_ControllerProxy):
                 candidate = int(raw)
                 if candidate > 0:
                     raw_int = candidate
-            except ValueError:
+            except ValueError:#
+                print("Episode invalid")
                 try:
                     parsed_s, parsed_e, parsed_g = self.sub_manager.extract_season_episode_global(raw)
-                except Exception:
+                except Exception:#
+                    print("Episode/Season invalid")
                     parsed_s, parsed_e, parsed_g = None, None, None
                 if parsed_s is not None and parsed_e is not None:
                     season_hint = int(parsed_s)
@@ -200,15 +195,8 @@ class EpisodeController(_ControllerProxy):
                 self.renderer.canvas.delete("all")
                 return
 
-            try:
-                self.sub_manager.ensure_auto_ruby_for_index(idx)
-            except Exception:
-                pass
+            self.sub_manager.ensure_auto_ruby_for_index(idx)
             _, _, top_segments, bottom_segments = self.sub_manager.display_data[idx]
             # render freshly using updated overlay/canvas
-            try:
-                self.renderer.canvas.delete("all")
-                self.renderer.render_subtitle(top_segments, bottom_segments, self.overlay)
-            except Exception:
-                # keep app alive if rendering fails; log if you have logger
-                pass
+            self.renderer.canvas.delete("all")
+            self.renderer.render_subtitle(top_segments, bottom_segments, self.overlay)

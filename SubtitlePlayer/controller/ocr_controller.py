@@ -38,15 +38,13 @@ class OCRController(_ControllerProxy):
             if not self.config.get("OCR_ENABLED"):
                 return
             delay_ms = 800 if reason == "startup" else 500
-            try:
-                if self._ocr_job is not None:
-                    self.settings.root.after_cancel(self._ocr_job)
-            except Exception:
-                pass
+            if self._ocr_job is not None:
+                self.settings.root.after_cancel(self._ocr_job)
             self._ocr_generation += 1
             try:
                 self._ocr_pending_time = float(self.current_time)
-            except Exception:
+            except Exception as e:
+                print(e)
                 self._ocr_pending_time = None
 
             generation = self._ocr_generation
@@ -56,7 +54,8 @@ class OCRController(_ControllerProxy):
 
             try:
                 self._ocr_job = self.settings.root.after(delay_ms, _kickoff)
-            except Exception:
+            except Exception as e:
+                print(e)
                 self._ocr_job = None
 
     def _run_ocr_time_jump_async(self, generation: int) -> None:
@@ -67,10 +66,7 @@ class OCRController(_ControllerProxy):
                 seconds = self._ocr_find_time_seconds()
                 if seconds is None:
                     return
-                try:
-                    self.settings.root.after(0, lambda: self._apply_ocr_time(seconds, generation))
-                except Exception:
-                    pass
+                self.settings.root.after(0, lambda: self._apply_ocr_time(seconds, generation))
 
             self._ocr_thread = threading.Thread(target=worker, daemon=True)
             self._ocr_thread.start()
@@ -80,18 +76,12 @@ class OCRController(_ControllerProxy):
                 return
             if generation != self._ocr_generation:
                 return
-            try:
-                if self.playing:
-                    return
-            except Exception:
-                pass
+            if self.playing:
+                return
             pending = getattr(self, "_ocr_pending_time", None)
             if pending is not None:
-                try:
-                    if abs(float(self.current_time) - float(pending)) > 0.75:
-                        return
-                except Exception:
-                    pass
+                if abs(float(self.current_time) - float(pending)) > 0.75:
+                    return
             self.playback.set_current_time(seconds)
 
     @staticmethod
@@ -117,13 +107,15 @@ class OCRController(_ControllerProxy):
                 if w <= 0 or h <= 0:
                     return None
                 return (x, y, w, h)
-            except Exception:
+            except Exception as e:
+                print("no window found")
                 return None
 
     def _temporarily_hide_windows_for_ocr(self, override: dict | None = None):
             try:
                 ocr_regions = [tuple(region) for _idx, region, _custom in self._get_ocr_capture_regions(override)]
-            except Exception:
+            except Exception as e:
+                print(e, "No OCR_regions")
                 ocr_regions = []
             if not ocr_regions:
                 return lambda: None
@@ -146,29 +138,24 @@ class OCRController(_ControllerProxy):
                     continue
                 try:
                     key = str(win)
-                except Exception:
+                except Exception as e:
+                    print(e)
                     key = id(win)
                 if key in seen:
                     continue
                 seen.add(key)
-                try:
-                    if not win.winfo_exists():
-                        continue
-                    state = str(win.state())
-                    if state == "withdrawn":
-                        continue
-                    rect = self._window_screen_rect(win)
-                    if not any(self._rects_intersect(rect, region) for region in ocr_regions):
-                        continue
-                    hidden.append((win, state))
-                    win.withdraw()
-                except Exception:
-                    pass
+                if not win.winfo_exists():
+                    continue
+                state = str(win.state())
+                if state == "withdrawn":
+                    continue
+                rect = self._window_screen_rect(win)
+                if not any(self._rects_intersect(rect, region) for region in ocr_regions):
+                    continue
+                hidden.append((win, state))
+                win.withdraw()
 
-            try:
-                self.settings.root.update_idletasks()
-            except Exception:
-                pass
+            self.settings.root.update_idletasks()
 
             passive_windows = {
                 getattr(self.overlay, "subtitle_handle", None),
@@ -178,32 +165,22 @@ class OCRController(_ControllerProxy):
 
             def restore():
                 for win, state in hidden:
-                    try:
-                        if not win.winfo_exists():
-                            continue
-                        if state == "iconic":
-                            win.iconify()
-                            continue
-                        if win in passive_windows:
-                            show_window_no_activate(win)
-                        else:
-                            win.deiconify()
-                            try:
-                                if win is getattr(self.settings, "control_window", None):
-                                    win.attributes("-topmost", True)
-                                elif win is getattr(self.overlay, "sub_window", None):
-                                    win.attributes("-topmost", True)
-                                elif win is getattr(self.settings, "advanced_window", None):
-                                    win.attributes("-topmost", True)
-                            except Exception:
-                                pass
-                    except Exception:
-                        pass
-                try:
-                    self.popup.ensure_on_top()
-                except Exception:
-                    pass
-
+                    if not win.winfo_exists():
+                        continue
+                    if state == "iconic":
+                        win.iconify()
+                        continue
+                    if win in passive_windows:
+                        show_window_no_activate(win)
+                    else:
+                        win.deiconify()
+                        if win is getattr(self.settings, "control_window", None):
+                            win.attributes("-topmost", True)
+                        elif win is getattr(self.overlay, "sub_window", None):
+                            win.attributes("-topmost", True)
+                        elif win is getattr(self.settings, "advanced_window", None):
+                            win.attributes("-topmost", True)
+                self.popup.ensure_on_top()
             return restore
 
     def on_ocr_read_now(self, override: dict | None = None) -> None:
@@ -219,27 +196,27 @@ class OCRController(_ControllerProxy):
                         if seconds is None:
                             self._log_ocr_read_failure(override=override)
                             return
-                        try:
-                            self.settings.root.after(0, lambda: self._apply_ocr_time_manual(seconds))
-                        except Exception:
-                            pass
+                        self.settings.root.after(0, lambda: self._apply_ocr_time_manual(seconds))
                     finally:
                         try:
                             self.settings.root.after(0, restore_windows)
-                        except Exception:
+                        except Exception as e:
+                            print(e)
                             restore_windows()
 
                 threading.Thread(target=worker, daemon=True).start()
 
             try:
                 self.settings.root.after(140, start_worker)
-            except Exception:
+            except Exception as e:
+                print(e)
                 start_worker()
 
     def _log_ocr_read_failure(self, override: dict | None = None) -> None:
             try:
                 regions = self._get_ocr_capture_regions(override=override)
-            except Exception:
+            except Exception as e:
+                print(e)
                 regions = []
             if not regions:
                 print("OCR read-now failed: no capture region available.")
@@ -250,7 +227,7 @@ class OCRController(_ControllerProxy):
                     x, y, w, h = region
                     mode = "custom" if is_custom else "default"
                     details.append(f"#{region_idx} {x},{y} {w}x{h} ({mode})")
-                except Exception:
+                except Exception:#
                     details.append(f"#{region_idx} <invalid region>")
             joined = "; ".join(details)
             print(f"OCR read-now failed: no valid timecode detected. Checked {len(regions)} region(s): {joined}")
@@ -259,10 +236,7 @@ class OCRController(_ControllerProxy):
             if self._shutting_down:
                 return
             if not self.playing:
-                try:
-                    self.playback.toggle_play()
-                except Exception:
-                    pass
+                self.playback.toggle_play()
             self._start_ocr_live_sync(duration_sec=5.0, interval_sec=0.25, override=override)
 
     def _apply_ocr_time_manual(self, seconds: float) -> None:
@@ -282,11 +256,13 @@ class OCRController(_ControllerProxy):
                 return
             try:
                 duration_sec = float(duration_sec)
-            except Exception:
+            except Exception as e:
+                print(e)
                 duration_sec = 5.0
             try:
                 interval_sec = float(interval_sec)
-            except Exception:
+            except Exception as e:
+                print(e)
                 interval_sec = 1.0
             duration_sec = max(1.0, duration_sec)
             interval_sec = max(0.1, interval_sec)
@@ -301,17 +277,11 @@ class OCRController(_ControllerProxy):
                     if self._shutting_down or generation != self._ocr_sync_generation:
                         return
                     started = time.perf_counter()
-                    try:
-                        base_time = float(self.current_time)
-                    except Exception:
-                        base_time = None
+                    base_time = float(self.current_time)
                     seconds = self._ocr_find_time_seconds(override=override)
                     if seconds is not None and base_time is not None:
                         if not snapped_initial:
-                            try:
-                                self.settings.root.after(0, lambda s=seconds: self._apply_ocr_time_manual(s))
-                            except Exception:
-                                pass
+                            self.settings.root.after(0, lambda s=seconds: self._apply_ocr_time_manual(s))
                             snapped_initial = True
                             sleep_for = interval_sec - (time.perf_counter() - started)
                             if sleep_for > 0:
@@ -323,86 +293,24 @@ class OCRController(_ControllerProxy):
                         delta = seconds - base_time
                         if abs(delta) >= 0.15:
                             adjust = max(-0.5, min(0.5, delta * 0.5))
-                            try:
-                                self.settings.root.after(0, lambda d=adjust: self._apply_ocr_sync_delta(d))
-                            except Exception:
-                                pass
+                            self.settings.root.after(0, lambda d=adjust: self._apply_ocr_sync_delta(d))
                     sleep_for = interval_sec - (time.perf_counter() - started)
                     if sleep_for > 0:
                         time.sleep(sleep_for)
 
             threading.Thread(target=worker, daemon=True).start()
 
-    def _schedule_ocr_sync_after_anki(self, duration_sec: float = 5.0, interval_sec: float = 1.0) -> None:
-            if self._shutting_down:
-                return
-            if not self.config.get("OCR_ENABLED"):
-                return
-            if not self._ocr_sync_after_anki_enabled():
-                return
-            try:
-                duration_sec = float(duration_sec)
-            except Exception:
-                duration_sec = 5.0
-            try:
-                interval_sec = float(interval_sec)
-            except Exception:
-                interval_sec = 1.0
-            duration_sec = max(1.0, duration_sec)
-            interval_sec = max(0.4, interval_sec)
-
-            self._ocr_sync_generation += 1
-            generation = self._ocr_sync_generation
-
-            def worker():
-                diffs = []
-                deadline = time.perf_counter() + duration_sec
-                while time.perf_counter() < deadline:
-                    if self._shutting_down or generation != self._ocr_sync_generation:
-                        return
-                    started = time.perf_counter()
-                    try:
-                        base_time = float(self.current_time)
-                    except Exception:
-                        base_time = None
-                    seconds = self._ocr_find_time_seconds(override={"OCR_DEBUG": False})
-                    if seconds is not None and base_time is not None:
-                        elapsed = time.perf_counter() - started
-                        if self.playing:
-                            base_time += elapsed
-                        diffs.append(seconds - base_time)
-                    sleep_for = interval_sec - (time.perf_counter() - started)
-                    if sleep_for > 0:
-                        time.sleep(sleep_for)
-                if not diffs:
-                    return
-                diffs.sort()
-                mid = len(diffs) // 2
-                if len(diffs) % 2 == 1:
-                    median = diffs[mid]
-                else:
-                    median = (diffs[mid - 1] + diffs[mid]) / 2.0
-                try:
-                    self.settings.root.after(0, lambda: self._apply_ocr_sync_delta(median))
-                except Exception:
-                    pass
-
-            self._ocr_sync_thread = threading.Thread(target=worker, daemon=True)
-            self._ocr_sync_thread.start()
-
     def _apply_ocr_sync_delta(self, delta: float) -> None:
             if self._shutting_down:
                 return
             try:
                 delta = float(delta)
-            except Exception:
+            except Exception as e:
+                print(e)
                 return
             if abs(delta) < 0.15:
                 return
-            try:
-                new_time = float(self.current_time) + delta
-            except Exception:
-                return
+            new_time = float(self.current_time) + delta
             self.playback.set_current_time(new_time)
             print(f"OCR sync: adjusted by {delta:+.2f}s")
 
@@ -443,10 +351,7 @@ class OCRController(_ControllerProxy):
                     region_images.append((region_idx, None))
                     continue
                 if is_custom:
-                    try:
-                        img = img.resize((img.width * 2, img.height * 2), Image.BICUBIC)
-                    except Exception:
-                        pass
+                    img = img.resize((img.width * 2, img.height * 2), Image.BICUBIC)
                 region_images.append((region_idx, img))
 
             for label, maker in variant_makers:
@@ -455,7 +360,8 @@ class OCRController(_ControllerProxy):
                         continue
                     try:
                         variant = maker(img)
-                    except Exception:
+                    except Exception as e:
+                        print(e)
                         variant = img
                     text = self._ocr_image_to_text(variant, override=override)
                     if not text:
@@ -475,12 +381,10 @@ class OCRController(_ControllerProxy):
             try:
                 import pytesseract
                 if tesseract_cmd:
-                    try:
-                        pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
-                    except Exception:
-                        pass
+                    pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
                 return pytesseract.image_to_string(image, config=config_str) or ""
-            except Exception:
+            except Exception as e:
+                print(e)
                 pass
 
             tmp_path = None
@@ -496,13 +400,15 @@ class OCRController(_ControllerProxy):
                     timeout=8,
                 )
                 return result.stdout or ""
-            except Exception:
+            except Exception as e:
+                print(e)
                 return ""
             finally:
                 if tmp_path and os.path.exists(tmp_path):
                     try:
                         os.remove(tmp_path)
-                    except Exception:
+                    except Exception as e:
+                        print(e)
                         pass
 
     def _extract_time_from_ocr_text(self, text: str, override: dict | None = None):
@@ -537,7 +443,8 @@ class OCRController(_ControllerProxy):
                         ss1 = int(left_digits[2:])
                         mm2 = int(right_digits[:2])
                         ss2 = int(right_digits[2:])
-                    except Exception:
+                    except Exception as e:
+                        print(e)
                         continue
                     if mm1 > 59 or ss1 > 59 or mm2 > 59 or ss2 > 59:
                         continue
@@ -567,7 +474,8 @@ class OCRController(_ControllerProxy):
                         try:
                             mm = int(right_digits[:2])
                             ss = int(right_digits[2:])
-                        except Exception:
+                        except Exception as e:
+                            print(e)
                             mm, ss = 99, 99
                         if mm > 59 or ss > 59:
                             right_digits = ""
@@ -582,14 +490,16 @@ class OCRController(_ControllerProxy):
             max_allow = None
             try:
                 max_allow = float(self.total_duration) + float(self.settings._last_offset_value or 0.0)
-            except Exception:
+            except Exception as e:
+                print(e)
                 max_allow = None
 
             for left, right in matches:
                 try:
                     left_sec = parse_time_value(left)
                     right_sec = parse_time_value(right)
-                except Exception:
+                except Exception as e:
+                    print(e)
                     continue
                 if right_sec > 0 and left_sec > right_sec + 1.0:
                     continue
@@ -602,21 +512,17 @@ class OCRController(_ControllerProxy):
     def coerce_int(value, default: int = 0) -> int:
             try:
                 return int(float(str(value).strip().replace(",", ".")))
-            except Exception:
+            except Exception as e:
+                print(e)
                 return int(default)
     
     @staticmethod
     def coerce_float(value, default: float = 0.0) -> float:
             try:
                 return float(str(value).strip().replace(",", "."))
-            except Exception:
+            except Exception as e:
+                print(e)
                 return float(default)
-
-    def _ocr_sync_after_anki_enabled(self) -> bool:
-            raw = self.config.get("OCR_SYNC_AFTER_ANKI")
-            if raw is None:
-                return True
-            return bool(raw)
 
     def _build_tesseract_config(self, override: dict | None = None):
             psm = self.coerce_int(
@@ -758,16 +664,15 @@ class OCRController(_ControllerProxy):
             bbox = (int(x), int(y), int(x + w), int(y + h))
             try:
                 return ImageGrab.grab(bbox=bbox, all_screens=True)
-            except Exception:
-                pass
-            try:
                 return ImageGrab.grab(bbox=bbox)
-            except Exception:
+            except Exception as e:
+                print(e)
                 pass
             try:
                 # Fallback to pyautogui (may ignore negative coords)
                 if x >= 0 and y >= 0:
                     return pyautogui.screenshot(region=(int(x), int(y), int(w), int(h)))
                 return pyautogui.screenshot()
-            except Exception:
+            except Exception as e:
+                print(e)
                 return None

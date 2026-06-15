@@ -114,7 +114,8 @@ class SubtitlePlayerApp:
         if self._startup_overlay:
             try:
                 self._startup_overlay.close()
-            except Exception:
+            except Exception as e:
+                print("ERROR:", e)
                 pass
             self._startup_overlay = None
             set_startup_overlay(None)
@@ -214,7 +215,8 @@ class SubtitlePlayerApp:
             w, h = map(int, size.split("x"))
             x, y = map(int, pos.split("+"))
             return w, h, x, y
-        except Exception:
+        except Exception as e:
+            print("ERROR:", e)
             return None
 
     # =========================
@@ -233,7 +235,8 @@ class SubtitlePlayerApp:
         for comp in (self.settings_ui, self.sub_overlay_ui, self.sub_manager):
             try:
                 comp.save_state()
-            except Exception:
+            except Exception as e:
+                print("ERROR:", e)
                 pass
 
         self.root.destroy()

@@ -28,7 +28,8 @@ class SubtitleNavigationController(_ControllerProxy):
         super().__init__(controller)
 
     def get_offset_value(self) -> float: return float(self.settings._last_offset_value)
-
+    
+    @staticmethod
     def _format_delta_seconds(value: float) -> str:
             text = f"{abs(float(value)):.2f}".rstrip("0").rstrip(".")
             return text if text else "0"
@@ -47,32 +48,29 @@ class SubtitleNavigationController(_ControllerProxy):
     def _release_time_entry_focus(self) -> None:
             try:
                 focused = self.settings.control_window.focus_get()
-            except Exception:
+            except Exception as e:
+                print(e)
                 focused = None
             try:
                 time_entry = self.settings.time_entry
-            except Exception:
+            except Exception as e:
+                print(e)
                 time_entry = None
             if focused is not time_entry:
                 return
-            try:
-                target = getattr(self.overlay, "sub_window", None)
-                if target is not None and target.winfo_exists():
-                    target.focus_force()
-                    return
-            except Exception:
-                pass
+            target = getattr(self.overlay, "sub_window", None)
+            if target is not None and target.winfo_exists():
+                target.focus_force()
+                return
             try:
                 self.settings.control_window.after_idle(
                     lambda: self.settings.control_window.tk.call("focus", "")
                 )
                 return
-            except Exception:
+            except Exception as e:
+                print(e)
                 pass
-            try:
-                self.settings.control_window.focus_set()
-            except Exception:
-                pass
+            self.settings.control_window.focus_set()
 
     def control_time_entry_return(self, event):
             self.entry_editing  = False
@@ -93,10 +91,7 @@ class SubtitleNavigationController(_ControllerProxy):
 
     def update_time_and_subtitle_displays(self):#updates settings time overlay and control window entry
             text = format_time(self.current_time)
-            try:
-                pending = float(getattr(self, "_pending_seek_delta", 0.0) or 0.0)
-            except Exception:
-                pending = 0.0
+            pending = float(getattr(self, "_pending_seek_delta", 0.0) or 0.0)
             if abs(pending) >= 0.001:
                 sign = "+" if pending > 0 else "-"
                 text = f"{text} ({sign}{self._format_delta_seconds(pending)}s)"
@@ -136,11 +131,8 @@ class SubtitleNavigationController(_ControllerProxy):
                 and copy_text == self.last_subtitle_text
             ):
                 return
-
-            try:
-                self.sub_manager.ensure_auto_ruby_for_index(idx)
-            except Exception:
-                pass
+            
+            self.sub_manager.ensure_auto_ruby_for_index(idx)
 
             clean, _, top, bottom = self.sub_manager.display_data[idx]
             copy_text = self.segments_to_copy_text(top, bottom) or clean

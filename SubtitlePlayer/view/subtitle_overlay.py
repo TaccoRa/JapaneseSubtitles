@@ -80,15 +80,9 @@ class SubtitleOverlayUI:
         self.sub_window.bind("<Leave>", lambda ev: self.on_sub_window_leave(ev))
 
         if self._start_hidden:
-            try:
-                self.sub_window.withdraw()
-            except Exception:
-                pass
-            try:
-                if self.subtitle_handle:
-                    self.subtitle_handle.withdraw()
-            except Exception:
-                pass
+            self.sub_window.withdraw()
+            if self.subtitle_handle:
+                self.subtitle_handle.withdraw()
 
     # Subtitle overlay
     def bind_sub_window_enter(self, cb): self.on_sub_window_enter = cb
@@ -124,17 +118,14 @@ class SubtitleOverlayUI:
     def _sync_handle_to_subtitle(self):
         if not self.subtitle_handle:
             return
-        try:
-            if not self.subtitle_handle.winfo_exists():
-                return
-            self.sub_window.update_idletasks()
-            sub_x = self.sub_window.winfo_x()
-            sub_y = self.sub_window.winfo_y()
-            drag_w = int(self._handle_width)
-            drag_h = self.sub_window.winfo_height()
-            self.subtitle_handle.geometry(f"{drag_w}x{drag_h}+{sub_x}+{sub_y}")
-        except Exception:
-            pass
+        if not self.subtitle_handle.winfo_exists():
+            return
+        self.sub_window.update_idletasks()
+        sub_x = self.sub_window.winfo_x()
+        sub_y = self.sub_window.winfo_y()
+        drag_w = int(self._handle_width)
+        drag_h = self.sub_window.winfo_height()
+        self.subtitle_handle.geometry(f"{drag_w}x{drag_h}+{sub_x}+{sub_y}")
 
     def _bind_subtitle_drag(self):
         sync_windows = None
@@ -145,7 +136,8 @@ class SubtitleOverlayUI:
                 and str(self.subtitle_handle.state()) != "withdrawn"
             ):
                 sync_windows = [self.subtitle_handle]
-        except Exception:
+        except Exception as e:
+            print(e)
             sync_windows = None
         make_draggable(
             self.sub_window,
@@ -163,7 +155,8 @@ class SubtitleOverlayUI:
                     show_window_no_activate(self.subtitle_handle)
                     self._bind_subtitle_drag()
                     return
-            except Exception:
+            except Exception as e:
+                print(e)
                 self.subtitle_handle = None
 
         self.subtitle_handle = tk.Toplevel(self.root)
@@ -182,10 +175,7 @@ class SubtitleOverlayUI:
                        sync_windows=[self.subtitle_handle], 
                        on_release=self._save_center_position)
         if self._start_hidden:
-            try:
-                self.subtitle_handle.withdraw()
-            except Exception:
-                pass
+            self.subtitle_handle.withdraw()
         else:
             show_window_no_activate(self.subtitle_handle)
         self._bind_subtitle_drag()
@@ -194,11 +184,9 @@ class SubtitleOverlayUI:
         if self.subtitle_handle:
             try:
                 self.subtitle_handle.withdraw()
-            except Exception:
-                try:
-                    self.subtitle_handle.attributes("-alpha", 0.0)
-                except Exception:
-                    pass
+            except Exception as e:
+                print(e)
+                self.subtitle_handle.attributes("-alpha", 0.0)
         self._bind_subtitle_drag()
 
     def _save_center_position(self, x, y, w, h):
@@ -213,14 +201,8 @@ class SubtitleOverlayUI:
     def show(self) -> None:
         """Show overlay (and handle if enabled). Used after startup splash."""
         self._start_hidden = False
-        try:
-            self.sub_window.deiconify()
-            self.sub_window.lift()
-            self.sub_window.attributes("-topmost", True)
-        except Exception:
-            pass
-        try:
-            if self.config.get("PHONEMODE_DEFAULT"):
-                self.show_handle()
-        except Exception:
-            pass
+        self.sub_window.deiconify()
+        self.sub_window.lift()
+        self.sub_window.attributes("-topmost", True)
+        if self.config.get("PHONEMODE_DEFAULT"):
+            self.show_handle()

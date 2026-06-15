@@ -412,31 +412,46 @@ class SubtitleRenderer:
             self._timing_data["font_measure_time"] += time.perf_counter() - start
         return value
 
+    # def _get_outline_offsets(self, thickness: int) -> List[Tuple[int, int]]:
+    #     thickness = max(0, int(thickness))
+    #     cached = self._outline_offset_cache.get(thickness)
+    #     if cached is not None:
+    #         return cached
+
+    #     if thickness == 0:
+    #         offsets: List[Tuple[int, int]] = []
+    #     elif thickness == 1:
+    #         offsets = [
+    #             (-1, 0), (1, 0), (0, -1), (0, 1),
+    #             (-1, -1), (-1, 1), (1, -1), (1, 1),
+    #         ]
+    #     else:
+    #         mid = max(1, thickness // 2)
+    #         offsets = [
+    #             (-thickness, 0), (thickness, 0), (0, -thickness), (0, thickness),
+    #             (-thickness, -thickness), (-thickness, thickness),
+    #             (thickness, -thickness), (thickness, thickness),
+    #             (-mid, 0), (mid, 0), (0, -mid), (0, mid),
+    #         ]
+
+    #     self._outline_offset_cache[thickness] = offsets
+    #     return offsets
+    
     def _get_outline_offsets(self, thickness: int) -> List[Tuple[int, int]]:
         thickness = max(0, int(thickness))
         cached = self._outline_offset_cache.get(thickness)
         if cached is not None:
             return cached
 
-        if thickness == 0:
-            offsets: List[Tuple[int, int]] = []
-        elif thickness == 1:
-            offsets = [
-                (-1, 0), (1, 0), (0, -1), (0, 1),
-                (-1, -1), (-1, 1), (1, -1), (1, 1),
-            ]
-        else:
-            mid = max(1, thickness // 2)
-            offsets = [
-                (-thickness, 0), (thickness, 0), (0, -thickness), (0, thickness),
-                (-thickness, -thickness), (-thickness, thickness),
-                (thickness, -thickness), (thickness, thickness),
-                (-mid, 0), (mid, 0), (0, -mid), (0, mid),
-            ]
-
+        offsets = [
+            (dx, dy)
+            for dx in range(-thickness, thickness + 1)
+            for dy in range(-thickness, thickness + 1)
+            if dx or dy
+        ]
         self._outline_offset_cache[thickness] = offsets
         return offsets
-
+    
     def _draw_outlined_text(
         self,
         canvas: tk.Canvas,
@@ -450,19 +465,17 @@ class SubtitleRenderer:
         anchor: str = "center",
         tags=(),
     ) -> None:
-        start = time.perf_counter()
-
         thickness = max(0, int(thickness))
         text = text or ""
 
         if thickness == 0:
             canvas.create_text(x, y, text=text, fill=fill, font=font, anchor=anchor, tags=tags)
-            if self._timing_enabled:
-                self._timing_data["draw_outlined_text_time"] += time.perf_counter() - start
             return
 
         create_text = canvas.create_text
         offsets = self._get_outline_offsets(thickness)
+        if len(offsets) > 16:
+            offsets = self._get_approximate_outline_offsets(thickness)
 
         for dx, dy in offsets:
             create_text(
@@ -477,8 +490,81 @@ class SubtitleRenderer:
 
         create_text(x, y, text=text, fill=fill, font=font, anchor=anchor, tags=tags)
 
-        if self._timing_enabled:
-            self._timing_data["draw_outlined_text_time"] += time.perf_counter() - start
+    def _get_approximate_outline_offsets(self, thickness: int) -> List[Tuple[int, int]]:
+        thickness = max(0, int(thickness))
+        if thickness <= 1:
+            return [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
+
+        offsets = [
+            (-thickness, 0),
+            (thickness, 0),
+            (0, -thickness),
+            (0, thickness),
+            (-thickness, -thickness),
+            (-thickness, thickness),
+            (thickness, -thickness),
+            (thickness, thickness),
+        ]
+
+        mid = max(1, thickness // 2)
+        offsets.extend([
+            (-mid, -thickness),
+            (mid, -thickness),
+            (-mid, thickness),
+            (mid, thickness),
+            (-thickness, -mid),
+            (-thickness, mid),
+            (thickness, -mid),
+            (thickness, mid),
+        ])
+        return offsets
+
+
+
+
+
+    # def _draw_outlined_text(
+    #         self,
+    #         canvas: tk.Canvas,
+    #         x: float,
+    #         y: float,
+    #         text: str,
+    #         font: tkFont.Font,
+    #         fill: str,
+    #         outline: str,
+    #         thickness: int,
+    #         anchor: str = "center",
+    #         tags=(),
+    #     ) -> None:
+    #         start = time.perf_counter()
+
+    #         thickness = max(0, int(thickness))
+    #         text = text or ""
+
+    #         if thickness == 0:
+    #             canvas.create_text(x, y, text=text, fill=fill, font=font, anchor=anchor, tags=tags)
+    #             if self._timing_enabled:
+    #                 self._timing_data["draw_outlined_text_time"] += time.perf_counter() - start
+    #             return
+
+    #         create_text = canvas.create_text
+    #         offsets = self._get_outline_offsets(thickness)
+
+    #         for dx, dy in offsets:
+    #             create_text(
+    #                 x + dx,
+    #                 y + dy,
+    #                 text=text,
+    #                 fill=outline,
+    #                 font=font,
+    #                 anchor=anchor,
+    #                 tags=tags,
+    #             )
+
+    #         create_text(x, y, text=text, fill=fill, font=font, anchor=anchor, tags=tags)
+
+    #         if self._timing_enabled:
+    #             self._timing_data["draw_outlined_text_time"] += time.perf_counter() - start
 
     def _draw_ruby_text(
         self,

@@ -73,16 +73,10 @@ class SettingsUI:
         self.adv_settings = SettingsAdvancedUI(self)
         self._build_settings_frame()
         self._build_control_window()
-        try:
-            make_nonactivating_window(self.root)
-            self.root.after(0, lambda: make_nonactivating_window(self.root))
-        except Exception:
-            pass
+        make_nonactivating_window(self.root)
+        self.root.after(0, lambda: make_nonactivating_window(self.root))
         if self._start_hidden:
-            try:
-                self.control_window.withdraw()
-            except Exception:
-                pass
+            self.control_window.withdraw()
 
     def _init_defaults(self):
         get = self.config.get
@@ -108,28 +102,19 @@ class SettingsUI:
         """Return input mode 1/2/3 with backward compatibility for old config keys."""
         mode = self.config.get("INPUT_MODE")
         parsed = None
-        try:
-            parsed = int(mode)
-        except Exception:
-            parsed = None
+        parsed = int(mode) or None
         if parsed in (1, 2):
             return parsed
         if parsed == 3:
             last_active = self.config.get("LAST_ACTIVE_INPUT_MODE")
-            try:
-                last_active = int(last_active)
-            except Exception:
-                last_active = None
+            last_active = int(last_active) or None
             if last_active in (1, 2):
                 return last_active
             return 1
         parsed = 2 if bool(self.config.get("INPUT_MODE_NUMPAD") or False) else 1
         if bool(self.config.get("SHORTCUTS_DISABLED") or False):
             last_active = self.config.get("LAST_ACTIVE_INPUT_MODE")
-            try:
-                last_active = int(last_active)
-            except Exception:
-                last_active = None
+            last_active = int(last_active) or None
             if last_active in (1, 2):
                 return last_active
             return 1
@@ -400,17 +385,11 @@ class SettingsUI:
 
     def show(self) -> None:
         """Show the floating control window (used after startup splash)."""
-        try:
-            self.control_window.deiconify()
-            # Re-apply geometry after withdraw/deiconify (overrideredirect windows can reset to 0,0).
-            try:
-                self._set_phone_mode_styles(self.default_phone_mode)
-            except Exception:
-                pass
-            self.control_window.lift()
-            self.control_window.attributes("-topmost", True)
-        except Exception:
-            pass
+        self.control_window.deiconify()
+        # Re-apply geometry after withdraw/deiconify (overrideredirect windows can reset to 0,0).
+        self._set_phone_mode_styles(self.default_phone_mode)
+        self.control_window.lift()
+        self.control_window.attributes("-topmost", True)
         
     def _save_control_window_pos(self, x, y, w, h):
         self._control_win_x = x
@@ -424,7 +403,8 @@ class SettingsUI:
             self.config.set("PHONEMODE_DEFAULT", bool(self.default_phone_mode))
         try:
             saved_mode = int(self.config.get("INPUT_MODE") or 1)
-        except Exception:
+        except Exception as e:
+            print(e)
             saved_mode = 1
         if int(self.input_mode) != saved_mode:
             self.config.set("INPUT_MODE", int(self.input_mode))
@@ -434,23 +414,14 @@ class SettingsUI:
         if hotkeys_disabled != bool(self.config.get("SHORTCUTS_DISABLED") or False):
             self.config.set("SHORTCUTS_DISABLED", hotkeys_disabled)
         if self._last_active_input_mode in (1, 2):
-            try:
-                saved_last = int(self.config.get("LAST_ACTIVE_INPUT_MODE") or 0)
-            except Exception:
-                saved_last = 0
+            saved_last = int(self.config.get("LAST_ACTIVE_INPUT_MODE") or 0)
             if self._last_active_input_mode != saved_last:
                 self.config.set("LAST_ACTIVE_INPUT_MODE", int(self._last_active_input_mode))
         # Persist offset and skip values
-        try:
-            saved_offset = float(self.config.get("EXTRA_OFFSET") or 0.0)
-        except Exception:
-            saved_offset = 0.0
+        saved_offset = float(self.config.get("EXTRA_OFFSET") or 0.0)
         if abs(self._last_offset_value - saved_offset) > 0.001:
             self.config.set("EXTRA_OFFSET", self._last_offset_value)
-        try:
-            saved_skip = float(self.config.get("DEFAULT_SKIP") or 1.0)
-        except Exception:
-            saved_skip = 1.0
+        saved_skip = float(self.config.get("DEFAULT_SKIP") or 1.0)
         if abs(self._last_skip_value - saved_skip) > 0.001:
             self.config.set("DEFAULT_SKIP", self._last_skip_value)
             
@@ -462,69 +433,43 @@ class SettingsUI:
         self._on_ep_dec          = on_dec
 
     def set_episode_nav_state(self, can_dec: bool, can_inc: bool, is_movie: bool = False) -> None:
-        try:
-            self.episode_dec_btn.configure(state=(tk.NORMAL if can_dec else tk.DISABLED))
-            self.episode_inc_btn.configure(state=(tk.NORMAL if can_inc else tk.DISABLED))
-            self.episode_entry.configure(state=(tk.DISABLED if is_movie else tk.NORMAL))
-        except Exception:
-            pass
+        self.episode_dec_btn.configure(state=(tk.NORMAL if can_dec else tk.DISABLED))
+        self.episode_inc_btn.configure(state=(tk.NORMAL if can_inc else tk.DISABLED))
+        self.episode_entry.configure(state=(tk.DISABLED if is_movie else tk.NORMAL))
 
     def set_episode_values(self, values) -> None:
         """
         Update the dropdown list for the episode combobox.
         Values should be an iterable of ints/strings (will be converted to strings).
         """
-        try:
-            self.episode_entry.configure(values=[str(v) for v in (values or [])])
-        except Exception:
-            pass
+        self.episode_entry.configure(values=[str(v) for v in (values or [])])
 
     def _on_episode_entry_click(self, event):
-        try:
-            elem = event.widget.identify(event.x, event.y)
-            if elem and "downarrow" in str(elem).lower():
-                return
-        except Exception:
-            pass
-        try:
-            self._last_episode_value = self.episode_var.get()
-        except Exception:
-            self._last_episode_value = ""
-        try:
-            self.episode_var.set("")
-        except Exception:
-            pass
+        elem = event.widget.identify(event.x, event.y)
+        if elem and "downarrow" in str(elem).lower():
+            return
+        self._last_episode_value = self.episode_var.get() or ""
+        self.episode_var.set("")
 
     def _on_episode_entry_focus_out(self, event):
         """
         Restore last value if the entry is left empty (or invalid) without pressing Enter.
         This must NOT trigger subtitle loading.
         """
-        try:
-            text = (self.episode_var.get() or "").strip()
-        except Exception:
-            text = ""
+        text = (self.episode_var.get() or "").strip() or ""
         if not text:
-            try:
-                self.episode_var.set(self._last_episode_value)
-            except Exception:
-                pass
+            self.episode_var.set(self._last_episode_value)
             return
         if text.lower() == "movie":
-            try:
-                self.episode_var.set(self._last_episode_value)
-            except Exception:
-                pass
+            self.episode_var.set(self._last_episode_value)
             return
         try:
             n = int(text)
             if n <= 0:
                 raise ValueError()
-        except Exception:
-            try:
-                self.episode_var.set(self._last_episode_value)
-            except Exception:
-                pass
+        except Exception as e:
+            print(e)
+            self.episode_var.set(self._last_episode_value)
     def bind_slider(self,   on_chg, on_pr, on_rl):
         self._on_slider_change   = on_chg
         self._on_slider_press    = on_pr
@@ -589,24 +534,21 @@ class SettingsUI:
         btn = getattr(self, "_phone_mode_toggle_btn", None)
         if btn is None:
             return
-        try:
-            active = bool(self.default_phone_mode)
-            if active:
-                btn.configure(
-                    bg="#2f8f4e",
-                    fg="white",
-                    activebackground="#2f8f4e",
-                    activeforeground="white",
-                )
-            else:
-                btn.configure(
-                    bg="SystemButtonFace",
-                    fg="black",
-                    activebackground="SystemButtonFace",
-                    activeforeground="black",
-                )
-        except Exception:
-            pass
+        active = bool(self.default_phone_mode)
+        if active:
+            btn.configure(
+                bg="#2f8f4e",
+                fg="white",
+                activebackground="#2f8f4e",
+                activeforeground="white",
+            )
+        else:
+            btn.configure(
+                bg="SystemButtonFace",
+                fg="black",
+                activebackground="SystemButtonFace",
+                activeforeground="black",
+            )
 
     def _toggle_input_mode(self):
         if self.input_mode == 1:
@@ -696,26 +638,17 @@ class SettingsUI:
     def _on_control_window_click(self, event):
         if event.widget is self.time_entry:
             return
-        try:
-            self.control_window.focus_force()
-        except Exception:
-            pass
+        self.control_window.focus_force()
         try:
             self.control_window.after_idle(lambda: self.control_window.tk.call("focus", ""))
-        except Exception:
-            try:
-                self.control_window.focus_set()
-            except Exception:
-                pass
-
+        except Exception as e:
+            print(e)
+            self.control_window.focus_set()
 
     #HELPERS
     def _on_settings(self, event):#button to lift the root window
         show_window_no_activate_minimizable(self.root, topmost=True)
-        try:
-            self._on_settings_open()
-        except Exception:
-            pass
+        self._on_settings_open()
 
     def _sync_advanced_startup_vars_from_runtime(self) -> None:
         return self.adv_settings._sync_advanced_startup_vars_from_runtime()
@@ -737,10 +670,7 @@ class SettingsUI:
         match = fullmatch(self.NUMBER_PATTERN, (text or "").strip())
         if not match:
             return None
-        try:
-            return float(match.group(1).replace(",", "."))
-        except Exception:
-            return None
+        return float(match.group(1).replace(",", ".")) or None
 
     def _set_entry_value(self, entry, value: float):
         formatted = self._format_seconds(value)
@@ -793,31 +723,23 @@ class SettingsUI:
         try:
             previous = float(previous_value)
             delta = float(value_seconds) - previous
-        except Exception:
+        except Exception as e:
+            print(e)
             delta = 0.0
         self.slider.config(to=self.total_duration + value_seconds)
         if abs(delta) >= 0.001:
-            try:
-                self.slider.set(float(self.slider.get()) + delta)
-            except Exception:
-                pass
+            self.slider.set(float(self.slider.get()) + delta)
         self.update_time_and_subtitle_displays()
         self._on_slider_release(None)
         self._sync_advanced_startup_vars_from_runtime()
         if persist:
-            try:
-                self.config.set("EXTRA_OFFSET", value_seconds)
-            except Exception:
-                pass
+            self.config.set("EXTRA_OFFSET", value_seconds)
 
     def _apply_skip_change(self, value_seconds: float, persist: bool):
         """Update skip value and optionally persist to config."""
         self._sync_advanced_startup_vars_from_runtime()
         if persist:
-            try:
-                self.config.set("DEFAULT_SKIP", value_seconds)
-            except Exception:
-                pass
+            self.config.set("DEFAULT_SKIP", value_seconds)
 
     def set_total_duration(self, total_duration: float):
         self.total_duration = total_duration

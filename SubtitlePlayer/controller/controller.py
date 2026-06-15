@@ -30,8 +30,6 @@ from controller.hotkey_controller import HotkeyController
 from controller.anki_controller import AnkiController
 from controller.ocr_controller import OCRController
 
-# from video_sync_server import get_video_time
-
 class SubtitleController:
     SHORTCUT_DEFAULTS = {
         "SHORTCUT_TOGGLE_PLAY": "space",
@@ -83,23 +81,18 @@ class SubtitleController:
         self.hotkey_controller = HotkeyController(self)
         self.anki_controller = AnkiController(self)
         self.ocr_controller = OCRController(self)
+        self.anki = AnkiClient(self.config)
 
-        self.settings.root.protocol("WM_DELETE_WINDOW", self._on_app_close)
         self.default_start_time = self.current_time = self.config.get("DEFAULT_START_TIME")
-        self._startup_resume_play = self.config.get("STARTUP_RESUME_PLAY")
+        self._startup_resume_play = self.config.get("STARTUP_RESUME_PLAY") #bool
         self.default_skip = self.config.get("DEFAULT_SKIP")
         self.default_offset = self.config.get("EXTRA_OFFSET")
-        self.audio_padding = self.ocr_controller.coerce_float(self.config.get("AUDIO_PADDING"), default=0.1)
+        self.audio_padding = self.config.get("AUDIO_PADDING")
         self.phone_windows_hide_control_ms = self.config.get("PHONEMODE_WINDOWS_HIDE_DELAY_MS")   # hides control window after # ms in phone mode
         self.windows_hide_control_ms = self.config.get("WINDOWS_HIDE_DELAY_MS")   # hides control window after # ms in phone mode
         self.hide_subtitles_ms = self.config.get("SUBTITLE_TIMEOUT_MS")                     # clears subtitle canvas after # ms
         self.update_interval_ms = self.config.get("UPDATE_INTERVAL_MS")                        # updates the time display every # ms
-        self.video_click = self.config.get("VIDEO_CLICK")
         self.anki_busy_cursor = (self.config.get("ANKI_BUSY_CURSOR") or "wait")
-        self.anki = AnkiClient(self.config)#dont knwo if needed
-
-        # self.video_sync_interval_ms = self.config.get("VIDEO_SYNC_INTERVAL_MS") or 500
-        # self.video_sync_threshold = self.config.get("VIDEO_SYNC_THRESHOLD") or 0.5
 
         self.playing      = False
         self.entry_editing  = False
@@ -116,6 +109,10 @@ class SubtitleController:
         self.last_subtitle_raw = ""
         self.last_rendered_index = None
         self.last_rendered_sub_time = None
+
+
+
+        self._single_fire_actions = set()
         self._input_actions: "queue.Queue[str]" = queue.Queue()
         self._input_pump_job = None
         self._repeat_job = None
@@ -137,6 +134,10 @@ class SubtitleController:
         self._pending_anki_payload = None
         self._anki_success_popup = None
         self._anki_success_popup_job = None
+        self.subtitle_timeout_job = None
+        self._input_pump_job = None
+        self._repeat_job = None
+        self._ocr_job = None
 
         self.episode_controller.restore_startup_time_and_mode()
 
@@ -189,6 +190,7 @@ class SubtitleController:
         self.update_episode_nav_controls()
         self._schedule_ocr_time_jump("startup")
         if self._startup_resume_play: self.playback.toggle_play()
+        self.settings.root.protocol("WM_DELETE_WINDOW", self._on_app_close)
 
     def _process_repeat_actions(self):
         return self.hotkey_controller._process_repeat_actions()
@@ -212,6 +214,9 @@ class SubtitleController:
         self.popup.open_copy_popup(self.last_subtitle_raw)
         return "break"
     
+    def _skip_buttons_use_subtitle_segments(self) -> bool:
+        return self.hotkey_controller._skip_buttons_use_subtitle_segments()
+        
     def _add_selection_to_anki(self, selected_text: str, subtitle_text: str='') -> None:
         return self.anki_controller._add_selection_to_anki(selected_text, subtitle_text)
 
@@ -224,17 +229,14 @@ class SubtitleController:
     def apply_advanced_settings(self, values: dict) -> None:
         if not isinstance(values, dict):
             return
-        try:
-            cfg = getattr(self.config, "config", None)
-            if isinstance(cfg, dict):
-                cfg.update(values)
-        except Exception:
-            pass
+        cfg = getattr(self.config, "config", None)
+        if isinstance(cfg, dict):
+            cfg.update(values)
 
         def _as_int(key: str, default: int) -> int:
             try:
                 return int(values.get(key, default))
-            except Exception:
+            except Exception:#
                 return int(default)
 
         self.update_interval_ms = max(15, _as_int("UPDATE_INTERVAL_MS", self.update_interval_ms))
@@ -242,60 +244,39 @@ class SubtitleController:
         self.windows_hide_control_ms = max(100, _as_int("WINDOWS_HIDE_DELAY_MS", self.windows_hide_control_ms))
         self.phone_windows_hide_control_ms = max(100, _as_int("PHONEMODE_WINDOWS_HIDE_DELAY_MS", self.phone_windows_hide_control_ms))
 
-        if "VIDEO_CLICK" in values:
-            try:
-                self.video_click = bool(values.get("VIDEO_CLICK"))
-            except Exception:
-                pass
-
         if "AUDIO_PADDING" in values:
-            try:
-                self.audio_padding = float(values.get("AUDIO_PADDING"))
-            except Exception:
-                self.audio_padding = 0.1
+            self.audio_padding = float(values.get("AUDIO_PADDING"))
 
         if "POPUP_CLOSE_TIMER" in values:
-            try:
-                self.popup.close_delay = max(100, int(values.get("POPUP_CLOSE_TIMER")))
-                popup = getattr(self.popup, "_popup", None)
-                if popup is not None and popup.winfo_exists():
-                    if (not getattr(self.popup, "_pinned", False)
-                            and not getattr(self.popup, "_menu_open", False)
-                            and not getattr(self.popup, "_dragging", False)):
-                        self.popup._restart_close()
-            except Exception:
-                pass
+            self.popup.close_delay = max(100, int(values.get("POPUP_CLOSE_TIMER")))
+            popup = getattr(self.popup, "_popup", None)
+            if popup is not None and popup.winfo_exists():
+                if (not getattr(self.popup, "_pinned", False)
+                        and not getattr(self.popup, "_menu_open", False)
+                        and not getattr(self.popup, "_dragging", False)):
+                    self.popup._restart_close()
 
         # Popup style fields apply immediately for newly opened popups, and update the
         # currently open popup widget where possible.
-        try:
-            if "POPUP_FONT" in values:
-                self.popup.font_name = str(values.get("POPUP_FONT") or self.popup.font_name)
-            if "POPUP_FONT_COLOR" in values:
-                self.popup.font_color = str(values.get("POPUP_FONT_COLOR") or self.popup.font_color)
-            if "POPUP_BG_COLOR" in values:
-                self.popup.bg_color = str(values.get("POPUP_BG_COLOR") or self.popup.bg_color)
-            if "POPUP_FONT_SIZE" in values:
-                self.popup.font_size = max(8, int(values.get("POPUP_FONT_SIZE")))
+        if "POPUP_FONT" in values:
+            self.popup.font_name = str(values.get("POPUP_FONT") or self.popup.font_name)
+        if "POPUP_FONT_COLOR" in values:
+            self.popup.font_color = str(values.get("POPUP_FONT_COLOR") or self.popup.font_color)
+        if "POPUP_BG_COLOR" in values:
+            self.popup.bg_color = str(values.get("POPUP_BG_COLOR") or self.popup.bg_color)
+        if "POPUP_FONT_SIZE" in values:
+            self.popup.font_size = max(8, int(values.get("POPUP_FONT_SIZE")))
 
-            popup_win = getattr(self.popup, "_popup", None)
-            entry = getattr(self.popup, "_entry_widget", None)
-            if popup_win is not None and popup_win.winfo_exists():
-                try:
-                    popup_win.configure(bg=self.popup.bg_color)
-                except Exception:
-                    pass
-            if entry is not None:
-                try:
-                    entry.configure(
-                        bg=self.popup.bg_color,
-                        fg=self.popup.font_color,
-                        font=(self.popup.font_name, self.popup.font_size, "bold"),
-                    )
-                except Exception:
-                    pass
-        except Exception:
-            pass
+        popup_win = getattr(self.popup, "_popup", None)
+        entry = getattr(self.popup, "_entry_widget", None)
+        if popup_win is not None and popup_win.winfo_exists():
+            popup_win.configure(bg=self.popup.bg_color)
+        if entry is not None:
+            entry.configure(
+                bg=self.popup.bg_color,
+                fg=self.popup.font_color,
+                font=(self.popup.font_name, self.popup.font_size, "bold"),
+            )
 
         # Subtitle style fields are read by renderer on each draw; trigger a refresh now.
         subtitle_style_keys = {
@@ -308,11 +289,8 @@ class SubtitleController:
             "GLOW_RADIUS",
         }
         if any(k in values for k in subtitle_style_keys):
-            try:
-                self.last_subtitle_text = ""
-                self.update_time_and_subtitle_displays()
-            except Exception:
-                pass
+            self.last_subtitle_text = ""
+            self.update_time_and_subtitle_displays()
 
         subtitle_cleaning_keys = {
             "SUBTITLE_AUTO_RUBY",
@@ -323,50 +301,32 @@ class SubtitleController:
             "SUBTITLE_STRIP_PAREN_NOTES",
         }
         if any(k in values for k in subtitle_cleaning_keys):
-            try:
-                srt_path = getattr(self.sub_manager, "srt_file", None)
-                if srt_path:
-                    self.sub_manager.set_subtitle_display_data(srt_path)
-                    self.last_subtitle_text = ""
-                    self.update_time_and_subtitle_displays()
-            except Exception:
-                pass
+            srt_path = getattr(self.sub_manager, "srt_file", None)
+            if srt_path:
+                self.sub_manager.set_subtitle_display_data(srt_path)
+                self.last_subtitle_text = ""
+                self.update_time_and_subtitle_displays()
 
         startup_value_keys = {"DEFAULT_START_TIME", "EXTRA_OFFSET", "DEFAULT_SKIP"}
         if any(k in values for k in startup_value_keys):
-            try:
-                self.default_start_time = float(values.get("DEFAULT_START_TIME", self.default_start_time))
-            except Exception:
-                pass
-            try:
-                if "EXTRA_OFFSET" in values:
-                    off = float(values.get("EXTRA_OFFSET"))
-                    old_off = float(getattr(self.settings, "_last_offset_value", self.default_offset) or 0.0)
-                    self.default_offset = off
-                    self.settings._last_offset_value = off
-                    self.settings.offset_var.set(f"{self.settings._format_number(off)} s")
-                    self.settings._apply_offset_change(off, persist=False, previous_value=old_off)
-            except Exception:
-                pass
-            try:
-                if "DEFAULT_SKIP" in values:
-                    skip = float(values.get("DEFAULT_SKIP"))
-                    self.default_skip = skip
-                    self.settings._last_skip_value = skip
-                    self.settings.skip_var.set(f"{self.settings._format_number(skip)} s")
-                    self.settings._apply_skip_change(skip, persist=False)
-            except Exception:
-                pass
-            try:
-                self.settings._sync_advanced_startup_vars_from_runtime()
-            except Exception:
-                pass
+            self.default_start_time = float(values.get("DEFAULT_START_TIME", self.default_start_time))
+            if "EXTRA_OFFSET" in values:
+                off = float(values.get("EXTRA_OFFSET"))
+                old_off = float(getattr(self.settings, "_last_offset_value", self.default_offset) or 0.0)
+                self.default_offset = off
+                self.settings._last_offset_value = off
+                self.settings.offset_var.set(f"{self.settings._format_number(off)} s")
+                self.settings._apply_offset_change(off, persist=False, previous_value=old_off)
+            if "DEFAULT_SKIP" in values:
+                skip = float(values.get("DEFAULT_SKIP"))
+                self.default_skip = skip
+                self.settings._last_skip_value = skip
+                self.settings.skip_var.set(f"{self.settings._format_number(skip)} s")
+                self.settings._apply_skip_change(skip, persist=False)
+            self.settings._sync_advanced_startup_vars_from_runtime()
 
         if "SHORTCUTS_DISABLED" in values:
-            try:
-                self.settings.set_hotkeys_disabled(bool(values.get("SHORTCUTS_DISABLED")))
-            except Exception:
-                pass
+            self.settings.set_hotkeys_disabled(bool(values.get("SHORTCUTS_DISABLED")))
             if self._hotkeys_disabled():
                 self._reset_hotkey_state()
         if (
@@ -376,11 +336,8 @@ class SubtitleController:
             self._reset_hotkey_state()
 
         if any(str(k).startswith("ANKI_") for k in values.keys()):
-            try:
-                self.anki = AnkiClient(self.config)
-                self.anki_busy_cursor = (self.config.get("ANKI_BUSY_CURSOR") or "wait")
-            except Exception:
-                pass
+            self.anki = AnkiClient(self.config)
+            self.anki_busy_cursor = (self.anki_busy_cursor or "wait")
 
 
     # ——— Time handling ———————————————————————————————————
@@ -513,7 +470,7 @@ class SubtitleController:
                 w_s, h_s = size.split("x", 1)
                 x_s, y_s = pos.split("+", 1)
                 return int(x_s), int(y_s), int(w_s), int(h_s)
-            except Exception:
+            except Exception:#
                 try:
                     return (
                         int(self.settings.root.winfo_x()),
@@ -521,76 +478,66 @@ class SubtitleController:
                         int(self.settings.root.winfo_width()),
                         int(self.settings.root.winfo_height()),
                     )
-                except Exception:
+                except Exception:#
                     return None
         # Persist window positions/state before destroying any windows.
-        try:
-            geom = _read_settings_geometry()
-            if geom is None:
-                raise ValueError("Could not read settings geometry")
-            x, y, w, h = geom
-            if (x, y) != (self.config.get("LAST_SETTINGS_WINDOW_X"),
-                          self.config.get("LAST_SETTINGS_WINDOW_Y")):
-                self.config.set("LAST_SETTINGS_WINDOW_X", x)
-                self.config.set("LAST_SETTINGS_WINDOW_Y", y)
-            if (w, h) != (self.config.get("LAST_SETTINGS_WINDOW_WIDTH"),
-                          self.config.get("LAST_SETTINGS_WINDOW_HEIGHT")):
-                self.config.set("LAST_SETTINGS_WINDOW_WIDTH", w)
-                self.config.set("LAST_SETTINGS_WINDOW_HEIGHT", h)
-        except Exception:
-            pass
-        try:
-            session_anime = self.sub_manager.get_anime_name()
-            updates = {
-                "LAST_SESSION_ANIME": str(session_anime or ""),
-                "LAST_SESSION_TIME_SEC": float(self.current_time or 0.0),
-                "LAST_SESSION_PLAY_MODE": bool(self.playing),
-            }
-            if hasattr(self.config, "set_many"):
-                self.config.set_many(updates)
-            else:
-                for key, value in updates.items():
-                    self.config.set(key, value)
-        except Exception:
-            pass
-        try:
-            self.settings.save_state()  # control window position
-        except Exception:
-            pass
-        try:
-            self.overlay.save_state()   # subtitle overlay center position
-        except Exception:
-            pass
-        try:
-            self.sub_manager.save_state()
-        except Exception:
-            pass
+        geom = _read_settings_geometry()
+        if geom is None:
+            raise ValueError("Could not read settings geometry")
+        x, y, w, h = geom
+        if (x, y) != (self.config.get("LAST_SETTINGS_WINDOW_X"),
+                        self.config.get("LAST_SETTINGS_WINDOW_Y")):
+            self.config.set("LAST_SETTINGS_WINDOW_X", x)
+            self.config.set("LAST_SETTINGS_WINDOW_Y", y)
+        if (w, h) != (self.config.get("LAST_SETTINGS_WINDOW_WIDTH"),
+                        self.config.get("LAST_SETTINGS_WINDOW_HEIGHT")):
+            self.config.set("LAST_SETTINGS_WINDOW_WIDTH", w)
+            self.config.set("LAST_SETTINGS_WINDOW_HEIGHT", h)
+
+        session_anime = self.sub_manager.get_anime_name()
+        updates = {
+            "LAST_ANIME_NAME": str(session_anime or ""),
+            "LAST_SESSION_TIME_SEC": float(self.current_time or 0.0),
+            "LAST_SESSION_PLAY_MODE": bool(self.playing),
+        }
+        if hasattr(self.config, "set_many"):
+            self.config.set_many(updates)
+        else:
+            for key, value in updates.items():
+                self.config.set(key, value)
+        self.settings.save_state()  # control window position
+        self.overlay.save_state()   # subtitle overlay center position
+        self.sub_manager.save_state()
 
         for job in ("subtitle_timeout_job", "_con_hide_job", "_input_pump_job", "_repeat_job", "_ocr_job"):
             handle = getattr(self, job, None)
             if handle is not None:
-                try:
-                    self.settings.root.after_cancel(handle)
-                except Exception:
-                    pass
+                self.settings.root.after_cancel(handle)
         for listener_attr in ("_mouse_listener", "_keyboard_listener"):
             listener = getattr(self, listener_attr, None)
             if listener is not None:
-                try:
-                    listener.stop()
-                except Exception:
-                    pass
-        try:
-            self.popup._cancel_close()
-        except AttributeError:
-            pass
+                listener.stop()
+        self.popup._cancel_close()
         for w in (self.settings.control_window, self.overlay.sub_window, self.popup._popup):
             if w:
-                try: w.destroy()
-                except: pass
+                w.destroy()
 
         self.settings.root.destroy()
     
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # #wrappers for benchmark
     def _segments_to_copy_text(self, top_segments, bottom_segments):
         return self.subtitle_navigation.segments_to_copy_text(top_segments, bottom_segments)
@@ -599,25 +546,21 @@ class SubtitleController:
         return self.subtitle_navigation._update_subtitle_display(force)
     
 
-    #     # self.settings.root.after(self.video_sync_interval_ms, self._sync_loop)
+# from video_sync_server import get_video_time
 
+        #   self.settings.root.after(self.video_sync_interval_ms, self._sync_loop)
+        #   self.video_sync_interval_ms = self.config.get("VIDEO_SYNC_INTERVAL_MS") or 500
+        #   self.video_sync_threshold = self.config.get("VIDEO_SYNC_THRESHOLD") or 0.5
 
     # def sync_with_video(self):
     #     video_time, video_duration = get_video_time()
-
     #     if video_duration <= 0:
     #         return
-
     #     drift = video_time - self.current_time
-
     #     if abs(drift) > self.video_sync_threshold:
     #         print(f"[SYNC] correcting drift: {drift:.2f}s → {video_time:.2f}")
     #         self.playback.set_current_time(video_time)
-
     # def _sync_loop(self):
     #     if not self._shutting_down:
-    #         try:
-    #             self.sync_with_video()
-    #         except Exception:
-    #             pass
+    #         self.sync_with_video()
     #         self.settings.root.after(self.video_sync_interval_ms, self._sync_loop)

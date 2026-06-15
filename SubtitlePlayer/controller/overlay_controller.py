@@ -39,10 +39,7 @@ class OverlayController(_ControllerProxy):
             self.overlay.sub_window.attributes("-transparentcolor", "") #not transparent
             self.settings.control_window.attributes("-topmost", True)
             self.overlay.sub_window.attributes("-topmost", True)
-            try:
-                self.popup.ensure_on_top()
-            except Exception:
-                pass
+            self.popup.ensure_on_top()
             if getattr(self, "_con_hide_job", None) is not None:
                 self.settings.control_window.after_cancel(self._con_hide_job) #cancel hide after calls if triggered
                 self._con_hide_job = None
@@ -56,10 +53,7 @@ class OverlayController(_ControllerProxy):
     def sub_handel_enter(self, event):
             self.settings.control_window.attributes("-topmost", True)
             self.overlay.sub_window.attributes("-topmost", True)
-            try:
-                self.popup.ensure_on_top()
-            except Exception:
-                pass
+            self.popup.ensure_on_top()
             if getattr(self, "_con_hide_job", None):
                 self.settings.control_window.after_cancel(self._con_hide_job) #cancel hide after calls if triggered
                 self._con_hide_job = None
@@ -68,10 +62,7 @@ class OverlayController(_ControllerProxy):
     def control_window_enter(self, event):
             self.settings.control_window.attributes("-topmost", True)
             self.overlay.sub_window.attributes("-topmost", True)
-            try:
-                self.popup.ensure_on_top()
-            except Exception:
-                pass
+            self.popup.ensure_on_top()
             if getattr(self, "_con_hide_job", None):
                 self.settings.control_window.after_cancel(self._con_hide_job) #cancel hide after calls if triggered
                 self._con_hide_job = None
@@ -90,15 +81,9 @@ class OverlayController(_ControllerProxy):
                 self.overlay.hide_handle()
 
     def _hide_subtitle_handle_for_settings(self):
-            try:
-                if self.settings.default_phone_mode:
-                    self.overlay.hide_handle()
-            except Exception:
-                pass
+            if self.settings.default_phone_mode:
+                self.overlay.hide_handle()
 
     def _restore_subtitle_handle_after_settings(self):
-            try:
-                if self.settings.default_phone_mode:
-                    self.overlay.show_handle()
-            except Exception:
-                pass
+            if self.settings.default_phone_mode:
+                self.overlay.show_handle()

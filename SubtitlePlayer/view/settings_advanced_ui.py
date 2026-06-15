@@ -38,35 +38,27 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             return
         offset_var = vars_map.get("EXTRA_OFFSET")
         if offset_var is not None:
-            try:
-                offset_var.set(self._format_number(float(self._last_offset_value)))
-            except Exception:
-                pass
+            offset_var.set(self._format_number(float(self._last_offset_value)))
         skip_var = vars_map.get("DEFAULT_SKIP")
         if skip_var is not None:
-            try:
-                skip_var.set(self._format_number(float(self._last_skip_value)))
-            except Exception:
-                pass
+            skip_var.set(self._format_number(float(self._last_skip_value)))
+
     def _flush_pending_entry_changes(self):
         """Force any pending changes in offset/skip entry fields to be saved to config."""
         for entry, attr_name, apply_method in [
             (self.offset_entry, "_last_offset_value", self._apply_offset_change),
             (self.skip_entry, "_last_skip_value", self._apply_skip_change),
         ]:
-            try:
-                text = entry.get().replace(",", ".").strip()
-                parsed = self._parse_number(text)
-                if parsed is not None and hasattr(self, attr_name):
-                    current_value = getattr(self, attr_name)
-                    if abs(parsed - current_value) > 0.001:  # Value has changed
-                        setattr(self, attr_name, parsed)
-                        if entry is self.offset_entry:
-                            apply_method(parsed, persist=True, previous_value=current_value)
-                        elif entry is self.skip_entry:
-                            apply_method(parsed, persist=True)
-            except Exception:
-                pass
+            text = entry.get().replace(",", ".").strip()
+            parsed = self._parse_number(text)
+            if parsed is not None and hasattr(self, attr_name):
+                current_value = getattr(self, attr_name)
+                if abs(parsed - current_value) > 0.001:  # Value has changed
+                    setattr(self, attr_name, parsed)
+                    if entry is self.offset_entry:
+                        apply_method(parsed, persist=True, previous_value=current_value)
+                    elif entry is self.skip_entry:
+                        apply_method(parsed, persist=True)
         self._sync_advanced_startup_vars_from_runtime()
 
     def _open_advanced_settings_window(self):
@@ -90,10 +82,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         win.attributes("-topmost", True)
         make_nonactivating_window(win)
         win.resizable(True, True)
-        try:
-            win.grab_release()
-        except Exception:
-            pass
+        win.grab_release()
         self._restore_advanced_window_geometry(win)
 
         body = tk.Frame(win, padx=12, pady=12)
@@ -183,16 +172,10 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             if _event.widget is not win:
                 return
             if self._advanced_resize_job is not None:
-                try:
-                    win.after_cancel(self._advanced_resize_job)
-                except Exception:
-                    pass
+                win.after_cancel(self._advanced_resize_job)
                 self._advanced_resize_job = None
             if self._ocr_region_count_refresh_job is not None:
-                try:
-                    win.after_cancel(self._ocr_region_count_refresh_job)
-                except Exception:
-                    pass
+                win.after_cancel(self._ocr_region_count_refresh_job)
                 self._ocr_region_count_refresh_job = None
             self._save_advanced_window_geometry(win)
             self.advanced_window = None
@@ -209,29 +192,25 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         if self._root_topmost_before_advanced is None:
             try:
                 self._root_topmost_before_advanced = bool(self.root.attributes("-topmost"))
-            except Exception:
+            except Exception as e:
+                print(e)
                 self._root_topmost_before_advanced = False
-        try:
-            self.root.attributes("-topmost", True)
-        except Exception:
-            pass
+        self.root.attributes("-topmost", True)
 
     def _restore_main_settings_topmost_after_advanced(self) -> None:
         previous = self._root_topmost_before_advanced
         self._root_topmost_before_advanced = None
         if previous is None:
             return
-        try:
-            self.root.attributes("-topmost", bool(previous))
-        except Exception:
-            pass
+        self.root.attributes("-topmost", bool(previous))
 
     def _restore_advanced_window_geometry(self, win):
         try:
             self.root.update_idletasks()
             sw = int(self.root.winfo_vrootwidth() or self.root.winfo_screenwidth())
             sh = int(self.root.winfo_vrootheight() or self.root.winfo_screenheight())
-        except Exception:
+        except Exception:#
+            print("Advanced window geometry invalid")
             sw, sh = 1920, 1080
 
         saved_w = self.config.get("LAST_ADV_SETTINGS_WINDOW_WIDTH")
@@ -261,13 +240,15 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             x_s, y_s = pos.split("+", 1)
             x, y = int(x_s), int(y_s)
             w, h = int(w_s), int(h_s)
-        except Exception:
+        except Exception as e:
+            print(e)
             try:
                 x = int(win.winfo_x())
                 y = int(win.winfo_y())
                 w = int(win.winfo_width())
                 h = int(win.winfo_height())
-            except Exception:
+            except Exception as e:
+                print(e)
                 return
 
         if (x, y) != (
@@ -287,19 +268,13 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         win = self.advanced_window
         if win is None:
             return
-        try:
-            notebook = getattr(self, "_advanced_notebook", None)
-            if notebook is not None and notebook.winfo_exists():
-                tab_id = notebook.select()
-                if tab_id:
-                    self._prepare_advanced_tab_size(tab_id)
-        except Exception:
-            pass
+        notebook = getattr(self, "_advanced_notebook", None)
+        if notebook is not None and notebook.winfo_exists():
+            tab_id = notebook.select()
+            if tab_id:
+                self._prepare_advanced_tab_size(tab_id)
         if self._advanced_resize_job is not None:
-            try:
-                win.after_cancel(self._advanced_resize_job)
-            except Exception:
-                pass
+            win.after_cancel(self._advanced_resize_job)
         self._advanced_resize_job = win.after(1, self._fit_advanced_window_to_selected_tab)
         win.after(0, self._reset_advanced_tab_focus)
 
@@ -310,30 +285,25 @@ class SettingsAdvancedUI(_SettingsUIProxy):
     def _clear_advanced_entry_selection(self, parent):
         try:
             children = parent.winfo_children()
-        except Exception:
+        except Exception as e:
+            print(e)
             return
         for child in children:
-            try:
-                if isinstance(child, (tk.Entry, ttk.Entry, ttk.Combobox)):
-                    child.selection_clear()
-                self._clear_advanced_entry_selection(child)
-            except Exception:
-                pass
+            if isinstance(child, (tk.Entry, ttk.Entry, ttk.Combobox)):
+                child.selection_clear()
+            self._clear_advanced_entry_selection(child)
 
     def _reset_advanced_tab_focus(self):
         notebook = getattr(self, "_advanced_notebook", None)
         if notebook is None:
             return
-        try:
-            if not notebook.winfo_exists():
-                return
-            tab_id = notebook.select()
-            if tab_id:
-                tab_widget = notebook.nametowidget(tab_id)
-                self._clear_advanced_entry_selection(tab_widget)
-            notebook.focus_set()
-        except Exception:
-            pass
+        if not notebook.winfo_exists():
+            return
+        tab_id = notebook.select()
+        if tab_id:
+            tab_widget = notebook.nametowidget(tab_id)
+            self._clear_advanced_entry_selection(tab_widget)
+        notebook.focus_set()
 
     def _fit_advanced_window_to_selected_tab(self):
         win = self.advanced_window
@@ -358,7 +328,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             try:
                 sw = int(self.root.winfo_vrootwidth() or self.root.winfo_screenwidth())
                 sh = int(self.root.winfo_vrootheight() or self.root.winfo_screenheight())
-            except Exception:
+            except Exception as e:
+                print(e, "Invalid window size")
                 sw, sh = 1920, 1080
             req_w = max(360, min(int(req_w), max(360, sw - 20)))
             req_h = max(220, min(int(req_h), max(220, sh - 40)))
@@ -366,7 +337,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             y = max(0, min(int(win.winfo_y()), max(0, sh - req_h)))
             if int(win.winfo_width()) != int(req_w) or int(win.winfo_height()) != int(req_h):
                 win.geometry(f"{req_w}x{req_h}+{x}+{y}")
-        except Exception:
+        except Exception as e:
+            print(e)
             pass
 
     def _prepare_advanced_tab_sizes(self):
@@ -375,7 +347,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             return
         try:
             tab_id = notebook.select()
-        except Exception:
+        except Exception as e:
+            print(e)
             return
         if tab_id:
             self._prepare_advanced_tab_size(tab_id)
@@ -385,20 +358,17 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         notebook = getattr(self, "_advanced_notebook", None)
         if win is None or notebook is None:
             return
-        try:
-            if not tab_id:
-                return
-            win.update_idletasks()
-            tab = notebook.nametowidget(tab_id)
-            nb_w = max(280, int(tab.winfo_reqwidth()) + 14)
-            nb_h = max(80, int(tab.winfo_reqheight()) + 8)
-            notebook.configure(width=nb_w, height=nb_h)
-            win.update_idletasks()
-            w = max(360, int(win.winfo_reqwidth()))
-            h = max(180, int(win.winfo_reqheight()))
-            self._advanced_tab_sizes[tab_id] = (nb_w, nb_h, w, h)
-        except Exception:
-            pass
+        if not tab_id:
+            return
+        win.update_idletasks()
+        tab = notebook.nametowidget(tab_id)
+        nb_w = max(280, int(tab.winfo_reqwidth()) + 14)
+        nb_h = max(80, int(tab.winfo_reqheight()) + 8)
+        notebook.configure(width=nb_w, height=nb_h)
+        win.update_idletasks()
+        w = max(360, int(win.winfo_reqwidth()))
+        h = max(180, int(win.winfo_reqheight()))
+        self._advanced_tab_sizes[tab_id] = (nb_w, nb_h, w, h)
 
     def _build_advanced_tab(self, tab_parent, column_sections):
         tab_id = str(tab_parent)
@@ -517,32 +487,24 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         if var is None or self._ocr_region_count_trace_var is var:
             return
         self._ocr_region_count_trace_var = var
-        try:
-            var.trace_add("write", self._on_ocr_region_count_changed)
-        except Exception:
-            pass
+        var.trace_add("write", self._on_ocr_region_count_changed)
 
     def _on_ocr_region_count_changed(self, *_args) -> None:
         root = getattr(self, "root", None)
         if root is None:
             return
         if self._ocr_region_count_refresh_job is not None:
-            try:
-                root.after_cancel(self._ocr_region_count_refresh_job)
-            except Exception:
-                pass
+            root.after_cancel(self._ocr_region_count_refresh_job)
         try:
             self._ocr_region_count_refresh_job = root.after(80, self._refresh_ocr_count_runtime)
-        except Exception:
+        except Exception as e:
+            print(e)
             self._refresh_ocr_count_runtime()
 
     def _refresh_ocr_count_runtime(self) -> None:
         self._ocr_region_count_refresh_job = None
-        try:
-            self._refresh_ocr_area_buttons()
-            self._apply_ocr_values_runtime()
-        except Exception:
-            pass
+        self._refresh_ocr_area_buttons()
+        self._apply_ocr_values_runtime()
 
     def _advanced_general_columns(self):
         left = [
@@ -677,7 +639,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 "activebackground": btn.cget("activebackground"),
                 "activeforeground": btn.cget("activeforeground"),
             }
-        except Exception:
+        except Exception as e:
+            print(e)
             self._anki_check_defaults = None
 
     def _set_anki_check_button_state(self, connected):
@@ -685,63 +648,45 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         if btn is None:
             return
         if connected is True:
-            try:
-                btn.configure(bg="#2f8f4e", fg="white", activebackground="#2f8f4e", activeforeground="white")
-            except Exception:
-                pass
+            btn.configure(bg="#2f8f4e", fg="white", activebackground="#2f8f4e", activeforeground="white")
             return
         if connected is False:
-            try:
-                btn.configure(bg="#b33939", fg="white", activebackground="#b33939", activeforeground="white")
-            except Exception:
-                pass
+            btn.configure(bg="#b33939", fg="white", activebackground="#b33939", activeforeground="white")
             return
         defaults = getattr(self, "_anki_check_defaults", None)
         if not defaults:
             return
-        try:
-            btn.configure(
-                bg=defaults.get("bg"),
-                fg=defaults.get("fg"),
-                activebackground=defaults.get("activebackground"),
-                activeforeground=defaults.get("activeforeground"),
-            )
-        except Exception:
-            pass
+        btn.configure(
+            bg=defaults.get("bg"),
+            fg=defaults.get("fg"),
+            activebackground=defaults.get("activebackground"),
+            activeforeground=defaults.get("activeforeground"),
+        )
 
     def _handle_anki_check(self) -> None:
         btn = getattr(self, "_anki_check_btn", None)
         if btn is not None:
-            try:
-                btn.configure(state=tk.DISABLED, text="Checking...")
-            except Exception:
-                pass
+            btn.configure(state=tk.DISABLED, text="Checking...")
 
         def worker():
             connected = False
             try:
                 connected = bool(self._on_anki_check())
-            except Exception:
+            except Exception as e:
+                print(e)
                 connected = False
 
             def _finish():
                 target = getattr(self, "_anki_check_btn", None)
                 if target is None or not target.winfo_exists():
                     return
-                try:
-                    target.configure(state=tk.NORMAL, text="Check Connection")
-                except Exception:
-                    pass
+                target.configure(state=tk.NORMAL, text="Check Connection")
                 self._set_anki_check_button_state(connected)
                 if hasattr(self, "_advanced_status_var"):
                     self._advanced_status_var.set(
                         "AnkiConnect reachable." if connected else "AnkiConnect not reachable."
                     )
-
-            try:
-                self.root.after(0, _finish)
-            except Exception:
-                pass
+            self.root.after(0, _finish)
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -826,19 +771,21 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 {"key": f"OCR_REGION{suffix}_H", "label": f"Region {idx} H", "type": "int", "default": 0, "min": 0, "max": 100000, "hidden": True},
             ])
         return [left]
-
-    def _coerce_bool(self, value) -> bool:
+    @staticmethod
+    def _coerce_bool(value) -> bool:
         if isinstance(value, bool):
             return value
         if value is None:
             return False
         text = str(value).strip().lower()
         return text in ("1", "true", "yes", "on")
-
-    def _coerce_int(self, value, default: int = 0, min_v=None, max_v=None) -> int:
+    
+    @staticmethod
+    def _coerce_int(value, default: int = 0, min_v=None, max_v=None) -> int:
         try:
             num = int(float(str(value).strip().replace(",", ".")))
-        except Exception:
+        except Exception as e:
+            print(e)
             num = int(default)
         if min_v is not None and num < int(min_v):
             num = int(min_v)
@@ -860,10 +807,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         self._ocr_area_select_btn = tk.Button(left, text="Select OCR Area", command=self._handle_select_ocr_area)
         self._ocr_area_select_btn.pack(side="left")
         self._ocr_area_select_var = tk.StringVar(value="1")
-        try:
-            self._ocr_area_select_var.trace_add("write", self._on_ocr_area_selection_changed)
-        except Exception:
-            pass
+        self._ocr_area_select_var.trace_add("write", self._on_ocr_area_selection_changed)
         self._ocr_area_select_menu = tk.OptionMenu(left, self._ocr_area_select_var, "1")
         self._ocr_area_select_menu.pack(side="left", padx=(4, 0))
 
@@ -879,32 +823,23 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         self._update_ocr_screen_button_styles()
 
     def _on_ocr_area_selection_changed(self, *_args):
-        try:
-            values = self._get_ocr_values_from_vars()
-            self._ocr_selected_screen = self._get_ocr_screen_for_region(
-                values,
-                self._get_selected_ocr_area_index(),
-            )
-        except Exception:
-            pass
+        values = self._get_ocr_values_from_vars()
+        self._ocr_selected_screen = self._get_ocr_screen_for_region(
+            values,
+            self._get_selected_ocr_area_index(),
+        )
         self._update_ocr_screen_button_styles()
 
     def _get_ocr_region_count_from_vars(self) -> int:
         default = int(self.config.get("OCR_REGION_COUNT") or 2)
-        try:
-            var = getattr(self, "_advanced_vars", {}).get("OCR_REGION_COUNT")
-            raw = var.get() if var is not None else default
-        except Exception:
-            raw = default
+        var = getattr(self, "_advanced_vars", {}).get("OCR_REGION_COUNT")
+        raw = var.get() if var is not None else default
         return self._coerce_int(raw, default=default, min_v=1, max_v=self.OCR_MAX_REGIONS)
 
     def _get_selected_ocr_area_index(self) -> int:
         count = self._get_ocr_region_count_from_vars()
         var = getattr(self, "_ocr_area_select_var", None)
-        try:
-            raw = var.get() if var is not None else "1"
-        except Exception:
-            raw = "1"
+        raw = var.get() if var is not None else "1"
         return self._coerce_int(raw, default=1, min_v=1, max_v=count)
 
     @staticmethod
@@ -929,13 +864,10 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         def _refresh_menu(menu_widget, var):
             if menu_widget is None or var is None:
                 return
-            try:
-                menu = menu_widget["menu"]
-                menu.delete(0, "end")
-                for opt in options:
-                    menu.add_command(label=opt, command=lambda v=opt, vv=var: vv.set(v))
-            except Exception:
-                pass
+            menu = menu_widget["menu"]
+            menu.delete(0, "end")
+            for opt in options:
+                menu.add_command(label=opt, command=lambda v=opt, vv=var: vv.set(v))
 
         if select_var.get() not in options:
             select_var.set(options[0])
@@ -970,36 +902,32 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 "activebackground": btn.cget("activebackground"),
                 "activeforeground": btn.cget("activeforeground"),
             }
-        except Exception:
+        except Exception as e:
+            print(e)
             self._ocr_button_defaults = None
 
     def _apply_ocr_button_style(self, btn: tk.Button, active: bool) -> None:
         if btn is None:
             return
         if active:
-            try:
-                btn.configure(bg="#2f8f4e", fg="white", activebackground="#2f8f4e", activeforeground="white")
-            except Exception:
-                pass
+            btn.configure(bg="#2f8f4e", fg="white", activebackground="#2f8f4e", activeforeground="white")
             return
         defaults = getattr(self, "_ocr_button_defaults", None)
         if not defaults:
             return
-        try:
-            btn.configure(
-                bg=defaults.get("bg"),
-                fg=defaults.get("fg"),
-                activebackground=defaults.get("activebackground"),
-                activeforeground=defaults.get("activeforeground"),
-            )
-        except Exception:
-            pass
+        btn.configure(
+            bg=defaults.get("bg"),
+            fg=defaults.get("fg"),
+            activebackground=defaults.get("activebackground"),
+            activeforeground=defaults.get("activeforeground"),
+        )
 
     def _update_ocr_screen_button_styles(self) -> None:
         values = {}
         try:
             values = self._get_ocr_values_from_vars()
-        except Exception:
+        except Exception as e:
+            print(e)
             values = {}
 
         region_count = self._get_ocr_region_count_from_vars()
@@ -1082,7 +1010,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             if spec["type"] == "float":
                 try:
                     values[key] = float(str(var.get()).strip().replace(",", "."))
-                except Exception:
+                except Exception as e:
+                    print(e)
                     values[key] = float(spec.get("default", 0.0))
                 continue
             text = str(var.get()).strip()
@@ -1095,36 +1024,29 @@ class SettingsAdvancedUI(_SettingsUIProxy):
     def _apply_ocr_values_runtime(self):
         try:
             values = self._get_ocr_values_from_vars()
-        except Exception:
+        except Exception as e:
+            print(e)
             return
         if not values:
             return
-        try:
-            self._on_advanced_apply(dict(values), False)
-        except Exception:
-            pass
+        self._on_advanced_apply(dict(values), False)
         self._refresh_ocr_area_buttons()
         self._update_ocr_screen_button_styles()
 
     def _handle_ocr_read_now(self):
         values = self._get_ocr_values_from_vars()
-        try:
-            self._on_ocr_read_now(dict(values))
-        except Exception:
-            pass
+        self._on_ocr_read_now(dict(values))
 
     def _handle_ocr_sync_now(self):
         values = self._get_ocr_values_from_vars()
-        try:
-            self._on_ocr_sync_now(dict(values))
-        except Exception:
-            pass
+        self._on_ocr_sync_now(dict(values))
 
     def _handle_select_ocr_area(self) -> None:
         var = getattr(self, "_ocr_area_select_var", None)
         try:
             index = int(var.get()) if var is not None else 1
-        except Exception:
+        except Exception as e:
+            print(e)
             index = 1
         self._select_ocr_region(index)
 
@@ -1151,10 +1073,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         win = tk.Toplevel(self.root)
         win.overrideredirect(True)
         win.attributes("-topmost", True)
-        try:
-            win.attributes("-alpha", 0.25)
-        except Exception:
-            pass
+        win.attributes("-alpha", 0.25)
         win.configure(bg="black")
         win.geometry(f"{int(sw)}x{int(sh)}+{int(base_x)}+{int(base_y)}")
         win.focus_set()
@@ -1196,10 +1115,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             _finish(state["x0"], state["y0"], event.x, event.y)
 
         def _on_cancel(_event=None):
-            try:
-                win.grab_release()
-            except Exception:
-                pass
+            win.grab_release()
             win.destroy()
 
         canvas.bind("<ButtonPress-1>", _on_press)
@@ -1222,13 +1138,15 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             elif spec["type"] == "int":
                 try:
                     val = int(float(str(cfg_val)))
-                except Exception:
+                except Exception as e:
+                    print(e)
                     val = int(spec.get("default", 0))
                 var.set(str(val))
             elif spec["type"] == "float":
                 try:
                     val = float(str(cfg_val).replace(",", "."))
-                except Exception:
+                except Exception as e:
+                    print(e)
                     val = float(spec.get("default", 0.0))
                 var.set(self._format_number(val))
             else:
@@ -1247,7 +1165,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 values,
                 self._get_selected_ocr_area_index(),
             )
-        except Exception:
+        except Exception as e:
+            print(e)
             self._ocr_selected_screen = None
         if hasattr(self, "_advanced_status_var"):
             self._advanced_status_var.set("Loaded values from config.")
@@ -1279,7 +1198,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 raw = str(var.get()).strip().replace(",", ".")
                 try:
                     num = int(float(raw))
-                except Exception:
+                except Exception:#
                     errors.append(spec["label"])
                     continue
                 min_v = spec.get("min")
@@ -1295,7 +1214,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 raw = str(var.get()).strip().replace(",", ".")
                 try:
                     num = float(raw)
-                except Exception:
+                except Exception:#
                     errors.append(spec["label"])
                     continue
                 min_v = spec.get("min")
@@ -1317,7 +1236,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             return []
         try:
             tab_id = notebook.select()
-        except Exception:
+        except Exception as e:
+            print(e)
             tab_id = ""
         if not tab_id:
             return []
@@ -1355,12 +1275,14 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             elif spec["type"] == "int":
                 try:
                     var.set(str(int(default)))
-                except Exception:
+                except Exception as e:
+                    print(e)
                     var.set("0")
             elif spec["type"] == "float":
                 try:
                     var.set(self._format_number(float(default)))
-                except Exception:
+                except Exception as e:
+                    print(e)
                     var.set("0")
             else:
                 var.set(str(default or ""))
@@ -1372,17 +1294,11 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         if "errors" in result:
             if hasattr(self, "_advanced_status_var"):
                 self._advanced_status_var.set("Invalid values: " + ", ".join(result["errors"]))
-            try:
-                self.root.bell()
-            except Exception:
-                pass
+            self.root.bell()
             return
 
         values = result["values"]
-        try:
-            self._on_advanced_apply(dict(values), bool(persist))
-        except Exception:
-            pass
+        self._on_advanced_apply(dict(values), bool(persist))
 
         if persist:
             try:
@@ -1391,12 +1307,10 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 else:
                     for key, value in values.items():
                         self.config.set(key, value)
-            except Exception:
+            except Exception as e:
+                print(e)
                 for key, value in values.items():
-                    try:
-                        self.config.set(key, value)
-                    except Exception:
-                        pass
+                    self.config.set(key, value)
             if hasattr(self, "_advanced_status_var"):
                 self._advanced_status_var.set("Saved and applied.")
         else:
