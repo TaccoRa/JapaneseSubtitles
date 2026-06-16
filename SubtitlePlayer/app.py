@@ -56,6 +56,7 @@ class SubtitlePlayerApp:
         except Exception:
             logger.exception("Failed to load config.json")
             raise SystemExit(1)
+    
     def _build_root(self):
         self.root = tk.Tk()
         self.root.withdraw()
@@ -63,7 +64,7 @@ class SubtitlePlayerApp:
         self.root.geometry("280x115")
 
         self._restore_window_position()
-        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+        # self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _show_startup_overlay(self):
         self._startup_overlay = LoadingOverlay(self.root,text="Starting SubtitlePlayer...",modal=False)
@@ -181,24 +182,17 @@ class SubtitlePlayerApp:
     def _get_screen_size(self):
         sw = int(self.root.winfo_vrootwidth() or 0)
         sh = int(self.root.winfo_vrootheight() or 0)
-
         if sw <= 1 or sh <= 1:
             sw = int(self.root.winfo_screenwidth() or 1920)
             sh = int(self.root.winfo_screenheight() or 1080)
-
         return sw, sh
 
     def _restore_window_position(self):
-        x = self.config.get("LAST_SETTINGS_WINDOW_X")
-        y = self.config.get("LAST_SETTINGS_WINDOW_Y")
-        w = self.config.get("LAST_SETTINGS_WINDOW_WIDTH") or 280
-        h = self.config.get("LAST_SETTINGS_WINDOW_HEIGHT") or 115
-
+        x,y = self.config.get("LAST_SETTINGS_WINDOW_X"), self.config.get("LAST_SETTINGS_WINDOW_Y")
+        w,h = self.config.get("LAST_SETTINGS_WINDOW_WIDTH") or 280, self.config.get("LAST_SETTINGS_WINDOW_HEIGHT") or 115
         sw, sh = self._get_screen_size()
-
         w = max(120, min(int(w), sw))
         h = max(80, min(int(h), sh))
-
         if not isinstance(x, int) or not isinstance(y, int):
             x = int((sw - w) / 2)
             y = int((sh - h) / 2)
@@ -218,25 +212,3 @@ class SubtitlePlayerApp:
         except Exception as e:
             print("ERROR:", e)
             return None
-
-    # =========================
-    # Shutdown
-    # =========================
-    def _on_close(self):
-        geom = self._read_geometry()
-
-        if geom:
-            w, h, x, y = geom
-            self.config.set("LAST_SETTINGS_WINDOW_X", x)
-            self.config.set("LAST_SETTINGS_WINDOW_Y", y)
-            self.config.set("LAST_SETTINGS_WINDOW_WIDTH", w)
-            self.config.set("LAST_SETTINGS_WINDOW_HEIGHT", h)
-
-        for comp in (self.settings_ui, self.sub_overlay_ui, self.sub_manager):
-            try:
-                comp.save_state()
-            except Exception as e:
-                print("ERROR:", e)
-                pass
-
-        self.root.destroy()
