@@ -72,19 +72,19 @@ class SettingsUI:
         self.adv_settings = SettingsAdvancedUI(self)
         self._build_settings_frame()
         self._build_control_window()
-        make_nonactivating_window(self.root)
-        self.root.after(0, lambda: make_nonactivating_window(self.root))
+        # make_nonactivating_window(self.root)
+        # self.root.after(0, lambda: make_nonactivating_window(self.root))
         if self._start_hidden:
             self.control_window.withdraw()
 
     def _init_defaults(self):
         get = self.config.get
-        self.default_offset = get('EXTRA_OFFSET')        
+        self.default_offset = self._config_float("EXTRA_OFFSET", 0.0)
         self._last_offset_value = float(self.default_offset)
-        self.default_skip = get('DEFAULT_SKIP')
-        self._last_skip_value   = float(self.default_skip)
-        self.default_start = get('DEFAULT_START_TIME')
-        self.default_phone_mode = get("PHONEMODE_DEFAULT")
+        self.default_skip = self._config_float("DEFAULT_SKIP", 1.0)
+        self._last_skip_value = float(self.default_skip)
+        self.default_start = self._config_float("DEFAULT_START_TIME", 0.0)
+        self.default_phone_mode = bool(get("PHONEMODE_DEFAULT") or False)
         self.input_mode = self._resolve_input_mode()
         self._last_active_input_mode = self.input_mode if self.input_mode in (1, 2) else 1
         self.numpad_mode_enabled = (self.input_mode == 2)
@@ -92,28 +92,55 @@ class SettingsUI:
 
         self.default_x = self.config.get("LAST_SETTINGS_WINDOW_X")
         self.default_y = self.config.get("LAST_SETTINGS_WINDOW_Y")
-        self.win_x = get('LAST_CONTROL_WINDOW_X')
-        self.win_y = get('LAST_CONTROL_WINDOW_Y')
-        self._control_win_x = int(self.win_x) if isinstance(self.win_x, int) else 30
-        self._control_win_y = int(self.win_y) if isinstance(self.win_y, int) else 30
+        self.win_x = self._config_int("LAST_CONTROL_WINDOW_X", 30)
+        self.win_y = self._config_int("LAST_CONTROL_WINDOW_Y", 30)
+        self._control_win_x = int(self.win_x)
+        self._control_win_y = int(self.win_y)
+
+    def _config_float(self, key: str, default: float) -> float:
+        try:
+            value = self.config.get(key)
+            if value is None:
+                return float(default)
+            return float(value)
+        except Exception:
+            return float(default)
+
+    def _config_int(self, key: str, default: int) -> int:
+        try:
+            value = self.config.get(key)
+            if value is None:
+                return int(default)
+            return int(value)
+        except Exception:
+            return int(default)
 
     def _resolve_input_mode(self) -> int:
         """Return input mode 1/2/3 with backward compatibility for old config keys."""
         mode = self.config.get("INPUT_MODE")
         parsed = None
-        parsed = int(mode) or None
+        try:
+            parsed = int(mode) or None
+        except Exception:
+            parsed = None
         if parsed in (1, 2):
             return parsed
         if parsed == 3:
             last_active = self.config.get("LAST_ACTIVE_INPUT_MODE")
-            last_active = int(last_active) or None
+            try:
+                last_active = int(last_active) or None
+            except Exception:
+                last_active = None
             if last_active in (1, 2):
                 return last_active
             return 1
         parsed = 2 if bool(self.config.get("INPUT_MODE_NUMPAD") or False) else 1
         if bool(self.config.get("SHORTCUTS_DISABLED") or False):
             last_active = self.config.get("LAST_ACTIVE_INPUT_MODE")
-            last_active = int(last_active) or None
+            try:
+                last_active = int(last_active) or None
+            except Exception:
+                last_active = None
             if last_active in (1, 2):
                 return last_active
             return 1
@@ -147,6 +174,7 @@ class SettingsUI:
                      "set_to", "open_srt", "show_handle",
                      #Control window:
                      "back", "forward", "play_pause",
+                     "toggle_subtitles",
                      "time_entry_return", "time_entry_clear",
                      "advanced_apply",
                      "ocr_read_now", "ocr_sync_now",
@@ -354,7 +382,6 @@ class SettingsUI:
                                       relief="raised", bg= "grey")
         self.refresh_btn = tk.Button(self.handle_settings_frame,
                                      relief="raised", bg= "grey")
-
         self.settings_btn.place(x=10, y=0, width=10, height=10)
         self.refresh_btn.place(x=20, y=0, width=10, height=10)
 
@@ -374,7 +401,7 @@ class SettingsUI:
         self.back_button.bind("<ButtonPress>", lambda event: self._on_back())
         self.play_pause_btn.bind("<ButtonPress>", lambda event: (self._on_play_pause()))
         self.settings_btn.bind("<ButtonPress>", self._on_settings)
-        self.refresh_btn.bind("<ButtonPress>", lambda ev: self.on_refresh_subtitles(ev))
+        self.refresh_btn.bind("<ButtonPress>", lambda ev: self._on_toggle_subtitles(ev))
         self.time_entry.bind("<Button-1>", lambda ev: self._on_time_entry_clear(ev))
         self.time_entry.bind("<FocusOut>", lambda ev: self._on_time_entry_return(ev))
         self.time_entry.bind("<Return>", lambda ev:   self._on_time_entry_return(ev))
@@ -437,6 +464,7 @@ class SettingsUI:
     def bind_back(self,      cb):            self._on_back       = cb
     def bind_forward(self,   cb):            self._on_forward    = cb
     def bind_play_pause(self,cb):            self._on_play_pause = cb
+    def bind_toggle_subtitles(self, cb):     self._on_toggle_subtitles = cb
     def bind_time_entry_return(self, cb):    self._on_time_entry_return = cb
     def bind_time_entry_clear(self,  cb):    self._on_time_entry_clear = cb
     def bind_control_window_enter(self, cb): self._on_control_window_enter = cb
@@ -533,15 +561,26 @@ class SettingsUI:
     def _sync_input_mode_runtime_flags(self):
         self.numpad_mode_enabled = (self.input_mode == 2)
         cfg = getattr(self.config, "config", None)
+        is_m3 = bool(self.input_mode == 3)
         if isinstance(cfg, dict):
             cfg["INPUT_MODE"] = int(self.input_mode)
             cfg["INPUT_MODE_NUMPAD"] = bool(self.numpad_mode_enabled)
-            cfg["SHORTCUTS_DISABLED"] = bool(self.input_mode == 3)
+            cfg["SHORTCUTS_DISABLED"] = is_m3
             if self.input_mode in (1, 2):
                 cfg["LAST_ACTIVE_INPUT_MODE"] = int(self.input_mode)
 
+        # Keep the advanced window checkbox in sync with runtime mode changes.
+        adv_vars = getattr(self, "_advanced_vars", None)
+        if isinstance(adv_vars, dict):
+            hotkey_var = adv_vars.get("SHORTCUTS_DISABLED")
+            if hotkey_var is not None:
+                try:
+                    hotkey_var.set(is_m3)
+                except Exception:
+                    pass
+
     def _refresh_input_mode_button(self):
-        if not self.input_mode_btn:
+        if not (getattr(self, "input_mode_btn", None) or getattr(self, "mode_toggle_btn", None)):
             return
         if self.input_mode == 2:
             text, bg = "M2", "green"
@@ -549,7 +588,22 @@ class SettingsUI:
             text, bg = "M3", "#d46a6a"
         else:
             text, bg = "M1", "SystemButtonFace"
-        self.input_mode_btn.configure(text=text, bg=bg)
+        for btn in (self.input_mode_btn, getattr(self, "mode_toggle_btn", None)):
+            if btn is None:
+                continue
+            try:
+                btn.configure(
+                    text=text,
+                    bg=bg,
+                    state=tk.NORMAL,
+                    activebackground=bg,
+                    activeforeground="white" if self.input_mode in (2, 3) else "black",
+                )
+            except Exception:
+                try:
+                    btn.configure(text=text, bg=bg)
+                except Exception:
+                    pass
         
     def _set_phone_mode_styles(self, phone_mode: bool):
         if phone_mode:
@@ -604,6 +658,7 @@ class SettingsUI:
     def _on_settings(self, event):#button to lift the root window
         show_window_no_activate_minimizable(self.root, topmost=True)
         self._on_settings_open()
+        return "break"
 
     def _sync_advanced_startup_vars_from_runtime(self) -> None:
         return self.adv_settings._sync_advanced_startup_vars_from_runtime()
@@ -625,7 +680,7 @@ class SettingsUI:
         match = fullmatch(self.NUMBER_PATTERN, (text or "").strip())
         if not match:
             return None
-        return float(match.group(1).replace(",", ".")) or None
+        return float(match.group(1).replace(",", "."))
 
     def _set_entry_value(self, entry, value: float):
         formatted = self._format_seconds(value)

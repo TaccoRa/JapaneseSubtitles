@@ -49,9 +49,14 @@ class SubtitleController:
         "SHORTCUT_EPISODE_INC": "alt+c",
         "SHORTCUT_EPISODE_DEC": "alt+y",
         "SHORTCUT_JUMP_SUB_END": "ctrl+shift+y",
+        "SHORTCUT_TOGGLE_SUBTITLES": "s",
+        "SHORTCUT_POPUP_DEEPL_TRANSLATE": "t",
+        "SHORTCUT_POPUP_GOOGLE_TRANSLATE": "g",
     }
     HOTKEY_DISABLE_KEYS = {
         "toggle_play": "DISABLE_HOTKEY_TOGGLE_PLAY",
+        "toggle_subtitles": "DISABLE_HOTKEY_TOGGLE_SUBTITLES",
+        "clear_subtitle": "DISABLE_HOTKEY_TOGGLE_SUBTITLES",
         "go_back": "DISABLE_HOTKEY_GO_BACK",
         "go_forward": "DISABLE_HOTKEY_GO_FORWARD",
         "subtitle_back": "DISABLE_HOTKEY_SUBTITLE_BACK",
@@ -102,6 +107,9 @@ class SubtitleController:
         self.hide_subtitles_ms = self.config.get("SUBTITLE_TIMEOUT_MS")
         self.update_interval_ms = self.config.get("UPDATE_INTERVAL_MS")
         self.anki_busy_cursor = self.config.get("ANKI_BUSY_CURSOR") or "wait"
+        self.video_click = bool(self.config.get("VIDEO_CLICK") or False)
+        self.video_click_play = True if self.config.get("VIDEO_CLICK_PLAY") is None else bool(self.config.get("VIDEO_CLICK_PLAY"))
+        self.video_click_window = False if self.config.get("VIDEO_CLICK_WINDOW") is None else bool(self.config.get("VIDEO_CLICK_WINDOW"))
 
         self.playing = False
         self.entry_editing = False
@@ -109,12 +117,16 @@ class SubtitleController:
         self.alt_pressed = False
         self.ctrl_pressed = False
         self.shift_pressed = False
+        self.translation_pressed = False
+        self.translation_provider = "deepl"
         self.sub_hidden = False
         self.slider_dragging = False
         self._shutting_down = False
 
         self._single_fire_actions: set[str] = set()
         self._input_actions: "queue.Queue[str]" = queue.Queue()
+        self._shutdown_event = threading.Event()
+        self._update_loop_job = None
         self._input_pump_job = None
         self._repeat_job = None
         self._repeat_lock = threading.Lock()
@@ -156,6 +168,7 @@ class SubtitleController:
 
     def _bind_ui_events(self) -> None:
         self.settings.root.protocol("WM_DELETE_WINDOW", self._on_app_close)
+        self.settings.root.bind("<Destroy>", self._on_root_destroy, add="+")
         self.settings.bind_play_pause(self.playback.toggle_play)
         self.settings.bind_back(self.playback.go_back)
         self.settings.bind_forward(self.playback.go_forward)
@@ -177,6 +190,7 @@ class SubtitleController:
         self.settings.bind_control_window_leave     (self.overlay_controller.control_window_leave)
         self.settings.bind_show_subtitle_handle     (self.overlay_controller.show_subtitle_handle)
         self.settings.bind_refresh_subtitles        (self.subtitle_navigation.on_refresh_subtitles)
+        self.settings.bind_toggle_subtitles         (self.subtitle_navigation.toggle_subtitle_visibility)
         self.settings.bind_advanced_apply           (self.apply_advanced_settings)
         self.settings.bind_ocr_read_now             (self.ocr_controller.on_ocr_read_now)
         self.settings.bind_ocr_sync_now             (self.ocr_controller.on_ocr_sync_now)
@@ -185,6 +199,16 @@ class SubtitleController:
         self.settings.bind_update_display           (self.update_time_and_subtitle_displays)
         self.overlay.subtitle_canvas.bind           ("<Button-3>", self._on_copy_popup)
         self.popup.bind_add_to_anki                 (self._add_selection_to_anki)
+        self.popup.bind_dictionary_lookup           (self._lookup_dictionary_entry)
+        self.popup.bind_translation_lookup          (self._translate_hover_selection)
+        self.popup.bind_word_tokenizer              (self._word_spans_for_lookup)
+        self.popup.bind_shift_state                 (lambda: bool(self.shift_pressed))
+        self.popup.bind_translation_state           (lambda: bool(self.translation_pressed))
+        self.popup.bind_translation_provider        (lambda: str(self.translation_provider or "deepl"))
+        self.popup.bind_anchor_window               (self._popup_anchor_window)
+        self.renderer.bind_dictionary_lookup        (self._lookup_dictionary_entry)
+        self.renderer.bind_word_tokenizer           (self._word_spans_for_lookup)
+        self.renderer.bind_shift_state              (lambda: bool(self.shift_pressed) and not self._popup_is_open())
         self.overlay.bind_sub_window_enter          (self.sub_window_enter)
         self.overlay.bind_sub_window_leave          (self.sub_window_leave)
         self.overlay.bind_sub_handle_enter          (self.sub_handle_enter)   
@@ -212,6 +236,10 @@ class SubtitleController:
         return self.episode_controller._get_display_start_times()
 
     def _on_copy_popup(self, event=None):
+        try:
+            self.renderer._clear_hover_ruby()
+        except Exception:
+            pass
         self.popup.open_copy_popup(self.last_subtitle_raw)
         return "break"
 
@@ -221,19 +249,49 @@ class SubtitleController:
     def _add_selection_to_anki(self, selected_text: str, subtitle_text: str = "") -> None:
         return self.anki_controller._add_selection_to_anki(selected_text, subtitle_text)
 
+    def _lookup_dictionary_entry(self, text: str, allow_translation_fallback: bool = False) -> str:
+        try:
+            return self.anki.lookup_dictionary_entry(
+                text,
+                allow_translation_fallback=allow_translation_fallback,
+            )
+        except Exception:
+            return ""
+
+    def _translate_hover_selection(self, text: str, provider: str = "deepl") -> str:
+        try:
+            return self.anki.translate_hover_selection(text, provider=provider)
+        except Exception:
+            return ""
+
+    def _popup_is_open(self) -> bool:
+        try:
+            return bool(self.popup.is_open())
+        except Exception:
+            return False
+
+    def _popup_anchor_window(self):
+        return getattr(self.overlay, "sub_window", None)
+
+    def _word_spans_for_lookup(self, text: str):
+        try:
+            return self.anki.word_spans(text)
+        except Exception:
+            return []
+
     def _set_busy_cursor(self, busy: bool) -> None:
         return self.anki_controller._set_busy_cursor(busy)
 
     def _hotkeys_disabled(self) -> bool:
         return self.hotkey_controller._hotkeys_disabled()
 
-    def _reset_hotkey_state(self) -> None:
-        return self.hotkey_controller._reset_hotkey_state()
+    def _reset_hotkey_state(self, reset_shift: bool = True) -> None:
+        return self.hotkey_controller._reset_hotkey_state(reset_shift=reset_shift)
 
     # ---------------------------------------------------------------------
     # Runtime config changes
     # ---------------------------------------------------------------------
-    def apply_advanced_settings(self, values: dict) -> None:
+    def apply_advanced_settings(self, values: dict, persist: bool = True) -> None:
         if not isinstance(values, dict):
             return
 
@@ -303,6 +361,7 @@ class SubtitleController:
             "SUBTITLE_COLOR",
             "SUBTITLE_WRAP_LIMIT_PX",
             "SUBTITLE_HOVER_RUBY",
+            "SHIFT_HOVER_KANJI_DICTIONARY",
             "GLOW_COLOR",
             "GLOW_RADIUS",
         }
@@ -313,9 +372,7 @@ class SubtitleController:
     def _apply_subtitle_cleaning_settings(self, values: dict) -> None:
         subtitle_cleaning_keys = {
             "SUBTITLE_AUTO_RUBY",
-            "SUBTITLE_CUSTOM_HTML_TAGS",
             "SUBTITLE_SPEAKER_MODE",
-            "SUBTITLE_KEEP_SPEAKER_NAMES",
             "SUBTITLE_SPEAKER_TEMPLATE",
             "SUBTITLE_STRIP_PAREN_NOTES",
         }
@@ -379,6 +436,9 @@ class SubtitleController:
     def set_current_time(self, t: float):
         return self.playback.set_current_time(t)
 
+    def control_time_entry_return(self, event):
+        return self.subtitle_navigation.control_time_entry_return(event)
+
     # ---------------------------------------------------------------------
     # Subtitle / episode / playback routing
     # ---------------------------------------------------------------------
@@ -411,6 +471,9 @@ class SubtitleController:
 
     def on_jump_sub_end(self, event=None):
         return self.playback.on_jump_sub_end(event)
+
+    def toggle_subtitle_visibility(self, event=None):
+        return self.subtitle_navigation.toggle_subtitle_visibility(event)
 
     def _schedule_hide_controls(self):
         return self.overlay_controller._schedule_hide_controls()
@@ -467,16 +530,47 @@ class SubtitleController:
     # Shutdown
     # ---------------------------------------------------------------------
     def _on_app_close(self):
+        self.shutdown(destroy_root=True, save_state=True)
+
+    def _on_root_destroy(self, event=None):
+        try:
+            if event is not None and event.widget is not self.settings.root:
+                return
+        except Exception:
+            pass
+        self.shutdown(destroy_root=False, save_state=False)
+
+    def shutdown(self, destroy_root: bool = True, save_state: bool = True) -> None:
         if getattr(self, "_shutting_down", False):
-            return
-        self._shutting_down = True
-        root = self.settings.root
-        if root is None or not root.winfo_exists():
+            if destroy_root:
+                self._finalize_shutdown()
             return
 
-        self._save_geometry_and_session_state()
+        self._shutting_down = True
+        try:
+            self._shutdown_event.set()
+        except Exception:
+            pass
+
+        root = getattr(self.settings, "root", None)
+        root_alive = False
+        try:
+            root_alive = root is not None and root.winfo_exists()
+        except Exception:
+            root_alive = False
+
+        if root_alive and save_state:
+            try:
+                self._save_geometry_and_session_state()
+            except Exception as e:
+                print("save state during shutdown:", e)
+
         self._stop_listeners_and_jobs()
-        self._finalize_shutdown()
+        self._close_auxiliary_windows()
+        self._shutdown_background_services()
+
+        if destroy_root:
+            self._finalize_shutdown()
 
     def _save_geometry_and_session_state(self) -> None:
         def _read_settings_geometry():
@@ -516,18 +610,82 @@ class SubtitleController:
         for listener_attr in ("_mouse_listener", "_keyboard_listener"):
             listener = getattr(self, listener_attr, None)
             if listener is not None:
-                listener.stop()
-        root = self.settings.root
-        for job in ("subtitle_timeout_job", "_con_hide_job", "_input_pump_job", "_repeat_job", "_ocr_job"):
+                try:
+                    listener.stop()
+                except Exception:
+                    pass
+                setattr(self, listener_attr, None)
+        root = getattr(self.settings, "root", None)
+        for job in ("subtitle_timeout_job", "_con_hide_job", "_input_pump_job",
+                    "_repeat_job", "_ocr_job", "_update_loop_job",
+                    "_anki_success_popup_job"):
             handle = getattr(self, job, None)
             if handle is not None:
-                root.after_cancel(handle)
+                try:
+                    if root is not None and root.winfo_exists():
+                        root.after_cancel(handle)
+                except Exception:
+                    pass
                 setattr(self, job, None)
-        self.popup._cancel_close()
+        try:
+            self.popup._cancel_close()
+        except Exception:
+            pass
+
+    def _close_auxiliary_windows(self) -> None:
+        for close_call in (
+            lambda: self.popup._close(),
+            lambda: self.renderer.destroy_hover_windows(),
+        ):
+            try:
+                close_call()
+            except Exception:
+                pass
+
+        for attr in ("_anki_wait_window", "_anki_success_popup"):
+            win = getattr(self, attr, None)
+            if win is None:
+                continue
+            try:
+                if win.winfo_exists():
+                    win.destroy()
+            except Exception:
+                pass
+            setattr(self, attr, None)
+
+        for win in (
+            getattr(self.settings, "advanced_window", None),
+            getattr(self.overlay, "subtitle_handle", None),
+            getattr(self.overlay, "sub_window", None),
+            getattr(self.settings, "control_window", None),
+        ):
+            if win is None:
+                continue
+            try:
+                if win.winfo_exists():
+                    win.destroy()
+            except Exception:
+                pass
+
+    def _shutdown_background_services(self) -> None:
+        try:
+            self._ocr_generation += 1
+            self._ocr_sync_generation += 1
+        except Exception:
+            pass
+        try:
+            shutdown = getattr(self.sub_manager, "shutdown", None)
+            if callable(shutdown):
+                shutdown()
+        except Exception:
+            pass
 
     def _finalize_shutdown(self) -> None:
         try:
-            self.settings.root.destroy()
+            root = getattr(self.settings, "root", None)
+            if root is not None and root.winfo_exists():
+                root.quit()
+                root.destroy()
         except Exception:
             pass
     

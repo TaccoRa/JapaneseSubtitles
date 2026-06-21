@@ -4,6 +4,7 @@ AnkiConnect client used to create notes from popup selections.
 
 from __future__ import annotations
 import base64
+import functools
 import os
 import re
 import sys
@@ -46,6 +47,7 @@ class AnkiClient:
         self._word_definition_cache: Dict[str, str] = {}
         self._sentence_translation_cache: Dict[str, str] = {}
         self._jisho_entries_cache: Dict[str, List[Dict]] = {}
+        self._dictionary_hover_cache: Dict[tuple[str, bool], str] = {}
         self._stroke_media_exists_cache: Dict[str, bool] = {}
         self._stroke_sync_failed_cache: set[str] = set()
 
@@ -257,7 +259,7 @@ class AnkiClient:
             sentence_spacing=True,
         )
 
-        back_value = word_translation
+        back_value = self._dedupe_translation_entries(word_translation)
         sentence_de = (sentence_translation).strip()
 
         fields[self.add_rubies_to_front_field] = selected_raw
@@ -267,7 +269,7 @@ class AnkiClient:
         fields[self.sentence_de_field] = sentence_de
         fields[self.add_rubies_to_sentence_ja_field] = subtitle_raw
         if self.definition_field in model_fields:
-            fields[self.definition_field] = self._last_jisho_full_definition
+            fields[self.definition_field] = self._dedupe_translation_entries(self._last_jisho_full_definition)
 
         # Optional media fields stay empty by design; they are filled by capture pipeline later.
         if self.sound_field in model_fields:
@@ -302,20 +304,12 @@ class AnkiClient:
         for i, (base, ruby) in enumerate(segments):
             if not base:
                 continue
-            prev_had_ruby = i > 0 and segments[i - 1][1] is not None
             if (
                 ruby
                 and self._starts_with_kanji(base)
                 and out
                 and not out[-1].endswith((" ", "\n", "\t"))
                 and not out[-1].endswith(("[", "(", "{", "<", "\u300c", "\u300e"))
-                and (
-                    prev_had_ruby
-                    or (
-                        sentence_spacing
-                        and not self._has_okurigana_continuation(segments, i)
-                    )
-                )
             ):
                 out.append(" ")
             if ruby:
@@ -418,7 +412,15 @@ class AnkiClient:
             return [(surface, None)]
         if self._looks_numeric(surface):
             return [(surface, None)]
+        if not self._split_kanji_moras_enabled():
+            return [(surface, reading)]
         return split_furigana(surface, reading, self._single_kanji_reading_for_split)
+
+    def _split_kanji_moras_enabled(self) -> bool:
+        try:
+            return bool(self.config.get("ANKI_SPLIT_KANJI_MORAS") or False)
+        except Exception:
+            return False
 
     def _single_kanji_reading_for_split(self, ch: str) -> str:
         if self._tagger is None or not self._is_kanji_char(ch):
@@ -593,6 +595,7 @@ class AnkiClient:
         translation = self._translate_word_with_jisho(text)
         if not translation:
             translation = self._translate_google(text, source_lang="ja", target_lang=self.word_target_lang)
+        translation = self._dedupe_translation_entries(translation)
         self._word_translation_cache[text] = translation
         self._word_definition_cache[text] = self._last_jisho_full_definition
         return translation
@@ -606,8 +609,8 @@ class AnkiClient:
         # definitions is now a list of strings (may be empty)
         if not definitions:
             return ""
-        self._last_jisho_full_definition = ", ".join(definitions)
-        summary_en = ", ".join(definitions[:3])
+        self._last_jisho_full_definition = self._dedupe_translation_entries(", ".join(definitions))
+        summary_en = self._dedupe_translation_entries(", ".join(definitions[:3]))
         if self.word_target_lang.lower() == "en":
             return summary_en
 
@@ -622,7 +625,7 @@ class AnkiClient:
                 source_lang="en",
                 target_lang=self.word_target_lang,
             )
-        return translated or summary_en
+        return self._dedupe_translation_entries(translated or summary_en)
 
     def _fetch_jisho_entries(self, text: str) -> List[Dict]:
         text = (text or "").strip()
@@ -674,14 +677,302 @@ class AnkiClient:
                 best_score = score
 
         definitions: List[str] = []
+        seen_definition_keys: set[str] = set()
         for sense in best.get("senses") or []:
             for item in sense.get("english_definitions") or []:
                 gloss = str(item).strip()
-                if gloss and gloss not in definitions:
+                key = self._translation_dedupe_key(gloss)
+                if gloss and key and key not in seen_definition_keys:
+                    seen_definition_keys.add(key)
                     definitions.append(gloss)
             if len(definitions) >= 6:
                 break
         return definitions
+
+    def lookup_dictionary_entry(self, text: str, allow_translation_fallback: bool = False) -> str:
+        """
+        Return a compact, readable Jisho-style dictionary entry for hover tooltips.
+        Reuses the same Jisho lookup and definition extraction path used by card creation.
+        """
+        query = (text or "").strip()
+        if not query:
+            return ""
+        cache_key = (query, bool(allow_translation_fallback))
+        cached = self._dictionary_hover_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        for lookup_query in self._dictionary_lookup_queries(query):
+            entries = self._fetch_jisho_entries(lookup_query)
+            definitions = self._extract_jisho_translation(lookup_query, entries)
+            if definitions:
+                result = self._format_jisho_hover_entry(lookup_query, entries, definitions)
+                self._cache_dictionary_hover_result(cache_key, result)
+                return result
+
+        if allow_translation_fallback:
+            translated = self._translate_sentence(query)
+            if translated and translated.strip() and translated.strip() != query:
+                result = f"{query} — {translated.strip()}"
+                self._cache_dictionary_hover_result(cache_key, result)
+                return result
+
+        self._cache_dictionary_hover_result(cache_key, "")
+        return ""
+
+    def _cache_dictionary_hover_result(self, key: tuple[str, bool], value: str) -> None:
+        self._dictionary_hover_cache[key] = value
+        if len(self._dictionary_hover_cache) > 512:
+            try:
+                oldest = next(iter(self._dictionary_hover_cache))
+                self._dictionary_hover_cache.pop(oldest, None)
+            except Exception:
+                pass
+
+    def translate_hover_selection(self, text: str, provider: str = "deepl") -> str:
+        query = self._normalize_translation_input(text)
+        if not query:
+            return ""
+        provider = str(provider or "deepl").strip().lower()
+        if provider == "google":
+            translated = self._translate_google(
+                query,
+                source_lang="ja",
+                target_lang=self.sentence_target_lang,
+            )
+        else:
+            translated = self._translate_deepl(
+                query,
+                source_lang="ja",
+                target_lang=self.sentence_target_lang,
+            )
+        if translated and translated.strip() and translated.strip() != query:
+            return f"{query} — {translated.strip()}"
+        return ""
+
+    def _dictionary_lookup_queries(self, query: str) -> List[str]:
+        query = (query or "").strip()
+        if not query:
+            return []
+        queries = [query]
+        compact = re.sub(r"\s+", "", query)
+        if compact and compact != query and self._contains_japanese(compact):
+            queries.append(compact)
+        return queries
+
+    def _format_jisho_hover_entry(self, query: str, entries: List[Dict], definitions: List[str]) -> str:
+        head = query
+        try:
+            best = entries[0]
+            for entry in entries:
+                if self._extract_jisho_translation(query, [entry]) == definitions:
+                    best = entry
+                    break
+            jap = (best.get("japanese") or [{}])[0] if isinstance(best.get("japanese"), list) else {}
+            word = str(jap.get("word") or "").strip()
+            reading = str(jap.get("reading") or "").strip()
+            if word and reading and word != reading:
+                head = f"{word} [{reading}]"
+            elif word:
+                head = word
+            elif reading:
+                head = reading
+        except Exception:
+            pass
+        return f"{head} — {', '.join(definitions[:6])}"
+
+    def word_spans(self, text: str) -> List[Dict[str, object]]:
+        """
+        Return word-like spans for hover lookup.
+        Spans are character offsets into the original text and preserve the surface form.
+        """
+        source = str(text or "")
+        if not source:
+            return []
+
+        if self._tagger is not None:
+            try:
+                tokens = list(self._tagger(source))
+            except Exception:
+                tokens = []
+            spans: List[Dict[str, object]] = []
+            cursor = 0
+            for token in tokens:
+                surface = str(getattr(token, "surface", "") or "")
+                if not surface:
+                    continue
+                start = source.find(surface, cursor)
+                if start < 0:
+                    start = source.find(surface)
+                if start < 0:
+                    continue
+                end = start + len(surface)
+                cursor = end
+                if not self._is_lookup_candidate(surface):
+                    continue
+                reading = self._katakana_to_hiragana(self._token_reading(token))
+                lookup = self._token_lookup_text(token, surface)
+                feature = getattr(token, "feature", None)
+                spans.append(
+                    {
+                        "surface": surface,
+                        "lookup": lookup or surface,
+                        "reading": reading,
+                        "start": start,
+                        "end": end,
+                        "pos1": str(getattr(feature, "pos1", "") or ""),
+                        "pos2": str(getattr(feature, "pos2", "") or ""),
+                    }
+                )
+            if spans:
+                return self._expand_compound_word_spans(source, spans)
+
+        return [
+            {
+                "surface": match.group(0),
+                "lookup": match.group(0),
+                "reading": "",
+                "start": match.start(),
+                "end": match.end(),
+            }
+            for match in re.finditer(r"\S+", source)
+            if self._is_lookup_candidate(match.group(0))
+        ]
+
+    def _expand_compound_word_spans(
+        self,
+        source: str,
+        spans: List[Dict[str, object]],
+    ) -> List[Dict[str, object]]:
+        compounds: List[Dict[str, object]] = []
+        existing = {
+            (int(span.get("start") or 0), int(span.get("end") or 0), str(span.get("lookup") or ""))
+            for span in spans
+        }
+
+        max_parts = 4
+        for i in range(len(spans)):
+            if not self._compound_part_allowed(spans[i]):
+                continue
+            start = int(spans[i].get("start") or 0)
+            end = int(spans[i].get("end") or 0)
+            readings = [str(spans[i].get("reading") or "")]
+            for j in range(i + 1, min(len(spans), i + max_parts)):
+                next_span = spans[j]
+                next_start = int(next_span.get("start") or 0)
+                next_end = int(next_span.get("end") or 0)
+                if source[end:next_start] != "":
+                    break
+                if not self._compound_part_allowed(next_span):
+                    break
+                end = next_end
+                readings.append(str(next_span.get("reading") or ""))
+                surface = source[start:end]
+                lookup = re.sub(r"\s+", "", surface).strip()
+                if len(lookup) < 2 or not self._contains_kanji(lookup):
+                    continue
+                key = (start, end, lookup)
+                if key in existing:
+                    continue
+                existing.add(key)
+                compounds.append(
+                    {
+                        "surface": surface,
+                        "lookup": lookup,
+                        "reading": "".join(readings).strip(),
+                        "start": start,
+                        "end": end,
+                        "compound": True,
+                    }
+                )
+
+        compounds.sort(
+            key=lambda span: (
+                int(span.get("start") or 0),
+                -(int(span.get("end") or 0) - int(span.get("start") or 0)),
+            )
+        )
+        base_spans = sorted(
+            spans,
+            key=lambda span: (
+                int(span.get("start") or 0),
+                int(span.get("end") or 0) - int(span.get("start") or 0),
+            ),
+        )
+        return compounds + base_spans
+
+    def _compound_part_allowed(self, span: Dict[str, object]) -> bool:
+        surface = str(span.get("surface") or "").strip()
+        if not surface or not self._is_lookup_candidate(surface):
+            return False
+        if surface in {
+            "は", "が", "を", "に", "へ", "で", "と", "も", "の", "や", "か",
+            "から", "まで", "より", "ね", "よ", "ぞ", "な",
+        }:
+            return False
+
+        pos1 = str(span.get("pos1") or "")
+        if pos1:
+            return pos1 in {"名詞", "接頭辞", "接尾辞"}
+
+        return self._contains_kanji(surface)
+
+    def _token_lookup_text(self, token, surface: str) -> str:
+        feature = getattr(token, "feature", None)
+        if feature is not None:
+            for attr in ("lemma", "orthBase", "formBase"):
+                value = getattr(feature, attr, None)
+                if value and value != "*":
+                    text = str(value).strip()
+                    if text:
+                        return text
+        return surface
+
+    def _is_lookup_candidate(self, text: str) -> bool:
+        for ch in text or "":
+            if self._is_kanji_char(ch):
+                return True
+            code = ord(ch)
+            if 0x3040 <= code <= 0x309F or 0x30A0 <= code <= 0x30FF:
+                return True
+            if ch.isalnum():
+                return True
+        return False
+
+    def _contains_japanese(self, text: str) -> bool:
+        for ch in text or "":
+            if self._is_kanji_char(ch):
+                return True
+            code = ord(ch)
+            if 0x3040 <= code <= 0x309F or 0x30A0 <= code <= 0x30FF:
+                return True
+        return False
+
+    def _translation_dedupe_key(self, text: str) -> str:
+        value = re.sub(r"\s+", " ", str(text or "").strip())
+        value = value.strip(" .。、,;:/|")
+        return value.casefold()
+
+    def _dedupe_translation_entries(self, text: str) -> str:
+        value = str(text or "").strip()
+        if not value:
+            return ""
+        parts = [
+            part.strip()
+            for part in re.split(r"\s*(?:[/;,|]|\n+)\s*", value)
+            if part.strip()
+        ]
+        if len(parts) <= 1:
+            return value
+        seen: set[str] = set()
+        out: List[str] = []
+        for part in parts:
+            key = self._translation_dedupe_key(part)
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            out.append(part)
+        return ", ".join(out) if out else value
 
     def _translate_sentence(self, text: str) -> str:
         text = self._normalize_translation_input(text)
@@ -743,12 +1034,14 @@ class AnkiClient:
         subtitle_text = self._normalize_translation_input(subtitle)
 
         word_candidates = {
-            "jisho": self._translate_word_with_jisho(selected_text) if selected_text else "",
-            "google": self._translate_google(
+            "jisho": self._dedupe_translation_entries(
+                self._translate_word_with_jisho(selected_text)
+            ) if selected_text else "",
+            "google": self._dedupe_translation_entries(self._translate_google(
                 selected_text,
                 source_lang="ja",
                 target_lang=self.word_target_lang,
-            ) if selected_text else "",
+            )) if selected_text else "",
         }
 
         sentence_candidates = {

@@ -79,52 +79,59 @@ def make_nonactivating_tool_window(win: tk.Toplevel, topmost: bool = True) -> bo
 
 
 def make_nonactivating_window(win: tk.Toplevel, topmost: bool = True) -> bool:
-    """
-    Mark a normal window as no-activate while keeping its regular window chrome.
-    Unlike make_nonactivating_tool_window, this preserves normal minimize behavior.
-    """
     try:
         import ctypes
         import sys
 
         if not sys.platform.startswith("win"):
             return False
-        try:
-            win.update_idletasks()
-        except Exception:
-            pass
+
+        win.update_idletasks()
+
         hwnd = _get_windows_hwnd(win)
         if not hwnd:
             return False
 
         user32 = ctypes.windll.user32
-        gwl_exstyle = -20
-        ws_ex_noactivate = 0x08000000
-        swp_nosize = 0x0001
-        swp_nomove = 0x0002
-        swp_noactivate = 0x0010
-        swp_framechanged = 0x0020
-        hwnd_topmost = -1
-        hwnd_notopmost = -2
+
+        GWL_EXSTYLE = -20
+
+        WS_EX_NOACTIVATE = 0x08000000
+        WS_EX_APPWINDOW = 0x00040000
+
+        SWP_NOMOVE = 0x0002
+        SWP_NOSIZE = 0x0001
+        SWP_NOACTIVATE = 0x0010
+        SWP_FRAMECHANGED = 0x0020
 
         get_style = getattr(user32, "GetWindowLongPtrW", user32.GetWindowLongW)
         set_style = getattr(user32, "SetWindowLongPtrW", user32.SetWindowLongW)
-        style = int(get_style(hwnd, gwl_exstyle))
-        style |= ws_ex_noactivate
-        set_style(hwnd, gwl_exstyle, style)
+
+        style = int(get_style(hwnd, GWL_EXSTYLE))
+
+        style |= WS_EX_NOACTIVATE
+        style |= WS_EX_APPWINDOW
+
+        set_style(hwnd, GWL_EXSTYLE, style)
+
         user32.SetWindowPos(
             hwnd,
-            hwnd_topmost if topmost else hwnd_notopmost,
+            -1 if topmost else -2,
             0,
             0,
             0,
             0,
-            swp_nomove | swp_nosize | swp_noactivate | swp_framechanged,
+            SWP_NOMOVE
+            | SWP_NOSIZE
+            | SWP_NOACTIVATE
+            | SWP_FRAMECHANGED,
         )
-        return True
-    except Exception:
-        return False
 
+        return True
+
+    except Exception as e:
+        print("make_nonactivating_window:", e)
+        return False
 
 def show_window_no_activate_minimizable(win: tk.Toplevel, topmost: bool = True) -> None:
     """Show a normal minimizable window without asking Windows to foreground this process."""

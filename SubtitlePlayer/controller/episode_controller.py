@@ -171,7 +171,7 @@ class EpisodeController(_ControllerProxy):
             self.settings.root.title(title)
             self.current_time = self.default_start_time
             self.playback.set_current_time(self.current_time)
-            self._schedule_ocr_time_jump("episode_change")
+            self.ocr_controller._schedule_ocr_time_jump("episode_change")
 
     def update_max_width(self) -> None:
             # Recompute content width + padding

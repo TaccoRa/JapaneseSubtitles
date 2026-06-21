@@ -4,6 +4,7 @@ import threading
 import tkinter as tk
 from tkinter import ttk
 from typing import Any
+import traceback
 
 from utils import (
     get_monitor_rects,
@@ -193,7 +194,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             try:
                 self._root_topmost_before_advanced = bool(self.root.attributes("-topmost"))
             except Exception as e:
-                print(e)
+                print("keep main", e)
                 self._root_topmost_before_advanced = False
         self.root.attributes("-topmost", True)
 
@@ -241,14 +242,14 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             x, y = int(x_s), int(y_s)
             w, h = int(w_s), int(h_s)
         except Exception as e:
-            print(e)
+            print("save geom", e)
             try:
                 x = int(win.winfo_x())
                 y = int(win.winfo_y())
                 w = int(win.winfo_width())
                 h = int(win.winfo_height())
             except Exception as e:
-                print(e)
+                print("save geom", e)
                 return
 
         if (x, y) != (
@@ -286,7 +287,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         try:
             children = parent.winfo_children()
         except Exception as e:
-            print(e)
+            print("clear entry sel", e)
             return
         for child in children:
             if isinstance(child, (tk.Entry, ttk.Entry, ttk.Combobox)):
@@ -338,7 +339,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             if int(win.winfo_width()) != int(req_w) or int(win.winfo_height()) != int(req_h):
                 win.geometry(f"{req_w}x{req_h}+{x}+{y}")
         except Exception as e:
-            print(e)
+            print("fit window tab", e)
             pass
 
     def _prepare_advanced_tab_sizes(self):
@@ -348,7 +349,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         try:
             tab_id = notebook.select()
         except Exception as e:
-            print(e)
+            print("tab sizes", e)
             return
         if tab_id:
             self._prepare_advanced_tab_size(tab_id)
@@ -497,8 +498,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             root.after_cancel(self._ocr_region_count_refresh_job)
         try:
             self._ocr_region_count_refresh_job = root.after(80, self._refresh_ocr_count_runtime)
-        except Exception as e:
-            print(e)
+        except Exception:
+            traceback.print_exc()
             self._refresh_ocr_count_runtime()
 
     def _refresh_ocr_count_runtime(self) -> None:
@@ -515,7 +516,6 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                     {"key": "SUBTITLE_TIMEOUT_MS", "label": "Subtitle timeout (ms)", "type": "int", "default": 7000, "min": 100, "max": 120000},
                     {"key": "WINDOWS_HIDE_DELAY_MS", "label": "Control hide delay desktop (ms)", "type": "int", "default": 7000, "min": 100, "max": 120000},
                     {"key": "PHONEMODE_WINDOWS_HIDE_DELAY_MS", "label": "Control hide delay phone (ms)", "type": "int", "default": 6000, "min": 100, "max": 120000, "button_text": "Phone"},
-                    {"key": "VIDEO_CLICK", "label": "Auto-click video after control actions", "type": "bool", "default": False},
                 ],
             ),
             (
@@ -530,15 +530,12 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 ],
             ),
             (
-                "Subtitle Cleaning",
+                "Kanji / Ruby",
                 [
-                    {"key": "SUBTITLE_CUSTOM_HTML_TAGS", "label": "Custom HTML tags to keep", "type": "str", "default": ""},
-                    {"key": "SUBTITLE_SPEAKER_MODE", "label": "Speaker mode: hide, anime, template", "type": "str", "default": "hide"},
-                    {"key": "SUBTITLE_KEEP_SPEAKER_NAMES", "label": "Legacy: keep leading speaker labels", "type": "bool", "default": False},
-                    {"key": "SUBTITLE_SPEAKER_TEMPLATE", "label": "Custom speaker template ({name})", "type": "str", "default": "{name}: "},
-                    {"key": "SUBTITLE_STRIP_PAREN_NOTES", "label": "Remove remaining non-speaker (...) notes", "type": "bool", "default": False},
                     {"key": "SUBTITLE_AUTO_RUBY", "label": "Auto-add ruby for kanji-only lines", "type": "bool", "default": False},
                     {"key": "SUBTITLE_HOVER_RUBY", "label": "Show ruby only on kanji hover", "type": "bool", "default": False},
+                    {"key": "SHIFT_HOVER_KANJI_DICTIONARY", "label": "Shift-hover word definition window", "type": "bool", "default": False},
+                    {"key": "ANKI_SPLIT_KANJI_MORAS", "label": "Split kanji ruby by mora", "type": "bool", "default": False},
                 ],
             ),
         ]
@@ -567,6 +564,14 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                     {"key": "DEFAULT_SKIP", "label": "Default skip (s)", "type": "float", "default": 1.0, "min": 0.01, "max": 600.0},
                 ],
             ),
+            (
+                "Subtitle Cleaning",
+                [
+                    {"key": "SUBTITLE_SPEAKER_MODE", "label": "Speaker mode: hide, anime, template", "type": "str", "default": "hide"},
+                    {"key": "SUBTITLE_SPEAKER_TEMPLATE", "label": "Speaker template ({name})", "type": "str", "default": "{name}: ", "preserve_whitespace": True},
+                    {"key": "SUBTITLE_STRIP_PAREN_NOTES", "label": "Remove sound/action notes in (...) / （...）", "type": "bool", "default": False},
+                ],
+            ),
         ]
         return [left, right]
 
@@ -590,19 +595,19 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                     {"key": "ANKI_TAGS", "label": "Tags (comma-separated)", "type": "str", "default": "subtitleplayer", "allow_empty": True},
                 ],
             ),
-        ]
-        right = [
-            (
-                "Audio Clip Timing",
-                [
-                    {"key": "AUDIO_PADDING", "label": "Subtitle-end audio padding (s)", "type": "float", "default": 0.1, "min": -10.0, "max": 10.0},
-                ],
-            ),
             (
                 "Language",
                 [
                     {"key": "ANKI_WORD_TARGET_LANG", "label": "Word target language", "type": "str", "default": "de"},
                     {"key": "ANKI_SENTENCE_TARGET_LANG", "label": "Sentence target language", "type": "str", "default": "de"},
+                ],
+            ),
+        ]
+        right = [
+            (
+                "Audio Clip Timing",
+                [
+                    {"key": "AUDIO_PADDING", "label": "Subtitle-end audio padding (ms)", "type": "float", "default": 100},
                 ],
             ),
             (
@@ -640,7 +645,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 "activeforeground": btn.cget("activeforeground"),
             }
         except Exception as e:
-            print(e)
+            print("anki defaults", e)
             self._anki_check_defaults = None
 
     def _set_anki_check_button_state(self, connected):
@@ -673,7 +678,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             try:
                 connected = bool(self._on_anki_check())
             except Exception as e:
-                print(e)
+                print("anki worker connection", e)
                 connected = False
 
             def _finish():
@@ -700,6 +705,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                     {"key": "SHORTCUT_GO_FORWARD", "label": "Forward (seconds)", "type": "str", "default": "right"},
                     {"key": "SHORTCUT_SUBTITLE_BACK", "label": "Back (subtitle segment)", "type": "str", "default": "shift+left"},
                     {"key": "SHORTCUT_SUBTITLE_FORWARD", "label": "Forward (subtitle segment)", "type": "str", "default": "shift+right"},
+                    {"key": "SHORTCUT_TOGGLE_SUBTITLES", "label": "Show/Hide subtitles", "type": "str", "default": "s"},
                 ],
             ),
             (
@@ -739,6 +745,14 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                     {"key": "DISABLE_HOTKEY_SUBTITLE_BACK", "label": "Disable subtitle-back hotkey", "type": "bool", "default": False},
                     {"key": "DISABLE_HOTKEY_SUBTITLE_FORWARD", "label": "Disable subtitle-forward hotkey", "type": "bool", "default": False},
                     {"key": "DISABLE_HOTKEY_JUMP_SUB_END", "label": "Disable jump-sub-end hotkey", "type": "bool", "default": False},
+                    {"key": "DISABLE_HOTKEY_TOGGLE_SUBTITLES", "label": "Disable subtitle-toggle hotkeys", "type": "bool", "default": False},
+                ],
+            ),
+            (
+                "Popup Translation",
+                [
+                    {"key": "SHORTCUT_POPUP_DEEPL_TRANSLATE", "label": "DeepL selection translation", "type": "str", "default": "t"},
+                    {"key": "SHORTCUT_POPUP_GOOGLE_TRANSLATE", "label": "Google selection translation", "type": "str", "default": "g"},
                 ],
             ),
         ]
@@ -780,18 +794,38 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         text = str(value).strip().lower()
         return text in ("1", "true", "yes", "on")
     
+    # @staticmethod
+    # def _coerce_int(value, default: int = 0, min_v=None, max_v=None) -> int:
+    #     try:
+    #         num = int(float(str(value).strip().replace(",", ".")))
+    #     except Exception as e:
+    #         print("coerce int", e)
+    #         num = int(default)
+    #     if min_v is not None and num < int(min_v):
+    #         num = int(min_v)
+    #     if max_v is not None and num > int(max_v):
+    #         num = int(max_v)
+    #     return int(num)
+
     @staticmethod
     def _coerce_int(value, default: int = 0, min_v=None, max_v=None) -> int:
-        try:
-            num = int(float(str(value).strip().replace(",", ".")))
-        except Exception as e:
-            print(e)
+        text = str(value).strip().replace(",", ".")
+        if not text:
             num = int(default)
+        else:
+            try:
+                num = int(float(text))
+            except Exception:
+                print("coerce_int failed:", repr(value))
+                traceback.print_stack(limit=6)
+                num = int(default)
+
         if min_v is not None and num < int(min_v):
             num = int(min_v)
         if max_v is not None and num > int(max_v):
             num = int(max_v)
         return int(num)
+
 
     def _build_ocr_actions(self, ocr_tab: tk.Frame) -> None:
         actions = tk.LabelFrame(ocr_tab, text="Actions", padx=10, pady=8)
@@ -865,6 +899,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             if menu_widget is None or var is None:
                 return
             menu = menu_widget["menu"]
+            if menu is None:
+                return
             menu.delete(0, "end")
             for opt in options:
                 menu.add_command(label=opt, command=lambda v=opt, vv=var: vv.set(v))
@@ -903,7 +939,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 "activeforeground": btn.cget("activeforeground"),
             }
         except Exception as e:
-            print(e)
+            print("rememver ocr buttons", e)
             self._ocr_button_defaults = None
 
     def _apply_ocr_button_style(self, btn: tk.Button, active: bool) -> None:
@@ -927,7 +963,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         try:
             values = self._get_ocr_values_from_vars()
         except Exception as e:
-            print(e)
+            print("ocs screen button", e)
             values = {}
 
         region_count = self._get_ocr_region_count_from_vars()
@@ -1011,7 +1047,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 try:
                     values[key] = float(str(var.get()).strip().replace(",", "."))
                 except Exception as e:
-                    print(e)
+                    print("ocr values", e)
                     values[key] = float(spec.get("default", 0.0))
                 continue
             text = str(var.get()).strip()
@@ -1151,14 +1187,21 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 var.set(self._format_number(val))
             else:
                 if isinstance(cfg_val, list):
-                    text = ", ".join(str(v).strip() for v in cfg_val if str(v).strip())
+                    if bool(spec.get("preserve_whitespace", False)):
+                        text = ", ".join(str(v) for v in cfg_val if str(v))
+                    else:
+                        text = ", ".join(str(v).strip() for v in cfg_val if str(v).strip())
                 else:
-                    text = str(cfg_val).strip() if cfg_val is not None else ""
+                    text = str(cfg_val) if bool(spec.get("preserve_whitespace", False)) and cfg_val is not None else (
+                        str(cfg_val).strip() if cfg_val is not None else ""
+                    )
                 allow_empty = bool(spec.get("allow_empty", False))
                 if (not text) and ((cfg_val is None) or (not allow_empty)):
                     text = str(spec.get("default", ""))
                 var.set(text)
         self._sync_advanced_startup_vars_from_runtime()
+        self._sync_input_mode_runtime_flags()
+        self._refresh_input_mode_button()
         try:
             values = self._get_ocr_values_from_vars()
             self._ocr_selected_screen = self._get_ocr_screen_for_region(
@@ -1187,7 +1230,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 values[key] = bool(var.get())
                 continue
             if spec["type"] == "str":
-                text = str(var.get()).strip()
+                text = str(var.get()) if bool(spec.get("preserve_whitespace", False)) else str(var.get()).strip()
                 allow_empty = bool(spec.get("allow_empty", False))
                 if not text and not allow_empty:
                     text = str(spec.get("default", ""))
@@ -1316,4 +1359,3 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         else:
             if hasattr(self, "_advanced_status_var"):
                 self._advanced_status_var.set("Applied for current session (not saved).")
-        

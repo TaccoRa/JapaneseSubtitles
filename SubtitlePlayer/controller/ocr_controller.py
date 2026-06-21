@@ -32,6 +32,20 @@ class OCRController(_ControllerProxy):
     def __init__(self, controller: Any) -> None:
         super().__init__(controller)
 
+    # ---------------------------------------------------------------------
+    # Shutdown-safe Tk scheduling
+    # ---------------------------------------------------------------------
+    def _safe_after(self, delay, callback):
+        if self._shutting_down:
+            return None
+        root = getattr(self.settings, "root", None)
+        if root is None or not root.winfo_exists():
+            return None
+        try:
+            return root.after(delay, callback)
+        except Exception:
+            return None
+
     def _schedule_ocr_time_jump(self, reason: str) -> None:
             if self._shutting_down:
                 return
@@ -39,7 +53,10 @@ class OCRController(_ControllerProxy):
                 return
             delay_ms = 800 if reason == "startup" else 500
             if self._ocr_job is not None:
-                self.settings.root.after_cancel(self._ocr_job)
+                try:
+                    self.settings.root.after_cancel(self._ocr_job)
+                except Exception:
+                    pass
             self._ocr_generation += 1
             try:
                 self._ocr_pending_time = float(self.current_time)
@@ -52,11 +69,7 @@ class OCRController(_ControllerProxy):
             def _kickoff():
                 self._run_ocr_time_jump_async(generation)
 
-            try:
-                self._ocr_job = self.settings.root.after(delay_ms, _kickoff)
-            except Exception as e:
-                print(e)
-                self._ocr_job = None
+            self._ocr_job = self._safe_after(delay_ms, _kickoff)
 
     def _run_ocr_time_jump_async(self, generation: int) -> None:
             if self._shutting_down:
@@ -66,7 +79,9 @@ class OCRController(_ControllerProxy):
                 seconds = self._ocr_find_time_seconds()
                 if seconds is None:
                     return
-                self.settings.root.after(0, lambda: self._apply_ocr_time(seconds, generation))
+                if self._shutting_down:
+                    return
+                self._safe_after(0, lambda: self._apply_ocr_time(seconds, generation))
 
             self._ocr_thread = threading.Thread(target=worker, daemon=True)
             self._ocr_thread.start()
@@ -112,6 +127,8 @@ class OCRController(_ControllerProxy):
                 return None
 
     def _temporarily_hide_windows_for_ocr(self, override: dict | None = None):
+            if self._shutting_down:
+                return lambda: None
             try:
                 ocr_regions = [tuple(region) for _idx, region, _custom in self._get_ocr_capture_regions(override)]
             except Exception as e:
@@ -155,7 +172,10 @@ class OCRController(_ControllerProxy):
                 hidden.append((win, state))
                 win.withdraw()
 
-            self.settings.root.update_idletasks()
+            try:
+                self.settings.root.update_idletasks()
+            except Exception:
+                pass
 
             passive_windows = {
                 getattr(self.overlay, "subtitle_handle", None),
@@ -164,6 +184,8 @@ class OCRController(_ControllerProxy):
             }
 
             def restore():
+                if self._shutting_down:
+                    return
                 for win, state in hidden:
                     if not win.winfo_exists():
                         continue
@@ -190,27 +212,26 @@ class OCRController(_ControllerProxy):
             restore_windows = self._temporarily_hide_windows_for_ocr(override=override)
 
             def start_worker():
+                if self._shutting_down:
+                    return
+
                 def worker():
                     try:
                         seconds = self._ocr_find_time_seconds(override=override)
+                        if self._shutting_down:
+                            return
                         if seconds is None:
                             self._log_ocr_read_failure(override=override)
                             return
-                        self.settings.root.after(0, lambda: self._apply_ocr_time_manual(seconds))
+                        self._safe_after(0, lambda: self._apply_ocr_time_manual(seconds))
                     finally:
-                        try:
-                            self.settings.root.after(0, restore_windows)
-                        except Exception as e:
-                            print(e)
-                            restore_windows()
+                        if self._shutting_down:
+                            return
+                        self._safe_after(0, restore_windows)
 
                 threading.Thread(target=worker, daemon=True).start()
 
-            try:
-                self.settings.root.after(140, start_worker)
-            except Exception as e:
-                print(e)
-                start_worker()
+            self._safe_after(140, start_worker)
 
     def _log_ocr_read_failure(self, override: dict | None = None) -> None:
             try:
@@ -219,7 +240,7 @@ class OCRController(_ControllerProxy):
                 print(e)
                 regions = []
             if not regions:
-                print("OCR read-now failed: no capture region available.")
+                # print("OCR read-now failed: no capture region available.")
                 return
             details = []
             for region_idx, region, is_custom in regions:
@@ -230,7 +251,7 @@ class OCRController(_ControllerProxy):
                 except Exception:#
                     details.append(f"#{region_idx} <invalid region>")
             joined = "; ".join(details)
-            print(f"OCR read-now failed: no valid timecode detected. Checked {len(regions)} region(s): {joined}")
+            # print(f"OCR read-now failed: no valid timecode detected. Checked {len(regions)} region(s): {joined}")
 
     def on_ocr_sync_now(self, override: dict | None = None) -> None:
             if self._shutting_down:
@@ -279,9 +300,15 @@ class OCRController(_ControllerProxy):
                     started = time.perf_counter()
                     base_time = float(self.current_time)
                     seconds = self._ocr_find_time_seconds(override=override)
+
+                    # Re-check immediately after the (potentially slow) OCR call,
+                    # since shutdown may have started while we were blocked in it.
+                    if self._shutting_down or generation != self._ocr_sync_generation:
+                        return
+
                     if seconds is not None and base_time is not None:
                         if not snapped_initial:
-                            self.settings.root.after(0, lambda s=seconds: self._apply_ocr_time_manual(s))
+                            self._safe_after(0, lambda s=seconds: self._apply_ocr_time_manual(s))
                             snapped_initial = True
                             sleep_for = interval_sec - (time.perf_counter() - started)
                             if sleep_for > 0:
@@ -293,7 +320,7 @@ class OCRController(_ControllerProxy):
                         delta = seconds - base_time
                         if abs(delta) >= 0.15:
                             adjust = max(-0.5, min(0.5, delta * 0.5))
-                            self.settings.root.after(0, lambda d=adjust: self._apply_ocr_sync_delta(d))
+                            self._safe_after(0, lambda d=adjust: self._apply_ocr_sync_delta(d))
                     sleep_for = interval_sec - (time.perf_counter() - started)
                     if sleep_for > 0:
                         time.sleep(sleep_for)
@@ -346,6 +373,8 @@ class OCRController(_ControllerProxy):
 
             region_images = []
             for region_idx, region, is_custom in regions:
+                if self._shutting_down:
+                    return None
                 img = self._capture_ocr_image(region)
                 if img is None:
                     region_images.append((region_idx, None))
@@ -356,6 +385,8 @@ class OCRController(_ControllerProxy):
 
             for label, maker in variant_makers:
                 for region_idx, img in region_images:
+                    if self._shutting_down:
+                        return None
                     if img is None:
                         continue
                     try:
@@ -384,7 +415,7 @@ class OCRController(_ControllerProxy):
                     pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
                 return pytesseract.image_to_string(image, config=config_str) or ""
             except Exception as e:
-                print(e)
+                print("test", e)
                 pass
 
             tmp_path = None
@@ -664,7 +695,6 @@ class OCRController(_ControllerProxy):
             bbox = (int(x), int(y), int(x + w), int(y + h))
             try:
                 return ImageGrab.grab(bbox=bbox, all_screens=True)
-                return ImageGrab.grab(bbox=bbox)
             except Exception as e:
                 print(e)
                 pass

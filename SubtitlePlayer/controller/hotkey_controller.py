@@ -197,8 +197,13 @@ class HotkeyController(_ControllerProxy):
                     self._input_pump_job = None
 
     def _dispatch_input_action(self, action: str) -> None:
+            if action in {"toggle_subtitles", "clear_subtitle"} and self._hotkey_action_disabled(action):
+                return
             if action == "toggle_play":
                 self.playback.toggle_play()
+            elif action == "toggle_subtitles":
+                self.subtitle_navigation.toggle_subtitle_visibility()
+                self._show_control_window_for_subtitle_toggle()
             elif action == "go_back":
                 self.playback.go_back()
             elif action == "go_forward":
@@ -216,10 +221,7 @@ class HotkeyController(_ControllerProxy):
             elif action == "episode_dec":
                 self.change_episode("dec")
             elif action == "clear_subtitle":
-                self.renderer.canvas.delete("all")
-                # Keep last_subtitle_text intact so _update_subtitle_display() won't immediately redraw
-                # the same subtitle on the next timer tick. It will render again once the subtitle changes.
-                self.subtitle_deleted = True
+                self.subtitle_navigation.toggle_subtitle_visibility()
             elif action == "toggle_m3_mode":
                 self._toggle_m3_mode()
             elif action == "_seek_step_back":
@@ -409,8 +411,41 @@ class HotkeyController(_ControllerProxy):
                 ("episode_inc", self._get_shortcut_value("SHORTCUT_EPISODE_INC")),
                 ("episode_dec", self._get_shortcut_value("SHORTCUT_EPISODE_DEC")),
                 ("jump_sub_end", self._get_shortcut_value("SHORTCUT_JUMP_SUB_END")),
+                ("toggle_subtitles", self._get_shortcut_value("SHORTCUT_TOGGLE_SUBTITLES")),
             ]
             return [(action, binding) for action, binding in bindings if not self._hotkey_action_disabled(action)]
+
+    def _popup_translation_bindings(self):
+            return [
+                ("popup_deepl_translate", self._get_shortcut_value("SHORTCUT_POPUP_DEEPL_TRANSLATE"), "deepl"),
+                ("popup_google_translate", self._get_shortcut_value("SHORTCUT_POPUP_GOOGLE_TRANSLATE"), "google"),
+            ]
+
+    def _popup_translation_press(self, key) -> tuple[str, str] | None:
+            if not self._is_popup_open():
+                return None
+            for action, binding, provider in self._popup_translation_bindings():
+                if binding and self._shortcut_matches(binding, key):
+                    return action, provider
+            return None
+
+    def _translation_release_matches(self, action: str, key) -> bool:
+            for candidate, binding, _provider in self._popup_translation_bindings():
+                if candidate != action:
+                    continue
+                mods, key_token = self._split_shortcut(binding)
+                released_tokens = self._key_tokens(key)
+                if key_token and key_token in released_tokens:
+                    return True
+                modifier = None
+                if key in (Key.shift_l, Key.shift_r):
+                    modifier = "shift"
+                elif key in (Key.alt_l, Key.alt_r):
+                    modifier = "alt"
+                elif key in (Key.ctrl_l, Key.ctrl_r):
+                    modifier = "ctrl"
+                return bool(modifier and modifier in mods)
+            return False
 
     def _hotkeys_disabled(self) -> bool:
             if bool(getattr(self.sub_manager, "is_search_dialog_active", lambda: False)()):
@@ -419,13 +454,23 @@ class HotkeyController(_ControllerProxy):
                 return True
             return bool(self.config.get("SHORTCUTS_DISABLED") or False)
 
-    def _reset_hotkey_state(self) -> None:
-            self.shift_pressed = False
+    def _reset_hotkey_state(self, reset_shift: bool = True) -> None:
+            was_shift_pressed = bool(getattr(self, "shift_pressed", False))
+            was_translation_pressed = bool(getattr(self, "translation_pressed", False))
+            if reset_shift:
+                self.shift_pressed = False
+            self.translation_pressed = False
+            self.translation_provider = "deepl"
+            self._active_translation_action = None
             self.alt_pressed = False
             self.ctrl_pressed = False
             self._single_fire_actions.clear()
             repeat_actions = {action for action, _ in self._repeat_action_bindings()}
             self._release_repeat_actions(repeat_actions, settle_seek=False)
+            if reset_shift and was_shift_pressed:
+                self._clear_shift_hover_displays()
+            if was_translation_pressed:
+                self._refresh_popup_translation_display()
 
     def _toggle_m3_mode(self) -> None:
             enable_m3 = not self._hotkeys_disabled()
@@ -434,16 +479,31 @@ class HotkeyController(_ControllerProxy):
             except Exception as e:
                 print(e)
                 return
-            # Clear any stuck modifier state when toggling hotkeys on/off.
-            self._reset_hotkey_state()
+            # Clear hotkey state without disabling Shift-hover dictionary lookup.
+            self._reset_hotkey_state(reset_shift=False)
 
     def _on_key_press(self, key):
-            if self._hotkeys_disabled():
-                self._reset_hotkey_state()
-                return
-
             if key in (Key.shift_l, Key.shift_r):
+                if self.shift_pressed:
+                    return
                 self.shift_pressed = True
+                return
+            popup_translation = self._popup_translation_press(key)
+            if popup_translation is not None:
+                action, provider = popup_translation
+                if self.translation_pressed:
+                    if self.translation_provider != provider:
+                        self.translation_provider = provider
+                        self._active_translation_action = action
+                        self._refresh_popup_translation_display()
+                    return
+                self.translation_pressed = True
+                self.translation_provider = provider
+                self._active_translation_action = action
+                self._refresh_popup_translation_display()
+                return
+            if self._hotkeys_disabled():
+                self._reset_hotkey_state(reset_shift=False)
                 return
             if key in (Key.alt_l, Key.alt_r):
                 self.alt_pressed = True
@@ -453,7 +513,7 @@ class HotkeyController(_ControllerProxy):
                 return
 
             if self._is_text_input_focused():
-                self._reset_hotkey_state()
+                self._reset_hotkey_state(reset_shift=False)
                 return
 
             mapping = []
@@ -476,16 +536,33 @@ class HotkeyController(_ControllerProxy):
                 return
 
     def _on_key_release(self, key):
-            if self._hotkeys_disabled():
-                self._reset_hotkey_state()
-                return
-
-            if self._is_text_input_focused():
-                self._reset_hotkey_state()
+            active_translation_action = getattr(self, "_active_translation_action", None)
+            if active_translation_action and self._translation_release_matches(active_translation_action, key):
+                self.translation_pressed = False
+                self.translation_provider = "deepl"
+                self._active_translation_action = None
+                self._refresh_popup_translation_display()
                 return
 
             if key in (Key.shift_l, Key.shift_r):
-                self.shift_pressed = False
+                if self.shift_pressed:
+                    self.shift_pressed = False
+                    self._clear_shift_hover_displays()
+                with self._repeat_lock:
+                    repeat_actions_to_drop = set(self._held_repeat_next_fire.keys())
+                if not repeat_actions_to_drop:
+                    repeat_actions_to_drop = {action for action, _ in self._repeat_action_bindings()}
+                self._release_repeat_actions(repeat_actions_to_drop, settle_seek=True)
+                return
+
+            if self._hotkeys_disabled():
+                self._reset_hotkey_state(reset_shift=False)
+                return
+
+            if self._is_text_input_focused():
+                self._reset_hotkey_state(reset_shift=False)
+                return
+
             if key in (Key.alt_l, Key.alt_r):
                 self.alt_pressed = False
             if key in (Key.ctrl_l, Key.ctrl_r):
@@ -510,8 +587,52 @@ class HotkeyController(_ControllerProxy):
             self.settings.control_window.attributes("-topmost", True)
             self.popup.ensure_on_top()
 
+    def _clear_shift_hover_displays(self) -> None:
+            for owner_name in ("popup", "renderer"):
+                try:
+                    owner = getattr(self.controller, owner_name, None)
+                    clear = getattr(owner, "_clear_hover_ruby", None)
+                    if callable(clear):
+                        clear()
+                except Exception:
+                    pass
+
+    def _refresh_popup_translation_display(self) -> None:
+            try:
+                refresh = getattr(getattr(self.controller, "popup", None), "refresh_hover_display", None)
+                if callable(refresh):
+                    refresh()
+            except Exception:
+                pass
+
+    def _is_popup_open(self) -> bool:
+            try:
+                popup = getattr(self.controller, "popup", None)
+                checker = getattr(popup, "is_open", None)
+                return bool(checker()) if callable(checker) else False
+            except Exception:
+                return False
+
+    def _show_control_window_for_subtitle_toggle(self) -> None:
+            control = getattr(self.settings, "control_window", None)
+            if control is None:
+                return
+            try:
+                if control.winfo_exists():
+                    control.deiconify()
+                    control.lift()
+                    try:
+                        control.attributes("-topmost", True)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
     def _on_global_click(self, x, y, button, pressed):
-            if button == Button.x2 and pressed:
-                self._enqueue_input_action("clear_subtitle")
-            if button == Button.x1 and pressed:
+            if not pressed:
+                return
+            if button == Button.x2:
+                if not self._hotkey_action_disabled("clear_subtitle"):
+                    self._enqueue_input_action("clear_subtitle")
+            elif button in (Button.x1, Button.middle):
                 self._enqueue_input_action("toggle_m3_mode")

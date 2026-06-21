@@ -30,6 +30,8 @@ class SubtitlePlayerApp:
 
         self._startup_done = threading.Event()
         self._startup_error = self._startup_result = self._startup_thread = self._startup_overlay = None
+        self._closing = False
+        self._startup_check_job = None
 
         self.sub_manager = None
         self.renderer = None
@@ -47,8 +49,11 @@ class SubtitlePlayerApp:
         self._show_startup_overlay()
         self._start_startup_worker()
 
-        self.root.after(50, self._check_startup_worker)
-        self.root.mainloop()
+        self._startup_check_job = self.root.after(50, self._check_startup_worker)
+        try:
+            self.root.mainloop()
+        finally:
+            self._closing = True
 
     def _load_config(self):
         try:
@@ -62,10 +67,8 @@ class SubtitlePlayerApp:
         self.root.withdraw()
         self.root.title("SubtitlePlayer")
         self.root.geometry("280x115")
-
         self._restore_window_position()
-        # self.root.protocol("WM_DELETE_WINDOW", self._on_close)
-
+        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
     def _show_startup_overlay(self):
         self._startup_overlay = LoadingOverlay(self.root,text="Starting SubtitlePlayer...",modal=False)
         set_startup_overlay(self._startup_overlay)
@@ -78,6 +81,14 @@ class SubtitlePlayerApp:
         try:
             sub_manager = SubtitleManager(self.config)
             total_duration = sub_manager.get_total_duration()
+            if self._closing:
+                try:
+                    shutdown = getattr(sub_manager, "shutdown", None)
+                    if callable(shutdown):
+                        shutdown()
+                except Exception:
+                    pass
+                return
             self._startup_result = (sub_manager, total_duration)
         except Exception as exc:
             self._startup_error = exc
@@ -85,22 +96,29 @@ class SubtitlePlayerApp:
             self._startup_done.set()
 
     def _check_startup_worker(self):
-        if not self._startup_done.is_set():
-            self.root.after(50, self._check_startup_worker)
+        if self._closing:
             return
+        if not self._startup_done.is_set():
+            self._startup_check_job = self.root.after(50, self._check_startup_worker)
+            return
+        self._startup_check_job = None
         self.root.after(0, self._finish_startup)
 
     def _finish_startup(self):
+        if self._closing:
+            return
         if self._startup_error or not self._startup_result:
             self._close_startup_overlay()
             logger.exception("Startup failed", exc_info=self._startup_error)
-            self.root.destroy()
+            self._destroy_root()
             return
 
         self.sub_manager, self.total_duration = self._startup_result
         self.root.after(0, self._finish_startup_ui)
 
     def _finish_startup_ui(self):
+        if self._closing:
+            return
         self._build_ui()
         self._build_renderer()
         self._build_controller()
@@ -109,7 +127,7 @@ class SubtitlePlayerApp:
         self.root.deiconify()
         self._close_startup_overlay()
         self.sub_overlay_ui.show()
-        self.root.after(self.config.get("UPDATE_INTERVAL_MS"), self.controller.update_loop)
+        self.controller.schedule_update()
 
     def _close_startup_overlay(self):
         if self._startup_overlay:
@@ -212,3 +230,60 @@ class SubtitlePlayerApp:
         except Exception as e:
             print("ERROR:", e)
             return None
+
+    def _on_close(self):
+        if self._closing:
+            return
+        self._closing = True
+        if self._startup_check_job is not None:
+            try:
+                self.root.after_cancel(self._startup_check_job)
+            except Exception:
+                pass
+            self._startup_check_job = None
+
+        try:
+            if self.controller is not None:
+                self.controller.shutdown()
+                return
+        except Exception as e:
+            print("controller shutdown:", e)
+
+        try:
+            if self.sub_manager is not None:
+                shutdown = getattr(self.sub_manager, "shutdown", None)
+                if callable(shutdown):
+                    shutdown()
+        except Exception:
+            pass
+
+        try:
+            if self.popup is not None:
+                self.popup._close()
+        except Exception:
+            pass
+
+        try:
+            if self.settings_ui is not None and getattr(self.settings_ui, "advanced_window", None):
+                win = self.settings_ui.advanced_window
+                if win.winfo_exists():
+                    win.destroy()
+        except Exception:
+            pass
+        self._close_startup_overlay()
+        self._destroy_root()
+
+    def _destroy_root(self):
+        try:
+            self.root.update_idletasks()
+        except Exception:
+            pass
+        try:
+            self.root.quit()
+        except Exception:
+            pass
+        try:
+            if self.root is not None and self.root.winfo_exists():
+                self.root.destroy()
+        except Exception:
+            pass

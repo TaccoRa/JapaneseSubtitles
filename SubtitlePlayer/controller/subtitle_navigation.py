@@ -31,8 +31,8 @@ class SubtitleNavigationController(_ControllerProxy):
     
     @staticmethod
     def _format_delta_seconds(value: float) -> str:
-            text = f"{abs(float(value)):.2f}".rstrip("0").rstrip(".")
-            return text if text else "0"
+        text = f"{abs(float(value)):.2f}".rstrip("0").rstrip(".")
+        return text if text else "0"
 
     def on_set_to_return(self, text: str):
         self.settto_editing = False
@@ -76,117 +76,123 @@ class SubtitleNavigationController(_ControllerProxy):
         self._release_time_entry_focus()
 
     def _release_time_entry_focus(self) -> None:
-            try:
-                focused = self.settings.control_window.focus_get()
-            except Exception as e:
-                print(e)
-                focused = None
-            try:
-                time_entry = self.settings.time_entry
-            except Exception as e:
-                print(e)
-                time_entry = None
-            if focused is not time_entry:
-                return
-            target = getattr(self.overlay, "sub_window", None)
-            if target is not None and target.winfo_exists():
-                target.focus_force()
-                return
-            try:
-                self.settings.control_window.after_idle(
-                    lambda: self.settings.control_window.tk.call("focus", "")
-                )
-                return
-            except Exception as e:
-                print(e)
-                pass
-            self.settings.control_window.focus_set()
+        try:
+            focused = self.settings.control_window.focus_get()
+        except Exception as e:
+            print(e)
+            focused = None
+        try:
+            time_entry = self.settings.time_entry
+        except Exception as e:
+            print(e)
+            time_entry = None
+        if focused is not time_entry:
+            return
+        target = getattr(self.overlay, "sub_window", None)
+        if target is not None and target.winfo_exists():
+            target.focus_force()
+            return
+        try:
+            self.settings.control_window.after_idle(
+                lambda: self.settings.control_window.tk.call("focus", "")
+            )
+            return
+        except Exception as e:
+            print(e)
+            pass
+        self.settings.control_window.focus_set()
 
     def control_time_entry_return(self, event):
-            self.entry_editing  = False
-            text = self.settings.control_time_str.get().strip()
-            if not re.fullmatch(r"[\d:.]+", text):
-                self.settings.control_time_str.set(format_time(self.current_time))
-                self._release_time_entry_focus()
-                return
-            new_time = parse_time_value(text)
-            self.playback.set_current_time(new_time)
+        self.entry_editing  = False
+        text = self.settings.control_time_str.get().strip()
+        if not re.fullmatch(r"[\d:.]+", text):
+            self.settings.control_time_str.set(format_time(self.current_time))
             self._release_time_entry_focus()
+            return
+        new_time = parse_time_value(text)
+        self.playback.set_current_time(new_time)
+        self._release_time_entry_focus()
 
     def control_clear_time_entry(self, event):
-            if self.playing:
-                self.playback.toggle_play()
-            self.entry_editing  = True
-            event.widget.delete(0, tk.END)
+        if self.playing:
+            self.playback.toggle_play()
+        self.entry_editing  = True
+        event.widget.delete(0, tk.END)
 
     def update_time_and_subtitle_displays(self):#updates settings time overlay and control window entry
-            text = format_time(self.current_time)
-            pending = float(getattr(self, "_pending_seek_delta", 0.0) or 0.0)
-            if abs(pending) >= 0.001:
-                sign = "+" if pending > 0 else "-"
-                text = f"{text} ({sign}{self._format_delta_seconds(pending)}s)"
-            self.settings.time_overlay.itemconfig(self.settings.time_overlay_text, text=text)
-            self.settings.update_time_overlay_position()
-            if not self.entry_editing:
-                self.settings.control_time_str.set(text)
-            self._update_subtitle_display()
+        text = format_time(self.current_time)
+        pending = float(getattr(self, "_pending_seek_delta", 0.0) or 0.0)
+        if abs(pending) >= 0.001:
+            sign = "+" if pending > 0 else "-"
+            text = f"{text} ({sign}{self._format_delta_seconds(pending)}s)"
+        self.settings.time_overlay.itemconfig(self.settings.time_overlay_text, text=text)
+        self.settings.update_time_overlay_position()
+        if not self.entry_editing:
+            self.settings.control_time_str.set(text)
+        self._update_subtitle_display()
 
     def _update_subtitle_display(self, force: bool = False):
-            offset = self.settings._last_offset_value
-            sub_t = self.current_time - offset
+        offset = self.settings._last_offset_value
+        sub_t = self.current_time - offset
 
-            if sub_t < 0 or sub_t > self.total_duration:
-                self.last_rendered_index = None
-                self.last_subtitle_text = ""
-                self._reset_canvas()
-                return
+        if sub_t < 0 or sub_t > self.total_duration:
+            self.last_rendered_index = None
+            self.last_subtitle_text = ""
+            self._reset_canvas()
+            return
 
-            start_times = self._get_display_start_times()
-            idx = bisect.bisect_right(start_times, sub_t) - 1
+        start_times = self._get_display_start_times()
+        idx = bisect.bisect_right(start_times, sub_t) - 1
 
-            if idx < 0:
-                self.last_rendered_index = None
-                self.last_subtitle_text = ""
-                self._reset_canvas()
-                return
+        if idx < 0:
+            self.last_rendered_index = None
+            self.last_subtitle_text = ""
+            self._reset_canvas()
+            return
 
-            clean, _, top, bottom = self.sub_manager.display_data[idx]
-            copy_text = self.segments_to_copy_text(top, bottom) or clean
-            self.last_subtitle_raw = copy_text
+        clean, _, top, bottom = self.sub_manager.display_data[idx]
+        copy_text = self.segments_to_copy_text(top, bottom) or clean
+        self.last_subtitle_raw = copy_text
 
-            if (
-                not force
-                and not self.subtitle_deleted
-                and idx == self.last_rendered_index
-                and copy_text == self.last_subtitle_text
-            ):
-                return
-            
-            self.sub_manager.ensure_auto_ruby_for_index(idx)
+        # KEEP HIDDEN UNTIL SUBTITLE CHANGES
+        if (
+            not force
+            and self.subtitle_deleted
+            and idx == self.last_rendered_index
+            and copy_text == self.last_subtitle_text
+        ):
+            return
 
-            clean, _, top, bottom = self.sub_manager.display_data[idx]
-            copy_text = self.segments_to_copy_text(top, bottom) or clean
-            self.last_subtitle_raw = copy_text
+        if (
+            not force
+            and not self.subtitle_deleted
+            and idx == self.last_rendered_index
+            and copy_text == self.last_subtitle_text
+        ):
+            return
 
-            if self.subtitle_timeout_job:
-                self.overlay.root.after_cancel(self.subtitle_timeout_job)
-                self.subtitle_timeout_job = None
+        self.sub_manager.ensure_auto_ruby_for_index(idx)
 
-            # self.renderer.canvas.delete("all")
+        clean, _, top, bottom = self.sub_manager.display_data[idx]
+        copy_text = self.segments_to_copy_text(top, bottom) or clean
+        self.last_subtitle_raw = copy_text
 
-            # add this only if overlay may recreate the canvas
-            self.renderer.update_canvas(self.overlay.subtitle_canvas)
+        if self.subtitle_timeout_job:
+            self.overlay.root.after_cancel(self.subtitle_timeout_job)
+            self.subtitle_timeout_job = None
 
-            self.last_subtitle_text = copy_text
-            self.last_rendered_index = idx
-            self.subtitle_deleted = False
+        self.renderer.update_canvas(self.overlay.subtitle_canvas)
 
-            self.renderer.render_subtitle(top, bottom, self.overlay)
+        self.last_subtitle_text = copy_text
+        self.last_rendered_index = idx
+        self.subtitle_deleted = False
 
-            self.subtitle_timeout_job = self.overlay.root.after(
-                self.hide_subtitles_ms,
-                self._hide_subtitles_temporarily
-            )
+        self.renderer.render_subtitle(top, bottom, self.overlay)
+
+        self.subtitle_timeout_job = self.overlay.root.after(
+            self.hide_subtitles_ms,
+            self._hide_subtitles_temporarily
+        )
     
     @staticmethod
     def segments_to_copy_text(top_segments, bottom_segments) -> str:
@@ -207,42 +213,68 @@ class SubtitleNavigationController(_ControllerProxy):
         return "\n".join(lines)
     
     def _reset_canvas(self):
-            self.renderer.canvas.delete("all")
-            self.last_rendered_index = None
-            self.last_subtitle_text = ""
-            self.subtitle_deleted = True
+        self.renderer.canvas.delete("all")
+        self.last_rendered_index = None
+        self.last_subtitle_text = ""
+        self.subtitle_deleted = True
 
-    def _hide_subtitles_temporarily(self):
-            if not self.playing:
-                self.subtitle_timeout_job = None
-                return
-            if not self.subtitle_deleted:
-                self.renderer.canvas.delete("all")
-                self.subtitle_deleted = True
-                self.last_rendered_index = None
+    def toggle_subtitle_visibility(self, event=None):
+        if self.subtitle_timeout_job:
+            try:
+                self.overlay.root.after_cancel(self.subtitle_timeout_job)
+            except Exception:
+                pass
             self.subtitle_timeout_job = None
 
-    def on_refresh_subtitles(self, event):
-            if self.subtitle_timeout_job:
-                self.overlay.root.after_cancel(self.subtitle_timeout_job)
-                self.subtitle_timeout_job = None
+        if self.subtitle_deleted:
+            self.subtitle_deleted = False
             self.last_subtitle_text = ""
-            self.subtitle_deleted    = False
-            self.update_time_and_subtitle_displays()
+            self._update_subtitle_display(force=True)
+            return "break"
+
+        try:
+            self.renderer.canvas.delete("all")
+            if hasattr(self.renderer, "destroy_hover_windows"):
+                self.renderer.destroy_hover_windows()
+        except Exception:
+            pass
+        self.subtitle_deleted = True
+        return "break"
+
+    def _hide_subtitles_temporarily(self):
+        if not self.playing:
+            self.subtitle_timeout_job = None
+            return
+
+        if not self.subtitle_deleted:
+            self.renderer.canvas.delete("all")
+            self.subtitle_deleted = True
+
+        self.subtitle_timeout_job = None
+
+    def on_refresh_subtitles(self, event):
+        if self.subtitle_timeout_job:
+            self.overlay.root.after_cancel(self.subtitle_timeout_job)
+            self.subtitle_timeout_job = None
+        self.last_subtitle_text = ""
+        self.subtitle_deleted    = False
+        self.update_time_and_subtitle_displays()
 
     def on_slider_press(self, event):
-            self.slider_dragging = True
+        self.slider_dragging = True
 
     def on_slider_change(self, value):
-            if self.slider_dragging:
-                text = format_time(float(value))
-                self.settings.time_overlay.itemconfig(self.settings.time_overlay_text, text=text)
-                self.settings.update_time_overlay_position()
-                if not self.entry_editing:
-                    self.settings.control_time_str.set(text)
-                self.current_time = float(value)
-                self._update_subtitle_display()
+        if self._shutting_down:
+            return
+        if self.slider_dragging:
+            text = format_time(float(value))
+            self.settings.time_overlay.itemconfig(self.settings.time_overlay_text, text=text)
+            self.settings.update_time_overlay_position()
+            if not self.entry_editing:
+                self.settings.control_time_str.set(text)
+            self.current_time = float(value)
+            self._update_subtitle_display()
 
     def on_slider_release(self, event):
-            self.slider_dragging = False
-            self.playback.set_current_time(self.settings.slider.get())
+        self.slider_dragging = False
+        self.playback.set_current_time(self.settings.slider.get())

@@ -1,17 +1,12 @@
 To Do:
-if buttonx2 is pressed and M3 is activated it should also be visible tick inside advanced window
-x1button text dissapears if pressed again reappears (same for button in control window)
-if string in control window it sets number to 0 instead of the one it was before
-remove remaining non speaker modes is not correcting for deleting the line it is in
-Also make rubies copyable in popup
-When i adjust the offset it should also jump by that offset: from 0 to -1 --> from 10:45(my)10:44(he) to 10:44(my)
-Only affect the windows which are actually in the OCr boxes to hide
-when ocr boxes are changed i does not immedietly take affect
-Maybe change position of audio_padding variable in advanced window
+when selecting the beginning of the sentence the whole line to the right is selected
+hovering over the X of the settigns window the handle does not disappear (maybe hard to implement)
+remove remaining non speaker modes is not correcting for deleting the line it is in (maybe implemented)
+Also make rubies copyable in popup (dont know how because i also want dictionary and rubies and not rubies to copy so maybe hotkeys to show this or that)
 automatically find timebox (machinelearning)
-hovering over kanji --> in line glossary or/and translationadd profile settings for multiple users
+add profile settings for multiple users
 if ocr works good add that it jumps to the time when collecting anki cards (it is okay not very fast but usable not sure how to implement)
-Maybe change how the copy window is displayed.
+Maybe change how the copy popup window is displayed.
 
 Bugs:
 when in remote switching to local and then to remote i think the flag is not set and it still searches in "subs"
@@ -25,6 +20,17 @@ Change subtitle width to fit current subtitle (maybe flashes --> YES)
 
 
 Added:
+hovering over kanji --> in line glossary or/and translation
+x1button text dissapears if pressed again reappears (same for button in control window)
+is there always a " " before kanjis in anki? yes
+does the kanjis still split? if needed 
+if word is double in anki add selection disrecard it: house, House
+Maybe change position of audio_padding variable in advanced window
+if buttonx2 is pressed and M3 is activated it should also be visible tick inside advanced window
+when ocr boxes are changed i does not immedietly take affect
+Only affect the windows which are actually in the OCr boxes to hide
+When i adjust the offset it should also jump by that offset: from 0 to -1 --> from 10:45(my)10:44(he) to 10:44(my)
+if string in control window it sets number to 0 instead of the one it was before
 main window not usable during advanced settings window open (wanted?)
 Add the html tags inside the subtitle files optional (not sure what html tags they use and what for)
 changed auto ruby handling check if words like toutou is correct

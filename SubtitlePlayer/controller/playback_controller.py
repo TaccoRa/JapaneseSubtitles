@@ -11,6 +11,10 @@ class PlaybackController:
         self.controller = controller
 
     def update_loop(self):
+        if self.controller._shutting_down:
+            self.controller._update_loop_job = None
+            return
+
         if self.controller.playing:
             now = time.time()
             delta = now - self.controller.last_update
@@ -20,9 +24,22 @@ class PlaybackController:
         self.schedule_update()
 
     def schedule_update(self):
-        self.controller.overlay.root.after(self.controller.update_interval_ms, self.update_loop)
+        if self.controller._shutting_down:
+            return
+        root = self.controller.overlay.root
+        if self.controller._update_loop_job is not None:
+            try:
+                root.after_cancel(self.controller._update_loop_job)
+            except Exception:
+                pass
+            self.controller._update_loop_job = None
+        self.controller._update_loop_job = self.controller.overlay.root.after(
+            self.controller.update_interval_ms, self.update_loop
+        )
 
     def set_current_time(self, t: float):
+        if self.controller._shutting_down:
+            return
         if t is None:
             return
 
@@ -35,10 +52,15 @@ class PlaybackController:
 
         self.controller.current_time = t
         if not self.controller.slider_dragging:
-            self.controller.settings.slider.set(t)
+            slider = self.controller.settings.slider
+            if not slider.winfo_exists():
+                return
+            slider.set(t)
             self.controller.update_time_and_subtitle_displays()
 
     def toggle_play(self):
+        if self.controller._shutting_down:
+            return
         if self.controller.entry_editing:
             self.controller.control_time_entry_return(None)
 
@@ -50,6 +72,12 @@ class PlaybackController:
             self.schedule_update()
         else:
             self.controller.settings.play_pause_btn.config(text="Play", bg="green", activebackground="green")
+            if self.controller._update_loop_job:
+                try:
+                    self.controller.overlay.root.after_cancel(self.controller._update_loop_job)
+                except Exception:
+                    pass
+                self.controller._update_loop_job = None
             if self.controller.subtitle_timeout_job:
                 self.controller.overlay.root.after_cancel(self.controller.subtitle_timeout_job)
                 self.controller.subtitle_timeout_job = None
@@ -122,7 +150,7 @@ class PlaybackController:
             return
 
         sub = self.controller.sub_manager.subtitles[idx]
-        target_time = sub.end.total_seconds() + float(self.controller.audio_padding or 0.0) + offset
+        target_time = sub.end.total_seconds() + float(self.controller.audio_padding)*0.001 + offset
 
         self.set_current_time(target_time)
         self.controller._schedule_hide_controls()

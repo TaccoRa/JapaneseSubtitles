@@ -32,6 +32,16 @@ class SubtitleOverlayUI:
         self.max_w, self.max_h = overlay_geometry
         self.center_x = self.config.get("LAST_SUB_CENTER_X")
         self.center_y = self.config.get("LAST_SUB_CENTER_Y")
+        if not isinstance(self.center_x, (int, float)):
+            try:
+                self.center_x = float(self.root.winfo_vrootwidth() or self.root.winfo_screenwidth()) / 2.0
+            except Exception:
+                self.center_x = 960.0
+        if not isinstance(self.center_y, (int, float)):
+            try:
+                self.center_y = float(self.root.winfo_vrootheight() or self.root.winfo_screenheight()) * 0.75
+            except Exception:
+                self.center_y = 810.0
         self.on_sub_window_enter = lambda _ev=None: None
         self.on_sub_window_leave = lambda _ev=None: None
         self.on_handle_enter = lambda _ev=None: None
