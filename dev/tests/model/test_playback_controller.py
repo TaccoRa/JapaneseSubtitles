@@ -26,12 +26,17 @@ class FakeRoot:
 class FakeSlider:
     def __init__(self):
         self.values = []
+        self.value = 0.0
 
     def winfo_exists(self):
         return True
 
+    def get(self):
+        return self.value
+
     def set(self, value):
-        self.values.append(float(value))
+        self.value = float(value)
+        self.values.append(self.value)
 
 
 class FakeButton:
@@ -46,6 +51,7 @@ def make_controller(now: float = 0.0):
     root = FakeRoot()
     slider = FakeSlider()
     button = FakeButton()
+    display_updates = []
     controller = SimpleNamespace(
         _shutting_down=False,
         _update_loop_job=None,
@@ -64,12 +70,13 @@ def make_controller(now: float = 0.0):
         subtitle_timeout_job=None,
         total_duration=3600.0,
         update_interval_ms=100,
-        update_time_and_subtitle_displays=lambda: None,
+        update_time_and_subtitle_displays=lambda: display_updates.append(float(controller.current_time)),
         _get_display_start_times=lambda: [],
         _skip_buttons_use_subtitle_segments=lambda: False,
         _schedule_hide_controls=lambda: None,
         control_time_entry_return=lambda _event: None,
     )
+    controller._display_updates = display_updates
     playback = PlaybackController(controller)
     return controller, playback, root, slider, button
 
@@ -93,6 +100,23 @@ def test_pause_advances_time_since_last_update():
     assert root.cancelled == ["pending-update"]
     assert slider.values[-1] == pytest.approx(10.073)
     assert button.configs[-1]["text"] == "Play"
+
+
+def test_pause_publishes_current_time_once_after_sync():
+    now = 100.0
+    controller, playback, _root, slider, _button = make_controller(now)
+    playback._now = lambda: now
+
+    controller.playing = True
+    controller.current_time = 10.0
+    controller.last_update = now
+
+    now += 0.073
+    playback.toggle_play()
+
+    assert controller.current_time == pytest.approx(10.073)
+    assert controller._display_updates == [pytest.approx(10.073)]
+    assert slider.values == [pytest.approx(10.073)]
 
 
 def test_repeated_fast_pause_play_does_not_accumulate_lost_time():
@@ -201,6 +225,23 @@ def test_skip_back_uses_event_time_even_if_update_tick_ran_later():
     assert controller.last_update == pytest.approx(key_time)
 
 
+def test_skip_back_publishes_current_time_once_after_sync():
+    now = 100.0
+    controller, playback, _root, slider, _button = make_controller(now)
+    playback._now = lambda: now
+
+    controller.playing = True
+    controller.current_time = 40.0
+    controller.last_update = now
+
+    playback.go_back(event_time=now + 0.040)
+
+    assert controller.current_time == pytest.approx(35.040)
+    assert controller.last_update == pytest.approx(100.040)
+    assert controller._display_updates == [pytest.approx(35.040)]
+    assert slider.values == [pytest.approx(35.040)]
+
+
 def test_skip_forward_uses_event_time_even_if_update_tick_ran_later():
     now = 100.0
     controller, playback, _root, _slider, _button = make_controller(now)
@@ -247,6 +288,24 @@ def test_hotkey_dispatch_passes_event_time_to_skip_actions():
     hotkeys._dispatch_input_action("go_forward", event_time=11.0)
 
     assert calls == [("back", pytest.approx(10.0)), ("forward", pytest.approx(11.0))]
+
+
+def test_repeat_seek_preview_updates_time_display_only():
+    calls = []
+    controller = SimpleNamespace(
+        _pending_seek_delta=0.0,
+        config=SimpleNamespace(get=lambda _key: False),
+        settings=SimpleNamespace(_last_skip_value=5.0),
+        update_time_display=lambda: calls.append("time"),
+        update_time_and_subtitle_displays=lambda: calls.append("full"),
+    )
+    hotkeys = HotkeyController(controller)
+
+    hotkeys._accumulate_pending_seek("go_back")
+    hotkeys._clear_pending_seek_preview()
+
+    assert controller._pending_seek_delta == pytest.approx(0.0)
+    assert calls == ["time", "time"]
 
 
 def test_quick_tap_seek_uses_key_down_time_when_enqueued_on_release(monkeypatch):

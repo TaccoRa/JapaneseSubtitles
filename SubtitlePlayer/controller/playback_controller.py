@@ -1,6 +1,5 @@
 import time
 import bisect
-import tkinter as tk
 
 
 class PlaybackController:
@@ -18,6 +17,8 @@ class PlaybackController:
         *,
         now: float | None = None,
         allow_end_toggle: bool = True,
+        update_display: bool = True,
+        update_slider: bool = True,
     ) -> float:
         if not self.controller.playing:
             return 0.0
@@ -35,18 +36,30 @@ class PlaybackController:
             self.set_current_time(
                 float(self.controller.current_time or 0.0) + delta,
                 allow_end_toggle=allow_end_toggle,
+                update_display=update_display,
+                update_slider=update_slider,
             )
         return delta
 
     def _event_time_or_now(self, event_time: float | None = None) -> float:
         return self._now() if event_time is None else float(event_time)
 
-    def _sync_playing_time_to_event(self, event_time: float | None = None) -> None:
-        if self.controller.playing:
-            self._advance_playing_time_to_now(
-                now=self._event_time_or_now(event_time),
-                allow_end_toggle=False,
-            )
+    def _sync_playing_time_to_event(
+        self,
+        event_time: float | None = None,
+        *,
+        update_display: bool = True,
+        update_slider: bool = True,
+    ) -> bool:
+        if not self.controller.playing:
+            return False
+        delta = self._advance_playing_time_to_now(
+            now=self._event_time_or_now(event_time),
+            allow_end_toggle=False,
+            update_display=update_display,
+            update_slider=update_slider,
+        )
+        return abs(delta) > 0.0
 
     def update_loop(self):
         if self.controller._shutting_down:
@@ -71,7 +84,39 @@ class PlaybackController:
             self.controller.update_interval_ms, self.update_loop
         )
 
-    def set_current_time(self, t: float, *, allow_end_toggle: bool = True):
+    def _set_slider_value(self, value: float) -> bool:
+        slider = self.controller.settings.slider
+        if not slider.winfo_exists():
+            return False
+        try:
+            if abs(float(slider.get()) - float(value)) < 0.0005:
+                return True
+        except Exception:
+            pass
+        slider.set(value)
+        return True
+
+    def _publish_current_time(
+        self,
+        *,
+        update_display: bool = True,
+        update_slider: bool = True,
+    ) -> None:
+        if self.controller.slider_dragging:
+            return
+        if update_slider and not self._set_slider_value(float(self.controller.current_time or 0.0)):
+            return
+        if update_display:
+            self.controller.update_time_and_subtitle_displays()
+
+    def set_current_time(
+        self,
+        t: float,
+        *,
+        allow_end_toggle: bool = True,
+        update_display: bool = True,
+        update_slider: bool = True,
+    ):
         if self.controller._shutting_down:
             return
         if t is None:
@@ -85,12 +130,10 @@ class PlaybackController:
             self.toggle_play()
 
         self.controller.current_time = t
-        if not self.controller.slider_dragging:
-            slider = self.controller.settings.slider
-            if not slider.winfo_exists():
-                return
-            slider.set(t)
-            self.controller.update_time_and_subtitle_displays()
+        self._publish_current_time(
+            update_display=update_display,
+            update_slider=update_slider,
+        )
 
     def toggle_play(self, event_time: float | None = None):
         if self.controller._shutting_down:
@@ -101,7 +144,11 @@ class PlaybackController:
         was_playing = bool(self.controller.playing)
         now = self._now() if event_time is None else float(event_time)
         if was_playing:
-            self._advance_playing_time_to_now(now=now, allow_end_toggle=False)
+            self._advance_playing_time_to_now(
+                now=now,
+                allow_end_toggle=False,
+                update_display=False,
+            )
 
         self.controller.playing = not was_playing
 
@@ -127,7 +174,11 @@ class PlaybackController:
         self.controller._schedule_hide_controls()
 
     def seek_relative(self, delta: float, event_time: float | None = None) -> None:
-        self._sync_playing_time_to_event(event_time)
+        self._sync_playing_time_to_event(
+            event_time,
+            update_display=False,
+            update_slider=False,
+        )
         self.set_current_time(float(self.controller.current_time or 0.0) + float(delta or 0.0))
         self.controller._schedule_hide_controls()
 
@@ -157,11 +208,16 @@ class PlaybackController:
             self.seek_relative(-skip, event_time=event_time)
 
     def jump_subtitle_segment(self, direction: str, event_time: float | None = None) -> None:
-        self._sync_playing_time_to_event(event_time)
         start_times = self.controller._get_display_start_times()
         if not start_times:
+            self._sync_playing_time_to_event(event_time)
             return
 
+        synced = self._sync_playing_time_to_event(
+            event_time,
+            update_display=False,
+            update_slider=False,
+        )
         offset = self.controller.get_offset_value()
         sub_t = max(0.0, float(self.controller.current_time) - offset)
         epsilon = 0.05
@@ -171,26 +227,37 @@ class PlaybackController:
         elif direction == "next":
             target_idx = bisect.bisect_right(start_times, sub_t + epsilon)
         else:
+            if synced:
+                self._publish_current_time()
             return
 
         if target_idx < 0 or target_idx >= len(start_times):
+            if synced:
+                self._publish_current_time()
             return
 
         self.set_current_time(float(start_times[target_idx]) + offset)
         self.controller._schedule_hide_controls()
 
     def on_jump_sub_end(self, event=None, event_time: float | None = None):
-        self._sync_playing_time_to_event(event_time)
         start_times = self.controller._get_display_start_times()
         if not start_times:
+            self._sync_playing_time_to_event(event_time)
             return
 
+        synced = self._sync_playing_time_to_event(
+            event_time,
+            update_display=False,
+            update_slider=False,
+        )
         offset = self.controller.get_offset_value()
         sub_t = max(0.0, float(self.controller.current_time) - offset)
         epsilon = 0.05
 
         idx = bisect.bisect_right(start_times, sub_t + epsilon) - 1
         if idx < 0 or idx >= len(self.controller.sub_manager.subtitles):
+            if synced:
+                self._publish_current_time()
             return
 
         sub = self.controller.sub_manager.subtitles[idx]

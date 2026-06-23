@@ -161,6 +161,7 @@ class SubtitleController:
         self._anki_success_popup_job = None
 
         self.subtitle_timeout_job = None
+        self._last_time_overlay_text = None
         self.last_subtitle_text = ""
         self.last_subtitle_raw = ""
         self.last_rendered_index = None
@@ -460,6 +461,9 @@ class SubtitleController:
     # ---------------------------------------------------------------------
     def update_time_and_subtitle_displays(self):
         return self.subtitle_navigation.update_time_and_subtitle_displays()
+
+    def update_time_display(self):
+        return self.subtitle_navigation.update_time_display()
 
     def on_open_srt(self, event=None):
         return self.episode_controller.on_open_srt(event)

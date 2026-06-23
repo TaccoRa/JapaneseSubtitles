@@ -163,6 +163,7 @@ class SettingsUI:
         max_secs = self.total_duration + self._last_offset_value
         max_str  = format_time(max_secs)
         self._max_time_width = len(max_str)# + 1
+        self._last_time_entry_width = len(self.control_time_str.get())
 
 
     def _noop(self, *args, **kwargs):
@@ -637,7 +638,13 @@ class SettingsUI:
         self.control_window.geometry(f"{reqw}x{h}+{x}+{y}")
 
     def _adjust_time_entry_width(self, *args):
-        self.time_entry.config(width=len(self.control_time_str.get()))
+        width = len(self.control_time_str.get())
+        if width == getattr(self, "_last_time_entry_width", None):
+            return
+        self._last_time_entry_width = width
+        if self.time_entry is None or self.control_window is None:
+            return
+        self.time_entry.config(width=width)
         self.control_window.update_idletasks()
         reqw = self.control_window.winfo_reqwidth()
         x = self.control_window.winfo_x()
@@ -799,7 +806,6 @@ class SettingsUI:
         self.slider.config(to=self.total_duration + value_seconds)
         if abs(delta) >= 0.001:
             self.slider.set(float(self.slider.get()) + delta)
-        self.update_time_and_subtitle_displays()
         self._on_slider_release(None)
         self._sync_advanced_startup_vars_from_runtime()
         if persist:

@@ -120,16 +120,32 @@ class SubtitleNavigationController(_ControllerProxy):
         self.entry_editing  = True
         event.widget.delete(0, tk.END)
 
-    def update_time_and_subtitle_displays(self):#updates settings time overlay and control window entry
-        text = format_time(self.current_time)
-        pending = float(getattr(self, "_pending_seek_delta", 0.0) or 0.0)
+    def _time_display_text(self, value: float | None = None, *, include_pending: bool = True) -> str:
+        text = format_time(self.current_time if value is None else value)
+        pending = float(getattr(self, "_pending_seek_delta", 0.0) or 0.0) if include_pending else 0.0
         if abs(pending) >= 0.001:
             sign = "+" if pending > 0 else "-"
             text = f"{text} ({sign}{self._format_delta_seconds(pending)}s)"
-        self.settings.time_overlay.itemconfig(self.settings.time_overlay_text, text=text)
+        return text
+
+    def _publish_time_display(self, text: str) -> None:
+        if text != getattr(self, "_last_time_overlay_text", None):
+            self.settings.time_overlay.itemconfig(self.settings.time_overlay_text, text=text)
+            self._last_time_overlay_text = text
         self.settings.update_time_overlay_position()
         if not self.entry_editing:
-            self.settings.control_time_str.set(text)
+            try:
+                current_text = self.settings.control_time_str.get()
+            except Exception:
+                current_text = None
+            if current_text != text:
+                self.settings.control_time_str.set(text)
+
+    def update_time_display(self) -> None:
+        self._publish_time_display(self._time_display_text())
+
+    def update_time_and_subtitle_displays(self):#updates settings time overlay and control window entry
+        self.update_time_display()
         self._update_subtitle_display()
 
     def _update_subtitle_display(
@@ -361,11 +377,7 @@ class SubtitleNavigationController(_ControllerProxy):
             return
         if self.slider_dragging:
             slider_value = float(value)
-            text = format_time(slider_value)
-            self.settings.time_overlay.itemconfig(self.settings.time_overlay_text, text=text)
-            self.settings.update_time_overlay_position()
-            if not self.entry_editing:
-                self.settings.control_time_str.set(text)
+            self._publish_time_display(self._time_display_text(slider_value, include_pending=False))
             self.current_time = slider_value
             self._schedule_slider_preview_render(slider_value)
 

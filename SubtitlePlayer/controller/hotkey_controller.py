@@ -87,6 +87,13 @@ class HotkeyController(_ControllerProxy):
                 return skip
             return 0.0
 
+    def _update_pending_seek_display(self) -> None:
+            update = getattr(self.controller, "update_time_display", None)
+            if callable(update):
+                update()
+                return
+            self.update_time_and_subtitle_displays()
+
     def _accumulate_pending_seek(self, action: str) -> None:
             delta = self._seek_delta_for_action(action)
             if abs(delta) < 0.000001:
@@ -96,13 +103,13 @@ class HotkeyController(_ControllerProxy):
             except Exception:#
                 print("I dont know man :)")
                 self._pending_seek_delta = delta
-            self.update_time_and_subtitle_displays()
+            self._update_pending_seek_display()
 
     def _clear_pending_seek_preview(self) -> None:
             if abs(float(getattr(self, "_pending_seek_delta", 0.0) or 0.0)) < 0.000001:
                 return
             self._pending_seek_delta = 0.0
-            self.update_time_and_subtitle_displays()
+            self._update_pending_seek_display()
 
     def _apply_pending_seek(self, event_time: float | None = None) -> None:
             delta = float(self._pending_seek_delta or 0.0)
