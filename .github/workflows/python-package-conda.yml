@@ -1,0 +1,33 @@
+name: Python CI
+
+on:
+  push:
+    branches: [CleanUp]
+  pull_request:
+    branches: [CleanUp]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8 pytest
+
+      - name: Lint syntax
+        run: |
+          flake8 SubtitlePlayer dev/tests --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Test
+        run: |
+          pytest dev/tests
