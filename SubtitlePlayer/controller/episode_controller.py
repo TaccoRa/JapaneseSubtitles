@@ -170,8 +170,14 @@ class EpisodeController(_ControllerProxy):
             title= f'S{self.sub_manager.get_current_season()}E{self.sub_manager.get_current_episode()} {self.sub_manager.get_anime_name()}'
             self.settings.root.title(title)
             self.current_time = self.default_start_time
+            self._defer_auto_ruby_once = True
+            self.last_subtitle_text = ""
             self.playback.set_current_time(self.current_time)
             self.ocr_controller._schedule_ocr_time_jump("episode_change")
+            try:
+                self.sub_manager.schedule_episode_preload_around_current()
+            except Exception:
+                pass
 
     def update_max_width(self) -> None:
             # Recompute content width + padding
@@ -195,7 +201,6 @@ class EpisodeController(_ControllerProxy):
                 self.renderer.canvas.delete("all")
                 return
 
-            self.sub_manager.ensure_auto_ruby_for_index(idx)
             _, _, top_segments, bottom_segments = self.sub_manager.display_data[idx]
             # render freshly using updated overlay/canvas
             self.renderer.canvas.delete("all")

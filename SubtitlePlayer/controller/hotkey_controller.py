@@ -27,10 +27,11 @@ class HotkeyController(_ControllerProxy):
     def __init__(self, controller: Any) -> None:
         super().__init__(controller)
 
-    def _enqueue_input_action(self, action: str) -> None:
+    def _enqueue_input_action(self, action: str, event_time: float | None = None) -> None:
             if self._shutting_down:
                 return
-            self._input_actions.put_nowait(action)
+            timestamp = time.perf_counter() if event_time is None else float(event_time)
+            self._input_actions.put_nowait((action, timestamp))
 
     def _drop_pending_input_actions(self, actions_to_remove: set[str]) -> None:
             if not actions_to_remove:
@@ -38,13 +39,14 @@ class HotkeyController(_ControllerProxy):
             kept = []
             while True:
                 try:
-                    action = self._input_actions.get_nowait()
+                    item = self._input_actions.get_nowait()
                 except queue.Empty:#
                     break
                 except Exception:#
                     break
+                action = item[0] if isinstance(item, tuple) else item
                 if action not in actions_to_remove:
-                    kept.append(action)
+                    kept.append(item)
             for action in kept:
                 try:
                     self._input_actions.put_nowait(action)
@@ -102,13 +104,12 @@ class HotkeyController(_ControllerProxy):
             self._pending_seek_delta = 0.0
             self.update_time_and_subtitle_displays()
 
-    def _apply_pending_seek(self) -> None:
+    def _apply_pending_seek(self, event_time: float | None = None) -> None:
             delta = float(self._pending_seek_delta or 0.0)
             if abs(delta) < 0.000001:
                 return
             self._pending_seek_delta = 0.0
-            self.playback.set_current_time(self.current_time + delta)
-            self._schedule_hide_controls()
+            self.playback.seek_relative(delta, event_time=event_time)
 
     def _hold_repeat_action(self, action: str) -> bool:
             now = time.perf_counter()
@@ -116,6 +117,9 @@ class HotkeyController(_ControllerProxy):
                 if action in self._held_repeat_next_fire:
                     return False
                 self._held_repeat_next_fire[action] = now + self._repeat_initial_delay_sec
+                if not hasattr(self.controller, "_held_repeat_press_time"):
+                    self.controller._held_repeat_press_time = {}
+                self._held_repeat_press_time[action] = now
                 self._held_repeat_fired.discard(action)
             return True
 
@@ -124,12 +128,17 @@ class HotkeyController(_ControllerProxy):
                 return
             released_seek_actions = set()
             released_seek_fired = {}
+            released_seek_press_time = {}
             with self._repeat_lock:
+                if not hasattr(self.controller, "_held_repeat_press_time"):
+                    self.controller._held_repeat_press_time = {}
                 for action in actions:
                     if self._is_seek_repeat_action(action):
                         released_seek_actions.add(action)
                         released_seek_fired[action] = (action in self._held_repeat_fired)
+                        released_seek_press_time[action] = self._held_repeat_press_time.get(action)
                     self._held_repeat_next_fire.pop(action, None)
+                    self._held_repeat_press_time.pop(action, None)
                     self._held_repeat_fired.discard(action)
                 still_held = set(self._held_repeat_next_fire.keys())
 
@@ -148,9 +157,15 @@ class HotkeyController(_ControllerProxy):
                         else:
                             unresolved = [a for a in released_seek_actions if not released_seek_fired.get(a, False)]
                             if "go_forward" in unresolved and "go_back" not in unresolved:
-                                self._enqueue_input_action("go_forward")
+                                self._enqueue_input_action(
+                                    "go_forward",
+                                    event_time=released_seek_press_time.get("go_forward"),
+                                )
                             elif "go_back" in unresolved and "go_forward" not in unresolved:
-                                self._enqueue_input_action("go_back")
+                                self._enqueue_input_action(
+                                    "go_back",
+                                    event_time=released_seek_press_time.get("go_back"),
+                                )
                     else:
                         if abs(pending) >= 0.000001:
                             self._enqueue_input_action("clear_pending_seek")
@@ -185,10 +200,14 @@ class HotkeyController(_ControllerProxy):
             try:
                 for _ in range(50):
                     try:
-                        action = self._input_actions.get_nowait()
+                        item = self._input_actions.get_nowait()
                     except queue.Empty:#
                         break
-                    self._dispatch_input_action(action)
+                    if isinstance(item, tuple):
+                        action, event_time = item
+                    else:
+                        action, event_time = item, None
+                    self._dispatch_input_action(action, event_time=event_time)
             finally:
                 try:
                     self._input_pump_job = self.settings.root.after(15, self._process_input_queue)
@@ -196,24 +215,24 @@ class HotkeyController(_ControllerProxy):
                     print(e)
                     self._input_pump_job = None
 
-    def _dispatch_input_action(self, action: str) -> None:
+    def _dispatch_input_action(self, action: str, event_time: float | None = None) -> None:
             if action in {"toggle_subtitles", "clear_subtitle"} and self._hotkey_action_disabled(action):
                 return
             if action == "toggle_play":
-                self.playback.toggle_play()
+                self.playback.toggle_play(event_time=event_time)
             elif action == "toggle_subtitles":
                 self.subtitle_navigation.toggle_subtitle_visibility()
                 self._show_control_window_for_subtitle_toggle()
             elif action == "go_back":
-                self.playback.go_back()
+                self.playback.go_back(event_time=event_time)
             elif action == "go_forward":
-                self.playback.go_forward()
+                self.playback.go_forward(event_time=event_time)
             elif action == "subtitle_back":
-                self.playback.jump_subtitle_segment("prev")
+                self.playback.jump_subtitle_segment("prev", event_time=event_time)
             elif action == "subtitle_forward":
-                self.playback.jump_subtitle_segment("next")
+                self.playback.jump_subtitle_segment("next", event_time=event_time)
             elif action == "jump_sub_end":
-                self.playback.on_jump_sub_end()
+                self.playback.on_jump_sub_end(event_time=event_time)
             elif action == "alt_x":
                 self.on_alt_x()
             elif action == "episode_inc":
@@ -229,7 +248,7 @@ class HotkeyController(_ControllerProxy):
             elif action == "_seek_step_forward":
                 self._accumulate_pending_seek("go_forward")
             elif action == "apply_pending_seek":
-                self._apply_pending_seek()
+                self._apply_pending_seek(event_time=event_time)
             elif action == "clear_pending_seek":
                 self._clear_pending_seek_preview()
 

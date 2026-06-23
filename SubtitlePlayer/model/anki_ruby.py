@@ -2,7 +2,9 @@
 import re
 import subprocess
 import sys
-from typing import List, Optional, Tuple
+import threading
+import logging
+from typing import Callable, List, Optional, Tuple
 
 try:
     from SubtitlePlayer.furigana_splitter import split_furigana
@@ -20,12 +22,27 @@ IS_MAC = sys.platform == "darwin"
 
 KAKASI_ARGS = ["-isjis", "-osjis", "-u", "-JH", "-KH"]
 MECAB_ARGS = ["--node-format=%m[%f[7]] ", "--eos-format=\n", "--unk-format=%m[] "]
+SJIS_ENCODING = "sjis"
+UTF8_ENCODING = "utf-8"
 
 DEFAULT_SUPPORT_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "anki_reading_support")
 )
 
 BRACKET_RUBY_RE = re.compile(r"([^\[\]]+)\[([^\[\]]+)\]")
+HTML_TAG_RE = re.compile(r"<[^>]+>")
+HTML_BR_RE = re.compile(r"<br\s*/?>", re.IGNORECASE)
+MECAB_NODE_RE = re.compile(r"(.+)\[(.*)\]")
+ALNUM_RE = re.compile(r"^[A-Za-z0-9]+$")
+JAPANESE_NUMERAL_CHARS = set("一二三四五六七八九十０１２３４５６７８９")
+
+Segment = Tuple[str, Optional[str]]
+SingleKanjiReader = Optional[Callable[[str], str]]
+logger = logging.getLogger(__name__)
+
+
+class RubyGeneratorError(RuntimeError):
+    """Raised when the bundled MeCab/Kakasi ruby backend cannot be used."""
 
 
 def _is_kanji_char(ch: str) -> bool:
@@ -44,13 +61,6 @@ def _is_kanji_char(ch: str) -> bool:
     )
 
 
-def _is_kana_char(ch: str) -> bool:
-    if not ch:
-        return False
-    code = ord(ch)
-    return (0x3040 <= code <= 0x309F) or (0x30A0 <= code <= 0x30FF)
-
-
 def _kata_to_hira(text: str) -> str:
     out = []
     for ch in text:
@@ -62,79 +72,7 @@ def _kata_to_hira(text: str) -> str:
     return "".join(out)
 
 
-def _split_kanji_kana_core(base: str, ruby: str) -> Optional[List[Tuple[str, Optional[str]]]]:
-    if not base or not ruby:
-        return None
-    has_kanji = any(_is_kanji_char(ch) for ch in base)
-    has_kana = any(_is_kana_char(ch) for ch in base)
-    if not (has_kanji and has_kana):
-        return None
-
-    reading = _kata_to_hira(ruby)
-    r_pos = 0
-    out: List[Tuple[str, Optional[str]]] = []
-    i = 0
-    n = len(base)
-    while i < n:
-        ch = base[i]
-        if _is_kana_char(ch):
-            hira = _kata_to_hira(ch)
-            if reading.startswith(hira, r_pos):
-                r_pos += len(hira)
-            out.append((ch, None))
-            i += 1
-            continue
-
-        if _is_kanji_char(ch):
-            j = i
-            while j < n and _is_kanji_char(base[j]):
-                j += 1
-            kanji_chunk = base[i:j]
-
-            next_kana = None
-            k = j
-            while k < n:
-                if _is_kana_char(base[k]):
-                    next_kana = _kata_to_hira(base[k])
-                    break
-                if _is_kanji_char(base[k]):
-                    break
-                k += 1
-
-            if next_kana:
-                idx = reading.find(next_kana, r_pos)
-                if idx <= r_pos:
-                    ruby_chunk = reading[r_pos:]
-                    r_pos = len(reading)
-                else:
-                    ruby_chunk = reading[r_pos:idx]
-                    r_pos = idx
-            else:
-                ruby_chunk = reading[r_pos:]
-                r_pos = len(reading)
-
-            if ruby_chunk:
-                out.append((kanji_chunk, ruby_chunk))
-            else:
-                out.append((kanji_chunk, None))
-            i = j
-            continue
-
-        out.append((ch, None))
-        i += 1
-
-    if r_pos < len(reading):
-        for idx in range(len(out) - 1, -1, -1):
-            base_chunk, ruby_chunk = out[idx]
-            if ruby_chunk:
-                out[idx] = (base_chunk, ruby_chunk + reading[r_pos:])
-                break
-        else:
-            return None
-    return out or None
-
-
-def _split_ruby_base(base: str, ruby: str, single_kanji_reader=None) -> List[Tuple[str, Optional[str]]]:
+def _split_ruby_base(base: str, ruby: str, single_kanji_reader: SingleKanjiReader = None) -> List[Segment]:
     if not base:
         return []
     if not ruby:
@@ -143,25 +81,34 @@ def _split_ruby_base(base: str, ruby: str, single_kanji_reader=None) -> List[Tup
 
 
 def strip_html(text: str) -> str:
-    return re.sub(r"<[^>]+>", "", text or "")
+    return HTML_TAG_RE.sub("", text or "")
 
 
 def escape_text(text: str) -> str:
-    text = (text or "").replace("\n", " ")
+    text = text or ""
+    text = HTML_BR_RE.sub("---newline---", text)
+    text = text.replace("\n", " ")
     text = text.replace("\uff5e", "~")
-    text = re.sub(r"<br( /)?>", "---newline---", text)
     text = strip_html(text)
     text = text.replace("---newline---", "<br>")
     return text
 
 
 def munge_for_platform(popen: List[str]) -> List[str]:
+    popen = list(popen)
     if IS_WIN:
         popen = [os.path.normpath(x) for x in popen]
         popen[0] += ".exe"
     elif not IS_MAC:
         popen[0] += ".lin"
     return popen
+
+
+def _ensure_executable(path: str, name: str) -> None:
+    if not path or not os.path.exists(path):
+        raise RubyGeneratorError(f"Bundled {name} executable was not found: {path}")
+    if not IS_WIN:
+        os.chmod(path, 0o755)
 
 
 def _startupinfo():
@@ -175,23 +122,72 @@ def _startupinfo():
     return si
 
 
+def _support_env(support_dir: str, updates: dict[str, str]) -> dict[str, str]:
+    env = os.environ.copy()
+    env.update(updates)
+    if IS_WIN:
+        env["PATH"] = support_dir + os.pathsep + env.get("PATH", "")
+    return env
+
+
+def _process_is_open(proc: subprocess.Popen | None) -> bool:
+    return (
+        proc is not None
+        and proc.poll() is None
+        and proc.stdin is not None
+        and proc.stdout is not None
+    )
+
+
+def _close_process(proc: subprocess.Popen | None, name: str) -> None:
+    if proc is None:
+        return
+    try:
+        if proc.stdin:
+            proc.stdin.close()
+    except Exception:
+        pass
+    try:
+        if proc.stdout:
+            proc.stdout.close()
+    except Exception:
+        pass
+    if proc.poll() is not None:
+        return
+    try:
+        proc.terminate()
+        proc.wait(timeout=1.0)
+    except Exception:
+        try:
+            proc.kill()
+        except Exception:
+            logger.debug("Failed to kill %s process", name, exc_info=True)
+
+
 class KakasiController:
     def __init__(self, support_dir: str) -> None:
         self.support_dir = support_dir
         self.kakasi: subprocess.Popen | None = None
         self.kakasi_cmd: List[str] | None = None
+        self.kakasi_env: dict[str, str] | None = None
+        self._lock = threading.RLock()
 
     def setup(self) -> None:
         self.kakasi_cmd = munge_for_platform(
             [os.path.join(self.support_dir, "kakasi")] + KAKASI_ARGS
         )
-        os.environ["ITAIJIDICT"] = os.path.join(self.support_dir, "itaijidict")
-        os.environ["KANWADICT"] = os.path.join(self.support_dir, "kanwadict")
-        if not IS_WIN:
-            os.chmod(self.kakasi_cmd[0], 0o755)
+        _ensure_executable(self.kakasi_cmd[0], "kakasi")
+        self.kakasi_env = _support_env(
+            self.support_dir,
+            {
+                "ITAIJIDICT": os.path.join(self.support_dir, "itaijidict"),
+                "KANWADICT": os.path.join(self.support_dir, "kanwadict"),
+            },
+        )
 
     def ensure_open(self) -> None:
-        if not self.kakasi:
+        if not _process_is_open(self.kakasi):
+            self.close()
             self.setup()
             try:
                 self.kakasi = subprocess.Popen(
@@ -201,18 +197,35 @@ class KakasiController:
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     startupinfo=_startupinfo(),
+                    cwd=self.support_dir,
+                    env=self.kakasi_env,
                 )
             except OSError as exc:
-                raise Exception("Please install kakasi") from exc
+                raise RubyGeneratorError("Failed to start bundled kakasi") from exc
+
+    def close(self) -> None:
+        with self._lock:
+            _close_process(self.kakasi, "kakasi")
+            self.kakasi = None
 
     def reading(self, expr: str) -> str:
-        self.ensure_open()
         expr = escape_text(expr)
-        assert self.kakasi
-        self.kakasi.stdin.write(expr.encode("sjis", "ignore") + b"\n")
-        self.kakasi.stdin.flush()
-        res = self.kakasi.stdout.readline().rstrip(b"\r\n").decode("sjis", "replace")
-        return res
+        with self._lock:
+            for attempt in range(2):
+                try:
+                    self.ensure_open()
+                    assert self.kakasi and self.kakasi.stdin and self.kakasi.stdout
+                    self.kakasi.stdin.write(expr.encode(SJIS_ENCODING, "ignore") + b"\n")
+                    self.kakasi.stdin.flush()
+                    raw = self.kakasi.stdout.readline()
+                    if not raw:
+                        raise RubyGeneratorError("kakasi closed its output pipe")
+                    return raw.rstrip(b"\r\n").decode(SJIS_ENCODING, "replace")
+                except (BrokenPipeError, OSError, ValueError, RubyGeneratorError):
+                    self.close()
+                    if attempt:
+                        raise
+            return ""
 
 
 class MecabController:
@@ -221,6 +234,8 @@ class MecabController:
         self.kakasi = kakasi
         self.mecab: subprocess.Popen | None = None
         self.mecab_cmd: List[str] | None = None
+        self.mecab_env: dict[str, str] | None = None
+        self._lock = threading.RLock()
 
     def setup(self) -> None:
         self.mecab_cmd = munge_for_platform(
@@ -235,13 +250,18 @@ class MecabController:
                 os.path.join(self.support_dir, "user_dic.dic"),
             ]
         )
-        os.environ["DYLD_LIBRARY_PATH"] = self.support_dir
-        os.environ["LD_LIBRARY_PATH"] = self.support_dir
-        if not IS_WIN:
-            os.chmod(self.mecab_cmd[0], 0o755)
+        _ensure_executable(self.mecab_cmd[0], "mecab")
+        self.mecab_env = _support_env(
+            self.support_dir,
+            {
+                "DYLD_LIBRARY_PATH": self.support_dir,
+                "LD_LIBRARY_PATH": self.support_dir,
+            },
+        )
 
     def ensure_open(self) -> None:
-        if not self.mecab:
+        if not _process_is_open(self.mecab):
+            self.close()
             self.setup()
             try:
                 self.mecab = subprocess.Popen(
@@ -251,42 +271,57 @@ class MecabController:
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     startupinfo=_startupinfo(),
+                    cwd=self.support_dir,
+                    env=self.mecab_env,
                 )
             except OSError as exc:
-                raise Exception(
-                    "Please ensure your system has 64 bit binary support."
-                ) from exc
+                raise RubyGeneratorError("Failed to start bundled mecab") from exc
+
+    def close(self) -> None:
+        with self._lock:
+            _close_process(self.mecab, "mecab")
+            self.mecab = None
 
     def reading(self, expr: str) -> str:
-        self.ensure_open()
         expr = escape_text(expr)
-        assert self.mecab
-        self.mecab.stdin.write(expr.encode("utf-8", "ignore") + b"\n")
-        self.mecab.stdin.flush()
-        expr = self.mecab.stdout.readline().rstrip(b"\r\n").decode("utf-8", "replace")
+        with self._lock:
+            expr = self._raw_reading(expr)
+            return self._format_mecab_output(expr)
+
+    def _raw_reading(self, expr: str) -> str:
+        for attempt in range(2):
+            try:
+                self.ensure_open()
+                assert self.mecab and self.mecab.stdin and self.mecab.stdout
+                self.mecab.stdin.write(expr.encode(UTF8_ENCODING, "ignore") + b"\n")
+                self.mecab.stdin.flush()
+                raw = self.mecab.stdout.readline()
+                if not raw:
+                    raise RubyGeneratorError("mecab closed its output pipe")
+                return raw.rstrip(b"\r\n").decode(UTF8_ENCODING, "replace")
+            except (BrokenPipeError, OSError, ValueError, RubyGeneratorError):
+                self.close()
+                if attempt:
+                    raise
+        return ""
+
+    def _format_mecab_output(self, expr: str) -> str:
         out = []
-        for node in expr.split(" "):
-            if not node:
-                break
-            m = re.match(r"(.+)\[(.*)\]", node)
+        for node in expr.split():
+            m = MECAB_NODE_RE.fullmatch(node)
             if not m:
-                sys.stderr.write(
-                    "Unexpected output from mecab: {}\n".format(repr(expr))
-                )
+                logger.warning("Unexpected output from mecab: %r", expr)
                 return ""
 
             (kanji, reading) = m.groups()
             if kanji == reading or not reading:
                 out.append(kanji)
                 continue
-            if kanji == self.kakasi.reading(reading):
-                out.append(kanji)
-                continue
             reading = self.kakasi.reading(reading)
             if reading == kanji:
                 out.append(kanji)
                 continue
-            if kanji in "一二三四五六七八九十０１２３４５６７８９":
+            if all(ch in JAPANESE_NUMERAL_CHARS for ch in kanji):
                 out.append(kanji)
                 continue
 
@@ -328,7 +363,7 @@ class MecabController:
 
         fin = ""
         for c, s in enumerate(out):
-            if c < len(out) - 1 and re.match(r"^[A-Za-z0-9]+$", out[c + 1]):
+            if c < len(out) - 1 and ALNUM_RE.fullmatch(out[c + 1]):
                 s += " "
             fin += s
         return fin.strip().replace("< br>", "<br>")
@@ -337,11 +372,36 @@ class MecabController:
 class AddonRubyGenerator:
     def __init__(self, support_dir: Optional[str] = None) -> None:
         self.support_dir = support_dir or DEFAULT_SUPPORT_DIR
+        if not os.path.isdir(self.support_dir):
+            raise RubyGeneratorError(f"Ruby support directory was not found: {self.support_dir}")
         self.kakasi = KakasiController(self.support_dir)
         self.mecab = MecabController(self.support_dir, self.kakasi)
         self._single_kanji_reading_cache: dict[str, str] = {}
+        self._closed = False
+
+    def close(self) -> None:
+        self._closed = True
+        self.mecab.close()
+        self.kakasi.close()
+
+    def __enter__(self) -> "AddonRubyGenerator":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            pass
+
+    def _ensure_open(self) -> None:
+        if self._closed:
+            raise RubyGeneratorError("Ruby generator has been closed")
 
     def reading(self, text: str) -> str:
+        self._ensure_open()
         return self.mecab.reading(text)
 
     def single_kanji_reading(self, ch: str) -> str:
@@ -360,13 +420,14 @@ class AddonRubyGenerator:
         self._single_kanji_reading_cache[ch] = value
         return value
 
-    def segments(self, text: str) -> List[Tuple[str, Optional[str]]]:
+    def segments(self, text: str) -> List[Segment]:
+        self._ensure_open()
         ruby_text = self.reading(text)
         return bracket_text_to_segments(ruby_text, self.single_kanji_reading)
 
 
-def bracket_text_to_segments(text: str, single_kanji_reader=None) -> List[Tuple[str, Optional[str]]]:
-    segments: List[Tuple[str, Optional[str]]] = []
+def bracket_text_to_segments(text: str, single_kanji_reader: SingleKanjiReader = None) -> List[Segment]:
+    segments: List[Segment] = []
     last = 0
     for m in BRACKET_RUBY_RE.finditer(text or ""):
         plain = text[last:m.start()]

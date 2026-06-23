@@ -90,9 +90,13 @@ class SubtitleController:
 
         self.episode_controller.restore_startup_time_and_mode()
 
-        self.last_update = time.time()
+        self.last_update = time.perf_counter()
         self.playback.set_current_time(float(self.current_time or 0.0))
         self.update_episode_nav_controls()
+        try:
+            self.sub_manager.schedule_episode_preload_around_current()
+        except Exception:
+            pass
         self.ocr_controller._schedule_ocr_time_jump("startup")
         if self._startup_resume_play: self.playback.toggle_play()
 
@@ -121,6 +125,11 @@ class SubtitleController:
         self.translation_provider = "deepl"
         self.sub_hidden = False
         self.slider_dragging = False
+        self._slider_render_job = None
+        self._slider_pending_value: float | None = None
+        self._defer_auto_ruby_once = False
+        self._auto_ruby_generation_id = 0
+        self._auto_ruby_thread = None
         self._shutting_down = False
 
         self._single_fire_actions: set[str] = set()
@@ -132,6 +141,7 @@ class SubtitleController:
         self._repeat_lock = threading.Lock()
         self._held_repeat_next_fire: dict[str, float] = {}
         self._held_repeat_fired: set[str] = set()
+        self._held_repeat_press_time: dict[str, float] = {}
         self._repeat_initial_delay_sec = 0.22
         self._repeat_interval_sec = 0.04
         self._pending_seek_delta = 0.0
@@ -421,6 +431,12 @@ class SubtitleController:
 
     def _apply_anki_settings(self, values: dict) -> None:
         if any(str(k).startswith("ANKI_") for k in values.keys()):
+            try:
+                close = getattr(self.anki, "close", None)
+                if callable(close):
+                    close()
+            except Exception:
+                pass
             self.anki = AnkiClient(self.config)
             self.anki_busy_cursor = self.anki_busy_cursor or "wait"
 
@@ -617,7 +633,7 @@ class SubtitleController:
                 setattr(self, listener_attr, None)
         root = getattr(self.settings, "root", None)
         for job in ("subtitle_timeout_job", "_con_hide_job", "_input_pump_job",
-                    "_repeat_job", "_ocr_job", "_update_loop_job",
+                    "_repeat_job", "_ocr_job", "_update_loop_job", "_slider_render_job",
                     "_anki_success_popup_job"):
             handle = getattr(self, job, None)
             if handle is not None:
@@ -677,6 +693,12 @@ class SubtitleController:
             shutdown = getattr(self.sub_manager, "shutdown", None)
             if callable(shutdown):
                 shutdown()
+        except Exception:
+            pass
+        try:
+            close = getattr(self.anki, "close", None)
+            if callable(close):
+                close()
         except Exception:
             pass
 

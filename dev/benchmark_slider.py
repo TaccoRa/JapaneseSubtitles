@@ -87,9 +87,11 @@ def select_sample_files(files: List[Path], max_files: int) -> List[Path]:
     return selected
 
 
-def build_test_environment(srt_path: Path):
+def build_test_environment(srt_path: Path, config_overrides: dict | None = None):
     config = ConfigManager(str(root_path / "config.json"))
     config.config["LAST_LOCAL_SRT_FILE"] = str(srt_path)
+    if config_overrides:
+        config.config.update(config_overrides)
 
     manager = SubtitleManager(config)
 
@@ -116,7 +118,20 @@ def build_test_environment(srt_path: Path):
     controller = object.__new__(SubtitleController)
     controller.sub_manager = manager
     controller.renderer = renderer
-    controller.settings = types.SimpleNamespace(_last_offset_value=0.0)
+    time_overlay = tk.Canvas(root, width=360, height=18)
+    time_overlay_text = time_overlay.create_text(0, 0, text="")
+    slider = tk.Scale(root, from_=0, to=manager.get_total_duration(), orient="horizontal", resolution=0.1)
+    control_time_str = tk.StringVar(root, value="")
+
+    controller.settings = types.SimpleNamespace(
+        root=root,
+        _last_offset_value=0.0,
+        time_overlay=time_overlay,
+        time_overlay_text=time_overlay_text,
+        control_time_str=control_time_str,
+        slider=slider,
+        update_time_overlay_position=lambda: None,
+    )
     controller.overlay = overlay
     controller.current_time = 0.0
     controller.total_duration = manager.get_total_duration()
@@ -126,6 +141,12 @@ def build_test_environment(srt_path: Path):
     controller.last_subtitle_raw = ""
     controller.subtitle_deleted = False
     controller.slider_dragging = False
+    controller._shutting_down = False
+    controller._slider_render_job = None
+    controller._slider_pending_value = None
+    controller._defer_auto_ruby_once = False
+    controller._auto_ruby_generation_id = 0
+    controller._auto_ruby_thread = None
     controller.entry_editing = False
     controller.config = config
     controller._pending_seek_delta = 0.0
@@ -153,6 +174,22 @@ def build_test_environment(srt_path: Path):
     controller.on_slider_change = SubtitleController.on_slider_change.__get__(
         controller, SubtitleController
     )
+    controller.on_slider_release = SubtitleController.on_slider_release.__get__(
+        controller, SubtitleController
+    )
+    controller.update_time_and_subtitle_displays = SubtitleController.update_time_and_subtitle_displays.__get__(
+        controller, SubtitleController
+    )
+
+    class _PlaybackStub:
+        def __init__(self, owner):
+            self.owner = owner
+
+        def set_current_time(self, value):
+            self.owner.current_time = float(value)
+            self.owner.update_time_and_subtitle_displays()
+
+    controller.playback = _PlaybackStub(controller)
 
     return root, config, manager, overlay, renderer, controller
 
@@ -252,6 +289,14 @@ def reset_renderer_caches(renderer, manager):
                 manager._ruby_stats[key] = 0.0
 
 
+def _snapshot(stats, times):
+    return collections.Counter(stats), dict(times)
+
+
+def _scenario_delta(before, after, keys):
+    return {key: after.get(key, 0) - before.get(key, 0) for key in keys}
+
+
 def run_slider_simulation(controller, manager, root, steps=50):
     scrub_times = []
     if not manager.display_data:
@@ -283,8 +328,173 @@ def run_slider_simulation(controller, manager, root, steps=50):
     }
 
 
-def benchmark_one_file(srt_path: Path):
-    root, config, manager, overlay, renderer, controller = build_test_environment(srt_path)
+def _run_tk_until(root, predicate, timeout_sec=0.25):
+    deadline = time.perf_counter() + float(timeout_sec)
+    while time.perf_counter() < deadline:
+        root.update()
+        if predicate():
+            return True
+        time.sleep(0.001)
+    return False
+
+
+def run_fast_drag_burst(controller, manager, root, steps=240):
+    """
+    Simulate the user dragging faster than Tk can render.
+
+    This measures whether slider callbacks stay cheap and whether redraw work is
+    coalesced to the newest position.
+    """
+    if not manager.display_data:
+        raise RuntimeError("No subtitle data loaded")
+
+    controller.slider_dragging = True
+    controller._slider_pending_value = None
+    if getattr(controller, "_slider_render_job", None) is not None:
+        try:
+            root.after_cancel(controller._slider_render_job)
+        except Exception:
+            pass
+        controller._slider_render_job = None
+
+    start_value = manager.display_data[0][1]
+    step = controller.total_duration / max(1, steps)
+
+    start = time.perf_counter()
+    slider = getattr(getattr(controller, "settings", None), "slider", None)
+    for i in range(steps):
+        value = min(start_value + i * step, controller.total_duration)
+        if slider is not None:
+            try:
+                slider.set(value)
+            except Exception:
+                pass
+        controller.on_slider_change(str(value))
+    handler_ms = (time.perf_counter() - start) * 1000.0
+
+    return {
+        "handler_calls": steps,
+        "handler_total_ms": handler_ms,
+        "handler_avg_ms": handler_ms / max(1, steps),
+    }
+
+
+def run_fast_drag_burst_and_preview(controller, manager, root, stats, steps=240):
+    before_render_calls = int(stats.get("render_subtitle_calls", 0))
+    before_create_text = int(stats.get("canvas_create_text_calls", 0))
+    before_auto = int(stats.get("ensure_auto_ruby_calls", 0))
+
+    result = run_fast_drag_burst(controller, manager, root, steps=steps)
+    _run_tk_until(
+        root,
+        lambda: int(stats.get("render_subtitle_calls", 0)) > before_render_calls,
+        timeout_sec=0.35,
+    )
+
+    result.update(
+        {
+            "preview_render_calls": int(stats.get("render_subtitle_calls", 0)) - before_render_calls,
+            "preview_create_text_calls": int(stats.get("canvas_create_text_calls", 0)) - before_create_text,
+            "preview_auto_ruby_calls": int(stats.get("ensure_auto_ruby_calls", 0)) - before_auto,
+        }
+    )
+    return result
+
+
+def run_release_after_drag(controller, root, stats):
+    before_render_calls = int(stats.get("render_subtitle_calls", 0))
+    before_auto = int(stats.get("ensure_auto_ruby_calls", 0))
+    start = time.perf_counter()
+    controller.on_slider_release(None)
+    root.update()
+    total_ms = (time.perf_counter() - start) * 1000.0
+    wait_start = time.perf_counter()
+    auto_completed = _run_tk_until(
+        root,
+        lambda: int(stats.get("ensure_auto_ruby_calls", 0)) > before_auto,
+        timeout_sec=2.0,
+    )
+    background_auto_ms = (time.perf_counter() - wait_start) * 1000.0 if auto_completed else 0.0
+    return {
+        "release_total_ms": total_ms,
+        "release_render_calls": int(stats.get("render_subtitle_calls", 0)) - before_render_calls,
+        "release_auto_ruby_calls": int(stats.get("ensure_auto_ruby_calls", 0)) - before_auto,
+        "background_auto_completed": auto_completed,
+        "background_auto_ms": background_auto_ms,
+    }
+
+
+def measure_slider_scenarios(srt_path: Path, config_overrides: dict | None = None) -> dict:
+    scenarios = {}
+
+    root, _config, manager, _overlay, renderer, controller = build_test_environment(srt_path, config_overrides)
+    stats = collections.Counter()
+    times = collections.defaultdict(float)
+    install_external_timers(manager, renderer, stats, times)
+    try:
+        before_stats, before_times = _snapshot(stats, times)
+        scenarios["cold_direct"] = run_slider_simulation(controller, manager, root, steps=SLIDER_STEPS)
+        after_stats, after_times = _snapshot(stats, times)
+        scenarios["cold_direct"].update(_scenario_delta(
+            before_stats,
+            after_stats,
+            ["render_subtitle_calls", "canvas_create_text_calls", "ensure_auto_ruby_calls"],
+        ))
+        scenarios["cold_direct"].update({
+            "render_subtitle_ms": (after_times.get("render_subtitle", 0.0) - before_times.get("render_subtitle", 0.0)) * 1000.0,
+            "auto_ruby_ms": (after_times.get("ensure_auto_ruby_for_index", 0.0) - before_times.get("ensure_auto_ruby_for_index", 0.0)) * 1000.0,
+        })
+
+        before_stats, before_times = _snapshot(stats, times)
+        scenarios["warm_direct"] = run_slider_simulation(controller, manager, root, steps=SLIDER_STEPS)
+        after_stats, after_times = _snapshot(stats, times)
+        scenarios["warm_direct"].update(_scenario_delta(
+            before_stats,
+            after_stats,
+            ["render_subtitle_calls", "canvas_create_text_calls", "ensure_auto_ruby_calls"],
+        ))
+        scenarios["warm_direct"].update({
+            "render_subtitle_ms": (after_times.get("render_subtitle", 0.0) - before_times.get("render_subtitle", 0.0)) * 1000.0,
+            "auto_ruby_ms": (after_times.get("ensure_auto_ruby_for_index", 0.0) - before_times.get("ensure_auto_ruby_for_index", 0.0)) * 1000.0,
+        })
+    finally:
+        root.destroy()
+
+    root, _config, manager, _overlay, renderer, controller = build_test_environment(srt_path, config_overrides)
+    stats = collections.Counter()
+    times = collections.defaultdict(float)
+    install_external_timers(manager, renderer, stats, times)
+    try:
+        before_stats, before_times = _snapshot(stats, times)
+        scenarios["fast_drag_burst"] = run_fast_drag_burst_and_preview(
+            controller,
+            manager,
+            root,
+            stats,
+            steps=max(SLIDER_STEPS, 240),
+        )
+        after_stats, after_times = _snapshot(stats, times)
+        scenarios["fast_drag_burst"].update({
+            "render_subtitle_ms": (after_times.get("render_subtitle", 0.0) - before_times.get("render_subtitle", 0.0)) * 1000.0,
+            "auto_ruby_ms": (after_times.get("ensure_auto_ruby_for_index", 0.0) - before_times.get("ensure_auto_ruby_for_index", 0.0)) * 1000.0,
+        })
+
+        before_stats, before_times = _snapshot(stats, times)
+        scenarios["release_after_drag"] = run_release_after_drag(controller, root, stats)
+        after_stats, after_times = _snapshot(stats, times)
+        scenarios["release_after_drag"].update({
+            "render_subtitle_ms": (after_times.get("render_subtitle", 0.0) - before_times.get("render_subtitle", 0.0)) * 1000.0,
+            "auto_ruby_ms": (after_times.get("ensure_auto_ruby_for_index", 0.0) - before_times.get("ensure_auto_ruby_for_index", 0.0)) * 1000.0,
+        })
+    finally:
+        root.destroy()
+
+    return scenarios
+
+
+def benchmark_one_file(srt_path: Path, config_overrides: dict | None = None):
+    scenarios = measure_slider_scenarios(srt_path, config_overrides)
+    root, config, manager, overlay, renderer, controller = build_test_environment(srt_path, config_overrides)
 
     stats = collections.Counter()
     times = collections.defaultdict(float)
@@ -336,6 +546,7 @@ def benchmark_one_file(srt_path: Path):
             "wrap_cache_size": len(renderer._wrap_cache),
             "layout_cache_size": len(renderer._layout_cache),
             "ruby_stats": ruby_stats,
+            "scenarios": scenarios,
             "run_avgs": run_avgs,
             "run_mins": run_mins,
             "run_maxs": run_maxs,
@@ -375,6 +586,42 @@ def print_file_result(anime_name: str, file_result: dict):
     ):.1f}%")
     print(f"  auto-ruby generator_calls: {ruby_stats.get('generator_calls', 0)}")
     print(f"  auto-ruby generator_time:  {ruby_stats.get('generator_time', 0.0) * 1000.0:.1f} ms")
+
+    scenarios = file_result.get("scenarios") or {}
+    if scenarios:
+        cold = scenarios.get("cold_direct") or {}
+        warm = scenarios.get("warm_direct") or {}
+        drag = scenarios.get("fast_drag_burst") or {}
+        release = scenarios.get("release_after_drag") or {}
+        print("  Scenario: cold direct first scrub")
+        print(
+            f"    avg={cold.get('avg_ms', 0.0):.2f} ms  "
+            f"worst={cold.get('max_ms', 0.0):.2f} ms  "
+            f"auto={cold.get('auto_ruby_ms', 0.0):.1f} ms  "
+            f"renders={int(cold.get('render_subtitle_calls', 0))}"
+        )
+        print("  Scenario: warm direct scrub")
+        print(
+            f"    avg={warm.get('avg_ms', 0.0):.2f} ms  "
+            f"worst={warm.get('max_ms', 0.0):.2f} ms  "
+            f"auto={warm.get('auto_ruby_ms', 0.0):.1f} ms  "
+            f"renders={int(warm.get('render_subtitle_calls', 0))}"
+        )
+        print("  Scenario: fast drag burst")
+        print(
+            f"    callbacks={int(drag.get('handler_calls', 0))}  "
+            f"handler_avg={drag.get('handler_avg_ms', 0.0):.4f} ms  "
+            f"preview_renders={int(drag.get('preview_render_calls', 0))}  "
+            f"preview_auto={int(drag.get('preview_auto_ruby_calls', 0))}"
+        )
+        print("  Scenario: release after drag")
+        print(
+            f"    total={release.get('release_total_ms', 0.0):.2f} ms  "
+            f"auto={release.get('auto_ruby_ms', 0.0):.1f} ms  "
+            f"renders={int(release.get('release_render_calls', 0))}  "
+            f"bg_auto_done={bool(release.get('background_auto_completed', False))}  "
+            f"bg_auto_wait={release.get('background_auto_ms', 0.0):.1f} ms"
+        )
 
 
 def print_anime_summary(anime_name: str, file_results: List[dict]):

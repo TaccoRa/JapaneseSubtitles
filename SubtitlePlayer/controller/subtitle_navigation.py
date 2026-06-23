@@ -1,6 +1,7 @@
 """Subtitle time display, slider sync, and subtitle redraw helper."""
 
 import bisect
+import threading
 import tkinter as tk
 import re
 from typing import Any
@@ -131,9 +132,18 @@ class SubtitleNavigationController(_ControllerProxy):
             self.settings.control_time_str.set(text)
         self._update_subtitle_display()
 
-    def _update_subtitle_display(self, force: bool = False):
+    def _update_subtitle_display(
+        self,
+        force: bool = False,
+        allow_auto_ruby: bool = True,
+        schedule_auto_ruby: bool = False,
+    ):
         offset = self.settings._last_offset_value
         sub_t = self.current_time - offset
+        if getattr(self, "_defer_auto_ruby_once", False):
+            self._defer_auto_ruby_once = False
+            allow_auto_ruby = False
+            schedule_auto_ruby = True
 
         if sub_t < 0 or sub_t > self.total_duration:
             self.last_rendered_index = None
@@ -171,11 +181,14 @@ class SubtitleNavigationController(_ControllerProxy):
         ):
             return
 
-        self.sub_manager.ensure_auto_ruby_for_index(idx)
+        if allow_auto_ruby:
+            self.sub_manager.ensure_auto_ruby_for_index(idx)
 
-        clean, _, top, bottom = self.sub_manager.display_data[idx]
-        copy_text = self.segments_to_copy_text(top, bottom) or clean
-        self.last_subtitle_raw = copy_text
+            clean, _, top, bottom = self.sub_manager.display_data[idx]
+            copy_text = self.segments_to_copy_text(top, bottom) or clean
+            self.last_subtitle_raw = copy_text
+        elif schedule_auto_ruby and self._subtitle_needs_auto_ruby(idx):
+            self._schedule_auto_ruby_refresh(idx)
 
         if self.subtitle_timeout_job:
             self.overlay.root.after_cancel(self.subtitle_timeout_job)
@@ -213,10 +226,60 @@ class SubtitleNavigationController(_ControllerProxy):
         return "\n".join(lines)
     
     def _reset_canvas(self):
+        if self.subtitle_deleted and self.last_rendered_index is None and not self.last_subtitle_text:
+            return
         self.renderer.canvas.delete("all")
         self.last_rendered_index = None
         self.last_subtitle_text = ""
         self.subtitle_deleted = True
+
+    def _subtitle_needs_auto_ruby(self, idx: int) -> bool:
+        try:
+            if not bool(self.sub_manager._auto_ruby_enabled()):
+                return False
+        except Exception:
+            return False
+        ready = getattr(self.sub_manager, "_auto_ruby_ready_indices", None)
+        if ready is not None and int(idx) in ready:
+            return False
+        return True
+
+    def _schedule_auto_ruby_refresh(self, idx: int) -> None:
+        if self._shutting_down or not self._subtitle_needs_auto_ruby(idx):
+            return
+
+        generation_id = int(getattr(self, "_auto_ruby_generation_id", 0) or 0) + 1
+        self._auto_ruby_generation_id = generation_id
+        target_idx = int(idx)
+
+        def _worker() -> None:
+            try:
+                self.sub_manager.ensure_auto_ruby_for_index(target_idx)
+            except Exception:
+                return
+
+            def _refresh_if_current() -> None:
+                if self._shutting_down:
+                    return
+                if generation_id != getattr(self, "_auto_ruby_generation_id", None):
+                    return
+                if self.slider_dragging:
+                    return
+                if target_idx != getattr(self, "last_rendered_index", None):
+                    return
+                if self.subtitle_deleted:
+                    return
+                self.last_subtitle_text = ""
+                self._update_subtitle_display(force=True, allow_auto_ruby=False)
+
+            try:
+                self.settings.root.after(0, _refresh_if_current)
+            except Exception:
+                pass
+
+        thread = threading.Thread(target=_worker, daemon=True, name="auto-ruby-refresh")
+        self._auto_ruby_thread = thread
+        thread.start()
 
     def toggle_subtitle_visibility(self, event=None):
         if self.subtitle_timeout_job:
@@ -263,18 +326,53 @@ class SubtitleNavigationController(_ControllerProxy):
     def on_slider_press(self, event):
         self.slider_dragging = True
 
+    def _cancel_slider_render_job(self) -> None:
+        job = getattr(self, "_slider_render_job", None)
+        if job is None:
+            return
+        try:
+            self.settings.root.after_cancel(job)
+        except Exception:
+            pass
+        self._slider_render_job = None
+
+    def _render_slider_preview(self) -> None:
+        self._slider_render_job = None
+        if self._shutting_down or not self.slider_dragging:
+            return
+
+        value = getattr(self, "_slider_pending_value", None)
+        if value is not None:
+            self.current_time = float(value)
+        self._update_subtitle_display(allow_auto_ruby=False)
+
+    def _schedule_slider_preview_render(self, value: float) -> None:
+        self._slider_pending_value = float(value)
+        if getattr(self, "_slider_render_job", None) is not None:
+            return
+        try:
+            self._slider_render_job = self.settings.root.after(16, self._render_slider_preview)
+        except Exception:
+            self._slider_render_job = None
+            self._render_slider_preview()
+
     def on_slider_change(self, value):
         if self._shutting_down:
             return
         if self.slider_dragging:
-            text = format_time(float(value))
+            slider_value = float(value)
+            text = format_time(slider_value)
             self.settings.time_overlay.itemconfig(self.settings.time_overlay_text, text=text)
             self.settings.update_time_overlay_position()
             if not self.entry_editing:
                 self.settings.control_time_str.set(text)
-            self.current_time = float(value)
-            self._update_subtitle_display()
+            self.current_time = slider_value
+            self._schedule_slider_preview_render(slider_value)
 
     def on_slider_release(self, event):
+        self._cancel_slider_render_job()
+        self._slider_pending_value = None
         self.slider_dragging = False
+        self._defer_auto_ruby_once = True
+        self.last_subtitle_text = ""
         self.playback.set_current_time(self.settings.slider.get())

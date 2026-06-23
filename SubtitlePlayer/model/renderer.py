@@ -295,7 +295,8 @@ class SubtitleRenderer:
         glow_color = str(self.config.get("GLOW_COLOR") or "black")
 
         try:
-            glow_radius = int(float(self.config.get("GLOW_RADIUS") or 10))
+            raw_glow_radius = self.config.get("GLOW_RADIUS")
+            glow_radius = 10 if raw_glow_radius is None else int(float(raw_glow_radius))
         except Exception:
             glow_radius = 10
         glow_radius = max(0, min(glow_radius, 20))
@@ -471,12 +472,19 @@ class SubtitleRenderer:
         if cached is not None:
             return cached
 
-        offsets = [
-            (dx, dy)
-            for dx in range(-thickness, thickness + 1)
-            for dy in range(-thickness, thickness + 1)
-            if dx or dy
-        ]
+        if thickness <= 1:
+            offsets = [
+                (-1, 0),
+                (1, 0),
+                (0, -1),
+                (0, 1),
+                (-1, -1),
+                (-1, 1),
+                (1, -1),
+                (1, 1),
+            ] if thickness else []
+        else:
+            offsets = self._get_approximate_outline_offsets(thickness)
         self._outline_offset_cache[thickness] = offsets
         return offsets
     
@@ -502,8 +510,6 @@ class SubtitleRenderer:
 
         create_text = canvas.create_text
         offsets = self._get_outline_offsets(thickness)
-        if len(offsets) > 16:
-            offsets = self._get_approximate_outline_offsets(thickness)
 
         for dx, dy in offsets:
             create_text(

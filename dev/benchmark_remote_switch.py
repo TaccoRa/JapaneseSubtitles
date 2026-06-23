@@ -24,6 +24,7 @@ from model.subtitle_manager import SubtitleManager
 from model.renderer import SubtitleRenderer
 from view.subtitle_overlay import SubtitleOverlayUI
 from controller.controller import SubtitleController
+from controller.episode_controller import EpisodeController
 
 
 DEFAULT_RUNS = 10
@@ -34,6 +35,8 @@ DEFAULT_RESET_CACHES_EACH_RUN = False
 DEFAULT_REBUILD_REMOTE_MAPS_EACH_RUN = False
 DEFAULT_REFRESH_LOCAL_INDEX_EACH_RUN = False
 DEFAULT_RANDOM_SEED = 1337
+DEFAULT_TARGET_MODE = "spread"
+HEARTBEAT_INTERVAL_MS = 5
 
 
 @dataclass(frozen=True)
@@ -90,8 +93,68 @@ class PlaybackStub:
         return None
 
 
+class TkHeartbeat:
+    """Measure how long Tk callbacks are delayed while synchronous work runs."""
+
+    def __init__(self, root: tk.Tk, interval_ms: int = HEARTBEAT_INTERVAL_MS) -> None:
+        self.root = root
+        self.interval_ms = max(1, int(interval_ms))
+        self.max_delay_ms = 0.0
+        self.samples = 0
+        self._running = False
+        self._job = None
+        self._expected = 0.0
+
+    def start(self) -> None:
+        if self._running:
+            return
+        self._running = True
+        now = time.perf_counter()
+        self._expected = now + self.interval_ms / 1000.0
+        self._job = self.root.after(self.interval_ms, self._tick)
+
+    def stop(self) -> None:
+        self._running = False
+        if self._job is not None:
+            try:
+                self.root.after_cancel(self._job)
+            except Exception:
+                pass
+        self._job = None
+
+    def reset(self) -> None:
+        self.max_delay_ms = 0.0
+        self.samples = 0
+        self._expected = time.perf_counter() + self.interval_ms / 1000.0
+
+    def _tick(self) -> None:
+        if not self._running:
+            return
+        now = time.perf_counter()
+        delay_ms = max(0.0, (now - self._expected) * 1000.0)
+        self.max_delay_ms = max(self.max_delay_ms, delay_ms)
+        self.samples += 1
+        self._expected = now + self.interval_ms / 1000.0
+        self._job = self.root.after(self.interval_ms, self._tick)
+
+
 def clone_config_from_path(config_path: Path) -> ConfigManager:
-    return ConfigManager(str(config_path))
+    config = ConfigManager(str(config_path))
+
+    def set_in_memory(key, value):
+        if key not in config.config:
+            config._key_order.append(key)
+        config.config[key] = value
+
+    def set_many_in_memory(updates):
+        if not isinstance(updates, dict):
+            return
+        for key, value in updates.items():
+            set_in_memory(key, value)
+
+    config.set = set_in_memory
+    config.set_many = set_many_in_memory
+    return config
 
 
 def group_remote_records(remote_map: Dict[int, dict]) -> Dict[str, List[dict]]:
@@ -125,6 +188,16 @@ def choose_evenly_spaced(items: Sequence, max_count: int) -> List:
     return out
 
 
+def pump_tk_for(root: tk.Tk, duration_ms: int) -> None:
+    deadline = time.perf_counter() + max(0, int(duration_ms)) / 1000.0
+    while time.perf_counter() < deadline:
+        try:
+            root.update()
+        except Exception:
+            return
+        time.sleep(0.005)
+
+
 def build_controller_environment(config: ConfigManager, manager: SubtitleManager):
     root = tk.Tk()
     root.withdraw()
@@ -155,6 +228,7 @@ def build_controller_environment(config: ConfigManager, manager: SubtitleManager
     controller.config = config
     controller.playback = PlaybackStub()
     controller.playback.set_controller(controller)
+    controller.episode_controller = EpisodeController(controller)
     controller.current_time = 0.0
     controller.total_duration = float(manager.get_total_duration())
     controller.subtitle_timeout_job = None
@@ -179,6 +253,12 @@ def build_controller_environment(config: ConfigManager, manager: SubtitleManager
     controller._anki_wait_thread = None
     controller._pending_anki_payload = None
     controller._startup_resume_play = False
+    controller._slider_render_job = None
+    controller._slider_pending_value = None
+    controller._defer_auto_ruby_once = False
+    controller._auto_ruby_generation_id = 0
+    controller._auto_ruby_thread = None
+    controller.ocr_controller = types.SimpleNamespace(_schedule_ocr_time_jump=lambda *args, **kwargs: None)
     controller.sub_hidden = False
 
     controller._hide_subtitles_temporarily = lambda: None
@@ -210,8 +290,8 @@ def build_controller_environment(config: ConfigManager, manager: SubtitleManager
     controller._update_episode_nav_controls = _update_episode_nav_controls
     controller._get_display_start_times = SubtitleController._get_display_start_times.__get__(controller, SubtitleController)
     controller._segments_to_copy_text = SubtitleController._segments_to_copy_text
-    controller._after_episode_change = SubtitleController._after_episode_change.__get__(controller, SubtitleController)
-    controller.update_max_width = SubtitleController.update_max_width.__get__(controller, SubtitleController)
+    controller._after_episode_change = controller.episode_controller._after_episode_change
+    controller.update_max_width = controller.episode_controller.update_max_width
 
     try:
         controller.settings.episode_var.set(str(manager.get_current_episode() or ""))
@@ -223,7 +303,8 @@ def build_controller_environment(config: ConfigManager, manager: SubtitleManager
 
 def install_timers(manager: SubtitleManager, renderer: SubtitleRenderer, controller: SubtitleController, stats, times):
     orig_after_episode_change = controller._after_episode_change
-    orig_update_max_width = controller.update_max_width
+    episode_controller = getattr(controller, "episode_controller", None)
+    orig_update_max_width = getattr(episode_controller, "update_max_width", controller.update_max_width)
     orig_render_subtitle = renderer.render_subtitle
     orig_draw_text = renderer._draw_outlined_text
     orig_wrap = renderer._wrap_segments
@@ -233,6 +314,12 @@ def install_timers(manager: SubtitleManager, renderer: SubtitleRenderer, control
     orig_load_local_and_process = getattr(manager, "_load_local_and_process", None)
     orig_set_display_data = getattr(manager, "set_subtitle_display_data", None)
     orig_change_episode_remote = getattr(manager, "change_episode_remote", None)
+    orig_load_subtitles = getattr(manager, "load_subtitles", None)
+    orig_download_file = getattr(manager, "_download_file", None)
+    orig_schedule_prefetch = getattr(manager, "_schedule_prefetch_window", None)
+    orig_download_window = getattr(manager, "download_window_around_global", None)
+    orig_create_remote_map = getattr(manager, "_create_remote_episode_map_per_season", None)
+    orig_calculate_geometry = getattr(manager, "calculate_geometry", None)
     orig_delete = renderer.canvas.delete
     orig_create_text = renderer.canvas.create_text
     orig_build_remote_maps = getattr(manager, "build_remote_episode_maps", None)
@@ -240,17 +327,19 @@ def install_timers(manager: SubtitleManager, renderer: SubtitleRenderer, control
 
     def wrapped_after_episode_change():
         t0 = time.perf_counter()
-        result = orig_after_episode_change()
-        times["controller._after_episode_change"] += time.perf_counter() - t0
-        stats["controller._after_episode_change_calls"] += 1
-        return result
+        try:
+            return orig_after_episode_change()
+        finally:
+            times["controller._after_episode_change"] += time.perf_counter() - t0
+            stats["controller._after_episode_change_calls"] += 1
 
     def wrapped_update_max_width():
         t0 = time.perf_counter()
-        result = orig_update_max_width()
-        times["controller.update_max_width"] += time.perf_counter() - t0
-        stats["controller.update_max_width_calls"] += 1
-        return result
+        try:
+            return orig_update_max_width()
+        finally:
+            times["controller.update_max_width"] += time.perf_counter() - t0
+            stats["controller.update_max_width_calls"] += 1
 
     def wrapped_render_subtitle(top, bottom, overlay_obj):
         t0 = time.perf_counter()
@@ -315,6 +404,55 @@ def install_timers(manager: SubtitleManager, renderer: SubtitleRenderer, control
         stats["manager.change_episode_remote_calls"] += 1
         return result
 
+    def wrapped_load_subtitles(path):
+        t0 = time.perf_counter()
+        result = orig_load_subtitles(path)
+        times["manager.load_subtitles"] += time.perf_counter() - t0
+        stats["manager.load_subtitles_calls"] += 1
+        return result
+
+    def wrapped_download_file(raw_url, local_path, session=None):
+        existed_before = os.path.exists(local_path)
+        if existed_before:
+            stats["manager._download_file_cache_hit_calls"] += 1
+        else:
+            stats["manager._download_file_cache_miss_calls"] += 1
+        t0 = time.perf_counter()
+        result = orig_download_file(raw_url, local_path, session=session)
+        times["manager._download_file"] += time.perf_counter() - t0
+        stats["manager._download_file_calls"] += 1
+        if not existed_before and os.path.exists(local_path):
+            stats["manager._download_file_downloaded_calls"] += 1
+        return result
+
+    def wrapped_schedule_prefetch(center_global):
+        t0 = time.perf_counter()
+        result = orig_schedule_prefetch(center_global)
+        times["manager._schedule_prefetch_window"] += time.perf_counter() - t0
+        stats["manager._schedule_prefetch_window_calls"] += 1
+        return result
+
+    def wrapped_download_window(center_global, window, async_download=True):
+        t0 = time.perf_counter()
+        result = orig_download_window(center_global, window, async_download=async_download)
+        times["manager.download_window_around_global"] += time.perf_counter() - t0
+        stats["manager.download_window_around_global_calls"] += 1
+        return result
+
+    def wrapped_create_remote_map():
+        t0 = time.perf_counter()
+        result = orig_create_remote_map()
+        times["manager._create_remote_episode_map_per_season"] += time.perf_counter() - t0
+        stats["manager._create_remote_episode_map_per_season_calls"] += 1
+        return result
+
+    def wrapped_calculate_geometry():
+        t0 = time.perf_counter()
+        result = orig_calculate_geometry()
+        times["manager.calculate_geometry"] += time.perf_counter() - t0
+        stats["manager.calculate_geometry_calls"] += 1
+        return result
+
     def wrapped_delete(tag_or_id):
         if tag_or_id == "all":
             t0 = time.perf_counter()
@@ -333,6 +471,8 @@ def install_timers(manager: SubtitleManager, renderer: SubtitleRenderer, control
 
     controller._after_episode_change = wrapped_after_episode_change
     controller.update_max_width = wrapped_update_max_width
+    if episode_controller is not None:
+        object.__setattr__(episode_controller, "update_max_width", wrapped_update_max_width)
     renderer.render_subtitle = wrapped_render_subtitle
     renderer._draw_outlined_text = wrapped_draw_outlined_text
     renderer._wrap_segments = wrapped_wrap_segments
@@ -347,6 +487,18 @@ def install_timers(manager: SubtitleManager, renderer: SubtitleRenderer, control
         manager.set_subtitle_display_data = wrapped_set_display_data
     if orig_change_episode_remote is not None:
         manager.change_episode_remote = wrapped_change_episode_remote
+    if orig_load_subtitles is not None:
+        manager.load_subtitles = wrapped_load_subtitles
+    if orig_download_file is not None:
+        manager._download_file = wrapped_download_file
+    if orig_schedule_prefetch is not None:
+        manager._schedule_prefetch_window = wrapped_schedule_prefetch
+    if orig_download_window is not None:
+        manager.download_window_around_global = wrapped_download_window
+    if orig_create_remote_map is not None:
+        manager._create_remote_episode_map_per_season = wrapped_create_remote_map
+    if orig_calculate_geometry is not None:
+        manager.calculate_geometry = wrapped_calculate_geometry
     if orig_build_remote_maps is not None:
         manager.build_remote_episode_maps = orig_build_remote_maps
     if orig_update_local_srt_files is not None:
@@ -385,6 +537,38 @@ def reset_caches(renderer: SubtitleRenderer, manager: SubtitleManager) -> None:
         manager._auto_ruby_cache.clear()
     except Exception:
         pass
+
+
+def get_remote_target_cache_path(manager: SubtitleManager, target: EpisodeTarget) -> Optional[str]:
+    item = None
+    remote_map = getattr(manager, "remote_episode_map_global", None) or {}
+    if target.global_index is not None:
+        item = remote_map.get(int(target.global_index))
+
+    if item is None and target.season is not None and target.episode is not None:
+        for candidate in getattr(manager, "remote_episode_map_season", {}).get(int(target.season), []):
+            if candidate.get("episode") == int(target.episode):
+                item = candidate
+                break
+
+    if not item or not item.get("path"):
+        return None
+
+    try:
+        season = item.get("season") or getattr(manager, "current_season", None)
+        season_dir = manager._season_cache_dir(season)
+        filename = manager.sanitize_filename(os.path.basename(item["path"]))
+        return os.path.join(season_dir, filename)
+    except Exception:
+        return None
+
+
+def note_target_cache_state(manager: SubtitleManager, target: EpisodeTarget, stats, prefix: str) -> None:
+    path = get_remote_target_cache_path(manager, target)
+    if path and os.path.exists(path):
+        stats[f"{prefix}_cache_hit"] += 1
+    else:
+        stats[f"{prefix}_cache_miss"] += 1
     try:
         manager._ruby_stats["cache_hits"] = 0
         manager._ruby_stats["cache_misses"] = 0
@@ -415,7 +599,12 @@ def build_remote_environment(config_path: Path):
     return root, config, manager, overlay, renderer, controller
 
 
-def make_targets_from_remote_map(remote_map: Dict[int, dict], max_targets: int) -> List[EpisodeTarget]:
+def make_targets_from_remote_map(
+    remote_map: Dict[int, dict],
+    max_targets: int,
+    target_mode: str = DEFAULT_TARGET_MODE,
+    center_global: Optional[int] = None,
+) -> List[EpisodeTarget]:
     records = list(remote_map.values())
     if not records:
         return []
@@ -429,7 +618,19 @@ def make_targets_from_remote_map(remote_map: Dict[int, dict], max_targets: int) 
             str(r.get("name") or ""),
         )
     )
-    selected = choose_evenly_spaced(records, max_targets)
+    if target_mode == "adjacent":
+        if center_global is not None:
+            idx = 0
+            for i, rec in enumerate(records):
+                if rec.get("global") == int(center_global):
+                    idx = i
+                    break
+            start = max(0, min(idx, max(0, len(records) - max_targets)))
+        else:
+            start = 0
+        selected = records[start:start + max_targets]
+    else:
+        selected = choose_evenly_spaced(records, max_targets)
     return [make_target_for_remote_record(rec) for rec in selected]
 
 
@@ -491,6 +692,8 @@ def run_remote_sequence(
     rebuild_remote_maps: bool = False,
     refresh_local_index: bool = False,
     reset_cache_each_run: bool = False,
+    heartbeat: Optional[TkHeartbeat] = None,
+    preload_wait_ms: int = 0,
 ) -> Dict[str, object]:
     if not targets:
         raise RuntimeError("No remote targets available for benchmark")
@@ -515,11 +718,17 @@ def run_remote_sequence(
             controller.subtitle_timeout_job = None
 
     before = snapshot_metrics(run_remote_sequence.stats, run_remote_sequence.times)
+    if heartbeat is not None:
+        heartbeat.reset()
 
     run_times: List[float] = []
+    sample_rows: List[Dict[str, object]] = []
     steps = max(1, int(steps))
 
     for i in range(steps):
+        if preload_wait_ms > 0:
+            pump_tk_for(root, preload_wait_ms)
+
         if rebuild_remote_maps:
             try:
                 manager.remote_episode_map_global = {}
@@ -539,6 +748,9 @@ def run_remote_sequence(
             reset_caches(controller.renderer, manager)
 
         target = sequence[(i + 1) % len(sequence)]
+        path_before = get_remote_target_cache_path(manager, target)
+        cached_before = bool(path_before and os.path.exists(path_before))
+        note_target_cache_state(manager, target, run_remote_sequence.stats, "target_before")
         t0 = time.perf_counter()
         try:
             switch_to_target(manager, controller, target)
@@ -547,6 +759,20 @@ def run_remote_sequence(
             pass
         elapsed = time.perf_counter() - t0
         run_times.append(elapsed)
+        path_after = get_remote_target_cache_path(manager, target)
+        cached_after = bool(path_after and os.path.exists(path_after))
+        note_target_cache_state(manager, target, run_remote_sequence.stats, "target_after")
+        sample_rows.append({
+            "target": target.label,
+            "ms": elapsed * 1000.0,
+            "cached_before": cached_before,
+            "cached_after": cached_after,
+        })
+
+        try:
+            root.update()
+        except Exception:
+            pass
 
         if getattr(controller, "subtitle_timeout_job", None):
             try:
@@ -564,6 +790,9 @@ def run_remote_sequence(
         "max_ms": max(run_times) * 1000.0,
         "total_ms": sum(run_times) * 1000.0,
         "samples": run_times,
+        "sample_rows": sample_rows,
+        "heartbeat_max_delay_ms": heartbeat.max_delay_ms if heartbeat is not None else 0.0,
+        "heartbeat_samples": heartbeat.samples if heartbeat is not None else 0,
         "stats": stats_delta,
         "times": times_delta,
     }
@@ -583,13 +812,19 @@ def print_breakdown(title: str, stats: collections.Counter, times: Dict[str, flo
         ("manager._load_local_record", "manager._load_local_record_calls"),
         ("manager._load_local_and_process", "manager._load_local_and_process_calls"),
         ("manager.set_subtitle_display_data", "manager.set_subtitle_display_data_calls"),
+        ("manager.load_subtitles", "manager.load_subtitles_calls"),
         ("controller._after_episode_change", "controller._after_episode_change_calls"),
         ("controller.update_max_width", "controller.update_max_width_calls"),
+        ("manager.calculate_geometry", "manager.calculate_geometry_calls"),
         ("renderer.render_subtitle", "renderer.render_subtitle_calls"),
         ("renderer._draw_outlined_text", "renderer._draw_outlined_text_calls"),
         ("renderer._wrap_segments", "renderer._wrap_segments_calls"),
         ("renderer._measure_text", "renderer._measure_text_calls"),
         ("manager.ensure_auto_ruby_for_index", "manager.ensure_auto_ruby_for_index_calls"),
+        ("manager._download_file", "manager._download_file_calls"),
+        ("manager.download_window_around_global", "manager.download_window_around_global_calls"),
+        ("manager._schedule_prefetch_window", "manager._schedule_prefetch_window_calls"),
+        ("manager._create_remote_episode_map_per_season", "manager._create_remote_episode_map_per_season_calls"),
         ("canvas.delete(all)", "canvas.delete(all)_calls"),
         ("canvas.create_text", "canvas.create_text_calls"),
     ]
@@ -604,21 +839,27 @@ def summarize_group(results: List[Dict[str, object]]) -> Dict[str, float]:
     if not results:
         return {}
     total_create_text = sum(int(r.get("stats", {}).get("canvas.create_text_calls", 0)) for r in results)
+    total_heartbeat_delay = max(float(r.get("heartbeat_max_delay_ms", 0.0)) for r in results)
     total_switches = sum(
         int(r.get("stats", {}).get("manager.change_episode_remote_calls", 0))
         for r in results
     )
+    target_hits = sum(int(r.get("stats", {}).get("target_before_cache_hit", 0)) for r in results)
+    target_misses = sum(int(r.get("stats", {}).get("target_before_cache_miss", 0)) for r in results)
     return {
         "avg_ms": statistics.mean(r["avg_ms"] for r in results),
         "best_ms": min(r["min_ms"] for r in results),
         "worst_ms": max(r["max_ms"] for r in results),
         "stddev_ms": statistics.stdev(r["avg_ms"] for r in results) if len(results) > 1 else 0.0,
         "avg_create_text": total_create_text / max(1, total_switches),
+        "max_heartbeat_delay_ms": total_heartbeat_delay,
+        "target_cache_hit_rate": (target_hits / max(1, target_hits + target_misses)) * 100.0,
     }
 
 
 def benchmark_remote(config_path: Path, runs: int, warmup: int, steps: int, max_targets: int,
-                     reset_cache_each_run: bool, rebuild_remote_maps_each_run: bool, refresh_local_index_each_run: bool) -> None:
+                     reset_cache_each_run: bool, rebuild_remote_maps_each_run: bool,
+                     refresh_local_index_each_run: bool, target_mode: str, preload_wait_ms: int) -> None:
     remote_env = build_remote_environment(config_path)
     if remote_env is None:
         print("Remote benchmark skipped: no remote configuration found (REMOTE_FLAG/LAST_GITHUB_URL not set).")
@@ -654,6 +895,9 @@ def benchmark_remote(config_path: Path, runs: int, warmup: int, steps: int, max_
     print(f"Rebuild maps/run:    {rebuild_remote_maps_each_run}")
     print(f"Refresh index/run:   {refresh_local_index_each_run}")
     print(f"Max targets/group:   {max_targets}")
+    print(f"Target mode:         {target_mode}")
+    print(f"Preload wait:        {preload_wait_ms} ms")
+    print(f"Heartbeat interval:  {HEARTBEAT_INTERVAL_MS} ms")
     print()
 
     stats = collections.Counter()
@@ -661,6 +905,8 @@ def benchmark_remote(config_path: Path, runs: int, warmup: int, steps: int, max_
     install_timers(manager, renderer, controller, stats, times)
     run_remote_sequence.stats = stats
     run_remote_sequence.times = times
+    heartbeat = TkHeartbeat(root)
+    heartbeat.start()
 
     overall_results: List[Dict[str, object]] = []
 
@@ -670,7 +916,16 @@ def benchmark_remote(config_path: Path, runs: int, warmup: int, steps: int, max_
                 print(f"\n[{group_name}] skipped (needs at least 2 remote episodes)")
                 continue
 
-            targets = make_targets_from_remote_map({i: rec for i, rec in enumerate(items)}, max_targets)
+            try:
+                center_global = manager.get_current_global()
+            except Exception:
+                center_global = None
+            targets = make_targets_from_remote_map(
+                {i: rec for i, rec in enumerate(items)},
+                max_targets,
+                target_mode=target_mode,
+                center_global=center_global,
+            )
             if len(targets) < 2:
                 print(f"\n[{group_name}] skipped (not enough usable targets)")
                 continue
@@ -684,6 +939,8 @@ def benchmark_remote(config_path: Path, runs: int, warmup: int, steps: int, max_
             try:
                 switch_to_target(manager, controller, targets[0])
                 controller._after_episode_change()
+                if preload_wait_ms > 0:
+                    pump_tk_for(root, preload_wait_ms)
             except Exception:
                 pass
 
@@ -709,6 +966,8 @@ def benchmark_remote(config_path: Path, runs: int, warmup: int, steps: int, max_
                     rebuild_remote_maps=rebuild_remote_maps_each_run,
                     refresh_local_index=refresh_local_index_each_run,
                     reset_cache_each_run=False,
+                    heartbeat=heartbeat,
+                    preload_wait_ms=preload_wait_ms,
                 )
                 group_results.append(result)
                 overall_results.append(result)
@@ -718,8 +977,12 @@ def benchmark_remote(config_path: Path, runs: int, warmup: int, steps: int, max_
                     f"avg={result['avg_ms']:7.2f} ms  "
                     f"min={result['min_ms']:7.2f} ms  "
                     f"max={result['max_ms']:7.2f} ms  "
-                    f"total={result['total_ms']:8.2f} ms"
+                    f"total={result['total_ms']:8.2f} ms  "
+                    f"tk_delay={result['heartbeat_max_delay_ms']:7.2f} ms"
                 )
+                for sample in result.get("sample_rows", [])[: min(3, len(result.get("sample_rows", [])))]:
+                    cache_label = "cached" if sample.get("cached_before") else "missing"
+                    print(f"         {sample['target']:<10} {sample['ms']:7.2f} ms  before={cache_label}")
 
             summary = summarize_group(group_results)
             print("\n--- GROUP SUMMARY ---")
@@ -728,6 +991,8 @@ def benchmark_remote(config_path: Path, runs: int, warmup: int, steps: int, max_
             print(f"Best observed switch: {summary['best_ms']:.2f} ms")
             print(f"Worst observed switch: {summary['worst_ms']:.2f} ms")
             print(f"Average create_text:  {summary['avg_create_text']:.0f}")
+            print(f"Target cache hit rate: {summary['target_cache_hit_rate']:.1f}%")
+            print(f"Max Tk callback delay: {summary['max_heartbeat_delay_ms']:.2f} ms")
             hit_rate = (
                 (renderer._layout_cache_hits / (renderer._layout_cache_hits + renderer._layout_cache_misses) * 100.0)
                 if (renderer._layout_cache_hits + renderer._layout_cache_misses) > 0 else 0.0
@@ -741,6 +1006,10 @@ def benchmark_remote(config_path: Path, runs: int, warmup: int, steps: int, max_
                 print(f"{t.label}  ({t.source_name})")
 
     finally:
+        try:
+            heartbeat.stop()
+        except Exception:
+            pass
         try:
             root.destroy()
         except Exception:
@@ -767,6 +1036,8 @@ def main() -> None:
     parser.add_argument("--reset-cache-each-run", action="store_true", default=DEFAULT_RESET_CACHES_EACH_RUN)
     parser.add_argument("--rebuild-remote-maps-each-run", action="store_true", default=DEFAULT_REBUILD_REMOTE_MAPS_EACH_RUN)
     parser.add_argument("--refresh-local-index-each-run", action="store_true", default=DEFAULT_REFRESH_LOCAL_INDEX_EACH_RUN)
+    parser.add_argument("--target-mode", choices=("spread", "adjacent"), default=DEFAULT_TARGET_MODE)
+    parser.add_argument("--preload-wait-ms", type=int, default=0)
     args = parser.parse_args()
 
     if not args.config.exists():
@@ -785,6 +1056,8 @@ def main() -> None:
         reset_cache_each_run=args.reset_cache_each_run,
         rebuild_remote_maps_each_run=args.rebuild_remote_maps_each_run,
         refresh_local_index_each_run=args.refresh_local_index_each_run,
+        target_mode=args.target_mode,
+        preload_wait_ms=args.preload_wait_ms,
     )
 
 

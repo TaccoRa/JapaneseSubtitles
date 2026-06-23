@@ -54,5 +54,7 @@ class ConfigManager:
                 ordered[key] = value
                 self._key_order.append(key)
         self.config = ordered
-        with open(self.path, "w", encoding="utf-8") as f:
+        tmp_path = f"{self.path}.tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(self.config, f, indent=4, ensure_ascii=False)
+        os.replace(tmp_path, self.path)

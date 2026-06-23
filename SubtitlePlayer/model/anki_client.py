@@ -8,6 +8,7 @@ import functools
 import os
 import re
 import sys
+import threading
 from html import escape
 from typing import Dict, List, Optional
 
@@ -36,31 +37,42 @@ class AnkiClient:
     DEFAULT_DEEPL_URL = "https://api-free.deepl.com/v2/translate"
     DEFAULT_STROKE_SVG_BASE_URL = "https://raw.githubusercontent.com/KanjiVG/kanjivg/master/kanji"
     DEFAULT_STROKE_MEDIA_PREFIX = "stroke_"
+    TEXT_CACHE_LIMIT = 512
 
     def __init__(self, config) -> None:
         self.config = config
         self.url = (self.config.get("ANKI_CONNECT_URL") or "http://127.0.0.1:8765").strip()
         self.http_timeout = float(self.config.get("ANKI_HTTP_TIMEOUT_SEC") or 4.0)
 
+        self._http = requests.Session()
+        self._closed = False
         self._model_fields_cache: Optional[set[str]] = None
+        self._ensured_decks: set[str] = set()
+        self._furigana_cache: Dict[tuple[str, bool, bool, bool], str] = {}
+        self._word_spans_cache: Dict[str, List[Dict[str, object]]] = {}
+        self._single_kanji_reading_cache: Dict[str, str] = {}
         self._word_translation_cache: Dict[str, str] = {}
         self._word_definition_cache: Dict[str, str] = {}
+        self._word_provider_cache: Dict[str, str] = {}
+        self._jisho_word_translation_cache: Dict[str, str] = {}
+        self._jisho_word_definition_cache: Dict[str, str] = {}
         self._sentence_translation_cache: Dict[str, str] = {}
+        self._sentence_provider_cache: Dict[str, str] = {}
+        self._google_translation_cache: Dict[tuple[str, str, str], str] = {}
+        self._deepl_translation_cache: Dict[tuple[str, str, str], str] = {}
         self._jisho_entries_cache: Dict[str, List[Dict]] = {}
         self._dictionary_hover_cache: Dict[tuple[str, bool], str] = {}
         self._stroke_media_exists_cache: Dict[str, bool] = {}
         self._stroke_sync_failed_cache: set[str] = set()
+        self._stroke_sync_threads: set[threading.Thread] = set()
+        self._stroke_sync_lock = threading.Lock()
 
         # when using Jisho we keep the full english definition list here so the
         # note builder can put the full string into the "Definition" field
         self._last_jisho_full_definition: str = ""
 
         self._tagger = None
-        if Tagger is not None:
-            try:
-                self._tagger = Tagger()
-            except Exception:
-                self._tagger = None
+        self._tagger_load_attempted = False
 
         # Deck/model defaults are hardcoded; config can still override if needed.
         self.deck_name = (self.config.get("ANKI_DECK") or "Japanese").strip()
@@ -137,6 +149,71 @@ class AnkiClient:
     def is_enabled(self) -> bool:
         return self.enabled
 
+    def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        try:
+            self._http.close()
+        except Exception:
+            pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        self.close()
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
+
+    def _cache_put(self, cache: Dict, key, value, limit: int | None = None) -> None:
+        cache[key] = value
+        max_items = int(limit or self.TEXT_CACHE_LIMIT)
+        while len(cache) > max_items:
+            try:
+                oldest = next(iter(cache))
+            except StopIteration:
+                return
+            cache.pop(oldest, None)
+
+    def _translation_cache_key(self, text: str, source_lang: str, target_lang: str) -> tuple[str, str, str]:
+        return (
+            str(text or "").strip(),
+            str(source_lang or "").strip().lower(),
+            str(target_lang or "").strip().lower(),
+        )
+
+    def _request(self, method: str, url: str, *, timeout: float | None = None, **kwargs) -> requests.Response:
+        if self._closed:
+            raise RuntimeError("Anki client is closed.")
+        response = self._http.request(
+            method,
+            url,
+            timeout=self.http_timeout if timeout is None else timeout,
+            **kwargs,
+        )
+        response.raise_for_status()
+        return response
+
+    def _request_json(self, method: str, url: str, *, timeout: float | None = None, **kwargs):
+        return self._request(method, url, timeout=timeout, **kwargs).json()
+
+    def _get_tagger(self):
+        if self._tagger is not None:
+            return self._tagger
+        if self._tagger_load_attempted or Tagger is None:
+            return None
+        self._tagger_load_attempted = True
+        try:
+            self._tagger = Tagger()
+        except Exception:
+            self._tagger = None
+        return self._tagger
+
     def ping(self) -> bool:
         try:
             result = self._invoke("version")
@@ -157,7 +234,12 @@ class AnkiClient:
         word_translation = self._translate_word(selected)
         sentence_translation = self._translate_sentence(subtitle)
         full_definition = self._last_jisho_full_definition
-        translation_candidates = self._collect_translation_candidates(selected, subtitle)
+        translation_candidates = self._collect_translation_candidates(
+            selected,
+            subtitle,
+            word_translation=word_translation,
+            sentence_translation=sentence_translation,
+        )
         self._last_jisho_full_definition = full_definition
         word_provider_used = self._detect_translation_provider(
             chosen=word_translation,
@@ -176,9 +258,7 @@ class AnkiClient:
             sentence_translation=sentence_translation,
         )
 
-        self._ensure_deck(self.deck_name)
-        self._ensure_deck(self.reading_deck)
-        self._ensure_deck(self.reverse_deck)
+        self._ensure_decks((self.deck_name, self.reading_deck, self.reverse_deck))
 
         note = {
             "deckName": self.deck_name,
@@ -210,13 +290,23 @@ class AnkiClient:
 
 
     def sync_missing_stroke_svgs_async(self, selected_text: str, fields: Dict[str, str]):
-        import threading
+        if self._closed:
+            return
+
+        def worker():
+            try:
+                self._sync_missing_stroke_svgs_for_new_note(selected_text, fields)
+            finally:
+                with self._stroke_sync_lock:
+                    self._stroke_sync_threads.discard(thread)
 
         thread = threading.Thread(
-            target=self._sync_missing_stroke_svgs_for_new_note,
-            args=(selected_text, fields),
+            target=worker,
+            name="AnkiStrokeSvgSync",
             daemon=True,
         )
+        with self._stroke_sync_lock:
+            self._stroke_sync_threads.add(thread)
         thread.start()
 
     def _build_note_fields(
@@ -289,11 +379,23 @@ class AnkiClient:
         if not text:
             return ""
 
+        cache_key = (
+            text,
+            bool(collapse_inline_reading),
+            bool(sentence_spacing),
+            self._split_kanji_moras_enabled(),
+        )
+        cached = self._furigana_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         segments = self._tokenize_with_reading(
             text=text,
             collapse_inline_reading=collapse_inline_reading,
         )
-        return self._segments_to_bracket_text(segments, sentence_spacing=sentence_spacing)
+        result = self._segments_to_bracket_text(segments, sentence_spacing=sentence_spacing)
+        self._cache_put(self._furigana_cache, cache_key, result)
+        return result
 
     def _segments_to_bracket_text(
         self,
@@ -335,10 +437,11 @@ class AnkiClient:
         text: str,
         collapse_inline_reading: bool,
     ) -> List[tuple[str, Optional[str]]]:
-        if self._tagger is None:
+        tagger = self._get_tagger()
+        if tagger is None:
             return [(text, None)]
         try:
-            tokens = list(self._tagger(text))
+            tokens = list(tagger(text))
         except Exception:
             return [(text, None)]
         if not tokens:
@@ -423,18 +526,28 @@ class AnkiClient:
             return False
 
     def _single_kanji_reading_for_split(self, ch: str) -> str:
-        if self._tagger is None or not self._is_kanji_char(ch):
+        if not self._is_kanji_char(ch):
+            return ""
+        cached = self._single_kanji_reading_cache.get(ch)
+        if cached is not None:
+            return cached
+        tagger = self._get_tagger()
+        if tagger is None:
             return ""
         try:
-            tokens = list(self._tagger(ch))
+            tokens = list(tagger(ch))
         except Exception:
             return ""
         if len(tokens) != 1:
+            self._cache_put(self._single_kanji_reading_cache, ch, "")
             return ""
         token = tokens[0]
         if str(getattr(token, "surface", "") or "") != ch:
+            self._cache_put(self._single_kanji_reading_cache, ch, "")
             return ""
-        return self._katakana_to_hiragana(self._token_reading(token))
+        reading = self._katakana_to_hiragana(self._token_reading(token))
+        self._cache_put(self._single_kanji_reading_cache, ch, reading)
+        return reading
 
     def _split_all_kanji_chars(
         self,
@@ -593,25 +706,37 @@ class AnkiClient:
             return cached
         
         translation = self._translate_word_with_jisho(text)
+        provider_used = "jisho" if translation else "none"
         if not translation:
             translation = self._translate_google(text, source_lang="ja", target_lang=self.word_target_lang)
+            provider_used = "google" if translation else "none"
         translation = self._dedupe_translation_entries(translation)
-        self._word_translation_cache[text] = translation
-        self._word_definition_cache[text] = self._last_jisho_full_definition
+        self._cache_put(self._word_translation_cache, text, translation)
+        self._cache_put(self._word_definition_cache, text, self._last_jisho_full_definition)
+        self._cache_put(self._word_provider_cache, text, provider_used)
         return translation
 
     def _translate_word_with_jisho(self, text: str) -> str:
         text = (text or "").strip()
         if not text:
             return ""
+        cached = self._jisho_word_translation_cache.get(text)
+        if cached is not None:
+            self._last_jisho_full_definition = self._jisho_word_definition_cache.get(text, "")
+            return cached
+
         entries = self._fetch_jisho_entries(text)
         definitions = self._extract_jisho_translation(text, entries)
-        # definitions is now a list of strings (may be empty)
         if not definitions:
+            self._last_jisho_full_definition = ""
+            self._cache_put(self._jisho_word_translation_cache, text, "")
+            self._cache_put(self._jisho_word_definition_cache, text, "")
             return ""
         self._last_jisho_full_definition = self._dedupe_translation_entries(", ".join(definitions))
         summary_en = self._dedupe_translation_entries(", ".join(definitions[:3]))
         if self.word_target_lang.lower() == "en":
+            self._cache_put(self._jisho_word_translation_cache, text, summary_en)
+            self._cache_put(self._jisho_word_definition_cache, text, self._last_jisho_full_definition)
             return summary_en
 
         translated = self._translate_deepl(
@@ -625,7 +750,10 @@ class AnkiClient:
                 source_lang="en",
                 target_lang=self.word_target_lang,
             )
-        return self._dedupe_translation_entries(translated or summary_en)
+        result = self._dedupe_translation_entries(translated or summary_en)
+        self._cache_put(self._jisho_word_translation_cache, text, result)
+        self._cache_put(self._jisho_word_definition_cache, text, self._last_jisho_full_definition)
+        return result
 
     def _fetch_jisho_entries(self, text: str) -> List[Dict]:
         text = (text or "").strip()
@@ -637,20 +765,19 @@ class AnkiClient:
 
         entries: List[Dict] = []
         try:
-            r = requests.get(
+            payload = self._request_json(
+                "GET",
                 self.jisho_url,
                 params={"keyword": text},
                 timeout=self.http_timeout,
             )
-            r.raise_for_status()
-            payload = r.json()
             data = payload.get("data") if isinstance(payload, dict) else None
             if isinstance(data, list):
                 entries = data
         except Exception:
             entries = []
 
-        self._jisho_entries_cache[text] = entries
+        self._cache_put(self._jisho_entries_cache, text, entries)
         return entries
 
     def _extract_jisho_translation(self, query: str, entries: List[Dict]) -> List[str]:
@@ -790,9 +917,14 @@ class AnkiClient:
         if not source:
             return []
 
-        if self._tagger is not None:
+        cached = self._word_spans_cache.get(source)
+        if cached is not None:
+            return [dict(span) for span in cached]
+
+        tagger = self._get_tagger()
+        if tagger is not None:
             try:
-                tokens = list(self._tagger(source))
+                tokens = list(tagger(source))
             except Exception:
                 tokens = []
             spans: List[Dict[str, object]] = []
@@ -825,9 +957,11 @@ class AnkiClient:
                     }
                 )
             if spans:
-                return self._expand_compound_word_spans(source, spans)
+                result = self._expand_compound_word_spans(source, spans)
+                self._cache_put(self._word_spans_cache, source, [dict(span) for span in result])
+                return result
 
-        return [
+        result = [
             {
                 "surface": match.group(0),
                 "lookup": match.group(0),
@@ -838,6 +972,8 @@ class AnkiClient:
             for match in re.finditer(r"\S+", source)
             if self._is_lookup_candidate(match.group(0))
         ]
+        self._cache_put(self._word_spans_cache, source, [dict(span) for span in result])
+        return result
 
     def _expand_compound_word_spans(
         self,
@@ -983,40 +1119,52 @@ class AnkiClient:
         if cached is not None:
             return cached
 
-        provider = self.sentence_translate_provider
+        provider = str(self.sentence_translate_provider or "").strip().lower()
         translated = ""
+        provider_used = "none"
         if provider == "deepl":
             translated = self._translate_deepl(
                 text,
                 source_lang="ja",
                 target_lang=self.sentence_target_lang,
             )
+            if translated:
+                provider_used = "deepl"
             if not translated:
                 translated = self._translate_google(
                     text,
                     source_lang="ja",
                     target_lang=self.sentence_target_lang,
                 )
+                if translated:
+                    provider_used = "google"
         elif provider == "google":
             translated = self._translate_google(
                 text,
                 source_lang="ja",
                 target_lang=self.sentence_target_lang,
             )
+            if translated:
+                provider_used = "google"
         else:
             translated = self._translate_deepl(
                 text,
                 source_lang="ja",
                 target_lang=self.sentence_target_lang,
             )
+            if translated:
+                provider_used = "deepl"
             if not translated:
                 translated = self._translate_google(
                     text,
                     source_lang="ja",
                     target_lang=self.sentence_target_lang,
                 )
+                if translated:
+                    provider_used = "google"
 
-        self._sentence_translation_cache[text] = translated
+        self._cache_put(self._sentence_translation_cache, text, translated)
+        self._cache_put(self._sentence_provider_cache, text, provider_used)
         return translated
 
     def _normalize_translation_input(self, text: str) -> str:
@@ -1029,36 +1177,48 @@ class AnkiClient:
         value = re.sub(r"[ \t]+", " ", value)
         return value.strip()
 
-    def _collect_translation_candidates(self, selected: str, subtitle: str) -> Dict[str, Dict[str, str]]:
+    def _collect_translation_candidates(
+        self,
+        selected: str,
+        subtitle: str,
+        word_translation: str = "",
+        sentence_translation: str = "",
+    ) -> Dict[str, Dict[str, str]]:
         selected_text = (selected or "").strip()
         subtitle_text = self._normalize_translation_input(subtitle)
 
         word_candidates = {
-            "jisho": self._dedupe_translation_entries(
-                self._translate_word_with_jisho(selected_text)
-            ) if selected_text else "",
-            "google": self._dedupe_translation_entries(self._translate_google(
-                selected_text,
-                source_lang="ja",
-                target_lang=self.word_target_lang,
-            )) if selected_text else "",
+            "jisho": "",
+            "google": "",
         }
+        if selected_text:
+            word_candidates["jisho"] = self._jisho_word_translation_cache.get(selected_text, "")
+            word_candidates["google"] = self._google_translation_cache.get(
+                self._translation_cache_key(selected_text, "ja", self.word_target_lang),
+                "",
+            )
+            word_provider = self._word_provider_cache.get(selected_text, "")
+            if word_provider in word_candidates and word_translation:
+                word_candidates[word_provider] = self._dedupe_translation_entries(word_translation)
 
         sentence_candidates = {
-            "deepl": (
-                self._sentence_translation_cache.get(subtitle_text)
-                or self._translate_deepl(
-                    subtitle_text, source_lang="ja", target_lang=self.sentence_target_lang
-                )
-                if subtitle_text
-                else ""
-            ),
-            "google": self._translate_google(
-                subtitle_text,
-                source_lang="ja",
-                target_lang=self.sentence_target_lang,
-            ) if subtitle_text else "",
+            "deepl": "",
+            "google": "",
         }
+        if subtitle_text:
+            deepl_source = self._normalize_deepl_source_lang("ja")
+            deepl_target = self._normalize_deepl_target_lang(self.sentence_target_lang)
+            sentence_candidates["deepl"] = self._deepl_translation_cache.get(
+                self._translation_cache_key(subtitle_text, deepl_source, deepl_target),
+                "",
+            )
+            sentence_candidates["google"] = self._google_translation_cache.get(
+                self._translation_cache_key(subtitle_text, "ja", self.sentence_target_lang),
+                "",
+            )
+            sentence_provider = self._sentence_provider_cache.get(subtitle_text, "")
+            if sentence_provider in sentence_candidates and sentence_translation:
+                sentence_candidates[sentence_provider] = sentence_translation
 
         return {
             "word": word_candidates,
@@ -1086,8 +1246,13 @@ class AnkiClient:
         text = (text or "").strip()
         if not text:
             return ""
+        cache_key = self._translation_cache_key(text, source_lang, target_lang)
+        cached = self._google_translation_cache.get(cache_key)
+        if cached is not None:
+            return cached
         try:
-            r = requests.get(
+            payload = self._request_json(
+                "GET",
                 self.google_translate_url,
                 params={
                     "client": "gtx",
@@ -1098,15 +1263,16 @@ class AnkiClient:
                 },
                 timeout=self.http_timeout,
             )
-            r.raise_for_status()
-            payload = r.json()
             translated = ""
             chunks = payload[0] if isinstance(payload, list) and payload else []
             for chunk in chunks:
                 if isinstance(chunk, list) and chunk:
                     translated += str(chunk[0] or "")
-            return translated.strip()
+            result = translated.strip()
+            self._cache_put(self._google_translation_cache, cache_key, result)
+            return result
         except Exception:
+            self._cache_put(self._google_translation_cache, cache_key, "")
             return ""
 
     def _translate_deepl(self, text: str, source_lang: str, target_lang: str) -> str:
@@ -1118,6 +1284,10 @@ class AnkiClient:
         target = self._normalize_deepl_target_lang(target_lang)
         if not target:
             return ""
+        cache_key = self._translation_cache_key(text, source, target)
+        cached = self._deepl_translation_cache.get(cache_key)
+        if cached is not None:
+            return cached
 
         payload = {
             "text": text,
@@ -1127,19 +1297,22 @@ class AnkiClient:
             payload["source_lang"] = source
 
         try:
-            r = requests.post(
+            data = self._request_json(
+                "POST",
                 self.deepl_translate_url,
                 headers={"Authorization": f"DeepL-Auth-Key {self.deepl_api_key}"},
                 data=payload,
                 timeout=self.http_timeout,
             )
-            r.raise_for_status()
-            data = r.json()
             translations = data.get("translations") or []
             if not translations:
+                self._cache_put(self._deepl_translation_cache, cache_key, "")
                 return ""
-            return str((translations[0] or {}).get("text") or "").strip()
+            result = str((translations[0] or {}).get("text") or "").strip()
+            self._cache_put(self._deepl_translation_cache, cache_key, result)
+            return result
         except Exception:
+            self._cache_put(self._deepl_translation_cache, cache_key, "")
             return ""
 
     def _normalize_deepl_source_lang(self, lang: str) -> str:
@@ -1199,17 +1372,51 @@ class AnkiClient:
                 routed["unrouted"].append(card_id)
 
         if to_reading:
-            self._invoke("changeDeck", {"cards": to_reading, "deck": self.reading_deck})
             routed["reading"].extend(to_reading)
         if to_reverse:
-            self._invoke("changeDeck", {"cards": to_reverse, "deck": self.reverse_deck})
             routed["reverse"].extend(to_reverse)
+        actions = []
+        if to_reading:
+            actions.append({
+                "action": "changeDeck",
+                "params": {"cards": to_reading, "deck": self.reading_deck},
+            })
+        if to_reverse:
+            actions.append({
+                "action": "changeDeck",
+                "params": {"cards": to_reverse, "deck": self.reverse_deck},
+            })
+        if len(actions) == 1:
+            action = actions[0]
+            self._invoke(action["action"], action["params"])
+        elif actions:
+            self._invoke_multi(actions)
         return routed
 
     def _ensure_deck(self, deck_name: str) -> None:
-        if not deck_name:
+        self._ensure_decks((deck_name,))
+
+    def _ensure_decks(self, deck_names) -> None:
+        pending: List[str] = []
+        seen: set[str] = set()
+        for raw_name in deck_names or ():
+            name = str(raw_name or "").strip()
+            if not name or name in self._ensured_decks or name in seen:
+                continue
+            seen.add(name)
+            pending.append(name)
+        if not pending:
             return
-        self._invoke("createDeck", {"deck": deck_name})
+
+        actions = [
+            {"action": "createDeck", "params": {"deck": name}}
+            for name in pending
+        ]
+        if len(actions) == 1:
+            self._invoke("createDeck", actions[0]["params"])
+        else:
+            self._invoke_multi(actions)
+        self._ensured_decks.update(pending)
 
     def _get_model_field_names(self) -> set[str]:
         if self._model_fields_cache is None:
@@ -1223,12 +1430,24 @@ class AnkiClient:
             "version": 6,
             "params": params or {},
         }
-        response = requests.post(self.url, json=payload, timeout=self.http_timeout)
-        response.raise_for_status()
-        data = response.json()
+        data = self._request_json("POST", self.url, json=payload, timeout=self.http_timeout)
         if data.get("error"):
             raise RuntimeError(str(data["error"]))
         return data.get("result")
+
+    def _invoke_multi(self, actions: List[Dict]) -> List:
+        if not actions:
+            return []
+        result = self._invoke("multi", {"actions": actions}) or []
+        if not isinstance(result, list):
+            return []
+        errors: List[str] = []
+        for action, item in zip(actions, result):
+            if isinstance(item, dict) and item.get("error"):
+                errors.append(f"{action.get('action', 'action')}: {item.get('error')}")
+        if errors:
+            raise RuntimeError("; ".join(errors))
+        return result
 
     def _sync_missing_stroke_svgs_for_new_note(self, selected_text: str, fields: Dict[str, str]) -> Dict[str, int]:
         result = {
@@ -1238,7 +1457,7 @@ class AnkiClient:
             "uploaded": 0,
             "failed": 0,
         }
-        if not self.stroke_auto_sync:
+        if not self.stroke_auto_sync or self._closed:
             return result
 
         texts = [
@@ -1252,6 +1471,8 @@ class AnkiClient:
             return result
 
         for kanji_char in chars:
+            if self._closed:
+                break
             filename = self._stroke_media_filename(kanji_char)
             if self._stroke_media_exists(filename):
                 continue
@@ -1335,8 +1556,7 @@ class AnkiClient:
         last_error = None
         for url in self._stroke_download_candidates(kanji_char):
             try:
-                response = requests.get(url, timeout=self.stroke_download_timeout)
-                response.raise_for_status()
+                response = self._request("GET", url, timeout=self.stroke_download_timeout)
                 if response.content:
                     return response.content
             except Exception as exc:

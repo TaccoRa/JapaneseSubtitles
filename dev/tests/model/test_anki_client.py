@@ -1,4 +1,5 @@
 from SubtitlePlayer.model.config_manager import ConfigManager
+import SubtitlePlayer.model.anki_client as anki_client_module
 from SubtitlePlayer.model.anki_client import AnkiClient
 
 
@@ -209,4 +210,112 @@ def test_translate_hover_selection_google_provider_uses_google_only(monkeypatch)
     assert client.translate_hover_selection("\u7cbe\u795e\u69cb\u9020", provider="google") == "\u7cbe\u795e\u69cb\u9020 \u2014 mentale Struktur"
     assert calls == [
         ("google", "\u7cbe\u795e\u69cb\u9020", "ja", client.sentence_target_lang),
+    ]
+
+
+def test_tagger_load_is_lazy(monkeypatch):
+    calls = {"count": 0}
+
+    def fake_tagger():
+        calls["count"] += 1
+        return lambda _text: []
+
+    monkeypatch.setattr(anki_client_module, "Tagger", fake_tagger)
+
+    client = AnkiClient(ConfigManager("config.json"))
+    assert calls["count"] == 0
+
+    assert client._get_tagger() is not None
+    assert client._get_tagger() is not None
+    assert calls["count"] == 1
+
+
+def test_word_spans_cache_avoids_retokenizing():
+    client = AnkiClient(ConfigManager("config.json"))
+    calls = {"count": 0}
+
+    class Feature:
+        pos1 = "\u540d\u8a5e"
+        pos2 = ""
+        kana = "\u30ab\u30f3\u30b8"
+        lemma = ""
+
+    class Token:
+        surface = "\u6f22\u5b57"
+        feature = Feature()
+
+    def fake_tagger(_text):
+        calls["count"] += 1
+        return [Token()]
+
+    client._tagger = fake_tagger
+
+    first = client.word_spans("\u6f22\u5b57")
+    first[0]["surface"] = "changed"
+    second = client.word_spans("\u6f22\u5b57")
+
+    assert calls["count"] == 1
+    assert second[0]["surface"] == "\u6f22\u5b57"
+
+
+def test_collect_translation_candidates_uses_existing_caches(monkeypatch):
+    client = AnkiClient(ConfigManager("config.json"))
+
+    def fail(*_args, **_kwargs):
+        raise AssertionError("candidate collection should not call translators")
+
+    monkeypatch.setattr(client, "_translate_google", fail)
+    monkeypatch.setattr(client, "_translate_deepl", fail)
+    monkeypatch.setattr(client, "_translate_word_with_jisho", fail)
+
+    selected = "\u6f22\u5b57"
+    subtitle = "\u6f22\u5b57\u3092\u8aad\u3080"
+    client._jisho_word_translation_cache[selected] = "Kanji"
+    client._google_translation_cache[
+        client._translation_cache_key(selected, "ja", client.word_target_lang)
+    ] = "google word"
+    client._word_provider_cache[selected] = "jisho"
+    client._deepl_translation_cache[
+        client._translation_cache_key(subtitle, "JA", "DE")
+    ] = "deepl sentence"
+    client._sentence_provider_cache[subtitle] = "deepl"
+
+    candidates = client._collect_translation_candidates(
+        selected,
+        subtitle,
+        word_translation="Kanji",
+        sentence_translation="deepl sentence",
+    )
+
+    assert candidates["word"] == {"jisho": "Kanji", "google": "google word"}
+    assert candidates["sentence"] == {"deepl": "deepl sentence", "google": ""}
+
+
+def test_ensure_decks_batches_and_caches():
+    client = AnkiClient(ConfigManager("config.json"))
+    calls = []
+
+    def fake_invoke(action, params=None):
+        calls.append((action, params))
+        if action == "multi":
+            return [{"result": None, "error": None} for _ in params["actions"]]
+        return None
+
+    client._invoke = fake_invoke
+
+    client._ensure_decks(("Main", "Main::Reading", "Main", ""))
+    client._ensure_decks(("Main", "Main::Reading"))
+    client._ensure_deck("Main::Reverse")
+
+    assert calls == [
+        (
+            "multi",
+            {
+                "actions": [
+                    {"action": "createDeck", "params": {"deck": "Main"}},
+                    {"action": "createDeck", "params": {"deck": "Main::Reading"}},
+                ]
+            },
+        ),
+        ("createDeck", {"deck": "Main::Reverse"}),
     ]

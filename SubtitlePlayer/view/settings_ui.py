@@ -479,8 +479,7 @@ class SettingsUI:
     def bind_settings_open(self, cb):        self._on_settings_open = cb
 
     def update_time_overlay_position(self):
-        self.root.update_idletasks()
-        root_width = self.root.winfo_width()
+        root_width = self.root.winfo_width() or self.root.winfo_reqwidth()
         diff = root_width - 320
         min_x = 1+19
         max_x = 268 + diff + 19
@@ -493,8 +492,9 @@ class SettingsUI:
 
     def _on_click_or_drag(self, event):
         self._on_slider_press(event)
-        w      = self.slider.winfo_width() - self.slider["sliderlength"]
-        x_off  = event.x - (self.slider["sliderlength"] / 2)
+        slider_length = int(self.slider["sliderlength"])
+        w = max(1, int(self.slider.winfo_width()) - slider_length)
+        x_off = int(event.x) - (slider_length / 2)
         frac   = max(0.0, min(1.0, x_off / w))
         start  = float(self.slider.cget("from"))
         end    = float(self.slider.cget("to"))

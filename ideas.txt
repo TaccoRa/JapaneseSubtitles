@@ -1,4 +1,5 @@
 To Do:
+stra+a to select all in popup
 when selecting the beginning of the sentence the whole line to the right is selected
 hovering over the X of the settigns window the handle does not disappear (maybe hard to implement)
 remove remaining non speaker modes is not correcting for deleting the line it is in (maybe implemented)

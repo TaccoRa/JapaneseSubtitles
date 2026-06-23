@@ -10,16 +10,50 @@ class PlaybackController:
     def set_controller(self, controller):
         self.controller = controller
 
+    def _now(self) -> float:
+        return time.perf_counter()
+
+    def _advance_playing_time_to_now(
+        self,
+        *,
+        now: float | None = None,
+        allow_end_toggle: bool = True,
+    ) -> float:
+        if not self.controller.playing:
+            return 0.0
+
+        if now is None:
+            now = self._now()
+        try:
+            last_update = float(self.controller.last_update)
+        except Exception:
+            last_update = now
+
+        delta = now - last_update
+        self.controller.last_update = now
+        if abs(delta) > 0.0:
+            self.set_current_time(
+                float(self.controller.current_time or 0.0) + delta,
+                allow_end_toggle=allow_end_toggle,
+            )
+        return delta
+
+    def _event_time_or_now(self, event_time: float | None = None) -> float:
+        return self._now() if event_time is None else float(event_time)
+
+    def _sync_playing_time_to_event(self, event_time: float | None = None) -> None:
+        if self.controller.playing:
+            self._advance_playing_time_to_now(
+                now=self._event_time_or_now(event_time),
+                allow_end_toggle=False,
+            )
+
     def update_loop(self):
         if self.controller._shutting_down:
             self.controller._update_loop_job = None
             return
 
-        if self.controller.playing:
-            now = time.time()
-            delta = now - self.controller.last_update
-            self.controller.last_update = now
-            self.set_current_time(self.controller.current_time + delta)
+        self._advance_playing_time_to_now()
 
         self.schedule_update()
 
@@ -37,7 +71,7 @@ class PlaybackController:
             self.controller.update_interval_ms, self.update_loop
         )
 
-    def set_current_time(self, t: float):
+    def set_current_time(self, t: float, *, allow_end_toggle: bool = True):
         if self.controller._shutting_down:
             return
         if t is None:
@@ -47,7 +81,7 @@ class PlaybackController:
         # print(offset, "test")##testing
         t = max(0, min(t, self.controller.total_duration + offset))
 
-        if t - offset >= self.controller.total_duration and self.controller.playing:
+        if allow_end_toggle and t - offset >= self.controller.total_duration and self.controller.playing:
             self.toggle_play()
 
         self.controller.current_time = t
@@ -58,17 +92,22 @@ class PlaybackController:
             slider.set(t)
             self.controller.update_time_and_subtitle_displays()
 
-    def toggle_play(self):
+    def toggle_play(self, event_time: float | None = None):
         if self.controller._shutting_down:
             return
         if self.controller.entry_editing:
             self.controller.control_time_entry_return(None)
 
-        self.controller.playing = not self.controller.playing
+        was_playing = bool(self.controller.playing)
+        now = self._now() if event_time is None else float(event_time)
+        if was_playing:
+            self._advance_playing_time_to_now(now=now, allow_end_toggle=False)
+
+        self.controller.playing = not was_playing
 
         if self.controller.playing:
             self.controller.settings.play_pause_btn.config(text="Stop", bg="red", activebackground="red")
-            self.controller.last_update = time.time()
+            self.controller.last_update = now
             self.schedule_update()
         else:
             self.controller.settings.play_pause_btn.config(text="Play", bg="green", activebackground="green")
@@ -87,34 +126,38 @@ class PlaybackController:
         self.controller.update_time_and_subtitle_displays()
         self.controller._schedule_hide_controls()
 
-    def go_forward(self):
+    def seek_relative(self, delta: float, event_time: float | None = None) -> None:
+        self._sync_playing_time_to_event(event_time)
+        self.set_current_time(float(self.controller.current_time or 0.0) + float(delta or 0.0))
+        self.controller._schedule_hide_controls()
+
+    def go_forward(self, event_time: float | None = None):
         if self.controller.entry_editing:
             self.controller.control_time_entry_return(None)
 
         if self.controller._skip_buttons_use_subtitle_segments():
-            self.jump_subtitle_segment("next")
+            self.jump_subtitle_segment("next", event_time=event_time)
             return
 
         skip = self.controller.settings._last_skip_value
         max_time = self.controller.total_duration + self.controller.get_offset_value()
         if self.controller.current_time <= max_time:
-            self.set_current_time(self.controller.current_time + skip)
-            self.controller._schedule_hide_controls()
+            self.seek_relative(skip, event_time=event_time)
 
-    def go_back(self):
+    def go_back(self, event_time: float | None = None):
         if self.controller.entry_editing:
             self.controller.control_time_entry_return(None)
 
         if self.controller._skip_buttons_use_subtitle_segments():
-            self.jump_subtitle_segment("prev")
+            self.jump_subtitle_segment("prev", event_time=event_time)
             return
 
         skip = self.controller.settings._last_skip_value
         if self.controller.current_time >= 0:
-            self.set_current_time(self.controller.current_time - skip)
-            self.controller._schedule_hide_controls()
+            self.seek_relative(-skip, event_time=event_time)
 
-    def jump_subtitle_segment(self, direction: str) -> None:
+    def jump_subtitle_segment(self, direction: str, event_time: float | None = None) -> None:
+        self._sync_playing_time_to_event(event_time)
         start_times = self.controller._get_display_start_times()
         if not start_times:
             return
@@ -136,7 +179,8 @@ class PlaybackController:
         self.set_current_time(float(start_times[target_idx]) + offset)
         self.controller._schedule_hide_controls()
 
-    def on_jump_sub_end(self, event=None):
+    def on_jump_sub_end(self, event=None, event_time: float | None = None):
+        self._sync_playing_time_to_event(event_time)
         start_times = self.controller._get_display_start_times()
         if not start_times:
             return

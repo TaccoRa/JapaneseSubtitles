@@ -19,7 +19,7 @@ import queue
 from urllib.parse import urlparse, unquote
 from typing import List, Optional, Tuple, Dict
 import threading
-from collections import defaultdict, Counter
+from collections import defaultdict, Counter, OrderedDict
 import heapq
 
 import regex
@@ -98,6 +98,8 @@ class SubtitleManager:
     NOISE_TOKENS = {'bd','web','webrip','bluray','bdrip','dvd','x264','x265','av1','hevc',
                     'aac','flac','hdtv','bdrip','bs8','netflix','amazon', 'fansub','group','copy','complete','ja[cc]'}
     AUTO_RUBY_CACHE_LIMIT = 20000
+    LINE_WIDTH_CACHE_LIMIT = 20000
+    GEOMETRY_CACHE_LIMIT = 64
     _AUTO_RUBY_CACHE_MISS = object()
 
     def __init__(self, config: ConfigManager) -> None:
@@ -107,6 +109,7 @@ class SubtitleManager:
         self._ruby_generator = None
         self._ruby_generator_failed = False
         self._auto_ruby_cache: Dict[str, object] = {}
+        self._auto_ruby_lock = threading.Lock()
         # Profiling stats
         self._ruby_stats = {
             "cache_hits": 0,
@@ -119,6 +122,12 @@ class SubtitleManager:
         self._font_cache_key = None
         self._cached_font = None
         self._cached_ruby_font = None
+        self._line_width_cache: "OrderedDict[tuple, int]" = OrderedDict()
+        self._geometry_cache: "OrderedDict[tuple, tuple[int, int]]" = OrderedDict()
+        self._prepared_episode_cache: "OrderedDict[tuple, dict]" = OrderedDict()
+        self._prepared_episode_lock = threading.Lock()
+        self._episode_prepare_seen: set[tuple] = set()
+        self._episode_prepare_worker_started = False
         self._search_dialog_lock = threading.Lock()
         self._shutdown_event = threading.Event()
 
@@ -127,12 +136,46 @@ class SubtitleManager:
             # If we don't have a URL yet, fall back to the same "choose source" dialog used by set_new_file().
             # This gives the user local/remote-url/remote-search options at startup too.
             local_srt_path = self._initialize_remote_path(url) if url else None
-            self._register_cache_cleanup()
+            if self._config_bool("REMOTE_CACHE_CLEANUP_ON_EXIT", False):
+                self._register_cache_cleanup()
         else:
             local_srt_path = self.config.get("LAST_LOCAL_SRT_FILE")
         self._load_local_and_process(local_srt_path)
         # self._trying_search_queries()#debugging
         # self._load_local_and_process(self.config.get("DEBUGGING_SRT_FILE"))
+
+    def _config_bool(self, key: str, default: bool = False) -> bool:
+        try:
+            value = self.config.get(key)
+        except Exception:
+            return bool(default)
+        if value is None:
+            return bool(default)
+        if isinstance(value, str):
+            return value.strip().lower() in {"1", "true", "yes", "on"}
+        return bool(value)
+
+    def _config_int(self, key: str, default: int, minimum: Optional[int] = None, maximum: Optional[int] = None) -> int:
+        try:
+            value = int(float(self.config.get(key)))
+        except Exception:
+            value = int(default)
+        if minimum is not None:
+            value = max(int(minimum), value)
+        if maximum is not None:
+            value = min(int(maximum), value)
+        return value
+
+    def _config_float(self, key: str, default: float, minimum: Optional[float] = None, maximum: Optional[float] = None) -> float:
+        try:
+            value = float(self.config.get(key))
+        except Exception:
+            value = float(default)
+        if minimum is not None:
+            value = max(float(minimum), value)
+        if maximum is not None:
+            value = min(float(maximum), value)
+        return value
     
     def _register_cache_cleanup(self) -> None:
         def _cleanup():
@@ -150,6 +193,14 @@ class SubtitleManager:
             self._shutdown_event.set()
         except Exception:
             pass
+
+        generator = getattr(self, "_ruby_generator", None)
+        if generator is not None:
+            try:
+                generator.close()
+            except Exception:
+                pass
+            self._ruby_generator = None
 
         timer = getattr(self, "_prefetch_timer", None)
         if timer is not None:
@@ -171,6 +222,25 @@ class SubtitleManager:
                         pass
                     try:
                         q.task_done()
+                    except Exception:
+                        pass
+            except queue.Empty:
+                pass
+            except Exception:
+                pass
+
+        prepare_q = getattr(self, "_episode_prepare_q", None)
+        if prepare_q is not None:
+            try:
+                while True:
+                    local_path, _rec, key = prepare_q.get_nowait()
+                    try:
+                        with self._prepared_episode_lock:
+                            self._episode_prepare_seen.discard(key)
+                    except Exception:
+                        pass
+                    try:
+                        prepare_q.task_done()
                     except Exception:
                         pass
             except queue.Empty:
@@ -267,8 +337,49 @@ class SubtitleManager:
             return (1, int(rec.get("season") or 0), int(rec.get("episode") or 0), rec.get("name") or "")
         self.local_srt_files.sort(key=_sort_key)
 
-    def set_subtitle_display_data(self, local_path):
-        self.subtitles = self.load_subtitles(local_path)
+    def _subtitle_parse_config_signature(self) -> tuple:
+        return (
+            self._config_bool("SUBTITLE_AUTO_RUBY", False),
+            str(self.config.get("SUBTITLE_SPEAKER_MODE") or ""),
+            str(self.config.get("SUBTITLE_SPEAKER_TEMPLATE") or ""),
+            self._config_bool("SUBTITLE_STRIP_PAREN_NOTES", True),
+            self._config_float("DEFAULT_START_TIME", 0.0, minimum=0.0),
+            self._config_float("AUTO_RUBY_EAGER_WINDOW_SEC", 180.0, minimum=0.0),
+        )
+
+    @staticmethod
+    def _subtitle_file_identity_for_path(path: str) -> tuple:
+        abs_path = os.path.abspath(str(path or ""))
+        try:
+            st = os.stat(abs_path)
+            return (abs_path, int(st.st_mtime_ns), int(st.st_size))
+        except Exception:
+            return (abs_path, 0, 0)
+
+    def _prepared_episode_key(self, local_path: str) -> tuple:
+        return self._subtitle_file_identity_for_path(local_path) + self._subtitle_parse_config_signature()
+
+    def _take_prepared_episode_payload(self, local_path: str) -> Optional[dict]:
+        key = self._prepared_episode_key(local_path)
+        with self._prepared_episode_lock:
+            payload = self._prepared_episode_cache.pop(key, None)
+            self._episode_prepare_seen.discard(key)
+        return payload
+
+    def _store_prepared_episode_payload(self, local_path: str, payload: dict, key: tuple) -> None:
+        if self._shutdown_event.is_set():
+            return
+        if key != self._prepared_episode_key(local_path):
+            return
+        with self._prepared_episode_lock:
+            self._prepared_episode_cache[key] = payload
+            self._prepared_episode_cache.move_to_end(key)
+            self._episode_prepare_seen.discard(key)
+            while len(self._prepared_episode_cache) > 4:
+                self._prepared_episode_cache.popitem(last=False)
+
+    def _build_subtitle_display_payload(self, local_path: str, allow_eager_auto: bool = True) -> dict:
+        subtitles = self.load_subtitles(local_path)
 
         auto_ruby_enabled = self._auto_ruby_enabled()
         # Cache repeated line parses inside one file load.
@@ -284,9 +395,9 @@ class SubtitleManager:
             line_segment_cache[cache_key] = result if result else []
             return line_segment_cache[cache_key]
 
-        self.display_data = []
-        self.display_start_times = []
-        self._auto_ruby_ready_indices = set()
+        display_data = []
+        display_start_times = []
+        auto_ruby_ready_indices = set()
         
         # Use start time as a warm area for eager auto-ruby, lazy-load everything else on demand.
         try:
@@ -302,12 +413,14 @@ class SubtitleManager:
 
         episode_start = time.time()
 
-        for idx, sub in enumerate(self.subtitles):
+        for idx, sub in enumerate(subtitles):
             clean = self._clean_text(sub.content)
             start_times = sub.start.total_seconds()
             lines = [l for l in clean.splitlines() if l.strip()]
-            self.display_start_times.append(start_times)
-            allow_auto_for_idx = (not auto_ruby_enabled) or (eager_start <= start_times <= eager_end)
+            display_start_times.append(start_times)
+            allow_auto_for_idx = (not auto_ruby_enabled) or (
+                bool(allow_eager_auto) and eager_start <= start_times <= eager_end
+            )
             if not lines:
                 top, bottom = [], []
             elif len(lines) == 1:
@@ -315,11 +428,25 @@ class SubtitleManager:
             else:
                 top = _segments_for_line(lines[0], allow_auto=allow_auto_for_idx)
                 bottom = _segments_for_line(lines[1], allow_auto=allow_auto_for_idx)
-            self.display_data.append((clean, start_times, top, bottom))
+            display_data.append((clean, start_times, top, bottom))
             if allow_auto_for_idx:
-                self._auto_ruby_ready_indices.add(int(idx))
+                auto_ruby_ready_indices.add(int(idx))
         
         episode_time = time.time() - episode_start
+        return {
+            "subtitles": subtitles,
+            "display_data": display_data,
+            "display_start_times": display_start_times,
+            "auto_ruby_ready_indices": auto_ruby_ready_indices,
+            "episode_time": episode_time,
+        }
+
+    def _apply_subtitle_display_payload(self, payload: dict) -> None:
+        self.subtitles = payload["subtitles"]
+        self.display_data = payload["display_data"]
+        self.display_start_times = payload["display_start_times"]
+        self._auto_ruby_ready_indices = payload["auto_ruby_ready_indices"]
+        episode_time = float(payload.get("episode_time", 0.0))
         if hasattr(self, '_ruby_stats'):
             self._ruby_stats["episode_load_times"].append(episode_time)
             # Reset stats for next episode
@@ -327,6 +454,12 @@ class SubtitleManager:
             self._ruby_stats["cache_misses"] = 0
             self._ruby_stats["generator_calls"] = 0
             self._ruby_stats["generator_time"] = 0.0
+
+    def set_subtitle_display_data(self, local_path):
+        payload = self._take_prepared_episode_payload(local_path)
+        if payload is None:
+            payload = self._build_subtitle_display_payload(local_path, allow_eager_auto=True)
+        self._apply_subtitle_display_payload(payload)
 
     def load_subtitles(self, local_path: str) -> List[srt.Subtitle]:
         with open(local_path, 'rb') as f:
@@ -649,6 +782,14 @@ class SubtitleManager:
         if not regex.search(r"\p{Han}", text or ""):
             return None
 
+        lock = getattr(self, "_auto_ruby_lock", None)
+        if lock is None:
+            lock = threading.Lock()
+            self._auto_ruby_lock = lock
+        with lock:
+            return self._auto_ruby_segments_locked(text)
+
+    def _auto_ruby_segments_locked(self, text: str) -> Optional[List[tuple[str, Optional[str]]]]:
         cache = getattr(self, "_auto_ruby_cache", None)
         if cache is None:
             cache = {}
@@ -835,6 +976,73 @@ class SubtitleManager:
     def get_anime_name(self)-> Optional[str]: return self.anime_folder_name
     def get_subtitle_display_data(self): return self.display_data
     def get_subtitle_geometry(self): return self.calculate_geometry()
+
+    @staticmethod
+    def _freeze_segments_for_cache(segments) -> tuple:
+        return tuple((str(base or ""), str(ruby) if ruby else None) for base, ruby in (segments or ()))
+
+    def _subtitle_geometry_style_key(self) -> tuple:
+        return (
+            self.config.get("SUBTITLE_FONT") or "Arial",
+            self._config_int("SUBTITLE_FONT_SIZE", 18, minimum=1),
+            self._config_int("SUBTITLE_WRAP_LIMIT_PX", 0, minimum=0),
+            self._config_bool("SUBTITLE_AUTO_RUBY", False),
+            str(self.config.get("SUBTITLE_SPEAKER_MODE") or ""),
+            str(self.config.get("SUBTITLE_SPEAKER_TEMPLATE") or ""),
+            self._config_bool("SUBTITLE_STRIP_PAREN_NOTES", True),
+        )
+
+    def _current_subtitle_file_identity(self) -> tuple:
+        path = os.path.abspath(str(getattr(self, "srt_file", "") or ""))
+        try:
+            st = os.stat(path)
+            return (path, int(st.st_mtime_ns), int(st.st_size))
+        except Exception:
+            return (path, 0, 0)
+
+    def _geometry_cache_key(self) -> tuple:
+        return self._current_subtitle_file_identity() + self._subtitle_geometry_style_key()
+
+    @staticmethod
+    def _line_score(segments) -> int:
+        return sum(len(base or "") + len(ruby or "") for base, ruby in (segments or ()))
+
+    def _candidate_geometry_lines(self):
+        try:
+            candidate_limit = self._config_int("SUBTITLE_GEOMETRY_CANDIDATE_LINES", 32, minimum=0, maximum=500)
+        except Exception:
+            candidate_limit = 32
+
+        lines = []
+        for _clean, _time, top, bottom in getattr(self, "display_data", []) or []:
+            for segments in (top, bottom):
+                if segments:
+                    lines.append((self._line_score(segments), segments))
+
+        if candidate_limit <= 0 or len(lines) <= candidate_limit:
+            return [segments for _score, segments in lines]
+        return [segments for _score, segments in heapq.nlargest(candidate_limit, lines, key=lambda item: item[0])]
+
+    def _remember_geometry(self, key: tuple, value: tuple[int, int]) -> tuple[int, int]:
+        cache = getattr(self, "_geometry_cache", None)
+        if cache is None:
+            cache = OrderedDict()
+            self._geometry_cache = cache
+        cache[key] = value
+        cache.move_to_end(key)
+        while len(cache) > self.GEOMETRY_CACHE_LIMIT:
+            cache.popitem(last=False)
+        return value
+
+    def _get_cached_geometry(self, key: tuple):
+        cache = getattr(self, "_geometry_cache", None)
+        if not cache:
+            return None
+        value = cache.get(key)
+        if value is not None:
+            cache.move_to_end(key)
+        return value
+
     def calculate_geometry_for_longest_lines(self, top_n: int = 10):
 
         def line_score(segments):
@@ -882,11 +1090,26 @@ class SubtitleManager:
         return self._cached_font, self._cached_ruby_font
 
     def _measure_line_width(self, segments, font, ruby_font):
+        font_key = self._font_cache_key or ("", 0, "")
+        cache_key = (font_key, self._freeze_segments_for_cache(segments))
+        cache = getattr(self, "_line_width_cache", None)
+        if cache is None:
+            cache = OrderedDict()
+            self._line_width_cache = cache
+        cached = cache.get(cache_key)
+        if cached is not None:
+            cache.move_to_end(cache_key)
+            return cached
+
         width = 0
         for base, ruby in segments:
             base_w = font.measure(base)
             ruby_w = ruby_font.measure(ruby) if ruby else 0
             width += max(base_w, ruby_w)
+        cache[cache_key] = width
+        cache.move_to_end(cache_key)
+        while len(cache) > self.LINE_WIDTH_CACHE_LIMIT:
+            cache.popitem(last=False)
         return width
 
     def _geometry_from_measured_width(self, max_width):
@@ -2200,43 +2423,20 @@ class SubtitleManager:
             show_startup_overlay()
 
     def calculate_geometry(self):
+        cache_key = self._geometry_cache_key()
+        cached = self._get_cached_geometry(cache_key)
+        if cached is not None:
+            return cached
+
         font, ruby_font = self._get_subtitle_fonts()
 
-        def _measure_line_width(segments):
-            width = 0
-            for base, ruby in segments:
-                base_w = font.measure(base)
-                ruby_w = ruby_font.measure(ruby) if ruby else 0
-                width += max(base_w, ruby_w)
-            return width
-
         max_width = 0
-        for _clean, _time, top, bottom in self.display_data:
-            for segments in (top, bottom):
-                if not segments:
-                    continue
-                width = _measure_line_width(segments)
-                if width > max_width:
-                    max_width = width
+        for segments in self._candidate_geometry_lines():
+            width = self._measure_line_width(segments, font, ruby_font)
+            if width > max_width:
+                max_width = width
 
-        line_height = font.metrics("linespace")
-        ruby_height = int(line_height * 0.6)
-        pad_x = 5
-        total_height = ruby_height * 2 + line_height * 2
-
-        try:
-            wrap_limit_px = int(self.config.get("SUBTITLE_WRAP_LIMIT_PX") or 0)
-        except Exception:
-            wrap_limit_px = 0
-
-        if wrap_limit_px > 0:
-            renderer_padding = 40
-            max_width = min(max_width, wrap_limit_px)
-            total_width = max_width + 2 * renderer_padding
-        else:
-            total_width  = max_width + 2 * pad_x
-
-        return (total_width, total_height)
+        return self._remember_geometry(cache_key, self._geometry_from_measured_width(max_width))
 #endregion -------------------------episode / season switching-----------------------------
 
 
@@ -2304,8 +2504,9 @@ class SubtitleManager:
         self._dl_seen_lock = threading.Lock()
         self._dl_seen: set[str] = set()  # local_path values currently queued/in-progress
 
-        max_workers = self.config.get("DOWNLOAD_MAX_WORKERS")
+        max_workers = self._config_int("DOWNLOAD_MAX_WORKERS", 1, minimum=1, maximum=10)
         self._dl_workers: list[threading.Thread] = []
+        self._dl_prepare_after: dict[str, dict] = {}
         for i in range(int(max_workers)):
             t = threading.Thread(target=self._download_worker_loop, daemon=True, name=f"subtitle-dl-{i+1}")
             t.start()
@@ -2337,14 +2538,18 @@ class SubtitleManager:
                 except Exception:
                     logger.exception("Background download failed for %s", raw_url)
                 finally:
+                    prepare_rec = None
                     try:
                         with self._dl_seen_lock:
                             self._dl_seen.discard(local_path)
+                            prepare_rec = getattr(self, "_dl_prepare_after", {}).pop(local_path, None)
                     except Exception:
                         pass
+                    if prepare_rec is not None and os.path.exists(local_path):
+                        self._enqueue_episode_prepare(local_path, prepare_rec)
 
                 try:
-                    throttle_ms = self.config.get("DOWNLOAD_THROTTLE_MS")
+                    throttle_ms = self._config_int("DOWNLOAD_THROTTLE_MS", 0, minimum=0)
                     if throttle_ms:
                         time.sleep(throttle_ms / 1000.0)
                 except Exception:
@@ -2355,20 +2560,26 @@ class SubtitleManager:
                 except Exception:
                     pass
 
-    def _enqueue_download(self, raw_url: str, local_path: str) -> bool:
+    def _enqueue_download(self, raw_url: str, local_path: str, prepare_after: bool = False, prepare_rec: Optional[dict] = None) -> bool:
         if self._shutdown_event.is_set():
             return False
         if not raw_url or not local_path:
             return False
         if os.path.exists(local_path):
+            if prepare_after:
+                self._enqueue_episode_prepare(local_path, prepare_rec)
             return False
 
         self._ensure_download_workers()
         try:
             with self._dl_seen_lock:
                 if local_path in self._dl_seen:
+                    if prepare_after:
+                        self._dl_prepare_after[local_path] = prepare_rec or {}
                     return False
                 self._dl_seen.add(local_path)
+                if prepare_after:
+                    self._dl_prepare_after[local_path] = prepare_rec or {}
         except Exception:
             # If we can't de-dupe, still enqueue (worst case: duplicates).
             pass
@@ -2379,9 +2590,71 @@ class SubtitleManager:
             try:
                 with self._dl_seen_lock:
                     self._dl_seen.discard(local_path)
+                    getattr(self, "_dl_prepare_after", {}).pop(local_path, None)
             except Exception:
                 pass
             return False
+
+    def _ensure_episode_prepare_worker(self) -> None:
+        if self._shutdown_event.is_set() or self._episode_prepare_worker_started:
+            return
+        self._episode_prepare_worker_started = True
+        self._episode_prepare_q: "queue.Queue[tuple[str, Optional[dict], tuple]]" = queue.Queue()
+        thread = threading.Thread(
+            target=self._episode_prepare_worker_loop,
+            daemon=True,
+            name="episode-preload",
+        )
+        self._episode_prepare_thread = thread
+        thread.start()
+
+    def _enqueue_episode_prepare(self, local_path: str, rec: Optional[dict] = None) -> bool:
+        if self._shutdown_event.is_set() or not local_path or not os.path.exists(local_path):
+            return False
+        key = self._prepared_episode_key(local_path)
+        with self._prepared_episode_lock:
+            if key in self._prepared_episode_cache or key in self._episode_prepare_seen:
+                return False
+            self._episode_prepare_seen.add(key)
+
+        self._ensure_episode_prepare_worker()
+        try:
+            self._episode_prepare_q.put((local_path, rec, key))
+            return True
+        except Exception:
+            with self._prepared_episode_lock:
+                self._episode_prepare_seen.discard(key)
+            return False
+
+    def _episode_prepare_worker_loop(self) -> None:
+        while not self._shutdown_event.is_set():
+            try:
+                local_path, rec, key = self._episode_prepare_q.get(timeout=0.5)
+            except queue.Empty:
+                continue
+
+            try:
+                if self._shutdown_event.is_set() or not os.path.exists(local_path):
+                    continue
+                if key != self._prepared_episode_key(local_path):
+                    continue
+                payload = self._build_subtitle_display_payload(local_path, allow_eager_auto=False)
+                self._store_prepared_episode_payload(local_path, payload, key)
+            except Exception:
+                logger.debug("Failed to prepare episode in background: %s", local_path, exc_info=True)
+                with self._prepared_episode_lock:
+                    self._episode_prepare_seen.discard(key)
+            finally:
+                try:
+                    throttle_ms = self._config_int("EPISODE_PRELOAD_THROTTLE_MS", 1000, minimum=0, maximum=60000)
+                    if throttle_ms:
+                        time.sleep(throttle_ms / 1000.0)
+                except Exception:
+                    pass
+                try:
+                    self._episode_prepare_q.task_done()
+                except Exception:
+                    pass
 
     def _initialize_remote_path(
         self,
@@ -3622,6 +3895,62 @@ class SubtitleManager:
                 logger.exception("Failed to refresh local_srt_files after synchronous window download")
         return got
 
+    def _remote_item_cache_path(self, item: dict, fallback_season: Optional[int] = None) -> Optional[str]:
+        if not item or not item.get("path"):
+            return None
+        try:
+            season = item.get("season")
+            if season is None:
+                season = fallback_season if fallback_season is not None else self.current_season
+            season_dir = self._season_cache_dir(season)
+            filename = self.sanitize_filename(os.path.basename(item["path"]))
+            return os.path.join(season_dir, filename)
+        except Exception:
+            return None
+
+    def schedule_episode_preload_around_current(self, center_global: Optional[int] = None) -> None:
+        """
+        Low-priority preparation for adjacent remote episodes.
+
+        Downloads use the normal throttled queue. Parsing runs on one background
+        worker and stores a small prepared payload cache for near-instant switches.
+        """
+        if self._shutdown_event.is_set() or not getattr(self, "remote_flag", False):
+            return
+        if not getattr(self, "remote_episode_map_global", None):
+            return
+
+        if center_global is None:
+            try:
+                center_global = self.get_current_global()
+            except Exception:
+                center_global = None
+        if center_global is None:
+            return
+
+        radius = self._config_int("EPISODE_PRELOAD_RADIUS", 1, minimum=0, maximum=5)
+        if radius <= 0:
+            return
+
+        remote_map = getattr(self, "remote_episode_map_global", None) or {}
+        ordered_globals: list[int] = []
+        for distance in range(1, radius + 1):
+            ordered_globals.append(int(center_global) + distance)
+            ordered_globals.append(int(center_global) - distance)
+
+        for g in ordered_globals:
+            item = remote_map.get(int(g))
+            if not item or not item.get("path"):
+                continue
+            local_path = self._remote_item_cache_path(item)
+            if not local_path:
+                continue
+            if os.path.exists(local_path):
+                self._enqueue_episode_prepare(local_path, item)
+                continue
+            raw_url = self._get_raw_url(item["path"])
+            self._enqueue_download(raw_url, local_path, prepare_after=True, prepare_rec=item)
+
     def update_local_srt_files(self):
         """
         Scan cache and build self.local_srt_files: list of dicts with keys:
@@ -4142,11 +4471,7 @@ class SubtitleManager:
             local_path = os.path.join(season_dir, fname)
             if os.path.exists(local_path):
                 continue
-            threading.Thread(
-                target=self._download_file,
-                args=(self._get_raw_url(remote_path), local_path),
-                daemon=True
-            ).start()
+            self._enqueue_download(self._get_raw_url(remote_path), local_path)
 
         # optionally consider unknowns (files without parsed episode) only if season_dir is empty
         if not entries and unknowns:
@@ -4154,11 +4479,7 @@ class SubtitleManager:
                 local_path = os.path.join(season_dir, fname)
                 if os.path.exists(local_path):
                     continue
-                threading.Thread(
-                    target=self._download_file,
-                    args=(self._get_raw_url(remote_path), local_path),
-                    daemon=True
-                ).start()
+                self._enqueue_download(self._get_raw_url(remote_path), local_path)
 
         # optional: evict files outside keep_filenames to limit disk usage
         try:
