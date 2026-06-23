@@ -50,6 +50,28 @@ def test_strip_parenthetical_sound_note_inside_line():
     assert manager._clean_text("\u884c\u304f\uff08\u8db3\u97f3\uff09") == "\u884c\u304f"
 
 
+def test_strip_parenthetical_descriptive_sound_note():
+    manager = _cleaner(
+        {
+            "SUBTITLE_AUTO_RUBY": False,
+            "SUBTITLE_SPEAKER_MODE": "hide",
+            "SUBTITLE_STRIP_PAREN_NOTES": True,
+        }
+    )
+    assert manager._clean_text("\u884c\u304f\uff08 \u5012\u308c\u305f \u97f3\uff09") == "\u884c\u304f"
+
+
+def test_strip_parenthetical_descriptive_sound_note_only_line():
+    manager = _cleaner(
+        {
+            "SUBTITLE_AUTO_RUBY": False,
+            "SUBTITLE_SPEAKER_MODE": "hide",
+            "SUBTITLE_STRIP_PAREN_NOTES": True,
+        }
+    )
+    assert manager._clean_text("\uff08 \u5012\u308c\u305f \u97f3\uff09") == ""
+
+
 def test_strip_parenthetical_notes_keeps_non_note_text():
     manager = _cleaner(
         {

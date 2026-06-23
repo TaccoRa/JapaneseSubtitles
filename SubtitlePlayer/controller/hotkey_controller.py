@@ -300,7 +300,12 @@ class HotkeyController(_ControllerProxy):
     def _is_text_input_widget(widget) -> bool:
             if widget is None:
                 return False
-            cls = str(widget.winfo_class() or "").lower()
+            try:
+                if not bool(widget.winfo_exists()):
+                    return False
+                cls = str(widget.winfo_class() or "").lower()
+            except Exception:
+                return False
             return cls in {
                 "entry",
                 "tentry",

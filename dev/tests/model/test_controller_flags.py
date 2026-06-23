@@ -1,4 +1,5 @@
 from SubtitlePlayer.controller.controller import SubtitleController
+from SubtitlePlayer.controller.hotkey_controller import HotkeyController
 from SubtitlePlayer.model.config_manager import ConfigManager
 
 
@@ -16,3 +17,14 @@ def test_video_click_flags(tmp_path):
     assert ctrl.video_click is True
     assert ctrl.video_click_play is False
     assert ctrl.video_click_window is True
+
+
+def test_destroyed_text_widget_is_not_focused_input():
+    class DestroyedWidget:
+        def winfo_exists(self):
+            raise Exception('bad window path name ".!toplevel6"')
+
+        def winfo_class(self):
+            raise AssertionError("winfo_class should not be called after winfo_exists fails")
+
+    assert HotkeyController._is_text_input_widget(DestroyedWidget()) is False

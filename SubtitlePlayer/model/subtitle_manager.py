@@ -87,6 +87,10 @@ class SubtitleManager:
         "\u30e2\u30ce\u30ed\u30fc\u30b0",
         "\u3056\u308f\u3081\u304d",
     )
+    PAREN_NOTE_SUFFIXES = (
+        "\u97f3",
+        "\u58f0",
+    )
 
     RESOLUTION_RE = re.compile(r'^\d{3,4}p$', re.IGNORECASE)
     RESOLUTION_X_RE = re.compile(r'^\d{3,4}x\d{3,4}$', re.IGNORECASE)
@@ -389,12 +393,13 @@ class SubtitleManager:
             start, end = match.span()
             if start > cursor:
                 parts.append(line[cursor:start])
+            is_note = self._is_parenthetical_note_text(match.group(0))
             keep_group = False
-            if keep_ruby and start > 0:
+            if keep_ruby and not is_note and start > 0:
                 prev_char = line[start - 1]
                 if regex.match(r"\p{Han}", prev_char):
                     keep_group = True
-            if keep_group or not self._is_parenthetical_note_text(match.group(0)):
+            if keep_group or not is_note:
                 parts.append(match.group(0))
             cursor = end
         if cursor < len(line):
@@ -422,6 +427,9 @@ class SubtitleManager:
             return True
         for hint in cls.PAREN_NOTE_HINTS:
             if hint and hint in compact:
+                return True
+        for suffix in cls.PAREN_NOTE_SUFFIXES:
+            if suffix and len(compact) > len(suffix) and compact.endswith(suffix):
                 return True
         return False
 
