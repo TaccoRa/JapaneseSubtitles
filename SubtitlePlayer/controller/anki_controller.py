@@ -65,9 +65,15 @@ class AnkiController(_ControllerProxy):
                     candidates = result.get("translation_candidates") or {}
                     word_cands = candidates.get("word") or {}
                     sentence_cands = candidates.get("sentence") or {}
+                    lookup_text = str(result.get("selection_lookup_text") or selected).strip()
 
                     print(f"Note ID: {result.get('note_id', '')}")
                     print(f"Marked Word: {selected}")
+                    if lookup_text and lookup_text != selected:
+                        print(f"Anki Headword: {lookup_text}")
+                    copied_media = result.get("copied_media_fields") or {}
+                    if copied_media:
+                        print(f"Copied Media: {', '.join(sorted(copied_media.keys()))}")
                     print(f"Word Jisho: {self._format_translation_csv(word_cands.get('jisho', ''))}")
                     print(f"Word Google: {self._format_translation_csv(word_cands.get('google', ''))}")
                     print(f"Sentence DeepL: {self._format_translation_csv(sentence_cands.get('deepl', ''))}")
@@ -75,7 +81,7 @@ class AnkiController(_ControllerProxy):
 
                     fields = result.get("stroke_svg_sync_fields")
                     if fields:
-                        self.anki.sync_missing_stroke_svgs_async(selected, fields)
+                        self.anki.sync_missing_stroke_svgs_async(lookup_text or selected, fields)
                     self.settings.root.after(0, self._schedule_ocr_sync_after_anki)
                     self.settings.root.after(0, self.popup.mark_anki_success)
                     print("Anki card added.")

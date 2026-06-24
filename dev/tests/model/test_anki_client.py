@@ -94,6 +94,215 @@ def test_kanji_mora_splitting_can_be_enabled():
     ]
 
 
+def test_katakana_word_gets_hiragana_ruby():
+    client = AnkiClient(ConfigManager("config.json"))
+
+    assert client._split_surface_and_reading(
+        "\u30e0\u30c1\u30e3\u30af\u30c1\u30e3",
+        "\u30e0\u30c1\u30e3\u30af\u30c1\u30e3",
+    ) == [("\u30e0\u30c1\u30e3\u30af\u30c1\u30e3", "\u3080\u3061\u3083\u304f\u3061\u3083")]
+
+
+def test_card_headword_for_selection_uses_verb_dictionary_form():
+    client = AnkiClient(ConfigManager("config.json"))
+
+    class Feature:
+        def __init__(self, pos1, lemma):
+            self.pos1 = pos1
+            self.lemma = lemma
+            self.orthBase = lemma
+            self.formBase = ""
+
+    class Token:
+        def __init__(self, surface, pos1, lemma):
+            self.surface = surface
+            self.feature = Feature(pos1, lemma)
+
+    def fake_tagger(text):
+        if text == "\u8cab\u3044\u305f":
+            return [
+                Token("\u8cab\u3044", "\u52d5\u8a5e", "\u8cab\u304f"),
+                Token("\u305f", "\u52a9\u52d5\u8a5e", "\u305f"),
+            ]
+        if text == "\u8cab\u3044":
+            return [Token("\u8cab\u3044", "\u52d5\u8a5e", "\u8cab\u304f")]
+        return [Token(text, "\u540d\u8a5e", text)]
+
+    client._tagger = fake_tagger
+
+    assert client._card_headword_for_selection("\u8cab\u3044\u305f") == "\u8cab\u304f"
+    assert client._card_headword_for_selection("\u8cab\u3044") == "\u8cab\u304f"
+    assert client._card_headword_for_selection("\u8cab") == "\u8cab"
+
+
+def test_add_from_selection_uses_dictionary_form_for_verb_card(monkeypatch):
+    client = AnkiClient(ConfigManager("config.json"))
+
+    class Feature:
+        pos1 = "\u52d5\u8a5e"
+        lemma = "\u8cab\u304f"
+        orthBase = "\u8cab\u304f"
+        formBase = ""
+
+    class Token:
+        surface = "\u8cab\u3044"
+        feature = Feature()
+
+    client._tagger = lambda _text: [Token()]
+    translate_calls = []
+    notes = []
+
+    monkeypatch.setattr(client, "_translate_word", lambda text: translate_calls.append(text) or "durchdringen")
+    monkeypatch.setattr(client, "_translate_sentence", lambda _text: "")
+    monkeypatch.setattr(client, "_to_furigana_brackets", lambda text, **_kwargs: f"ruby:{text}")
+    monkeypatch.setattr(client, "_get_model_field_names", lambda: {
+        client.add_rubies_to_front_field,
+        client.front_field,
+        client.back_field,
+        client.sentence_ja_field,
+        client.sentence_de_field,
+        client.add_rubies_to_sentence_ja_field,
+        client.definition_field,
+    })
+    monkeypatch.setattr(client, "_route_new_cards", lambda _note_id: {"reading": [], "reverse": [], "unrouted": []})
+
+    def fake_invoke(action, params=None):
+        if action == "multi":
+            return [{"result": None, "error": None} for _ in params["actions"]]
+        if action == "addNote":
+            notes.append(params["note"])
+            return 123
+        return None
+
+    monkeypatch.setattr(client, "_invoke", fake_invoke)
+
+    result = client.add_from_selection("\u8cab\u3044\u305f", subtitle_text="")
+
+    assert translate_calls == ["\u8cab\u304f"]
+    assert result["selection_surface_text"] == "\u8cab\u3044\u305f"
+    assert result["selection_lookup_text"] == "\u8cab\u304f"
+    fields = notes[0]["fields"]
+    assert fields[client.add_rubies_to_front_field] == "\u8cab\u304f"
+    assert fields[client.front_field] == "ruby:\u8cab\u304f"
+    assert fields[client.back_field] == "durchdringen"
+
+
+def test_copy_existing_sentence_media_fields_from_same_subtitle(monkeypatch):
+    client = AnkiClient(ConfigManager("config.json"))
+    monkeypatch.setattr(client, "_get_model_field_names", lambda: {
+        client.add_rubies_to_front_field,
+        client.front_field,
+        client.back_field,
+        client.sentence_ja_field,
+        client.sentence_de_field,
+        client.add_rubies_to_sentence_ja_field,
+        client.sound_field,
+        client.image_field,
+    })
+    monkeypatch.setattr(client, "_to_furigana_brackets", lambda text, **_kwargs: f"ruby:{text}")
+
+    fields = client._build_note_fields(
+        selected="\u65b0\u898f",
+        subtitle="\u540c\u3058\u5b57\u5e55",
+        word_translation="new",
+        sentence_translation="",
+    )
+    calls = []
+
+    def fake_invoke(action, params=None):
+        calls.append((action, params))
+        if action == "findNotes":
+            return [101, 202]
+        if action == "notesInfo":
+            return [
+                {
+                    "noteId": 101,
+                    "modelName": client.model_name,
+                    "fields": {
+                        client.add_rubies_to_sentence_ja_field: {"value": "\u5225\u306e\u5b57\u5e55"},
+                        client.sound_field: {"value": "[sound:wrong.mp3]"},
+                        client.image_field: {"value": '<img src="wrong.png">'},
+                    },
+                },
+                {
+                    "noteId": 202,
+                    "modelName": client.model_name,
+                    "fields": {
+                        client.add_rubies_to_sentence_ja_field: {"value": "\u540c\u3058\u5b57\u5e55"},
+                        client.sound_field: {"value": "[sound:asbp_clip.mp3]"},
+                        client.image_field: {"value": '<img src="asbp_clip.png">'},
+                    },
+                },
+            ]
+        return None
+
+    monkeypatch.setattr(client, "_invoke", fake_invoke)
+
+    copied = client._copy_existing_sentence_media_fields(fields)
+
+    assert copied == {
+        client.sound_field: "[sound:asbp_clip.mp3]",
+        client.image_field: '<img src="asbp_clip.png">',
+    }
+    assert fields[client.sound_field] == "[sound:asbp_clip.mp3]"
+    assert fields[client.image_field] == '<img src="asbp_clip.png">'
+    assert calls[0] == ("findNotes", {"query": '"\u540c\u3058\u5b57\u5e55"'})
+
+
+def test_add_from_selection_copies_media_before_creating_note(monkeypatch):
+    client = AnkiClient(ConfigManager("config.json"))
+    monkeypatch.setattr(client, "_card_headword_for_selection", lambda text: text)
+    monkeypatch.setattr(client, "_translate_word", lambda _text: "word")
+    monkeypatch.setattr(client, "_translate_sentence", lambda _text: "")
+    monkeypatch.setattr(client, "_to_furigana_brackets", lambda text, **_kwargs: f"ruby:{text}")
+    monkeypatch.setattr(client, "_get_model_field_names", lambda: {
+        client.add_rubies_to_front_field,
+        client.front_field,
+        client.back_field,
+        client.sentence_ja_field,
+        client.sentence_de_field,
+        client.add_rubies_to_sentence_ja_field,
+        client.sound_field,
+        client.image_field,
+    })
+    monkeypatch.setattr(client, "_route_new_cards", lambda _note_id: {"reading": [], "reverse": [], "unrouted": []})
+    notes = []
+
+    def fake_invoke(action, params=None):
+        if action == "findNotes":
+            return [555]
+        if action == "notesInfo":
+            return [
+                {
+                    "noteId": 555,
+                    "modelName": client.model_name,
+                    "fields": {
+                        client.add_rubies_to_sentence_ja_field: {"value": "\u540c\u3058\u5b57\u5e55"},
+                        client.sound_field: {"value": "[sound:asbp_existing.mp3]"},
+                        client.image_field: {"value": '<img src="asbp_existing.png">'},
+                    },
+                }
+            ]
+        if action == "multi":
+            return [{"result": None, "error": None} for _ in params["actions"]]
+        if action == "addNote":
+            notes.append(params["note"])
+            return 777
+        return None
+
+    monkeypatch.setattr(client, "_invoke", fake_invoke)
+
+    result = client.add_from_selection("\u65b0\u898f", subtitle_text="\u540c\u3058\u5b57\u5e55")
+
+    fields = notes[0]["fields"]
+    assert fields[client.sound_field] == "[sound:asbp_existing.mp3]"
+    assert fields[client.image_field] == '<img src="asbp_existing.png">'
+    assert result["copied_media_fields"] == {
+        client.sound_field: "[sound:asbp_existing.mp3]",
+        client.image_field: '<img src="asbp_existing.png">',
+    }
+
+
 def test_bracket_text_spaces_before_kanji_ruby_segments():
     client = AnkiClient(ConfigManager("config.json"))
     rendered = client._segments_to_bracket_text(

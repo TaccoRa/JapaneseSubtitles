@@ -72,11 +72,30 @@ def _kata_to_hira(text: str) -> str:
     return "".join(out)
 
 
+def _is_katakana_ruby_base(text: str) -> bool:
+    value = str(text or "").strip()
+    if not value:
+        return False
+    has_katakana = False
+    for ch in value:
+        code = ord(ch)
+        if 0x30A1 <= code <= 0x30FA or 0x30FD <= code <= 0x30FF:
+            has_katakana = True
+            continue
+        if ch in {"ー", "・", "･"}:
+            continue
+        return False
+    return has_katakana
+
+
 def _split_ruby_base(base: str, ruby: str, single_kanji_reader: SingleKanjiReader = None) -> List[Segment]:
     if not base:
         return []
     if not ruby:
         return [(base, None)]
+    if _is_katakana_ruby_base(base):
+        hira = _kata_to_hira(ruby)
+        return [(base, hira if hira and hira != base else None)]
     return split_furigana(base, ruby, single_kanji_reader)
 
 
@@ -314,8 +333,15 @@ class MecabController:
                 return ""
 
             (kanji, reading) = m.groups()
-            if kanji == reading or not reading:
+            if not reading:
                 out.append(kanji)
+                continue
+            if kanji == reading:
+                hira = _kata_to_hira(reading)
+                if _is_katakana_ruby_base(kanji) and hira != kanji:
+                    out.append(" %s[%s]" % (kanji, hira))
+                else:
+                    out.append(kanji)
                 continue
             reading = self.kakasi.reading(reading)
             if reading == kanji:
@@ -437,7 +463,11 @@ def bracket_text_to_segments(text: str, single_kanji_reader: SingleKanjiReader =
         ruby = m.group(2)
         if base:
             for sub_base, sub_ruby in _split_ruby_base(base, ruby, single_kanji_reader):
-                if sub_ruby is not None and not any(_is_kanji_char(ch) for ch in sub_base):
+                if (
+                    sub_ruby is not None
+                    and not any(_is_kanji_char(ch) for ch in sub_base)
+                    and not _is_katakana_ruby_base(sub_base)
+                ):
                     segments.append((sub_base, None))
                 else:
                     segments.append((sub_base, sub_ruby))

@@ -254,7 +254,7 @@ class SubtitleRenderer:
 
             if ruby and not self.hover_ruby_enabled:
                 self._draw_ruby_text(ruby, base_w, ruby_w, cx, ruby_y)
-            elif ruby and self.hover_ruby_enabled and self._contains_kanji(base):
+            elif ruby and self.hover_ruby_enabled and self._has_hoverable_ruby_base(base):
                 self._hover_regions.append(
                     {
                         "bbox": (
@@ -1033,6 +1033,18 @@ class SubtitleRenderer:
             if 0x4E00 <= code <= 0x9FFF or code == 0x3005:
                 return True
         return False
+
+    @staticmethod
+    def _contains_katakana(text: str) -> bool:
+        for ch in text or "":
+            code = ord(ch)
+            if 0x30A1 <= code <= 0x30FA or 0x30FD <= code <= 0x30FF:
+                return True
+        return False
+
+    @classmethod
+    def _has_hoverable_ruby_base(cls, text: str) -> bool:
+        return cls._contains_kanji(text) or cls._contains_katakana(text)
 
     def update_canvas(self, canvas: tk.Canvas):
         """

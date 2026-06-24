@@ -231,11 +231,12 @@ class AnkiClient:
             raise ValueError("No selected text.")
 
         subtitle = (subtitle_text or "").strip()
-        word_translation = self._translate_word(selected)
+        card_word = self._card_headword_for_selection(selected)
+        word_translation = self._translate_word(card_word)
         sentence_translation = self._translate_sentence(subtitle)
         full_definition = self._last_jisho_full_definition
         translation_candidates = self._collect_translation_candidates(
-            selected,
+            card_word,
             subtitle,
             word_translation=word_translation,
             sentence_translation=sentence_translation,
@@ -252,11 +253,12 @@ class AnkiClient:
             configured=self.sentence_translate_provider,
         )
         fields = self._build_note_fields(
-            selected=selected,
+            selected=card_word,
             subtitle=subtitle,
             word_translation=word_translation,
             sentence_translation=sentence_translation,
         )
+        copied_media_fields = self._copy_existing_sentence_media_fields(fields)
 
         self._ensure_decks((self.deck_name, self.reading_deck, self.reverse_deck))
 
@@ -279,6 +281,9 @@ class AnkiClient:
             "routed_cards": routed,
             "word_translation": word_translation,
             "sentence_translation": sentence_translation,
+            "selection_surface_text": selected,
+            "selection_lookup_text": card_word,
+            "copied_media_fields": copied_media_fields,
             # "stroke_svg_sync": stroke_sync,
             "translation_candidates": translation_candidates,
             "translation_provider_used": {
@@ -368,6 +373,126 @@ class AnkiClient:
             fields[self.image_field] = ""
 
         return fields
+
+    def _copy_existing_sentence_media_fields(self, fields: Dict[str, str]) -> Dict[str, str]:
+        media_fields = [
+            name
+            for name in (self.sound_field, self.image_field)
+            if name in fields and not str(fields.get(name) or "").strip()
+        ]
+        if not media_fields:
+            return {}
+
+        source = self._find_existing_sentence_media(fields, media_fields)
+        copied: Dict[str, str] = {}
+        for name in media_fields:
+            value = str(source.get(name) or "").strip()
+            if value and not str(fields.get(name) or "").strip():
+                fields[name] = value
+                copied[name] = value
+        return copied
+
+    def _find_existing_sentence_media(self, fields: Dict[str, str], media_fields: List[str]) -> Dict[str, str]:
+        raw_sentence = str(fields.get(self.add_rubies_to_sentence_ja_field, "") or "")
+        rendered_sentence = str(fields.get(self.sentence_ja_field, "") or "")
+        if not raw_sentence and not rendered_sentence:
+            return {}
+
+        queries = self._media_copy_search_queries(raw_sentence, rendered_sentence)
+        if not queries:
+            return {}
+
+        note_ids: set[int] = set()
+        for query in queries:
+            try:
+                found = self._invoke("findNotes", {"query": query}) or []
+            except Exception:
+                continue
+            for note_id in found:
+                try:
+                    note_ids.add(int(note_id))
+                except Exception:
+                    continue
+
+        if not note_ids:
+            return {}
+
+        try:
+            notes = self._invoke("notesInfo", {"notes": sorted(note_ids, reverse=True)[:50]}) or []
+        except Exception:
+            return {}
+
+        target_raw = self._normalize_media_sentence_value(raw_sentence)
+        target_rendered = self._normalize_media_sentence_value(rendered_sentence)
+        best: Dict[str, str] = {}
+
+        for note in sorted(notes, key=lambda item: int(item.get("noteId") or 0), reverse=True):
+            if not self._note_matches_media_sentence(note, target_raw, target_rendered):
+                continue
+            for name in media_fields:
+                if best.get(name):
+                    continue
+                value = self._note_field_value(note, name).strip()
+                if value:
+                    best[name] = value
+            if all(best.get(name) for name in media_fields):
+                return best
+
+        return best
+
+    def _media_copy_search_queries(self, raw_sentence: str, rendered_sentence: str) -> List[str]:
+        queries: List[str] = []
+        for value in (raw_sentence, rendered_sentence):
+            normalized = self._normalize_media_sentence_value(value)
+            if not normalized:
+                continue
+            quoted = self._quote_anki_search_text(normalized)
+            if quoted not in queries:
+                queries.append(quoted)
+        return queries
+
+    def _quote_anki_search_text(self, text: str) -> str:
+        value = self._normalize_media_sentence_value(text)
+        value = value.replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{value}"'
+
+    def _note_matches_media_sentence(self, note: Dict, target_raw: str, target_rendered: str) -> bool:
+        model_name = str(note.get("modelName") or "").strip()
+        if model_name and model_name != self.model_name:
+            return False
+
+        if target_raw:
+            note_raw = self._normalize_media_sentence_value(
+                self._note_field_value(note, self.add_rubies_to_sentence_ja_field)
+            )
+            if note_raw == target_raw:
+                return True
+
+        if target_rendered:
+            note_rendered = self._normalize_media_sentence_value(
+                self._note_field_value(note, self.sentence_ja_field)
+            )
+            if note_rendered == target_rendered:
+                return True
+
+        return False
+
+    def _note_field_value(self, note: Dict, field_name: str) -> str:
+        fields = note.get("fields") if isinstance(note, dict) else None
+        if not isinstance(fields, dict):
+            return ""
+        value = fields.get(field_name)
+        if isinstance(value, dict):
+            return str(value.get("value") or "")
+        return str(value or "")
+
+    def _normalize_media_sentence_value(self, text: str) -> str:
+        value = str(text or "").strip()
+        if not value:
+            return ""
+        value = value.replace("\u3000", " ")
+        value = re.sub(r"\s+", " ", value)
+        return value.strip()
 
     def _to_furigana_brackets(
         self,
@@ -507,6 +632,10 @@ class AnkiClient:
         reading = self._katakana_to_hiragana(reading_kata)
         if not reading:
             return [(surface, None)]
+        if self._is_katakana_ruby_base(surface):
+            if reading != surface:
+                return [(surface, reading)]
+            return [(surface, None)]
         if surface == reading:
             return [(surface, None)]
         if self._katakana_to_hiragana(surface) == reading:
@@ -518,6 +647,48 @@ class AnkiClient:
         if not self._split_kanji_moras_enabled():
             return [(surface, reading)]
         return split_furigana(surface, reading, self._single_kanji_reading_for_split)
+
+    def _card_headword_for_selection(self, text: str) -> str:
+        """
+        Return the word form that should be used for Anki card lookup/front fields.
+
+        For a selected Japanese verb inflection, use the dictionary-form lemma so
+        lookups hit entries like 貫く instead of noun-biased matches for 貫い.
+        Non-verbs keep the original selected text.
+        """
+        selected = (text or "").strip()
+        if not selected:
+            return ""
+
+        tagger = self._get_tagger()
+        if tagger is None:
+            return selected
+
+        try:
+            tokens = list(tagger(selected))
+        except Exception:
+            return selected
+        if not tokens:
+            return selected
+
+        for token in tokens:
+            surface = str(getattr(token, "surface", "") or "").strip()
+            if not surface:
+                continue
+
+            feature = getattr(token, "feature", None)
+            pos1 = str(getattr(feature, "pos1", "") or "")
+            if pos1 in {"補助記号", "空白"}:
+                continue
+            if pos1 != "動詞":
+                return selected
+
+            lemma = self._token_lookup_text(token, surface)
+            if lemma and lemma != surface and self._contains_japanese(lemma):
+                return lemma
+            return selected
+
+        return selected
 
     def _split_kanji_moras_enabled(self) -> bool:
         try:
@@ -672,6 +843,21 @@ class AnkiClient:
             else:
                 out.append(ch)
         return "".join(out)
+
+    def _is_katakana_ruby_base(self, text: str) -> bool:
+        value = str(text or "").strip()
+        if not value:
+            return False
+        has_katakana = False
+        for ch in value:
+            code = ord(ch)
+            if 0x30A1 <= code <= 0x30FA or 0x30FD <= code <= 0x30FF:
+                has_katakana = True
+                continue
+            if ch in {"ー", "・", "･"}:
+                continue
+            return False
+        return has_katakana
 
     def _contains_kanji(self, text: str) -> bool:
         return any(self._is_kanji_char(ch) for ch in text or "")
