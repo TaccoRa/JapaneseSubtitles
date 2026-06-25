@@ -81,8 +81,9 @@ class SubtitleRenderer:
             "render_count": 0,
         }
 
-    def render_subtitle(self, top_segments, bottom_segments, overlay: SubtitleOverlayUI) -> None:
+    def render_subtitle(self, top_segments, bottom_segments, overlay: SubtitleOverlayUI, preview: bool = False) -> None:
         start = time.perf_counter()
+        preview = bool(preview)
         if self._timing_enabled:
             self._timing_data["render_count"] += 1
 
@@ -134,7 +135,7 @@ class SubtitleRenderer:
 
             if not lines:
                 self.canvas.delete("all")
-                self._finish_hover_bindings()
+                self._finish_hover_bindings(preview=preview)
                 return
 
             if len(lines) <= 2:
@@ -160,8 +161,8 @@ class SubtitleRenderer:
                     overlay.update_geometry(int(overlay.max_w), int(target_h))
 
             self.canvas.delete("all")
-            self._render_subtitle_lines(lines, y_ruby_top, y_base1, overlay)
-            self._finish_hover_bindings()
+            self._render_subtitle_lines(lines, y_ruby_top, y_base1, overlay, preview=preview)
+            self._finish_hover_bindings(preview=preview)
 
         finally:
             if self._timing_enabled:
@@ -187,9 +188,9 @@ class SubtitleRenderer:
             wrap_limit_px = None
         return wrap_limit_px
 
-    def _render_subtitle_lines(self, lines, y_ruby_top, y_base1, overlay: SubtitleOverlayUI) -> None:
+    def _render_subtitle_lines(self, lines, y_ruby_top, y_base1, overlay: SubtitleOverlayUI, preview: bool = False) -> None:
         if len(lines) == 1:
-            self._render_line(lines[0], y_ruby_top, y_base1, overlay.max_w)
+            self._render_line(lines[0], y_ruby_top, y_base1, overlay.max_w, preview=preview)
             return
 
         if len(lines) == 2:
@@ -197,8 +198,8 @@ class SubtitleRenderer:
             base2_start = block_h
             y_base2 = base2_start + self.line_height // 2
             y_ruby_bot = base2_start + self.line_height + self.ruby_height // 2
-            self._render_line(lines[0], y_ruby_top, y_base1, overlay.max_w)
-            self._render_line(lines[1], y_ruby_bot, y_base2, overlay.max_w)
+            self._render_line(lines[0], y_ruby_top, y_base1, overlay.max_w, preview=preview)
+            self._render_line(lines[1], y_ruby_bot, y_base2, overlay.max_w, preview=preview)
             return
 
         block_h = self.line_height + self.ruby_height
@@ -214,15 +215,16 @@ class SubtitleRenderer:
             else:
                 ruby_y = block_y + self.ruby_height // 2
                 base_y = block_y + self.ruby_height + self.line_height // 2
-            self._render_line(segs, ruby_y, base_y, overlay.max_w)
+            self._render_line(segs, ruby_y, base_y, overlay.max_w, preview=preview)
 
-    def _render_line(self, segments, ruby_y, base_y, max_width):
+    def _render_line(self, segments, ruby_y, base_y, max_width, preview: bool = False):
         if not segments:
             return
 
         seg_meta = []
         total_w = 0
-        line_text = "".join((base or "") for base, _ruby in segments)
+        collect_word_regions = (not preview and self._shift_hover_dictionary_enabled())
+        line_text = "".join((base or "") for base, _ruby in segments) if collect_word_regions else ""
         line_region_meta = []
         line_col = 0
 
@@ -242,19 +244,25 @@ class SubtitleRenderer:
         for base, ruby, base_w, ruby_w, seg_w in seg_meta:
             cx = cur_x + seg_w / 2
             base_left = cx - (base_w / 2)
-            line_region_meta.append(
-                {
-                    "start": line_col,
-                    "end": line_col + len(base or ""),
-                    "base": base or "",
-                    "base_left": base_left,
-                }
-            )
-            line_col += len(base or "")
+            if collect_word_regions:
+                line_region_meta.append(
+                    {
+                        "start": line_col,
+                        "end": line_col + len(base or ""),
+                        "base": base or "",
+                        "base_left": base_left,
+                    }
+                )
+                line_col += len(base or "")
 
             if ruby and not self.hover_ruby_enabled:
                 self._draw_ruby_text(ruby, base_w, ruby_w, cx, ruby_y)
-            elif ruby and self.hover_ruby_enabled and self._has_hoverable_ruby_base(base):
+            elif (
+                ruby
+                and self.hover_ruby_enabled
+                and not preview
+                and self._has_hoverable_ruby_base(base)
+            ):
                 self._hover_regions.append(
                     {
                         "bbox": (
@@ -285,7 +293,8 @@ class SubtitleRenderer:
             )
             cur_x += seg_w
 
-        self._add_word_regions_for_line(line_text, line_region_meta, base_y, ruby_y)
+        if collect_word_regions:
+            self._add_word_regions_for_line(line_text, line_region_meta, base_y, ruby_y)
 
     def _refresh_fonts_if_needed(self) -> None:
         font_family = self.config.get("SUBTITLE_FONT")
@@ -766,7 +775,15 @@ class SubtitleRenderer:
             if self._timing_enabled:
                 self._timing_data["split_text_to_fit_time"] += time.perf_counter() - start
 
-    def _finish_hover_bindings(self) -> None:
+    def _finish_hover_bindings(self, preview: bool = False) -> None:
+        if preview:
+            self._clear_hover_ruby()
+            try:
+                self.canvas.unbind("<Motion>")
+                self.canvas.unbind("<Leave>")
+            except Exception:
+                pass
+            return
         has_ruby_hover = self.hover_ruby_enabled and self._hover_regions
         has_dictionary_hover = self._shift_hover_dictionary_enabled() and self._word_regions
         if has_ruby_hover or has_dictionary_hover:

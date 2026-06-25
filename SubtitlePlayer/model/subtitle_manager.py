@@ -24,14 +24,25 @@ import heapq
 
 import regex
 import srt
-import chardet
 import tkinter as tk
 from tkinter import font as tkFont
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, simpledialog
 
 from model.anki_ruby import AddonRubyGenerator
 
 from model.config_manager import ConfigManager
+from model.remote_search_cache import (
+    REMOTE_SEARCH_CACHE_SCHEMA_VERSION,
+    build_remote_search_cache_payload,
+    load_remote_search_cache_payload,
+    remote_search_cache_items,
+    remote_search_cache_repo_matches,
+)
+from model.subtitle_geometry import (
+    freeze_segments_for_cache,
+    subtitle_geometry_from_measured_width,
+)
+from model.subtitle_parsing import parse_subtitle_file
 from utils import format_time, get_monitor_rects
 from view.overlays import LoadingOverlay, get_startup_overlay, hide_startup_overlay, show_startup_overlay
 
@@ -69,6 +80,7 @@ class SubtitleManager:
     PAREN_NOTE_EXACT = (
         "\u97f3",
         "\u58f0",
+        "\u606f",
     )
     PAREN_NOTE_HINTS = (
         "\u8db3\u97f3",
@@ -90,6 +102,7 @@ class SubtitleManager:
     PAREN_NOTE_SUFFIXES = (
         "\u97f3",
         "\u58f0",
+        "\u606f",
     )
 
     RESOLUTION_RE = re.compile(r'^\d{3,4}p$', re.IGNORECASE)
@@ -142,7 +155,6 @@ class SubtitleManager:
             local_srt_path = self.config.get("LAST_LOCAL_SRT_FILE")
         self._load_local_and_process(local_srt_path)
         # self._trying_search_queries()#debugging
-        # self._load_local_and_process(self.config.get("DEBUGGING_SRT_FILE"))
 
     def _config_bool(self, key: str, default: bool = False) -> bool:
         try:
@@ -292,7 +304,13 @@ class SubtitleManager:
 # -------------------------helpers-----------------------------
     def _extract_and_set_local_episode_metadata(self, local_path):
         if not self.remote_flag: #hardcoded certain local folder when not using cached files
-            self.anime_folder_name = local_path.replace("\\", "/").split("/")[local_path.replace("\\", "/").split("/").index("subs")+1]
+            parts = local_path.replace("\\", "/").split("/")
+            if "subs" in parts:
+                self.anime_folder_name = parts[parts.index("subs") + 1]
+            else:
+                parent = os.path.basename(os.path.dirname(local_path))
+                grandparent = os.path.basename(os.path.dirname(os.path.dirname(local_path)))
+                self.anime_folder_name = grandparent or parent or os.path.splitext(os.path.basename(local_path))[0]
         self.config.set("LAST_LOCAL_SRT_FILE", local_path)
 
         # Always parse from the filename (works for both fixed subs folder and runtime cache).
@@ -462,15 +480,7 @@ class SubtitleManager:
         self._apply_subtitle_display_payload(payload)
 
     def load_subtitles(self, local_path: str) -> List[srt.Subtitle]:
-        with open(local_path, 'rb') as f:
-            raw = f.read()
-        detected = chardet.detect(raw)
-        text = raw.decode(detected['encoding'] or 'utf-8', errors='replace')
-
-        ext = os.path.splitext(local_path)[1].lower()
-        if ext in (".ass", ".ssa"):
-            return self._parse_ass_subtitles(text)
-        return list(srt.parse(text))
+        return parse_subtitle_file(local_path, self._parse_ass_subtitles)
 
     def _clean_text(self, text: str) -> str:
         cleaned = self.CLEAN_PATTERN.sub('', text)
@@ -508,7 +518,12 @@ class SubtitleManager:
                 else:
                     line = rest
             if strip_paren_notes and line:
-                line = self._strip_parenthetical_notes(line, keep_ruby=use_source_ruby).strip()
+                before_strip = line
+                stripped = self._strip_parenthetical_notes(line, keep_ruby=use_source_ruby)
+                if stripped != before_strip and self._is_residual_note_punctuation(stripped):
+                    line = ""
+                else:
+                    line = stripped.strip()
             # Drop note-only lines after speaker normalization so line context stays aligned.
             if line and not (strip_paren_notes and self._is_parenthetical_note_only(line.strip())):
                 out_lines.append(line)
@@ -526,14 +541,10 @@ class SubtitleManager:
             start, end = match.span()
             if start > cursor:
                 parts.append(line[cursor:start])
-            is_note = self._is_parenthetical_note_text(match.group(0))
-            keep_group = False
-            if keep_ruby and not is_note and start > 0:
+            if keep_ruby and start > 0:
                 prev_char = line[start - 1]
                 if regex.match(r"\p{Han}", prev_char):
-                    keep_group = True
-            if keep_group or not is_note:
-                parts.append(match.group(0))
+                    parts.append(match.group(0))
             cursor = end
         if cursor < len(line):
             parts.append(line[cursor:])
@@ -543,6 +554,13 @@ class SubtitleManager:
     def _is_parenthetical_note_only(cls, text: str) -> bool:
         value = (text or "").strip()
         return bool(cls.PAREN_NOTE_PATTERN.fullmatch(value) and cls._is_parenthetical_note_text(value))
+
+    @staticmethod
+    def _is_residual_note_punctuation(text: str) -> bool:
+        value = (text or "").strip()
+        if not value:
+            return False
+        return bool(regex.fullmatch(r"[\p{P}\p{S}\s\u3000]+", value))
 
     @classmethod
     def _is_parenthetical_note_text(cls, text: str) -> bool:
@@ -979,7 +997,7 @@ class SubtitleManager:
 
     @staticmethod
     def _freeze_segments_for_cache(segments) -> tuple:
-        return tuple((str(base or ""), str(ruby) if ruby else None) for base, ruby in (segments or ()))
+        return freeze_segments_for_cache(segments)
 
     def _subtitle_geometry_style_key(self) -> tuple:
         return (
@@ -1114,24 +1132,11 @@ class SubtitleManager:
 
     def _geometry_from_measured_width(self, max_width):
         font, _ = self._get_subtitle_fonts()
-        line_height = font.metrics("linespace")
-        ruby_height = int(line_height * 0.6)
-        pad_x = 5
-        total_height = ruby_height * 2 + line_height * 2
-
         try:
             wrap_limit_px = int(self.config.get("SUBTITLE_WRAP_LIMIT_PX") or 0)
         except Exception:
             wrap_limit_px = 0
-
-        if wrap_limit_px > 0:
-            renderer_padding = 40
-            max_width = min(max_width, wrap_limit_px)
-            total_width = max_width + 2 * renderer_padding
-        else:
-            total_width  = max_width + 2 * pad_x
-
-        return (total_width, total_height)
+        return subtitle_geometry_from_measured_width(font, max_width, wrap_limit_px)
 
     def _calculate_geometry_from_line_segments(self, segments):
         font, ruby_font = self._get_subtitle_fonts()
@@ -2051,38 +2056,127 @@ class SubtitleManager:
     def _cached_github_search_dir(self) -> str:
         return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "github_search")
 
-    def _list_cached_github_search_queries(self) -> List[str]:
+    @staticmethod
+    def _dedupe_search_aliases(values) -> List[str]:
+        aliases: List[str] = []
+        seen = set()
+        for value in values or []:
+            text = SubtitleManager._normalize_search_query_text(value)
+            if not text:
+                continue
+            key = text.casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            aliases.append(text)
+        return aliases
+
+    def _cached_github_record_from_file(self, path: str, safe_name: str) -> Optional[dict]:
+        filename_query = self._normalize_search_query_text(safe_name.replace("_", " "))
+        payload = None
+        try:
+            payload = load_remote_search_cache_payload(path)
+        except Exception:
+            logger.debug("Failed to read saved GitHub search cache: %s", path, exc_info=True)
+
+        query = filename_query
+        display = filename_query
+        raw_aliases = []
+        if isinstance(payload, dict):
+            candidate = payload.get("anime_query")
+            if isinstance(candidate, str) and candidate.strip():
+                query = self._normalize_search_query_text(candidate)
+            candidate = payload.get("display_name")
+            if isinstance(candidate, str) and candidate.strip():
+                display = self._normalize_search_query_text(candidate)
+            elif query:
+                display = query
+            aliases = payload.get("aliases")
+            if isinstance(aliases, list):
+                raw_aliases.extend(aliases)
+
+        query = self._normalize_search_query_text(query)
+        display = self._normalize_search_query_text(display or query)
+        if not query and not display:
+            return None
+        if not query:
+            query = display
+
+        aliases = self._dedupe_search_aliases([*raw_aliases, query, filename_query, safe_name])
+        filter_text = " ".join(self._dedupe_search_aliases([display, query, *aliases, safe_name]))
+        return {
+            "query": query,
+            "display": display,
+            "aliases": aliases,
+            "path": path,
+            "safe_name": safe_name,
+            "filter_text": filter_text.casefold(),
+        }
+
+    def _list_cached_github_search_records(self) -> List[dict]:
         folder_dir = self._cached_github_search_dir()
         if not os.path.isdir(folder_dir):
             return []
 
         prefix = "github_search_"
         suffix = ".json"
-        queries: List[str] = []
+        records = []
         for fn in os.listdir(folder_dir):
             if not (fn.startswith(prefix) and fn.endswith(suffix)):
                 continue
             safe_name = fn[len(prefix):-len(suffix)]
             if not safe_name:
                 continue
-            query_text = safe_name.replace("_", " ")
-            try:
-                path = os.path.join(folder_dir, fn)
-                with open(path, "r", encoding="utf-8") as fh:
-                    payload = json.load(fh)
-                candidate = payload.get("anime_query")
-                if isinstance(candidate, str) and candidate.strip():
-                    query_text = candidate
-            except Exception:
-                pass
-            normalized = self._normalize_search_query_text(query_text)
-            if normalized:
-                queries.append(normalized)
+            record = self._cached_github_record_from_file(os.path.join(folder_dir, fn), safe_name)
+            if record is not None:
+                records.append(record)
+
+        records.sort(key=lambda item: (str(item.get("display") or "").casefold(), str(item.get("query") or "").casefold()))
+        return records
+
+    def _list_cached_github_search_queries(self) -> List[str]:
+        queries = [record["query"] for record in self._list_cached_github_search_records() if record.get("query")]
         return sorted(set(queries), key=str.casefold)
 
+    def _write_cached_github_search_payload(self, path: str, payload: dict) -> None:
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, ensure_ascii=False, indent=2)
+
+    def _rename_cached_github_search_record(self, record: dict, new_display_name: str) -> bool:
+        path = str(record.get("path") or "")
+        new_display = self._normalize_search_query_text(new_display_name)
+        if not path or not new_display:
+            return False
+
+        try:
+            payload = load_remote_search_cache_payload(path)
+        except Exception:
+            payload = OrderedDict()
+
+        old_display = self._normalize_search_query_text(record.get("display") or "")
+        query = self._normalize_search_query_text(record.get("query") or payload.get("anime_query") or old_display)
+        safe_name = self._normalize_search_query_text(record.get("safe_name") or "")
+        existing_aliases = payload.get("aliases") if isinstance(payload.get("aliases"), list) else []
+        aliases = self._dedupe_search_aliases([*existing_aliases, old_display, query, safe_name])
+
+        payload["schema_version"] = REMOTE_SEARCH_CACHE_SCHEMA_VERSION
+        payload["display_name"] = new_display
+        if query:
+            payload["anime_query"] = query
+        payload["aliases"] = aliases
+        payload.setdefault("items", [])
+        payload.setdefault("result_count", len(payload.get("items") or []))
+
+        try:
+            self._write_cached_github_search_payload(path, payload)
+            return True
+        except Exception:
+            logger.exception("Failed to rename saved GitHub search cache: %s", path)
+            return False
+
     def _ask_cached_github_search_query(self, parent) -> Optional[str]:
-        queries = self._list_cached_github_search_queries()
-        if not queries:
+        records = self._list_cached_github_search_records()
+        if not records:
             try:
                 parent.bell()
             except Exception:
@@ -2114,7 +2208,7 @@ class SubtitleManager:
             listbox = tk.Listbox(
                 list_frame,
                 width=56,
-                height=min(12, len(queries)),
+                height=min(12, len(records)),
                 yscrollcommand=scrollbar.set,
                 exportselection=False,
             )
@@ -2122,25 +2216,32 @@ class SubtitleManager:
             listbox.pack(side="left", fill="both", expand=True)
             scrollbar.pack(side="right", fill="y")
 
-            all_queries = list(queries)
+            all_records = list(records)
+            visible_records = []
 
             def _refresh_list(filtered):
+                visible_records[:] = list(filtered)
                 listbox.delete(0, tk.END)
-                for q in filtered:
-                    listbox.insert(tk.END, q)
+                for record in visible_records:
+                    listbox.insert(tk.END, record.get("display") or record.get("query") or "")
                 if filtered:
                     listbox.selection_set(0)
                     listbox.activate(0)
 
             def _apply_filter(_event=None):
-                term = (filter_var.get() or "").strip().lower()
+                term = (filter_var.get() or "").strip().casefold()
                 if not term:
-                    filtered = all_queries
+                    filtered = all_records
                 else:
-                    filtered = [q for q in all_queries if term in q.lower()]
+                    filtered = [record for record in all_records if term in str(record.get("filter_text") or "")]
                 _refresh_list(filtered)
 
-            _refresh_list(all_queries)
+            def _reload_records():
+                nonlocal all_records
+                all_records = self._list_cached_github_search_records()
+                _apply_filter()
+
+            _refresh_list(all_records)
             try:
                 filter_entry.focus_set()
             except Exception:
@@ -2159,15 +2260,44 @@ class SubtitleManager:
                     except Exception:
                         pass
                     return "break"
-                chosen["query"] = self._normalize_search_query_text((listbox.get(selection[0]) or "").strip()) or None
+                try:
+                    record = visible_records[int(selection[0])]
+                except Exception:
+                    record = {}
+                chosen["query"] = self._normalize_search_query_text(record.get("query") or "") or None
                 chooser.destroy()
                 return "break"
+
+            def on_rename():
+                selection = listbox.curselection()
+                if not selection:
+                    try:
+                        chooser.bell()
+                    except Exception:
+                        pass
+                    return
+                try:
+                    record = visible_records[int(selection[0])]
+                except Exception:
+                    return
+                current = self._normalize_search_query_text(record.get("display") or record.get("query") or "")
+                new_name = simpledialog.askstring(
+                    "Rename saved search",
+                    "Saved search name:",
+                    initialvalue=current,
+                    parent=chooser,
+                )
+                if new_name is None:
+                    return
+                if self._rename_cached_github_search_record(record, new_name):
+                    _reload_records()
 
             def on_cancel(event=None):
                 chooser.destroy()
                 return "break"
 
             tk.Button(btn_frame, text="Use Selected", width=12, command=on_ok).pack(side="left", padx=6)
+            tk.Button(btn_frame, text="Rename", width=10, command=on_rename).pack(side="left", padx=6)
             tk.Button(btn_frame, text="Cancel", width=10, command=on_cancel).pack(side="left", padx=6)
 
             listbox.bind("<Double-Button-1>", on_ok)
@@ -2186,8 +2316,8 @@ class SubtitleManager:
         self,
         parent,
     ) -> Tuple[Optional[str], Optional[int], Optional[int], bool]:
-        queries = self._list_cached_github_search_queries()
-        if not queries:
+        records = self._list_cached_github_search_records()
+        if not records:
             try:
                 parent.bell()
             except Exception:
@@ -2224,7 +2354,7 @@ class SubtitleManager:
             listbox = tk.Listbox(
                 list_frame,
                 width=48,
-                height=min(10, len(queries)),
+                height=min(10, len(records)),
                 yscrollcommand=scrollbar.set,
                 exportselection=False,
             )
@@ -2239,22 +2369,31 @@ class SubtitleManager:
             hint_entry = tk.Entry(hint_frame, width=18)
             hint_entry.grid(row=0, column=1, sticky="ew", padx=(6, 0))
 
-            all_queries = list(queries)
+            all_records = list(records)
+            visible_records = []
 
             def _refresh_list(filtered):
+                visible_records[:] = list(filtered)
                 listbox.delete(0, tk.END)
-                for q in filtered:
-                    listbox.insert(tk.END, q)
+                for record in visible_records:
+                    listbox.insert(tk.END, record.get("display") or record.get("query") or "")
                 if filtered:
                     listbox.selection_set(0)
                     listbox.activate(0)
 
             def _apply_filter(_event=None):
-                term = (filter_var.get() or "").strip().lower()
-                filtered = all_queries if not term else [q for q in all_queries if term in q.lower()]
+                term = (filter_var.get() or "").strip().casefold()
+                filtered = all_records if not term else [
+                    record for record in all_records if term in str(record.get("filter_text") or "")
+                ]
                 _refresh_list(filtered)
 
-            _refresh_list(all_queries)
+            def _reload_records():
+                nonlocal all_records
+                all_records = self._list_cached_github_search_records()
+                _apply_filter()
+
+            _refresh_list(all_records)
             try:
                 filter_entry.focus_set()
             except Exception:
@@ -2274,18 +2413,47 @@ class SubtitleManager:
                         pass
                     return "break"
                 s, e = self._parse_episode_hint_text(hint_entry.get() or "")
-                chosen["query"] = self._normalize_search_query_text((listbox.get(selection[0]) or "").strip()) or None
+                try:
+                    record = visible_records[int(selection[0])]
+                except Exception:
+                    record = {}
+                chosen["query"] = self._normalize_search_query_text(record.get("query") or "") or None
                 chosen["season"] = s
                 chosen["episode"] = e
                 chosen["is_movie"] = False
                 chooser.destroy()
                 return "break"
 
+            def on_rename():
+                selection = listbox.curselection()
+                if not selection:
+                    try:
+                        chooser.bell()
+                    except Exception:
+                        pass
+                    return
+                try:
+                    record = visible_records[int(selection[0])]
+                except Exception:
+                    return
+                current = self._normalize_search_query_text(record.get("display") or record.get("query") or "")
+                new_name = simpledialog.askstring(
+                    "Rename saved search",
+                    "Saved search name:",
+                    initialvalue=current,
+                    parent=chooser,
+                )
+                if new_name is None:
+                    return
+                if self._rename_cached_github_search_record(record, new_name):
+                    _reload_records()
+
             def on_cancel(event=None):
                 chooser.destroy()
                 return "break"
 
             tk.Button(btn_frame, text="Use Saved Search", width=16, command=on_ok).pack(side="left", padx=6)
+            tk.Button(btn_frame, text="Rename", width=10, command=on_rename).pack(side="left", padx=6)
             tk.Button(btn_frame, text="Cancel", width=10, command=on_cancel).pack(side="left", padx=6)
 
             listbox.bind("<Double-Button-1>", on_ok)
@@ -3141,7 +3309,7 @@ class SubtitleManager:
                 data = resp.json()
                 items = data.get("items", [])
                 if not items and page == 1:
-                    print(f"GitHub search returned 0 items for query: {q}")
+                    logger.info("GitHub search returned 0 items for query: %s", q)
                 for it in items:
                     name = os.path.basename(it.get("path") or it.get("name") or "")
                     s, e, global_e = self.extract_season_episode_global(name)
@@ -3181,21 +3349,19 @@ class SubtitleManager:
             folder_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),"github_search")
             os.makedirs(folder_dir, exist_ok=True)
             json_path = os.path.join(folder_dir, f"github_search_{safe_name}.json")
-            payload = {
-                "anime_query": self._normalize_search_query_text(self.anime_folder_name or ""),
-                "last search": q,
-                "repo": f"{self.github_owner}/{self.github_repo}",
-                "created_at": datetime.datetime.utcnow().isoformat() + "Z",
-                "result_count": len(all_results_items),
-                "items": all_results_items,
-                "sxexx_to_gxx": sxexx_to_gxx
-            }
+            payload = build_remote_search_cache_payload(
+                anime_query=self._normalize_search_query_text(self.anime_folder_name or ""),
+                last_search=q,
+                repo=f"{self.github_owner}/{self.github_repo}",
+                items=all_results_items,
+                sxexx_to_gxx=sxexx_to_gxx,
+            )
             try:
                 with open(json_path, "w", encoding="utf-8") as fh:
                     json.dump(payload, fh, ensure_ascii=False, indent=2)
-                print(f"Wrote diagnostics to {json_path}")
+                logger.info("Wrote GitHub search cache to %s", json_path)
             except Exception as e:
-                print("Failed to write diagnostics JSON:", e)
+                logger.debug("Failed to write GitHub search cache JSON: %s", e, exc_info=True)
         self.all_results_items = all_results_items
         return
 
@@ -3224,7 +3390,7 @@ class SubtitleManager:
                 data = resp.json()
                 items = data.get("items", [])
                 if not items and page == 1:
-                    print(f"GitHub search returned 0 items for query: {q}")
+                    logger.info("GitHub search returned 0 items for query: %s", q)
                 for it in items:
                     results.append({
                         "name": it.get("name"),
@@ -3266,15 +3432,13 @@ class SubtitleManager:
                     break
         if os.path.isfile(cache_path):
             try:
-                with open(cache_path, "r", encoding="utf-8") as fh:
-                    payload = json.load(fh)
-                repo = payload.get("repo")
                 expected_repo = f"{getattr(self, 'github_owner', None)}/{getattr(self, 'github_repo', None)}"
-                if repo and expected_repo and repo != expected_repo:
-                    logger.info("Cached search exists but repo mismatch (%s != %s); ignoring: %s", repo, expected_repo, cache_path)
+                payload = load_remote_search_cache_payload(cache_path)
+                if not remote_search_cache_repo_matches(payload, expected_repo):
+                    logger.info("Cached search exists but repo mismatch; ignoring: %s", cache_path)
                 else:
-                    cached_items = payload.get("items")
-                    if isinstance(cached_items, list) and cached_items:
+                    cached_items = remote_search_cache_items(payload)
+                    if cached_items:
 
                         # Rewriting a large JSON and re-running regex parsing can be noticeably CPU-heavy.
                         out_items: List[Dict] = []
@@ -3312,7 +3476,7 @@ class SubtitleManager:
                     reset_time = datetime.datetime.utcfromtimestamp(int(reset)).isoformat() + "Z"
                 except Exception:
                     reset_time = reset
-            print(f"Rate: limit={limit} remaining={remaining} reset={reset_time}")
+            logger.debug("GitHub rate: limit=%s remaining=%s reset=%s", limit, remaining, reset_time)
             return {"limit": limit, "remaining": remaining, "reset": reset, "retry_after": retry_after}
 
         def _wait_until_reset(hdr_info):
@@ -3323,7 +3487,7 @@ class SubtitleManager:
                     wait = int(ra) + 1
                 except Exception:
                     wait = 60
-                print(f"Server requested Retry-After {ra}s; sleeping {wait}s...")
+                logger.info("GitHub requested Retry-After %ss; sleeping %ss", ra, wait)
                 time.sleep(wait)
                 return
             # otherwise use X-RateLimit-Reset
@@ -3334,13 +3498,13 @@ class SubtitleManager:
                     now_ts = int(time.time())
                     wait = max(reset_ts - now_ts + 3, 3)
                     reset_time = datetime.datetime.utcfromtimestamp(reset_ts).isoformat() + "Z"
-                    print(f"Sleeping {wait}s until rate reset at {reset_time}...")
+                    logger.info("Sleeping %ss until GitHub rate reset at %s", wait, reset_time)
                     time.sleep(wait)
                     return
                 except Exception:
                     pass
             # fallback
-            print("No reset info available; sleeping 60s as fallback...")
+            logger.info("No GitHub rate reset info available; sleeping 60s as fallback")
             time.sleep(60)
             return
         
@@ -3421,7 +3585,7 @@ class SubtitleManager:
                             items = data.get("items", [])
                             if not items:
                                 if page == 1:
-                                    print(f"GitHub search returned 0 items for query: {q}")
+                                    logger.info("GitHub search returned 0 items for query: %s", q)
                                 break
 
                             provider_found = True
@@ -3465,18 +3629,18 @@ class SubtitleManager:
                                 msg = resp.text or ""
                             # honor Retry-After header if provided
                             if hdr.get("Retry-After"):
-                                print("Retry-After header present; waiting as requested...")
+                                logger.info("GitHub Retry-After header present; waiting")
                                 _wait_until_reset(last_rate_info)
                                 continue
                             # if remaining==0 or message mentions rate limit -> wait until reset
                             rem = last_rate_info.get("remaining")
                             if rem == "0" or (rem is not None and int(rem) == 0) or "rate limit" in msg.lower():
-                                print("Rate limit reached; will wait until reset and then continue...")
+                                logger.info("GitHub rate limit reached; waiting until reset")
                                 _wait_until_reset(last_rate_info)
                                 continue
                             # abuse detection -> wait a longer time then retry
                             if "abuse" in msg.lower():
-                                print(f"Abuse detection triggered: {msg}. Sleeping 120s then retrying...")
+                                logger.warning("GitHub abuse detection triggered: %s. Sleeping 120s then retrying.", msg)
                                 time.sleep(120)
                                 continue
                             logger.error("GitHub search failed: %s, %s", resp.status_code, resp.text)
@@ -3485,7 +3649,7 @@ class SubtitleManager:
                             break
                         # Search API 1000-results cap
                         if resp.status_code == 422:
-                            print("Search API 422 (cannot access beyond the first 1000 results). Stopping and returning partial results.")
+                            logger.warning("GitHub search API 422 cap reached; returning partial results")
                             stop_reason = "search_api_1000_cap"
                             if not season_searching:
                                 stop_season_loop = True
@@ -3529,7 +3693,7 @@ class SubtitleManager:
             if not found_any_for_season:
                 logger.info(f"No providers found results for season {season:02d}, stopping.")
                 break  # stop season loop entirely
-            print("For season:",season, " we found ",len(all_results_items)-old_length,"files")
+            logger.info("For season %s found %s files", season, len(all_results_items) - old_length)
             if not season_searching:
                 if stop_reason is None:
                     stop_reason = "fallback_unseasoned_search"
@@ -3562,23 +3726,21 @@ class SubtitleManager:
             folder_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),"github_search")
             os.makedirs(folder_dir, exist_ok=True)
             json_path = os.path.join(folder_dir, f"github_search_{safe_name}.json")
-            payload = {
-                "anime_query": self._normalize_search_query_text(self.anime_folder_name or ""),
-                "last search": q,
-                "repo": f"{self.github_owner}/{self.github_repo}",
-                "created_at": datetime.datetime.utcnow().isoformat() + "Z",
-                "stop_reason": stop_reason,
-                "rate_info": last_rate_info,
-                "result_count": len(all_results_items),
-                "items": all_results_items,
-                "sxexx_to_gxx": sxexx_to_gxx
-            }
+            payload = build_remote_search_cache_payload(
+                anime_query=self._normalize_search_query_text(self.anime_folder_name or ""),
+                last_search=q,
+                repo=f"{self.github_owner}/{self.github_repo}",
+                items=all_results_items,
+                sxexx_to_gxx=sxexx_to_gxx,
+                stop_reason=stop_reason,
+                rate_info=last_rate_info,
+            )
             try:
                 with open(json_path, "w", encoding="utf-8") as fh:
                     json.dump(payload, fh, ensure_ascii=False, indent=2)
-                print(f"Wrote diagnostics to {json_path}")
+                logger.info("Wrote GitHub search cache to %s", json_path)
             except Exception as e:
-                print("Failed to write diagnostics JSON:", e)
+                logger.debug("Failed to write GitHub search cache JSON: %s", e, exc_info=True)
         self.all_results_items = all_results_items
         return
     
@@ -4504,8 +4666,7 @@ class SubtitleManager:
                 os.remove(path)
                 # logger.debug("Evicted old episode file: %s", path)
             except Exception:
-                print("fail")
-                # logger.exception("Failed to remove cached file: %s", fn)
+                logger.debug("Failed to remove cached file: %s", fn, exc_info=True)
 
     def _download_file(self,remote_path, local_path, session=None):
         if os.path.exists(local_path):

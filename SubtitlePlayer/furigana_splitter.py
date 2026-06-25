@@ -135,12 +135,9 @@ def split_kanji_run(
     if real_count == 0:
         return [(base, None)]
 
-    # Repetition marks normally share the previous kanji, but bracket ruby above
-    # the mark itself is visually noisy in Anki. Keep the mark plain.
+    # Keep repetition-mark words together so one ruby label spans the whole word.
     if len(base) == 2 and base[1] == "々":
-        moras = split_moras(reading)
-        take = max(1, len(moras) // 2)
-        return [(base[0], "".join(moras[:take])), ("々", None)]
+        return [(base, reading)]
 
     if real_count == 1:
         return [(base, reading)] if base != "々" else [(base, None)]
@@ -291,7 +288,7 @@ def bracket_text(segments: list[Segment], space_between_ruby: bool = True) -> st
     for base, ruby in segments:
         if not base:
             continue
-        if ruby and any(is_real_kanji(ch) for ch in base):
+        if ruby and any(is_kanji(ch) for ch in base):
             if space_between_ruby and prev_ruby:
                 out.append(" ")
             out.append(f"{base}[{ruby}]")
@@ -313,6 +310,6 @@ def splitter_self_test_cases() -> tuple[tuple[str, str, str], ...]:
         ("出口", "でぐち", "出[で] 口[ぐち]"),
         ("食べる", "たべる", "食[た]べる"),
         ("取り戻す", "とりもどす", "取[と]り 戻[もど]す"),
-        ("時々", "ときどき", "時[とき]々"),
+        ("時々", "ときどき", "時々[ときどき]"),
         ("今日", "きょう", "今日[きょう]"),
     )

@@ -32,7 +32,6 @@ DEFAULT_SUPPORT_DIR = os.path.abspath(
 BRACKET_RUBY_RE = re.compile(r"([^\[\]]+)\[([^\[\]]+)\]")
 HTML_TAG_RE = re.compile(r"<[^>]+>")
 HTML_BR_RE = re.compile(r"<br\s*/?>", re.IGNORECASE)
-MECAB_NODE_RE = re.compile(r"(.+)\[(.*)\]")
 ALNUM_RE = re.compile(r"^[A-Za-z0-9]+$")
 JAPANESE_NUMERAL_CHARS = set("一二三四五六七八九十０１２３４５６７８９")
 
@@ -324,17 +323,44 @@ class MecabController:
                     raise
         return ""
 
+    @staticmethod
+    def _parse_mecab_nodes(expr: str) -> Optional[List[Tuple[str, str]]]:
+        nodes: List[Tuple[str, str]] = []
+        i = 0
+        n = len(expr or "")
+        while i < n:
+            while i < n and expr[i] in " \t\r\n":
+                i += 1
+            if i >= n:
+                break
+            bracket = expr.find("[", i)
+            if bracket < 0:
+                return None
+            close = expr.find("]", bracket + 1)
+            if close < 0:
+                return None
+            surface = expr[i:bracket]
+            reading = expr[bracket + 1:close]
+            if not surface:
+                return None
+            nodes.append((surface, reading))
+            i = close + 1
+        return nodes
+
     def _format_mecab_output(self, expr: str) -> str:
         out = []
-        for node in expr.split():
-            m = MECAB_NODE_RE.fullmatch(node)
-            if not m:
-                logger.warning("Unexpected output from mecab: %r", expr)
-                return ""
+        nodes = self._parse_mecab_nodes(expr)
+        if nodes is None:
+            logger.warning("Unexpected output from mecab: %r", expr)
+            return ""
 
-            (kanji, reading) = m.groups()
+        for kanji, reading in nodes:
             if not reading:
-                out.append(kanji)
+                hira = _kata_to_hira(kanji)
+                if _is_katakana_ruby_base(kanji) and hira != kanji:
+                    out.append(" %s[%s]" % (kanji, hira))
+                else:
+                    out.append(kanji)
                 continue
             if kanji == reading:
                 hira = _kata_to_hira(reading)

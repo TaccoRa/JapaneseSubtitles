@@ -5,7 +5,10 @@ Small shared helpers used across the UI/controller.
 - Parsing and formatting time values
 """
 
+import logging
 import tkinter as tk
+
+logger = logging.getLogger(__name__)
 
 
 def _get_windows_hwnd(win: tk.Misc):
@@ -130,7 +133,7 @@ def make_nonactivating_window(win: tk.Toplevel, topmost: bool = True) -> bool:
         return True
 
     except Exception as e:
-        print("make_nonactivating_window:", e)
+        logger.debug("make_nonactivating_window failed: %s", e, exc_info=True)
         return False
 
 def show_window_no_activate_minimizable(win: tk.Toplevel, topmost: bool = True) -> None:
@@ -355,4 +358,3 @@ def format_time(seconds: float) -> str:
         return f"{hours:02d}:{m:02d}:{s:02d}"
     else:
         return f"{m:02d}:{s:02d}"
-

@@ -886,6 +886,8 @@ class CopyPopup:
         make_draggable(drag_grip, popup, on_release=self._on_popup_drag_end)
         drag_grip.bind("<ButtonPress-1>", self._on_popup_drag_start, add="+")
         drag_grip.bind("<ButtonRelease-1>", self._on_popup_drag_end, add="+")
+        drag_grip.bind("<Enter>", lambda _event: self._cancel_close(), add="+")
+        drag_grip.bind("<Leave>", lambda _event: self._on_popup_leave(), add="+")
         return drag_grip
 
     def _copy_to_clipboard(self, owner: tk.Misc, text: str) -> None:
@@ -922,6 +924,17 @@ class CopyPopup:
             popup.after(1, _run)
         except Exception:
             _run()
+
+    def add_selected_to_anki_if_pointer_inside(self) -> bool:
+        popup = getattr(self, "_popup", None)
+        if not self._window_exists(popup):
+            return False
+        if not self._pointer_inside_window(popup):
+            return False
+        if not self._get_selected_text():
+            return False
+        self._add_selection_to_anki_from_popup(popup, self._plain_popup_text())
+        return True
 
     def _build_context_menu(self, popup: tk.Toplevel, plain_text: str) -> tk.Menu:
         menu = tk.Menu(popup, tearoff=0)
@@ -1008,6 +1021,7 @@ class CopyPopup:
 
     def _bind_popup_events(self, popup: tk.Toplevel, entry: tk.Text, menu: tk.Menu) -> None:
         entry.bind("<Button-3>", lambda event: self._show_context_menu(event, menu, entry))
+        entry.bind("<Enter>", lambda _event: self._cancel_close())
         entry.bind("<Motion>", self._on_popup_motion)
         entry.bind("<Leave>", self._on_popup_leave)
         entry.bind("<Control-a>", lambda _event: self._select_all_text(entry))
@@ -1211,7 +1225,8 @@ class CopyPopup:
                 grip.configure(bg=success_bg)
             except Exception:
                 pass
-        self._schedule_close(popup, max(300, int(duration_ms)))
+        if not self._pointer_inside_window(popup):
+            self._schedule_close(popup, max(300, int(duration_ms)))
 
     def _schedule_close(self, popup: tk.Toplevel, delay_ms: int) -> None:
         self._cancel_close()
@@ -1230,6 +1245,10 @@ class CopyPopup:
 
         if target is not self._popup:
             self._safe_destroy(target)
+            return
+
+        if self._pointer_inside_window(target):
+            self._close_job = None
             return
 
         self._close_job = None

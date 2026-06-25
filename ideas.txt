@@ -1,5 +1,16 @@
+AI Ideas:
+- Split `SubtitleManager` into smaller pieces: subtitle parsing/cleaning, remote GitHub search, episode cache/download, and geometry calculation. It currently owns too many workflows, which makes performance bugs harder to isolate.
+- Add a small logging setup with log levels and a rotating file instead of scattered `print(...)` debug output. Keep user-facing messages in the UI and keep diagnostics in logs.
+- Move runtime-only values such as last window position, last subtitle file, and last playback time out of the tracked `config.json` into a local user config file. Keep a clean default config in the repo.
+- Add cancellation tokens/generation checks to every background worker path: auto ruby, remote downloads, episode preparation, OCR, and Anki stroke sync. Some already have generation checks; make it consistent.
+- Add a small performance panel or debug command that reports slider render time, auto-ruby cache hits, episode switch time, remote download queue length, and OCR duration.
+- Split `requirements.txt` into runtime and dev requirements later. The current file mixes app dependencies, benchmarks, Selenium experiments, and pytest.
+- Add controller tests with fake Tk objects for episode switching, slider scrubbing, popup selection, and shutdown. The model tests are useful, but controller/view logic still depends heavily on manual testing.
+- Store source episode metadata on Anki notes so media reuse can match the same subtitle/episode more safely than text matching alone.
+- Make remote search cache files versioned or schema-tagged. That will make it safer to change search heuristics without accidentally using stale cached JSON.
+- Consider a lightweight task queue abstraction for background work so throttling and shutdown behavior are handled in one place.
+
 To Do:
-stra+a to select all in popup
 when selecting the beginning of the sentence the whole line to the right is selected
 hovering over the X of the settigns window the handle does not disappear (maybe hard to implement)
 remove remaining non speaker modes is not correcting for deleting the line it is in (maybe implemented)
@@ -21,6 +32,7 @@ Change subtitle width to fit current subtitle (maybe flashes --> YES)
 
 
 Added:
+stra+a to select all in popup
 hovering over kanji --> in line glossary or/and translation
 x1button text dissapears if pressed again reappears (same for button in control window)
 is there always a " " before kanjis in anki? yes

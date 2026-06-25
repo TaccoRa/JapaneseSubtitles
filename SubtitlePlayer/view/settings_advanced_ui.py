@@ -1,16 +1,18 @@
 """Advanced settings window helpers for SettingsUI."""
 
+import logging
 import threading
 import tkinter as tk
 from tkinter import ttk
 from typing import Any
-import traceback
 
 from utils import (
     get_monitor_rects,
     make_nonactivating_window,
     show_window_no_activate_minimizable,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class _SettingsUIProxy:
@@ -116,6 +118,10 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         notebook.add(anki_tab, text="Anki")
         notebook.add(shortcuts_tab, text="Shortcuts")
         notebook.add(ocr_tab, text="OCR")
+        performance_tab = None
+        if bool(self.config.get("DEBUGGING") or False):
+            performance_tab = tk.Frame(notebook)
+            notebook.add(performance_tab, text="Performance")
         notebook.bind("<<NotebookTabChanged>>", self._on_advanced_tab_changed, add="+")
 
         self._build_advanced_tab(general_tab, self._advanced_general_columns())
@@ -125,6 +131,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
 
         self._build_general_actions(general_tab)
         self._build_ocr_actions(ocr_tab)
+        if performance_tab is not None:
+            self._build_performance_tab(performance_tab)
 
         self._load_advanced_values_into_vars()
 
@@ -184,6 +192,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             self._advanced_tab_sizes = {}
             self._advanced_tab_key_map = {}
             self._phone_mode_toggle_btn = None
+            self._performance_text = None
             self._ocr_region_count_trace_var = None
             self._restore_main_settings_topmost_after_advanced()
 
@@ -194,7 +203,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             try:
                 self._root_topmost_before_advanced = bool(self.root.attributes("-topmost"))
             except Exception as e:
-                print("keep main", e)
+                logger.debug("Failed to inspect main topmost state: %s", e, exc_info=True)
                 self._root_topmost_before_advanced = False
         self.root.attributes("-topmost", True)
 
@@ -211,7 +220,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             sw = int(self.root.winfo_vrootwidth() or self.root.winfo_screenwidth())
             sh = int(self.root.winfo_vrootheight() or self.root.winfo_screenheight())
         except Exception:#
-            print("Advanced window geometry invalid")
+            logger.debug("Advanced window geometry fallback used", exc_info=True)
             sw, sh = 1920, 1080
 
         saved_w = self.config.get("LAST_ADV_SETTINGS_WINDOW_WIDTH")
@@ -242,14 +251,14 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             x, y = int(x_s), int(y_s)
             w, h = int(w_s), int(h_s)
         except Exception as e:
-            print("save geom", e)
+            logger.debug("Failed to parse advanced window geometry: %s", e, exc_info=True)
             try:
                 x = int(win.winfo_x())
                 y = int(win.winfo_y())
                 w = int(win.winfo_width())
                 h = int(win.winfo_height())
             except Exception as e:
-                print("save geom", e)
+                logger.debug("Failed to read advanced window geometry: %s", e, exc_info=True)
                 return
 
         if (x, y) != (
@@ -287,7 +296,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         try:
             children = parent.winfo_children()
         except Exception as e:
-            print("clear entry sel", e)
+            logger.debug("Failed to clear advanced entry selection: %s", e, exc_info=True)
             return
         for child in children:
             if isinstance(child, (tk.Entry, ttk.Entry, ttk.Combobox)):
@@ -330,7 +339,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 sw = int(self.root.winfo_vrootwidth() or self.root.winfo_screenwidth())
                 sh = int(self.root.winfo_vrootheight() or self.root.winfo_screenheight())
             except Exception as e:
-                print(e, "Invalid window size")
+                logger.debug("Invalid window size while fitting advanced tab: %s", e, exc_info=True)
                 sw, sh = 1920, 1080
             req_w = max(360, min(int(req_w), max(360, sw - 20)))
             req_h = max(220, min(int(req_h), max(220, sh - 40)))
@@ -339,7 +348,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             if int(win.winfo_width()) != int(req_w) or int(win.winfo_height()) != int(req_h):
                 win.geometry(f"{req_w}x{req_h}+{x}+{y}")
         except Exception as e:
-            print("fit window tab", e)
+            logger.debug("Failed to fit advanced tab: %s", e, exc_info=True)
             pass
 
     def _prepare_advanced_tab_sizes(self):
@@ -349,7 +358,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         try:
             tab_id = notebook.select()
         except Exception as e:
-            print("tab sizes", e)
+            logger.debug("Failed to prepare advanced tab sizes: %s", e, exc_info=True)
             return
         if tab_id:
             self._prepare_advanced_tab_size(tab_id)
@@ -499,7 +508,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         try:
             self._ocr_region_count_refresh_job = root.after(80, self._refresh_ocr_count_runtime)
         except Exception:
-            traceback.print_exc()
+            logger.debug("Failed to schedule OCR count refresh", exc_info=True)
             self._refresh_ocr_count_runtime()
 
     def _refresh_ocr_count_runtime(self) -> None:
@@ -649,7 +658,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 "activeforeground": btn.cget("activeforeground"),
             }
         except Exception as e:
-            print("anki defaults", e)
+            logger.debug("Failed to remember Anki check button defaults: %s", e, exc_info=True)
             self._anki_check_defaults = None
 
     def _set_anki_check_button_state(self, connected):
@@ -682,7 +691,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             try:
                 connected = bool(self._on_anki_check())
             except Exception as e:
-                print("anki worker connection", e)
+                logger.debug("Anki connection worker failed: %s", e, exc_info=True)
                 connected = False
 
             def _finish():
@@ -728,6 +737,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                     {"key": "SHORTCUT_BRING_TO_FRONT", "label": "Bring app to front", "type": "str", "default": "alt+x"},
                     {"key": "SHORTCUT_EPISODE_INC", "label": "Episode +", "type": "str", "default": "alt+c"},
                     {"key": "SHORTCUT_EPISODE_DEC", "label": "Episode -", "type": "str", "default": "alt+y"},
+                    {"key": "SHORTCUT_TOGGLE_DEBUGGING", "label": "Toggle debugging", "type": "str", "default": "ctrl+shift+d"},
                 ],
             ),
         ]
@@ -757,6 +767,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 [
                     {"key": "SHORTCUT_POPUP_DEEPL_TRANSLATE", "label": "DeepL selection translation", "type": "str", "default": "t"},
                     {"key": "SHORTCUT_POPUP_GOOGLE_TRANSLATE", "label": "Google selection translation", "type": "str", "default": "g"},
+                    {"key": "SHORTCUT_POPUP_ADD_ANKI", "label": "Add selected popup text to Anki", "type": "str", "default": "a"},
                 ],
             ),
         ]
@@ -820,8 +831,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             try:
                 num = int(float(text))
             except Exception:
-                print("coerce_int failed:", repr(value))
-                traceback.print_stack(limit=6)
+                logger.debug("coerce_int failed: %r", value, stack_info=True)
                 num = int(default)
 
         if min_v is not None and num < int(min_v):
@@ -852,6 +862,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         self._refresh_ocr_area_buttons()
         tk.Button(right, text="Read Now (Set Time)", command=self._handle_ocr_read_now).pack(side="right")
         tk.Button(right, text="Sync Now (5s)", command=self._handle_ocr_sync_now).pack(side="right", padx=(6, 0))
+        tk.Button(right, text="Show Boxes", command=self._handle_ocr_show_boxes).pack(side="right", padx=(6, 0))
 
         screen_row = tk.Frame(actions)
         screen_row.pack(fill="x", pady=(8, 0))
@@ -859,6 +870,56 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         self._build_ocr_screen_buttons(screen_row)
 
         self._update_ocr_screen_button_styles()
+
+    def _build_performance_tab(self, performance_tab: tk.Frame) -> None:
+        content = tk.Frame(performance_tab, padx=10, pady=10)
+        content.pack(fill="both", expand=True)
+
+        actions = tk.Frame(content)
+        actions.pack(fill="x", pady=(0, 8))
+        tk.Button(actions, text="Refresh", command=self._refresh_performance_text).pack(side="left")
+        tk.Button(actions, text="Reset", command=self._reset_performance_stats).pack(side="left", padx=(6, 0))
+        tk.Button(actions, text="Copy", command=self._copy_performance_text).pack(side="left", padx=(6, 0))
+
+        text = tk.Text(content, width=78, height=18, wrap="none", font=("Consolas", 9))
+        text.pack(fill="both", expand=True)
+        self._performance_text = text
+        self._refresh_performance_text()
+
+    def _refresh_performance_text(self) -> None:
+        text = getattr(self, "_performance_text", None)
+        if text is None:
+            return
+        try:
+            snapshot = str(self._on_performance_snapshot() or "")
+        except Exception as e:
+            logger.debug("Failed to read performance snapshot: %s", e, exc_info=True)
+            snapshot = f"Failed to read performance snapshot: {e}"
+        try:
+            text.configure(state="normal")
+            text.delete("1.0", tk.END)
+            text.insert("1.0", snapshot)
+            text.configure(state="disabled")
+        except Exception as e:
+            logger.debug("Failed to refresh performance text: %s", e, exc_info=True)
+
+    def _reset_performance_stats(self) -> None:
+        try:
+            self._on_performance_reset()
+        except Exception as e:
+            logger.debug("Failed to reset performance stats: %s", e, exc_info=True)
+        self._refresh_performance_text()
+
+    def _copy_performance_text(self) -> None:
+        text = getattr(self, "_performance_text", None)
+        if text is None:
+            return
+        try:
+            snapshot = text.get("1.0", "end-1c")
+            self.root.clipboard_clear()
+            self.root.clipboard_append(snapshot)
+        except Exception as e:
+            logger.debug("Failed to copy performance snapshot: %s", e, exc_info=True)
 
     def _on_ocr_area_selection_changed(self, *_args):
         values = self._get_ocr_values_from_vars()
@@ -943,7 +1004,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 "activeforeground": btn.cget("activeforeground"),
             }
         except Exception as e:
-            print("rememver ocr buttons", e)
+            logger.debug("Failed to remember OCR button defaults: %s", e, exc_info=True)
             self._ocr_button_defaults = None
 
     def _apply_ocr_button_style(self, btn: tk.Button, active: bool) -> None:
@@ -967,7 +1028,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         try:
             values = self._get_ocr_values_from_vars()
         except Exception as e:
-            print("ocs screen button", e)
+            logger.debug("Failed to read OCR values for screen buttons: %s", e, exc_info=True)
             values = {}
 
         region_count = self._get_ocr_region_count_from_vars()
@@ -1051,7 +1112,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 try:
                     values[key] = float(str(var.get()).strip().replace(",", "."))
                 except Exception as e:
-                    print("ocr values", e)
+                    logger.debug("Invalid OCR float value for %s: %s", key, e, exc_info=True)
                     values[key] = float(spec.get("default", 0.0))
                 continue
             text = str(var.get()).strip()
@@ -1065,7 +1126,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         try:
             values = self._get_ocr_values_from_vars()
         except Exception as e:
-            print(e)
+            logger.debug("Failed to read OCR values before runtime apply: %s", e, exc_info=True)
             return
         if not values:
             return
@@ -1081,12 +1142,24 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         values = self._get_ocr_values_from_vars()
         self._on_ocr_sync_now(dict(values))
 
+    def _handle_ocr_show_boxes(self):
+        values = self._get_ocr_values_from_vars()
+        try:
+            count = int(self._on_ocr_show_boxes(dict(values)) or 0)
+        except Exception:
+            count = 0
+        if hasattr(self, "_advanced_status_var"):
+            if count > 0:
+                self._advanced_status_var.set(f"Showing {count} OCR box(es) briefly.")
+            else:
+                self._advanced_status_var.set("No OCR boxes to show.")
+
     def _handle_select_ocr_area(self) -> None:
         var = getattr(self, "_ocr_area_select_var", None)
         try:
             index = int(var.get()) if var is not None else 1
         except Exception as e:
-            print(e)
+            logger.debug("Invalid OCR selected area index: %s", e, exc_info=True)
             index = 1
         self._select_ocr_region(index)
 
@@ -1179,14 +1252,14 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 try:
                     val = int(float(str(cfg_val)))
                 except Exception as e:
-                    print(e)
+                    logger.debug("Invalid advanced int value for %s: %s", key, e, exc_info=True)
                     val = int(spec.get("default", 0))
                 var.set(str(val))
             elif spec["type"] == "float":
                 try:
                     val = float(str(cfg_val).replace(",", "."))
                 except Exception as e:
-                    print(e)
+                    logger.debug("Invalid advanced float value for %s: %s", key, e, exc_info=True)
                     val = float(spec.get("default", 0.0))
                 var.set(self._format_number(val))
             else:
@@ -1213,7 +1286,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 self._get_selected_ocr_area_index(),
             )
         except Exception as e:
-            print(e)
+            logger.debug("Failed to update selected OCR screen: %s", e, exc_info=True)
             self._ocr_selected_screen = None
         if hasattr(self, "_advanced_status_var"):
             self._advanced_status_var.set("Loaded values from config.")
@@ -1284,7 +1357,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         try:
             tab_id = notebook.select()
         except Exception as e:
-            print(e)
+            logger.debug("Failed to read selected advanced tab: %s", e, exc_info=True)
             tab_id = ""
         if not tab_id:
             return []
@@ -1323,13 +1396,13 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 try:
                     var.set(str(int(default)))
                 except Exception as e:
-                    print(e)
+                    logger.debug("Invalid default int for %s: %s", key, e, exc_info=True)
                     var.set("0")
             elif spec["type"] == "float":
                 try:
                     var.set(self._format_number(float(default)))
                 except Exception as e:
-                    print(e)
+                    logger.debug("Invalid default float for %s: %s", key, e, exc_info=True)
                     var.set("0")
             else:
                 var.set(str(default or ""))
@@ -1355,7 +1428,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                     for key, value in values.items():
                         self.config.set(key, value)
             except Exception as e:
-                print(e)
+                logger.debug("set_many failed; falling back to individual config writes: %s", e, exc_info=True)
                 for key, value in values.items():
                     self.config.set(key, value)
             if hasattr(self, "_advanced_status_var"):

@@ -72,7 +72,7 @@ def test_strip_parenthetical_descriptive_sound_note_only_line():
     assert manager._clean_text("\uff08 \u5012\u308c\u305f \u97f3\uff09") == ""
 
 
-def test_strip_parenthetical_notes_keeps_non_note_text():
+def test_strip_parenthetical_breath_note_with_trailing_punctuation():
     manager = _cleaner(
         {
             "SUBTITLE_AUTO_RUBY": False,
@@ -80,7 +80,52 @@ def test_strip_parenthetical_notes_keeps_non_note_text():
             "SUBTITLE_STRIP_PAREN_NOTES": True,
         }
     )
-    assert manager._clean_text("\u884c\u304f\uff08\u30b4\u30f3\uff09") == "\u884c\u304f\uff08\u30b4\u30f3\uff09"
+    assert manager._clean_text("\uff08 \u65b0\u4e00\u306e \u8352\u3044 \u606f\uff09 ?") == ""
+
+
+def test_strip_parenthetical_breath_note_inside_line_with_trailing_punctuation():
+    manager = _cleaner(
+        {
+            "SUBTITLE_AUTO_RUBY": False,
+            "SUBTITLE_SPEAKER_MODE": "hide",
+            "SUBTITLE_STRIP_PAREN_NOTES": True,
+        }
+    )
+    assert manager._clean_text("\u884c\u304f\uff08 \u65b0\u4e00\u306e \u8352\u3044 \u606f\uff09 ?") == "\u884c\u304f ?"
+
+
+def test_strip_parenthetical_notes_removes_any_parenthetical_text():
+    manager = _cleaner(
+        {
+            "SUBTITLE_AUTO_RUBY": False,
+            "SUBTITLE_SPEAKER_MODE": "hide",
+            "SUBTITLE_STRIP_PAREN_NOTES": True,
+        }
+    )
+    assert manager._clean_text("\u884c\u304f\uff08\u30b4\u30f3\uff09") == "\u884c\u304f"
+    assert manager._clean_text("\u884c\u304f(\u30b4\u30f3)") == "\u884c\u304f"
+
+
+def test_strip_parenthetical_notes_preserves_source_ruby_after_kanji():
+    manager = _cleaner(
+        {
+            "SUBTITLE_AUTO_RUBY": False,
+            "SUBTITLE_SPEAKER_MODE": "hide",
+            "SUBTITLE_STRIP_PAREN_NOTES": True,
+        }
+    )
+    assert manager._clean_text("\u6f22\u5b57\uff08\u304b\u3093\u3058\uff09") == "\u6f22\u5b57\uff08\u304b\u3093\u3058\uff09"
+
+
+def test_strip_parenthetical_notes_removes_source_ruby_when_auto_ruby_enabled():
+    manager = _cleaner(
+        {
+            "SUBTITLE_AUTO_RUBY": True,
+            "SUBTITLE_SPEAKER_MODE": "hide",
+            "SUBTITLE_STRIP_PAREN_NOTES": True,
+        }
+    )
+    assert manager._clean_text("\u6f22\u5b57\uff08\u304b\u3093\u3058\uff09") == "\u6f22\u5b57"
 
 
 def test_parenthetical_note_only_line_respects_setting():

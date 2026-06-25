@@ -5,10 +5,13 @@ This is a separate always-on-top, borderless toplevel window that can be dragged
 """
 
 import tkinter as tk
+import logging
 from typing import List, Optional
 
 from model.config_manager import ConfigManager
 from utils import make_draggable, make_nonactivating_tool_window, show_window_no_activate
+
+logger = logging.getLogger(__name__)
 
 class SubtitleOverlayUI:
 
@@ -147,7 +150,7 @@ class SubtitleOverlayUI:
             ):
                 sync_windows = [self.subtitle_handle]
         except Exception as e:
-            print(e)
+            logger.debug("Failed to inspect subtitle handle during drag bind: %s", e, exc_info=True)
             sync_windows = None
         make_draggable(
             self.sub_window,
@@ -166,7 +169,7 @@ class SubtitleOverlayUI:
                     self._bind_subtitle_drag()
                     return
             except Exception as e:
-                print(e)
+                logger.debug("Failed to show subtitle handle: %s", e, exc_info=True)
                 self.subtitle_handle = None
 
         self.subtitle_handle = tk.Toplevel(self.root)
@@ -195,7 +198,7 @@ class SubtitleOverlayUI:
             try:
                 self.subtitle_handle.withdraw()
             except Exception as e:
-                print(e)
+                logger.debug("Failed to hide subtitle handle: %s", e, exc_info=True)
                 self.subtitle_handle.attributes("-alpha", 0.0)
         self._bind_subtitle_drag()
 

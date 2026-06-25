@@ -1,11 +1,15 @@
 """Subtitle time display, slider sync, and subtitle redraw helper."""
 
 import bisect
+import logging
 import threading
 import tkinter as tk
 import re
+import time
 from typing import Any
 from utils import format_time, parse_time_value
+
+logger = logging.getLogger(__name__)
 
 class _ControllerProxy:
     """Proxy base that forwards attribute access and assignment to SubtitleController."""
@@ -80,12 +84,12 @@ class SubtitleNavigationController(_ControllerProxy):
         try:
             focused = self.settings.control_window.focus_get()
         except Exception as e:
-            print(e)
+            logger.debug("Failed to read focused widget: %s", e, exc_info=True)
             focused = None
         try:
             time_entry = self.settings.time_entry
         except Exception as e:
-            print(e)
+            logger.debug("Failed to read time entry widget: %s", e, exc_info=True)
             time_entry = None
         if focused is not time_entry:
             return
@@ -99,7 +103,7 @@ class SubtitleNavigationController(_ControllerProxy):
             )
             return
         except Exception as e:
-            print(e)
+            logger.debug("Failed to release time entry focus: %s", e, exc_info=True)
             pass
         self.settings.control_window.focus_set()
 
@@ -153,7 +157,9 @@ class SubtitleNavigationController(_ControllerProxy):
         force: bool = False,
         allow_auto_ruby: bool = True,
         schedule_auto_ruby: bool = False,
+        preview: bool = False,
     ):
+        render_start = time.perf_counter()
         offset = self.settings._last_offset_value
         sub_t = self.current_time - offset
         if getattr(self, "_defer_auto_ruby_once", False):
@@ -216,7 +222,11 @@ class SubtitleNavigationController(_ControllerProxy):
         self.last_rendered_index = idx
         self.subtitle_deleted = False
 
-        self.renderer.render_subtitle(top, bottom, self.overlay)
+        self.renderer.render_subtitle(top, bottom, self.overlay, preview=preview)
+        try:
+            self._record_perf_sample("subtitle_render", (time.perf_counter() - render_start) * 1000.0)
+        except Exception:
+            pass
 
         self.subtitle_timeout_job = self.overlay.root.after(
             self.hide_subtitles_ms,
@@ -357,10 +367,15 @@ class SubtitleNavigationController(_ControllerProxy):
         if self._shutting_down or not self.slider_dragging:
             return
 
+        start = time.perf_counter()
         value = getattr(self, "_slider_pending_value", None)
         if value is not None:
             self.current_time = float(value)
-        self._update_subtitle_display(allow_auto_ruby=False)
+        self._update_subtitle_display(allow_auto_ruby=False, preview=True)
+        try:
+            self._record_perf_sample("slider_preview", (time.perf_counter() - start) * 1000.0)
+        except Exception:
+            pass
 
     def _schedule_slider_preview_render(self, value: float) -> None:
         self._slider_pending_value = float(value)
@@ -375,16 +390,26 @@ class SubtitleNavigationController(_ControllerProxy):
     def on_slider_change(self, value):
         if self._shutting_down:
             return
+        start = time.perf_counter()
         if self.slider_dragging:
             slider_value = float(value)
             self._publish_time_display(self._time_display_text(slider_value, include_pending=False))
             self.current_time = slider_value
             self._schedule_slider_preview_render(slider_value)
+        try:
+            self._record_perf_sample("slider_change", (time.perf_counter() - start) * 1000.0)
+        except Exception:
+            pass
 
     def on_slider_release(self, event):
+        start = time.perf_counter()
         self._cancel_slider_render_job()
         self._slider_pending_value = None
         self.slider_dragging = False
         self._defer_auto_ruby_once = True
         self.last_subtitle_text = ""
         self.playback.set_current_time(self.settings.slider.get())
+        try:
+            self._record_perf_sample("slider_release", (time.perf_counter() - start) * 1000.0)
+        except Exception:
+            pass

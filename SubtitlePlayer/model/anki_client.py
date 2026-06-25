@@ -767,11 +767,7 @@ class AnkiClient:
 
         # Special handling for 々
         if n_chars == 2 and surface[1] == "々":
-            first_len = max(1, n_moras // 2)
-            first = "".join(moras[:first_len])
-            if not first:
-                return None
-            return [(surface[0], first), ("々", first)]
+            return [(surface, reading)]
 
         # Strong, explicit rules for 2-kanji compounds
         if n_chars == 2:

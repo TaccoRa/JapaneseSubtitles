@@ -5,11 +5,14 @@ This module is the main user-facing UI for controlling time, offsets, episodes, 
 """
 
 import tkinter as tk
+import logging
 from tkinter import ttk
 from re import fullmatch
 from model.config_manager import ConfigManager
 from view.settings_advanced_ui import SettingsAdvancedUI
 from utils import (make_draggable,format_time,get_monitor_rects,make_nonactivating_window,show_window_no_activate_minimizable)
+
+logger = logging.getLogger(__name__)
 
 class SettingsUI:
     NUMBER_PATTERN = r"\s*([-+]?\d+(?:[.,]\d+)?)\s*(?:s|sec|secs|second|seconds)?\s*"
@@ -66,6 +69,7 @@ class SettingsUI:
         self._advanced_tab_sizes = {}
         self._advanced_tab_key_map = {}
         self._advanced_resize_job = None
+        self._performance_text = None
         self._root_topmost_before_advanced = None
         self._ocr_region_count_trace_var = None
         self._ocr_region_count_refresh_job = None
@@ -178,8 +182,9 @@ class SettingsUI:
                      "toggle_subtitles",
                      "time_entry_return", "time_entry_clear",
                      "advanced_apply",
-                     "ocr_read_now", "ocr_sync_now",
-                     "anki_check", "settings_open"):
+                     "ocr_read_now", "ocr_sync_now", "ocr_show_boxes",
+                     "anki_check", "performance_snapshot", "performance_reset",
+                     "settings_open"):
             setattr(self, f"_on_{name}", self._noop)
 
     # --------- SETTINGS FRAME ------------------------------------------------------------------------------------
@@ -432,7 +437,7 @@ class SettingsUI:
         try:
             saved_mode = int(self.config.get("INPUT_MODE") or 1)
         except Exception as e:
-            print(e)
+            logger.debug("Saved input mode is invalid: %s", e, exc_info=True)
             saved_mode = 1
         if int(self.input_mode) != saved_mode:
             self.config.set("INPUT_MODE", int(self.input_mode))
@@ -476,7 +481,10 @@ class SettingsUI:
     def bind_advanced_apply(self, cb):       self._on_advanced_apply = cb
     def bind_ocr_read_now(self, cb):         self._on_ocr_read_now = cb
     def bind_ocr_sync_now(self, cb):         self._on_ocr_sync_now = cb
+    def bind_ocr_show_boxes(self, cb):       self._on_ocr_show_boxes = cb
     def bind_anki_check(self, cb):           self._on_anki_check = cb
+    def bind_performance_snapshot(self, cb): self._on_performance_snapshot = cb
+    def bind_performance_reset(self, cb):    self._on_performance_reset = cb
     def bind_settings_open(self, cb):        self._on_settings_open = cb
 
     def update_time_overlay_position(self):
@@ -658,7 +666,7 @@ class SettingsUI:
         try:
             self.control_window.after_idle(lambda: self.control_window.tk.call("focus", ""))
         except Exception as e:
-            print(e)
+            logger.debug("Failed to clear control-window focus: %s", e, exc_info=True)
             self.control_window.focus_set()
 
     #HELPERS
@@ -759,7 +767,7 @@ class SettingsUI:
             if n <= 0:
                 raise ValueError()
         except Exception as e:
-            print(e)
+            logger.debug("Invalid episode entry on focus out: %s", e, exc_info=True)
             self.episode_var.set(self._last_episode_value)
 
     def _on_set_to_commit(self, event=None) -> str:
@@ -801,7 +809,7 @@ class SettingsUI:
             previous = float(previous_value)
             delta = float(value_seconds) - previous
         except Exception as e:
-            print(e)
+            logger.debug("Invalid previous offset value: %s", e, exc_info=True)
             delta = 0.0
         self.slider.config(to=self.total_duration + value_seconds)
         if abs(delta) >= 0.001:

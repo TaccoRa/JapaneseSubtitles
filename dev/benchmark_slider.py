@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+import argparse
 import os
 import time
 import tkinter as tk
@@ -34,6 +35,50 @@ MAX_FILES_PER_ANIME = 3
 
 SUBS_ROOT = root_path / "subs"
 RANDOM_SEED = 1337
+
+
+def configure_stdout_utf8() -> None:
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Benchmark subtitle slider scrubbing and rendering.")
+    parser.add_argument("--file", type=Path, help="Specific subtitle file to benchmark.")
+    parser.add_argument("--current-config", action="store_true", help="Benchmark LAST_LOCAL_SRT_FILE from config.local.json/config.json.")
+    parser.add_argument("--runs", type=int, default=BENCHMARK_RUNS, help="Measured runs per file.")
+    parser.add_argument("--warmup", type=int, default=WARMUP_RUNS, help="Warmup runs per file.")
+    parser.add_argument("--steps", type=int, default=SLIDER_STEPS, help="Slider steps per run.")
+    parser.add_argument("--max-files", type=int, default=MAX_FILES_PER_ANIME, help="Max files per anime group; 0 means all.")
+    parser.add_argument("--reset-cache-each-run", action="store_true", help="Clear renderer and ruby caches before each measured run.")
+    parser.add_argument("--smoke", action="store_true", help="Fast acceptance smoke run.")
+    return parser.parse_args()
+
+
+def apply_cli_options(args) -> None:
+    global BENCHMARK_RUNS, WARMUP_RUNS, SLIDER_STEPS, MAX_FILES_PER_ANIME, RESET_CACHE_EACH_RUN
+    BENCHMARK_RUNS = max(1, int(args.runs))
+    WARMUP_RUNS = max(0, int(args.warmup))
+    SLIDER_STEPS = max(1, int(args.steps))
+    MAX_FILES_PER_ANIME = int(args.max_files)
+    RESET_CACHE_EACH_RUN = bool(args.reset_cache_each_run)
+    if args.smoke:
+        BENCHMARK_RUNS = min(BENCHMARK_RUNS, 3)
+        WARMUP_RUNS = min(WARMUP_RUNS, 1)
+        SLIDER_STEPS = min(SLIDER_STEPS, 60)
+        if MAX_FILES_PER_ANIME <= 0 or MAX_FILES_PER_ANIME > 1:
+            MAX_FILES_PER_ANIME = 1
+
+
+def current_config_subtitle_file() -> Path:
+    config = ConfigManager(str(root_path / "config.json"))
+    value = config.get("LAST_LOCAL_SRT_FILE")
+    if value and Path(str(value)).is_file():
+        return Path(str(value))
+    raise FileNotFoundError("No existing LAST_LOCAL_SRT_FILE found in merged config.")
 
 
 def discover_anime_groups(subs_root: Path) -> Dict[str, List[Path]]:
@@ -90,6 +135,7 @@ def select_sample_files(files: List[Path], max_files: int) -> List[Path]:
 def build_test_environment(srt_path: Path, config_overrides: dict | None = None):
     config = ConfigManager(str(root_path / "config.json"))
     config.config["LAST_LOCAL_SRT_FILE"] = str(srt_path)
+    config.config["REMOTE_FLAG"] = False
     if config_overrides:
         config.config.update(config_overrides)
 
@@ -206,9 +252,9 @@ def install_external_timers(manager, renderer, stats, times):
     orig_delete = renderer.canvas.delete
     orig_create_text = renderer.canvas.create_text
 
-    def wrapped_render_subtitle(top, bottom, overlay_obj):
+    def wrapped_render_subtitle(top, bottom, overlay_obj, *args, **kwargs):
         t0 = time.perf_counter()
-        result = orig_render_subtitle(top, bottom, overlay_obj)
+        result = orig_render_subtitle(top, bottom, overlay_obj, *args, **kwargs)
         times["render_subtitle"] += time.perf_counter() - t0
         stats["render_subtitle_calls"] += 1
         return result
@@ -658,7 +704,26 @@ def print_anime_summary(anime_name: str, file_results: List[dict]):
 
 
 def main():
+    configure_stdout_utf8()
     random.seed(RANDOM_SEED)
+    args = parse_args()
+    apply_cli_options(args)
+
+    if args.current_config:
+        srt_path = current_config_subtitle_file()
+        print("Benchmark current config file:", srt_path)
+        file_result = benchmark_one_file(srt_path)
+        print_file_result("current-config", file_result)
+        return
+
+    if args.file:
+        srt_path = Path(args.file)
+        if not srt_path.is_file():
+            raise FileNotFoundError(f"Subtitle file not found: {srt_path}")
+        print("Benchmark file:", srt_path)
+        file_result = benchmark_one_file(srt_path)
+        print_file_result(srt_path.parent.name or "(file)", file_result)
+        return
 
     if not SUBS_ROOT.exists():
         raise FileNotFoundError(f"Could not find subs folder: {SUBS_ROOT}")

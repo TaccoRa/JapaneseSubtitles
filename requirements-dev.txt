@@ -1,0 +1,9 @@
+-r requirements.txt
+flake8
+geckodriver==0.0.1
+geckodriver-autoinstaller==0.1.0
+git-filter-repo==2.47.0
+matplotlib==3.10.8
+numpy==2.3.2
+pytest==9.0.3
+selenium==4.41.0

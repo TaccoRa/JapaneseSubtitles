@@ -1,8 +1,12 @@
 """Episode / subtitle-file switching and geometry refresh helper."""
 
 import bisect
+import logging
 import re
+import time
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 class _ControllerProxy:
     """Proxy base that forwards attribute access and assignment to SubtitleController."""
@@ -44,7 +48,7 @@ class EpisodeController(_ControllerProxy):
             try:
                 return re.sub(r"\s+", " ", str(value or "").strip()).casefold()
             except Exception:#
-                print("Normalizing Anime failed")
+                logger.debug("Normalizing anime name failed", exc_info=True)
                 return ""
 
     def restore_startup_time_and_mode(self) -> None:
@@ -60,7 +64,7 @@ class EpisodeController(_ControllerProxy):
                     try:
                         self.current_time = max(0.0, float(saved_time))
                     except Exception:#
-                        print("Saved time is invalid")
+                        logger.debug("Saved startup time is invalid", exc_info=True)
                         self.current_time = float(self.default_start_time or 0.0)
                 else:
                     self.current_time = float(self.default_start_time or 0.0)
@@ -70,7 +74,7 @@ class EpisodeController(_ControllerProxy):
                     play_mode = self.config.get("LAST_SESSION_PLAYING")
                 self._startup_resume_play = bool(play_mode)
             except Exception:#
-                print("Saved time or animename or playmode is invalid")
+                logger.debug("Saved startup state is invalid", exc_info=True)
                 self.current_time = float(self.default_start_time or 0.0)
                 self._startup_resume_play = False
 
@@ -86,6 +90,7 @@ class EpisodeController(_ControllerProxy):
                 self._after_episode_change()
 
     def change_episode(self, action: str):
+            switch_start = time.perf_counter()
             def _restore_entry():
                 if self.sub_manager.current_episode is None:
                     self.settings.episode_var.set("Movie")
@@ -100,12 +105,15 @@ class EpisodeController(_ControllerProxy):
                     self._after_episode_change()
                 else:
                     _restore_entry()
+                self._record_episode_switch_time(switch_start)
                 return
 
             if not raw:
                 _restore_entry()
+                self._record_episode_switch_time(switch_start)
                 return
             if raw.lower() == 'movie':
+                self._record_episode_switch_time(switch_start)
                 return
 
             raw_int = None
@@ -116,11 +124,11 @@ class EpisodeController(_ControllerProxy):
                 if candidate > 0:
                     raw_int = candidate
             except ValueError:#
-                print("Episode invalid")
+                logger.debug("Episode entry is not a plain integer: %s", raw)
                 try:
                     parsed_s, parsed_e, parsed_g = self.sub_manager.extract_season_episode_global(raw)
                 except Exception:#
-                    print("Episode/Season invalid")
+                    logger.debug("Episode/season parser rejected entry: %s", raw, exc_info=True)
                     parsed_s, parsed_e, parsed_g = None, None, None
                 if parsed_s is not None and parsed_e is not None:
                     season_hint = int(parsed_s)
@@ -131,6 +139,7 @@ class EpisodeController(_ControllerProxy):
 
             if raw_int is None or raw_int <= 0:
                 _restore_entry()
+                self._record_episode_switch_time(switch_start)
                 return
 
             before = (
@@ -155,6 +164,13 @@ class EpisodeController(_ControllerProxy):
                 self._after_episode_change() #reset all with new srt data
             else: #change not allowed
                 _restore_entry()
+            self._record_episode_switch_time(switch_start)
+
+    def _record_episode_switch_time(self, switch_start: float) -> None:
+            try:
+                self._record_perf_sample("episode_switch", (time.perf_counter() - switch_start) * 1000.0)
+            except Exception as e:
+                logger.debug("Failed to record episode switch time: %s", e, exc_info=True)
 
     def _after_episode_change(self):
             if self.sub_manager.current_episode is None:

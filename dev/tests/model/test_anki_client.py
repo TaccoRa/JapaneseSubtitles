@@ -317,6 +317,17 @@ def test_bracket_text_spaces_before_kanji_ruby_segments():
     assert rendered == "\u98df[\u305f]\u3079\u308b \u6f22[\u304b\u3093] \u5b57[\u3058]"
 
 
+def test_split_all_kanji_chars_keeps_iteration_mark_with_word():
+    client = AnkiClient(ConfigManager("config.json"))
+
+    assert client._split_all_kanji_chars("\u6211\u3005", "\u308f\u308c\u308f\u308c") == [
+        ("\u6211\u3005", "\u308f\u308c\u308f\u308c"),
+    ]
+    assert client._split_all_kanji_chars("\u6642\u3005", "\u3068\u304d\u3069\u304d") == [
+        ("\u6642\u3005", "\u3068\u304d\u3069\u304d"),
+    ]
+
+
 def test_word_spans_add_noun_compound_before_parts():
     client = AnkiClient(ConfigManager("config.json"))
 

@@ -13,13 +13,10 @@ from model.subtitle_manager import SubtitleManager
 from model.renderer import SubtitleRenderer
 
 from controller.controller import SubtitleController
+from logging_setup import setup_logging
 
 # from video_sync_server import start_server, get_video_time
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(name)s: %(message)s",
-)
 logger = logging.getLogger("SubtitlePlayer.App")
 
 
@@ -42,9 +39,8 @@ class SubtitlePlayerApp:
         self.total_duration = None
 
     def run(self):
-        logger.info("Starting SubtitlePlayerApp")
-
         self._load_config()
+        logger.info("Starting SubtitlePlayerApp")
         self._build_root()
         self._show_startup_overlay()
         self._start_startup_worker()
@@ -58,6 +54,8 @@ class SubtitlePlayerApp:
     def _load_config(self):
         try:
             self.config = ConfigManager("config.json")
+            log_path = setup_logging(self.config)
+            logger.debug("Logging to %s", log_path)
         except Exception:
             logger.exception("Failed to load config.json")
             raise SystemExit(1)
@@ -133,9 +131,8 @@ class SubtitlePlayerApp:
         if self._startup_overlay:
             try:
                 self._startup_overlay.close()
-            except Exception as e:
-                print("ERROR:", e)
-                pass
+            except Exception:
+                logger.debug("Failed to close startup overlay", exc_info=True)
             self._startup_overlay = None
             set_startup_overlay(None)
 
@@ -227,8 +224,8 @@ class SubtitlePlayerApp:
             w, h = map(int, size.split("x"))
             x, y = map(int, pos.split("+"))
             return w, h, x, y
-        except Exception as e:
-            print("ERROR:", e)
+        except Exception:
+            logger.debug("Failed to read root geometry", exc_info=True)
             return None
 
     def _on_close(self):
@@ -246,8 +243,8 @@ class SubtitlePlayerApp:
             if self.controller is not None:
                 self.controller.shutdown()
                 return
-        except Exception as e:
-            print("controller shutdown:", e)
+        except Exception:
+            logger.debug("Controller shutdown failed", exc_info=True)
 
         try:
             if self.sub_manager is not None:

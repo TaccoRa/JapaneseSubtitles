@@ -43,8 +43,9 @@ def test_mixed_kanji_kana_only_rubies_kanji():
     assert render("取り戻す", "とりもどす") == "取[と]り戻[もど]す"
 
 
-def test_repeated_kanji_keeps_iteration_mark_plain():
-    assert render("時々", "ときどき") == "時[とき]々"
+def test_repeated_kanji_keeps_iteration_mark_with_word():
+    assert render("時々", "ときどき") == "時々[ときどき]"
+    assert render("我々", "われわれ") == "我々[われわれ]"
 
 
 def test_irregular_compound_stays_whole_when_no_anchor_matches():

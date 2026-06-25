@@ -13,6 +13,7 @@ import re
 import threading
 import time
 from typing import Any
+import logging
 
 from pynput.keyboard import Listener as KeyboardListener
 from pynput.mouse import Listener as MouseListener
@@ -32,6 +33,9 @@ from controller.ocr_controller import OCRController
 from controller.overlay_controller import OverlayController
 from controller.playback_controller import PlaybackController
 from controller.subtitle_navigation import SubtitleNavigationController
+from logging_setup import set_debug_logging
+
+logger = logging.getLogger(__name__)
 
 class SubtitleController:
     SHORTCUT_DEFAULTS = {
@@ -52,6 +56,8 @@ class SubtitleController:
         "SHORTCUT_TOGGLE_SUBTITLES": "s",
         "SHORTCUT_POPUP_DEEPL_TRANSLATE": "t",
         "SHORTCUT_POPUP_GOOGLE_TRANSLATE": "g",
+        "SHORTCUT_POPUP_ADD_ANKI": "a",
+        "SHORTCUT_TOGGLE_DEBUGGING": "ctrl+shift+d",
     }
     HOTKEY_DISABLE_KEYS = {
         "toggle_play": "DISABLE_HOTKEY_TOGGLE_PLAY",
@@ -131,6 +137,24 @@ class SubtitleController:
         self._auto_ruby_generation_id = 0
         self._auto_ruby_thread = None
         self._shutting_down = False
+        self._perf_stats = {
+            "slider_change_count": 0,
+            "slider_change_total_ms": 0.0,
+            "slider_change_max_ms": 0.0,
+            "slider_preview_count": 0,
+            "slider_preview_total_ms": 0.0,
+            "slider_preview_max_ms": 0.0,
+            "slider_release_count": 0,
+            "slider_release_total_ms": 0.0,
+            "slider_release_max_ms": 0.0,
+            "subtitle_render_count": 0,
+            "subtitle_render_total_ms": 0.0,
+            "subtitle_render_max_ms": 0.0,
+            "episode_switch_count": 0,
+            "episode_switch_total_ms": 0.0,
+            "episode_switch_max_ms": 0.0,
+        }
+        self._last_ocr_duration_ms = 0.0
 
         self._single_fire_actions: set[str] = set()
         self._input_actions: "queue.Queue[str]" = queue.Queue()
@@ -205,7 +229,10 @@ class SubtitleController:
         self.settings.bind_advanced_apply           (self.apply_advanced_settings)
         self.settings.bind_ocr_read_now             (self.ocr_controller.on_ocr_read_now)
         self.settings.bind_ocr_sync_now             (self.ocr_controller.on_ocr_sync_now)
+        self.settings.bind_ocr_show_boxes           (self.ocr_controller.show_ocr_boxes)
         self.settings.bind_anki_check               (self.anki_controller.on_anki_check_connection)
+        self.settings.bind_performance_snapshot     (self.get_performance_snapshot)
+        self.settings.bind_performance_reset        (self.reset_performance_stats)
         self.settings.bind_settings_open            (self._hide_subtitle_handle_for_settings)
         self.settings.bind_update_display           (self.update_time_and_subtitle_displays)
         self.overlay.subtitle_canvas.bind           ("<Button-3>", self._on_copy_popup)
@@ -289,6 +316,116 @@ class SubtitleController:
             return self.anki.word_spans(text)
         except Exception:
             return []
+
+    def _record_perf_sample(self, name: str, elapsed_ms: float) -> None:
+        try:
+            elapsed_ms = max(0.0, float(elapsed_ms))
+        except Exception:
+            return
+        stats = getattr(self, "_perf_stats", None)
+        if not isinstance(stats, dict):
+            return
+        count_key = f"{name}_count"
+        total_key = f"{name}_total_ms"
+        max_key = f"{name}_max_ms"
+        stats[count_key] = int(stats.get(count_key, 0) or 0) + 1
+        stats[total_key] = float(stats.get(total_key, 0.0) or 0.0) + elapsed_ms
+        stats[max_key] = max(float(stats.get(max_key, 0.0) or 0.0), elapsed_ms)
+
+    @staticmethod
+    def _perf_avg(stats: dict, name: str) -> float:
+        count = int(stats.get(f"{name}_count", 0) or 0)
+        if count <= 0:
+            return 0.0
+        return float(stats.get(f"{name}_total_ms", 0.0) or 0.0) / count
+
+    def get_performance_snapshot(self) -> str:
+        stats = dict(getattr(self, "_perf_stats", {}) or {})
+        renderer = getattr(self, "renderer", None)
+        sub_manager = getattr(self, "sub_manager", None)
+        ruby_stats = dict(getattr(sub_manager, "_ruby_stats", {}) or {})
+        timing = dict(getattr(renderer, "_timing_data", {}) or {})
+
+        def _line(label: str, name: str) -> str:
+            return (
+                f"{label}: count={int(stats.get(name + '_count', 0) or 0)} "
+                f"avg={self._perf_avg(stats, name):.2f} ms "
+                f"max={float(stats.get(name + '_max_ms', 0.0) or 0.0):.2f} ms"
+            )
+
+        dl_queue = getattr(sub_manager, "_dl_q", None)
+        prepare_queue = getattr(sub_manager, "_episode_prepare_q", None)
+        try:
+            dl_size = dl_queue.qsize() if dl_queue is not None else 0
+        except Exception:
+            dl_size = 0
+        try:
+            prepare_size = prepare_queue.qsize() if prepare_queue is not None else 0
+        except Exception:
+            prepare_size = 0
+
+        return "\n".join(
+            [
+                _line("Slider callback", "slider_change"),
+                _line("Slider preview render", "slider_preview"),
+                _line("Slider release", "slider_release"),
+                _line("Subtitle render path", "subtitle_render"),
+                _line("Episode switch", "episode_switch"),
+                "",
+                f"Renderer layout cache: hits={getattr(renderer, '_layout_cache_hits', 0)} "
+                f"misses={getattr(renderer, '_layout_cache_misses', 0)} "
+                f"entries={len(getattr(renderer, '_layout_cache', {}) or {})}",
+                f"Renderer timing: renders={int(timing.get('render_count', 0) or 0)} "
+                f"render_total={float(timing.get('render_subtitle_time', 0.0) or 0.0) * 1000:.2f} ms "
+                f"measure_total={float(timing.get('font_measure_time', 0.0) or 0.0) * 1000:.2f} ms",
+                f"Auto-ruby: hits={int(ruby_stats.get('cache_hits', 0) or 0)} "
+                f"misses={int(ruby_stats.get('cache_misses', 0) or 0)} "
+                f"generator_calls={int(ruby_stats.get('generator_calls', 0) or 0)} "
+                f"generator_time={float(ruby_stats.get('generator_time', 0.0) or 0.0) * 1000:.2f} ms",
+                f"OCR last duration: {float(getattr(self, '_last_ocr_duration_ms', 0.0) or 0.0):.2f} ms",
+                f"Queues: downloads={dl_size} episode_preload={prepare_size}",
+            ]
+        )
+
+    def reset_performance_stats(self) -> None:
+        for key in list(getattr(self, "_perf_stats", {}) or {}):
+            self._perf_stats[key] = 0.0 if key.endswith("_ms") else 0
+        renderer = getattr(self, "renderer", None)
+        if renderer is not None:
+            renderer._layout_cache_hits = 0
+            renderer._layout_cache_misses = 0
+            timing = getattr(renderer, "_timing_data", None)
+            if isinstance(timing, dict):
+                for key in timing:
+                    timing[key] = 0
+        sub_manager = getattr(self, "sub_manager", None)
+        ruby_stats = getattr(sub_manager, "_ruby_stats", None)
+        if isinstance(ruby_stats, dict):
+            for key, value in list(ruby_stats.items()):
+                ruby_stats[key] = [] if isinstance(value, list) else 0
+
+    def toggle_debugging(self) -> bool:
+        enabled = not bool(self.config.get("DEBUGGING") or False)
+        cfg = getattr(self.config, "config", None)
+        if isinstance(cfg, dict):
+            cfg["DEBUGGING"] = enabled
+        try:
+            self.config.set("DEBUGGING", enabled)
+        except Exception:
+            logger.debug("Failed to persist DEBUGGING=%s", enabled, exc_info=True)
+        set_debug_logging(enabled)
+        logger.info("Debug logging %s", "enabled" if enabled else "disabled")
+        status_var = getattr(self.settings, "_advanced_status_var", None)
+        if status_var is not None:
+            try:
+                status_var.set(
+                    "Debugging enabled. Reopen Advanced Settings to show Performance tab."
+                    if enabled else
+                    "Debugging disabled."
+                )
+            except Exception:
+                pass
+        return enabled
 
     def _set_busy_cursor(self, busy: bool) -> None:
         return self.anki_controller._set_busy_cursor(busy)
@@ -546,6 +683,9 @@ class SubtitleController:
     def on_ocr_sync_now(self, override: dict | None = None) -> None:
         return self.ocr_controller.on_ocr_sync_now(override)
 
+    def on_ocr_show_boxes(self, override: dict | None = None) -> int:
+        return self.ocr_controller.show_ocr_boxes(override)
+
     # ---------------------------------------------------------------------
     # Shutdown
     # ---------------------------------------------------------------------
@@ -583,7 +723,7 @@ class SubtitleController:
             try:
                 self._save_geometry_and_session_state()
             except Exception as e:
-                print("save state during shutdown:", e)
+                logger.debug("Failed to save state during shutdown: %s", e, exc_info=True)
 
         self._stop_listeners_and_jobs()
         self._close_auxiliary_windows()
@@ -638,7 +778,7 @@ class SubtitleController:
         root = getattr(self.settings, "root", None)
         for job in ("subtitle_timeout_job", "_con_hide_job", "_input_pump_job",
                     "_repeat_job", "_ocr_job", "_update_loop_job", "_slider_render_job",
-                    "_anki_success_popup_job"):
+                    "_anki_success_popup_job", "_ocr_box_preview_job"):
             handle = getattr(self, job, None)
             if handle is not None:
                 try:
@@ -656,6 +796,7 @@ class SubtitleController:
         for close_call in (
             lambda: self.popup._close(),
             lambda: self.renderer.destroy_hover_windows(),
+            lambda: self.ocr_controller._close_ocr_box_previews(),
         ):
             try:
                 close_call()
@@ -727,8 +868,19 @@ class SubtitleController:
     def _segments_to_copy_text(self, top_segments, bottom_segments):
         return self.subtitle_navigation.segments_to_copy_text(top_segments, bottom_segments)
 
-    def _update_subtitle_display(self, force: bool = False):
-        return self.subtitle_navigation._update_subtitle_display(force)
+    def _update_subtitle_display(
+        self,
+        force: bool = False,
+        allow_auto_ruby: bool = True,
+        schedule_auto_ruby: bool = False,
+        preview: bool = False,
+    ):
+        return self.subtitle_navigation._update_subtitle_display(
+            force=force,
+            allow_auto_ruby=allow_auto_ruby,
+            schedule_auto_ruby=schedule_auto_ruby,
+            preview=preview,
+        )
     
 
 # from video_sync_server import get_video_time

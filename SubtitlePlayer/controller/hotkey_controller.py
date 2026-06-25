@@ -1,10 +1,13 @@
 """Keyboard shortcut, repeat-action, and global hotkey helper."""
 
+import logging
 import time
 import queue
 from pynput.mouse import Button
 from typing import Any
 from pynput.keyboard import Key
+
+logger = logging.getLogger(__name__)
 
 class _ControllerProxy:
     """Proxy base that forwards attribute access and assignment to SubtitleController."""
@@ -101,7 +104,7 @@ class HotkeyController(_ControllerProxy):
             try:
                 self._pending_seek_delta = float(self._pending_seek_delta) + delta
             except Exception:#
-                print("I dont know man :)")
+                logger.debug("Failed to accumulate pending seek delta", exc_info=True)
                 self._pending_seek_delta = delta
             self._update_pending_seek_display()
 
@@ -198,7 +201,7 @@ class HotkeyController(_ControllerProxy):
             try:
                 self._repeat_job = self.settings.root.after(16, self._process_repeat_actions)
             except Exception as e:
-                print(e)
+                logger.debug("Failed to schedule repeat actions: %s", e, exc_info=True)
                 self._repeat_job = None
 
     def _process_input_queue(self):
@@ -219,7 +222,7 @@ class HotkeyController(_ControllerProxy):
                 try:
                     self._input_pump_job = self.settings.root.after(15, self._process_input_queue)
                 except Exception as e:
-                    print(e)
+                    logger.debug("Failed to schedule input queue pump: %s", e, exc_info=True)
                     self._input_pump_job = None
 
     def _dispatch_input_action(self, action: str, event_time: float | None = None) -> None:
@@ -250,6 +253,12 @@ class HotkeyController(_ControllerProxy):
                 self.subtitle_navigation.toggle_subtitle_visibility()
             elif action == "toggle_m3_mode":
                 self._toggle_m3_mode()
+            elif action == "toggle_debugging":
+                self.toggle_debugging()
+            elif action == "popup_add_anki":
+                add_selected = getattr(self.popup, "add_selected_to_anki_if_pointer_inside", None)
+                if callable(add_selected):
+                    add_selected()
             elif action == "_seek_step_back":
                 self._accumulate_pending_seek("go_back")
             elif action == "_seek_step_forward":
@@ -273,7 +282,7 @@ class HotkeyController(_ControllerProxy):
             try:
                 return hasattr(key, "vk") and int(getattr(key, "vk")) in codes
             except Exception as e:
-                print(e)
+                logger.debug("Failed to inspect numpad virtual key: %s", e, exc_info=True)
                 return False
 
     def _get_shortcut_value(self, config_key: str) -> str:
@@ -357,7 +366,7 @@ class HotkeyController(_ControllerProxy):
                 try:
                     widget = owner.focus_get()
                 except Exception as e:
-                    print(e)
+                    logger.debug("Failed to inspect focused text input: %s", e, exc_info=True)
                     widget = None
                 # Treat control time entry as text-focused only while actively editing.
                 if widget is getattr(self.settings, "time_entry", None) and not bool(self.entry_editing):
@@ -416,7 +425,7 @@ class HotkeyController(_ControllerProxy):
             try:
                 mode2_numpad = int(getattr(self.settings, "input_mode", 1)) == 2
             except Exception as e:
-                print(e)
+                logger.debug("Failed to inspect input mode: %s", e, exc_info=True)
                 mode2_numpad = bool(getattr(self.settings, "numpad_mode_enabled", False))
             if mode2_numpad:
                 bindings = [
@@ -443,6 +452,7 @@ class HotkeyController(_ControllerProxy):
                 ("episode_dec", self._get_shortcut_value("SHORTCUT_EPISODE_DEC")),
                 ("jump_sub_end", self._get_shortcut_value("SHORTCUT_JUMP_SUB_END")),
                 ("toggle_subtitles", self._get_shortcut_value("SHORTCUT_TOGGLE_SUBTITLES")),
+                ("toggle_debugging", self._get_shortcut_value("SHORTCUT_TOGGLE_DEBUGGING")),
             ]
             return [(action, binding) for action, binding in bindings if not self._hotkey_action_disabled(action)]
 
@@ -451,6 +461,40 @@ class HotkeyController(_ControllerProxy):
                 ("popup_deepl_translate", self._get_shortcut_value("SHORTCUT_POPUP_DEEPL_TRANSLATE"), "deepl"),
                 ("popup_google_translate", self._get_shortcut_value("SHORTCUT_POPUP_GOOGLE_TRANSLATE"), "google"),
             ]
+
+    def _popup_add_anki_binding(self) -> str:
+            return self._get_shortcut_value("SHORTCUT_POPUP_ADD_ANKI")
+
+    def _popup_add_anki_press(self, key) -> bool:
+            if not self._is_popup_open():
+                return False
+            binding = self._popup_add_anki_binding()
+            if not binding or not self._shortcut_matches(binding, key):
+                return False
+            action = "popup_add_anki"
+            if action in self._single_fire_actions:
+                return True
+            self._single_fire_actions.add(action)
+            self._enqueue_input_action(action)
+            return True
+
+    def _popup_add_anki_release_matches(self, key) -> bool:
+            binding = self._popup_add_anki_binding()
+            if not binding:
+                return False
+            _mods, key_token = self._split_shortcut(binding)
+            released_tokens = self._key_tokens(key)
+            if key_token and key_token in released_tokens:
+                return True
+            modifier = None
+            if key in (Key.shift_l, Key.shift_r):
+                modifier = "shift"
+            elif key in (Key.alt_l, Key.alt_r):
+                modifier = "alt"
+            elif key in (Key.ctrl_l, Key.ctrl_r):
+                modifier = "ctrl"
+            mods, _ = self._split_shortcut(binding)
+            return bool(modifier and modifier in mods)
 
     def _popup_translation_press(self, key) -> tuple[str, str] | None:
             if not self._is_popup_open():
@@ -508,7 +552,7 @@ class HotkeyController(_ControllerProxy):
             try:
                 self.settings.set_hotkeys_disabled(enable_m3)
             except Exception as e:
-                print(e)
+                logger.debug("Failed to toggle m3 mode: %s", e, exc_info=True)
                 return
             # Clear hotkey state without disabling Shift-hover dictionary lookup.
             self._reset_hotkey_state(reset_shift=False)
@@ -518,6 +562,8 @@ class HotkeyController(_ControllerProxy):
                 if self.shift_pressed:
                     return
                 self.shift_pressed = True
+                return
+            if self._popup_add_anki_press(key):
                 return
             popup_translation = self._popup_translation_press(key)
             if popup_translation is not None:
@@ -567,6 +613,9 @@ class HotkeyController(_ControllerProxy):
                 return
 
     def _on_key_release(self, key):
+            if self._popup_add_anki_release_matches(key):
+                self._single_fire_actions.discard("popup_add_anki")
+
             active_translation_action = getattr(self, "_active_translation_action", None)
             if active_translation_action and self._translation_release_matches(active_translation_action, key):
                 self.translation_pressed = False

@@ -1,10 +1,13 @@
 """Anki integration helper for note creation, wait dialogs, and success UI."""
 
+import logging
 import threading
 import time
 import tkinter as tk
 from typing import Any
 from utils import get_monitor_rects, make_nonactivating_tool_window, show_window_no_activate
+
+logger = logging.getLogger(__name__)
 
 class _ControllerProxy:
     """Proxy base that forwards attribute access and assignment to SubtitleController."""
@@ -30,12 +33,12 @@ class AnkiController(_ControllerProxy):
     def _add_selection_to_anki(self, selected_text: str, subtitle_text: str = "") -> None:
             selected = (selected_text or "").strip()
             if not selected:
-                print("Add Selection To Anki: no text selected.")
+                logger.debug("Add Selection To Anki skipped because no text is selected")
                 return
 
             subtitle = subtitle_text or ""
             if not self.anki.ping():
-                print("AnkiConnect not reachable. Start Anki + AnkiConnect and confirm with 'Anki opened'.")
+                logger.info("AnkiConnect not reachable; showing wait dialog")
                 self._show_anki_wait_dialog(selected_text=selected, subtitle_text=subtitle)
                 return
 
@@ -44,7 +47,7 @@ class AnkiController(_ControllerProxy):
     def _start_anki_add_worker(self, selected_text: str, subtitle_text: str = "") -> None:
             selected = (selected_text or "").strip()
             if not selected:
-                print("Add Selection To Anki: no text selected.")
+                logger.debug("Add Selection To Anki skipped because no text is selected")
                 return
             self._set_busy_cursor(True)
 
@@ -60,33 +63,34 @@ class AnkiController(_ControllerProxy):
                     )
 
                     elapsed = time.perf_counter() - started
-                    print(f"Anki note created in {elapsed:.2f}s")
+                    logger.info("Anki note created in %.2fs", elapsed)
 
                     candidates = result.get("translation_candidates") or {}
                     word_cands = candidates.get("word") or {}
                     sentence_cands = candidates.get("sentence") or {}
                     lookup_text = str(result.get("selection_lookup_text") or selected).strip()
 
-                    print(f"Note ID: {result.get('note_id', '')}")
-                    print(f"Marked Word: {selected}")
+                    logger.debug("Note ID: %s", result.get("note_id", ""))
+                    logger.debug("Marked Word: %s", selected)
                     if lookup_text and lookup_text != selected:
-                        print(f"Anki Headword: {lookup_text}")
+                        logger.debug("Anki Headword: %s", lookup_text)
                     copied_media = result.get("copied_media_fields") or {}
                     if copied_media:
-                        print(f"Copied Media: {', '.join(sorted(copied_media.keys()))}")
-                    print(f"Word Jisho: {self._format_translation_csv(word_cands.get('jisho', ''))}")
-                    print(f"Word Google: {self._format_translation_csv(word_cands.get('google', ''))}")
-                    print(f"Sentence DeepL: {self._format_translation_csv(sentence_cands.get('deepl', ''))}")
-                    print(f"Sentence Google: {self._format_translation_csv(sentence_cands.get('google', ''))}")
+                        logger.debug("Copied Media: %s", ", ".join(sorted(copied_media.keys())))
+                    logger.debug("Word Jisho: %s", self._format_translation_csv(word_cands.get("jisho", "")))
+                    logger.debug("Word Google: %s", self._format_translation_csv(word_cands.get("google", "")))
+                    logger.debug("Sentence DeepL: %s", self._format_translation_csv(sentence_cands.get("deepl", "")))
+                    logger.debug("Sentence Google: %s", self._format_translation_csv(sentence_cands.get("google", "")))
 
                     fields = result.get("stroke_svg_sync_fields")
                     if fields:
                         self.anki.sync_missing_stroke_svgs_async(lookup_text or selected, fields)
                     self.settings.root.after(0, self._schedule_ocr_sync_after_anki)
                     self.settings.root.after(0, self.popup.mark_anki_success)
-                    print("Anki card added.")
+                    print("Anki card added", flush=True)
+                    logger.info("Anki card added")
                 except Exception as e:
-                    print(f"Anki add failed: {e}")
+                    logger.exception("Anki add failed: %s", e)
                 finally:
                     self.settings.root.after(0, lambda: self._set_busy_cursor(False))
 

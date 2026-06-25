@@ -2,14 +2,18 @@
 
 import os
 import re
+import logging
 import subprocess
 import tempfile
 import threading
 import time
+import tkinter as tk
 import pyautogui
 from PIL import ImageGrab, ImageOps, ImageStat, Image
 from typing import Any
 from utils import get_monitor_rects, show_window_no_activate, parse_time_value
+
+logger = logging.getLogger(__name__)
 
 class _ControllerProxy:
     """Proxy base that forwards attribute access and assignment to SubtitleController."""
@@ -61,7 +65,7 @@ class OCRController(_ControllerProxy):
             try:
                 self._ocr_pending_time = float(self.current_time)
             except Exception as e:
-                print(e)
+                logger.debug("Invalid current time for OCR pending time: %s", e, exc_info=True)
                 self._ocr_pending_time = None
 
             generation = self._ocr_generation
@@ -123,7 +127,7 @@ class OCRController(_ControllerProxy):
                     return None
                 return (x, y, w, h)
             except Exception as e:
-                print("no window found")
+                logger.debug("Failed to inspect window screen rect: %s", e, exc_info=True)
                 return None
 
     def _temporarily_hide_windows_for_ocr(self, override: dict | None = None):
@@ -132,7 +136,7 @@ class OCRController(_ControllerProxy):
             try:
                 ocr_regions = [tuple(region) for _idx, region, _custom in self._get_ocr_capture_regions(override)]
             except Exception as e:
-                print(e, "No OCR_regions")
+                logger.debug("Failed to read OCR regions: %s", e, exc_info=True)
                 ocr_regions = []
             if not ocr_regions:
                 return lambda: None
@@ -156,7 +160,7 @@ class OCRController(_ControllerProxy):
                 try:
                     key = str(win)
                 except Exception as e:
-                    print(e)
+                    logger.debug("Failed to build OCR window identity: %s", e, exc_info=True)
                     key = id(win)
                 if key in seen:
                     continue
@@ -237,7 +241,7 @@ class OCRController(_ControllerProxy):
             try:
                 regions = self._get_ocr_capture_regions(override=override)
             except Exception as e:
-                print(e)
+                logger.debug("Failed to read OCR regions for failure log: %s", e, exc_info=True)
                 regions = []
             if not regions:
                 # print("OCR read-now failed: no capture region available.")
@@ -278,12 +282,12 @@ class OCRController(_ControllerProxy):
             try:
                 duration_sec = float(duration_sec)
             except Exception as e:
-                print(e)
+                logger.debug("Invalid OCR sync duration: %s", e, exc_info=True)
                 duration_sec = 5.0
             try:
                 interval_sec = float(interval_sec)
             except Exception as e:
-                print(e)
+                logger.debug("Invalid OCR sync interval: %s", e, exc_info=True)
                 interval_sec = 1.0
             duration_sec = max(1.0, duration_sec)
             interval_sec = max(0.1, interval_sec)
@@ -333,20 +337,113 @@ class OCRController(_ControllerProxy):
             try:
                 delta = float(delta)
             except Exception as e:
-                print(e)
+                logger.debug("Invalid OCR sync delta: %s", e, exc_info=True)
                 return
             if abs(delta) < 0.15:
                 return
             new_time = float(self.current_time) + delta
             self.playback.set_current_time(new_time)
-            print(f"OCR sync: adjusted by {delta:+.2f}s")
+            logger.info("OCR sync adjusted time by %.2fs", delta)
+
+    def show_ocr_boxes(self, override: dict | None = None, duration_ms: int = 1800) -> int:
+            if self._shutting_down:
+                return 0
+            self._close_ocr_box_previews()
+            try:
+                regions = self._get_ocr_capture_regions(override)
+            except Exception:
+                regions = []
+            if not regions:
+                return 0
+
+            windows = []
+            parent = getattr(self.settings, "root", None)
+            for region_idx, region, is_custom in regions:
+                try:
+                    x, y, w, h = region
+                    x, y, w, h = int(x), int(y), int(w), int(h)
+                except Exception:
+                    continue
+                if w <= 0 or h <= 0:
+                    continue
+
+                color = "#00ff66" if is_custom else "#ffd34d"
+                label = f"OCR {region_idx}"
+                if not is_custom:
+                    label += " default"
+
+                try:
+                    win = tk.Toplevel(parent) if parent is not None else tk.Toplevel()
+                    win.withdraw()
+                    win.overrideredirect(True)
+                    win.attributes("-topmost", True)
+                    try:
+                        win.attributes("-alpha", 0.32 if is_custom else 0.24)
+                    except Exception:
+                        pass
+                    win.configure(bg=color)
+                    win.geometry(f"{max(2, w)}x{max(2, h)}+{x}+{y}")
+
+                    frame = tk.Frame(
+                        win,
+                        bg=color,
+                        highlightbackground="#111111",
+                        highlightcolor="#111111",
+                        highlightthickness=3,
+                    )
+                    frame.pack(fill="both", expand=True)
+                    tk.Label(
+                        frame,
+                        text=label,
+                        bg=color,
+                        fg="#111111",
+                        font=("Arial", 14, "bold"),
+                    ).place(relx=0.5, rely=0.5, anchor="center")
+                    show_window_no_activate(win)
+                    windows.append(win)
+                except Exception:
+                    try:
+                        win.destroy()
+                    except Exception:
+                        pass
+
+            if not windows:
+                return 0
+
+            self._ocr_box_preview_windows = windows
+            self._ocr_box_preview_job = self._safe_after(
+                max(250, int(duration_ms)),
+                self._close_ocr_box_previews,
+            )
+            return len(windows)
+
+    def _close_ocr_box_previews(self) -> None:
+            job = getattr(self, "_ocr_box_preview_job", None)
+            if job is not None:
+                try:
+                    root = getattr(self.settings, "root", None)
+                    if root is not None and root.winfo_exists():
+                        root.after_cancel(job)
+                except Exception:
+                    pass
+                self._ocr_box_preview_job = None
+
+            windows = list(getattr(self, "_ocr_box_preview_windows", []) or [])
+            self._ocr_box_preview_windows = []
+            for win in windows:
+                try:
+                    if win is not None and win.winfo_exists():
+                        win.destroy()
+                except Exception:
+                    pass
 
     def _ocr_find_time_seconds(self, override: dict | None = None):
+            started = time.perf_counter()
             regions = self._get_ocr_capture_regions(override)
             if not regions:
+                self._last_ocr_duration_ms = (time.perf_counter() - started) * 1000.0
                 return None
 
-            started = time.perf_counter()
             variant_makers = []
 
             def _make_autocontrast(img):
@@ -392,7 +489,7 @@ class OCRController(_ControllerProxy):
                     try:
                         variant = maker(img)
                     except Exception as e:
-                        print(e)
+                        logger.debug("Failed to build OCR image variant: %s", e, exc_info=True)
                         variant = img
                     text = self._ocr_image_to_text(variant, override=override)
                     if not text:
@@ -402,8 +499,18 @@ class OCRController(_ControllerProxy):
                         continue
                     seconds, left, right = result
                     elapsed_ms = (time.perf_counter() - started) * 1000.0
-                    print(f"OCR result: {left} / {right} -> {seconds:.2f}s (box {region_idx}, {label}, {elapsed_ms:.0f} ms)")
+                    self._last_ocr_duration_ms = elapsed_ms
+                    logger.info(
+                        "OCR result %s / %s -> %.2fs (box %s, %s, %.0f ms)",
+                        left,
+                        right,
+                        seconds,
+                        region_idx,
+                        label,
+                        elapsed_ms,
+                    )
                     return seconds
+            self._last_ocr_duration_ms = (time.perf_counter() - started) * 1000.0
             return None
 
     def _ocr_image_to_text(self, image, override: dict | None = None) -> str:
@@ -415,7 +522,7 @@ class OCRController(_ControllerProxy):
                     pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
                 return pytesseract.image_to_string(image, config=config_str) or ""
             except Exception as e:
-                print("test", e)
+                logger.debug("pytesseract OCR failed, falling back to subprocess: %s", e, exc_info=True)
                 pass
 
             tmp_path = None
@@ -432,14 +539,14 @@ class OCRController(_ControllerProxy):
                 )
                 return result.stdout or ""
             except Exception as e:
-                print(e)
+                logger.debug("Tesseract subprocess OCR failed: %s", e, exc_info=True)
                 return ""
             finally:
                 if tmp_path and os.path.exists(tmp_path):
                     try:
                         os.remove(tmp_path)
                     except Exception as e:
-                        print(e)
+                        logger.debug("Failed to remove OCR temp file: %s", e, exc_info=True)
                         pass
 
     def _extract_time_from_ocr_text(self, text: str, override: dict | None = None):
@@ -475,7 +582,7 @@ class OCRController(_ControllerProxy):
                         mm2 = int(right_digits[:2])
                         ss2 = int(right_digits[2:])
                     except Exception as e:
-                        print(e)
+                        logger.debug("Invalid compact OCR digits: %s", e, exc_info=True)
                         continue
                     if mm1 > 59 or ss1 > 59 or mm2 > 59 or ss2 > 59:
                         continue
@@ -506,7 +613,7 @@ class OCRController(_ControllerProxy):
                             mm = int(right_digits[:2])
                             ss = int(right_digits[2:])
                         except Exception as e:
-                            print(e)
+                            logger.debug("Invalid OCR tail digits: %s", e, exc_info=True)
                             mm, ss = 99, 99
                         if mm > 59 or ss > 59:
                             right_digits = ""
@@ -522,7 +629,7 @@ class OCRController(_ControllerProxy):
             try:
                 max_allow = float(self.total_duration) + float(self.settings._last_offset_value or 0.0)
             except Exception as e:
-                print(e)
+                logger.debug("Failed to compute OCR max allowed time: %s", e, exc_info=True)
                 max_allow = None
 
             for left, right in matches:
@@ -530,7 +637,7 @@ class OCRController(_ControllerProxy):
                     left_sec = parse_time_value(left)
                     right_sec = parse_time_value(right)
                 except Exception as e:
-                    print(e)
+                    logger.debug("Failed to parse OCR time candidate: %s", e, exc_info=True)
                     continue
                 if right_sec > 0 and left_sec > right_sec + 1.0:
                     continue
@@ -544,7 +651,7 @@ class OCRController(_ControllerProxy):
             try:
                 return int(float(str(value).strip().replace(",", ".")))
             except Exception as e:
-                print(e)
+                logger.debug("Invalid int value: %s", e, exc_info=True)
                 return int(default)
     
     @staticmethod
@@ -552,7 +659,7 @@ class OCRController(_ControllerProxy):
             try:
                 return float(str(value).strip().replace(",", "."))
             except Exception as e:
-                print(e)
+                logger.debug("Invalid float value: %s", e, exc_info=True)
                 return float(default)
 
     def _build_tesseract_config(self, override: dict | None = None):
@@ -696,7 +803,7 @@ class OCRController(_ControllerProxy):
             try:
                 return ImageGrab.grab(bbox=bbox, all_screens=True)
             except Exception as e:
-                print(e)
+                logger.debug("ImageGrab OCR capture failed: %s", e, exc_info=True)
                 pass
             try:
                 # Fallback to pyautogui (may ignore negative coords)
@@ -704,5 +811,5 @@ class OCRController(_ControllerProxy):
                     return pyautogui.screenshot(region=(int(x), int(y), int(w), int(h)))
                 return pyautogui.screenshot()
             except Exception as e:
-                print(e)
+                logger.debug("pyautogui OCR capture failed: %s", e, exc_info=True)
                 return None

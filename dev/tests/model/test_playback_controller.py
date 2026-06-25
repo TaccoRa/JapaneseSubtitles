@@ -290,6 +290,38 @@ def test_hotkey_dispatch_passes_event_time_to_skip_actions():
     assert calls == [("back", pytest.approx(10.0)), ("forward", pytest.approx(11.0))]
 
 
+def test_hotkey_dispatch_toggles_debugging():
+    calls = []
+    controller = SimpleNamespace(
+        _shutting_down=False,
+        toggle_debugging=lambda: calls.append("toggle_debugging"),
+        playback=SimpleNamespace(),
+        subtitle_navigation=SimpleNamespace(toggle_subtitle_visibility=lambda: None),
+        config=SimpleNamespace(get=lambda _key: False),
+    )
+    hotkeys = HotkeyController(controller)
+
+    hotkeys._dispatch_input_action("toggle_debugging")
+
+    assert calls == ["toggle_debugging"]
+
+
+def test_hotkey_dispatch_adds_popup_selection_to_anki():
+    calls = []
+    controller = SimpleNamespace(
+        _shutting_down=False,
+        popup=SimpleNamespace(add_selected_to_anki_if_pointer_inside=lambda: calls.append("popup_add")),
+        playback=SimpleNamespace(),
+        subtitle_navigation=SimpleNamespace(toggle_subtitle_visibility=lambda: None),
+        config=SimpleNamespace(get=lambda _key: False),
+    )
+    hotkeys = HotkeyController(controller)
+
+    hotkeys._dispatch_input_action("popup_add_anki")
+
+    assert calls == ["popup_add"]
+
+
 def test_repeat_seek_preview_updates_time_display_only():
     calls = []
     controller = SimpleNamespace(
