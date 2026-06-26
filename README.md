@@ -14,7 +14,7 @@ The app does not play the video itself. You keep your video open in the backgrou
 - Show ruby/furigana above Japanese words.
 - Show ruby only on hover if that mode is enabled.
 - Right-click subtitles to open a copy popup.
-- Add selected words or sentences to Anki through AnkiConnect.
+- Add selected words or sentences to Anki through AnkiConnect, with sentence-context grammar markers for Japanese words.
 - Use OCR to read the time from a video player and sync this app to it.
 
 ## Install Step By Step
@@ -72,6 +72,16 @@ To add cards to Anki:
 3. Start Anki before using the app's Anki button or popup action.
 4. The default AnkiConnect URL is `http://127.0.0.1:8765`.
 
+When adding a selected word, the app also checks the subtitle sentence. For example, selecting only `勉強` in `私は勉強した` creates the lookup/front form `勉強する` and adds the `する-Verb` tag. Noun usage such as `勉強は楽しい` stays `勉強`.
+
+Automatic grammar marker tags:
+
+- `する-Verb`
+- `い-Adj`
+- `な-Adj`
+
+No default source tag is added. Custom Anki tags can be set in Advanced Settings > Anki > Tags.
+
 ### OCR Time Sync
 
 OCR time sync needs two parts:
@@ -127,9 +137,10 @@ This appears after right-clicking subtitles.
 Advanced settings are grouped by area:
 
 - General: timer, subtitle appearance, ruby behavior, speaker cleanup.
-- Anki: deck names, note type, field names, translation targets.
+- Anki: deck names, note type, custom tags, field names, translation targets.
 - Shortcuts: keyboard shortcuts and disable switches.
 - OCR: Tesseract path and OCR capture boxes.
+- Performance: shown only while debugging is enabled with `Ctrl+Shift+D`. Press `Ctrl+Shift+D` again to hide it.
 
 ## Important Folders And Files
 
@@ -144,7 +155,8 @@ Advanced settings are grouped by area:
 - `SubtitlePlayer/github_search/`: cached GitHub search results.
 - `anki_modify/`: standalone maintenance tools for existing Anki notes.
 - `dev/`: tests, benchmarks, experiments, and analysis notes.
-- `config.json`: user settings and remembered app state.
+- `config.json`: tracked default settings.
+- `config.local.json`: local user settings and remembered app state.
 - `ideas.txt`: project ideas and known issues.
 - `AI_CODEBASE_NOTES.md`: technical notes for future code work.
 

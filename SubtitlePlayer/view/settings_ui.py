@@ -69,6 +69,7 @@ class SettingsUI:
         self._advanced_tab_sizes = {}
         self._advanced_tab_key_map = {}
         self._advanced_resize_job = None
+        self._performance_tab = None
         self._performance_text = None
         self._root_topmost_before_advanced = None
         self._ocr_region_count_trace_var = None
@@ -486,6 +487,7 @@ class SettingsUI:
     def bind_performance_snapshot(self, cb): self._on_performance_snapshot = cb
     def bind_performance_reset(self, cb):    self._on_performance_reset = cb
     def bind_settings_open(self, cb):        self._on_settings_open = cb
+    def refresh_debugging_visibility(self):  self.adv_settings._sync_performance_tab_visibility()
 
     def update_time_overlay_position(self):
         root_width = self.root.winfo_width() or self.root.winfo_reqwidth()

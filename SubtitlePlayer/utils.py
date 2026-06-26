@@ -30,6 +30,45 @@ def _get_windows_hwnd(win: tk.Misc):
         return None
 
 
+def get_window_screen_rect(win: tk.Misc):
+    """
+    Return full outer window bounds as (left, top, right, bottom).
+
+    On Windows this includes the non-client titlebar/buttons, unlike Tk's
+    winfo_root* geometry. Other platforms fall back to Tk client bounds.
+    """
+    try:
+        import ctypes
+        import sys
+        from ctypes import wintypes
+
+        if sys.platform.startswith("win"):
+            hwnd = _get_windows_hwnd(win)
+            if hwnd:
+                rect = wintypes.RECT()
+                if ctypes.windll.user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+                    return (
+                        int(rect.left),
+                        int(rect.top),
+                        int(rect.right),
+                        int(rect.bottom),
+                    )
+    except Exception:
+        pass
+
+    try:
+        left = int(win.winfo_rootx())
+        top = int(win.winfo_rooty())
+        return (
+            left,
+            top,
+            left + int(win.winfo_width()),
+            top + int(win.winfo_height()),
+        )
+    except Exception:
+        return None
+
+
 def make_nonactivating_tool_window(win: tk.Toplevel, topmost: bool = True) -> bool:
     """
     Mark a passive utility window so clicking/showing it does not steal foreground focus

@@ -135,6 +135,65 @@ def test_card_headword_for_selection_uses_verb_dictionary_form():
     assert client._card_headword_for_selection("\u8cab") == "\u8cab"
 
 
+def test_card_headword_for_selection_uses_suru_for_sahen_compounds():
+    client = AnkiClient(ConfigManager("config.json"))
+
+    class Feature:
+        def __init__(self, pos1, lemma, orth_base="", ctype="", pos2="", pos3=""):
+            self.pos1 = pos1
+            self.pos2 = pos2
+            self.pos3 = pos3
+            self.lemma = lemma
+            self.orthBase = orth_base or lemma
+            self.formBase = self.orthBase
+            self.cType = ctype
+
+    class Token:
+        def __init__(self, surface, feature):
+            self.surface = surface
+            self.feature = feature
+
+    def fake_tagger(text):
+        if text == "\u52c9\u5f37\u3057\u305f":
+            return [
+                Token("\u52c9\u5f37", Feature("\u540d\u8a5e", "\u52c9\u5f37", pos3="\u30b5\u5909\u53ef\u80fd")),
+                Token(
+                    "\u3057",
+                    Feature("\u52d5\u8a5e", "\u70ba\u308b", "\u3059\u308b", "\u30b5\u884c\u5909\u683c", "\u975e\u81ea\u7acb\u53ef\u80fd"),
+                ),
+                Token("\u305f", Feature("\u52a9\u52d5\u8a5e", "\u305f")),
+            ]
+        if text == "\u611b\u3057\u305f":
+            return [
+                Token(
+                    "\u611b\u3057",
+                    Feature("\u52d5\u8a5e", "\u611b\u3059\u308b", "\u611b\u3059\u308b", "\u30b5\u884c\u5909\u683c"),
+                ),
+                Token("\u305f", Feature("\u52a9\u52d5\u8a5e", "\u305f")),
+            ]
+        if text == "\u79c1\u306f\u52c9\u5f37\u3057\u305f":
+            return [
+                Token("\u79c1", Feature("\u4ee3\u540d\u8a5e", "\u79c1")),
+                Token("\u306f", Feature("\u52a9\u8a5e", "\u306f")),
+                Token("\u52c9\u5f37", Feature("\u540d\u8a5e", "\u52c9\u5f37", pos3="\u30b5\u5909\u53ef\u80fd")),
+                Token(
+                    "\u3057",
+                    Feature("\u52d5\u8a5e", "\u70ba\u308b", "\u3059\u308b", "\u30b5\u884c\u5909\u683c", "\u975e\u81ea\u7acb\u53ef\u80fd"),
+                ),
+                Token("\u305f", Feature("\u52a9\u52d5\u8a5e", "\u305f")),
+            ]
+        return []
+
+    client._tagger = fake_tagger
+
+    assert client._card_headword_for_selection("\u52c9\u5f37\u3057\u305f") == "\u52c9\u5f37\u3059\u308b"
+    assert client._card_headword_for_selection("\u611b\u3057\u305f") == "\u611b\u3059\u308b"
+    assert (
+        client._card_headword_for_selection("\u79c1\u306f\u52c9\u5f37\u3057\u305f")
+        == "\u79c1\u306f\u52c9\u5f37\u3057\u305f"
+    )
+
+
 def test_add_from_selection_uses_dictionary_form_for_verb_card(monkeypatch):
     client = AnkiClient(ConfigManager("config.json"))
 
@@ -185,6 +244,322 @@ def test_add_from_selection_uses_dictionary_form_for_verb_card(monkeypatch):
     assert fields[client.add_rubies_to_front_field] == "\u8cab\u304f"
     assert fields[client.front_field] == "ruby:\u8cab\u304f"
     assert fields[client.back_field] == "durchdringen"
+
+
+def test_add_from_selection_adds_suru_marker_tag(monkeypatch):
+    client = AnkiClient(ConfigManager("config.json"))
+
+    class Feature:
+        def __init__(self, pos1, lemma, orth_base="", ctype="", pos2="", pos3=""):
+            self.pos1 = pos1
+            self.pos2 = pos2
+            self.pos3 = pos3
+            self.lemma = lemma
+            self.orthBase = orth_base or lemma
+            self.formBase = self.orthBase
+            self.cType = ctype
+
+    class Token:
+        def __init__(self, surface, feature):
+            self.surface = surface
+            self.feature = feature
+
+    client._tagger = lambda _text: [
+        Token("\u52c9\u5f37", Feature("\u540d\u8a5e", "\u52c9\u5f37", pos3="\u30b5\u5909\u53ef\u80fd")),
+        Token(
+            "\u3057",
+            Feature("\u52d5\u8a5e", "\u70ba\u308b", "\u3059\u308b", "\u30b5\u884c\u5909\u683c", "\u975e\u81ea\u7acb\u53ef\u80fd"),
+        ),
+        Token("\u305f", Feature("\u52a9\u52d5\u8a5e", "\u305f")),
+    ]
+    monkeypatch.setattr(client, "_translate_word", lambda _text: "study")
+    monkeypatch.setattr(client, "_translate_sentence", lambda _text: "")
+    monkeypatch.setattr(client, "_to_furigana_brackets", lambda text, **_kwargs: f"ruby:{text}")
+    monkeypatch.setattr(client, "_get_model_field_names", lambda: {
+        client.add_rubies_to_front_field,
+        client.front_field,
+        client.back_field,
+        client.sentence_ja_field,
+        client.sentence_de_field,
+        client.add_rubies_to_sentence_ja_field,
+        client.definition_field,
+    })
+    monkeypatch.setattr(client, "_route_new_cards", lambda _note_id: {"reading": [], "reverse": [], "unrouted": []})
+    notes = []
+
+    def fake_invoke(action, params=None):
+        if action == "multi":
+            return [{"result": None, "error": None} for _ in params["actions"]]
+        if action == "addNote":
+            notes.append(params["note"])
+            return 456
+        return None
+
+    monkeypatch.setattr(client, "_invoke", fake_invoke)
+
+    result = client.add_from_selection("\u52c9\u5f37\u3057\u305f", subtitle_text="")
+
+    assert result["selection_lookup_text"] == "\u52c9\u5f37\u3059\u308b"
+    assert result["anki_marker_tags"] == ["\u3059\u308b-Verb"]
+    assert notes[0]["tags"] == ["\u3059\u308b-Verb"]
+    assert notes[0]["fields"][client.add_rubies_to_front_field] == "\u52c9\u5f37\u3059\u308b"
+
+
+def test_add_from_selection_includes_custom_anki_tags(monkeypatch):
+    config = ConfigManager("config.json")
+    config.config["ANKI_TAGS"] = "anime, mined; custom"
+    client = AnkiClient(config)
+
+    monkeypatch.setattr(client, "_card_headword_for_anki", lambda text, _subtitle="": text)
+    monkeypatch.setattr(client, "_anki_marker_tags_for_selection", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(client, "_translate_word", lambda _text: "word")
+    monkeypatch.setattr(client, "_translate_sentence", lambda _text: "")
+    monkeypatch.setattr(client, "_to_furigana_brackets", lambda text, **_kwargs: f"ruby:{text}")
+    monkeypatch.setattr(client, "_get_model_field_names", lambda: {
+        client.add_rubies_to_front_field,
+        client.front_field,
+        client.back_field,
+        client.sentence_ja_field,
+        client.sentence_de_field,
+        client.add_rubies_to_sentence_ja_field,
+        client.definition_field,
+    })
+    monkeypatch.setattr(client, "_route_new_cards", lambda _note_id: {"reading": [], "reverse": [], "unrouted": []})
+    notes = []
+
+    def fake_invoke(action, params=None):
+        if action == "multi":
+            return [{"result": None, "error": None} for _ in params["actions"]]
+        if action == "addNote":
+            notes.append(params["note"])
+            return 654
+        return None
+
+    monkeypatch.setattr(client, "_invoke", fake_invoke)
+
+    client.add_from_selection("\u65b0\u898f", subtitle_text="")
+
+    assert notes[0]["tags"] == ["anime", "mined", "custom"]
+
+
+def test_add_from_selection_uses_sentence_context_for_selected_suru_stem(monkeypatch):
+    client = AnkiClient(ConfigManager("config.json"))
+
+    class Feature:
+        def __init__(self, pos1, lemma, orth_base="", ctype="", pos2="", pos3=""):
+            self.pos1 = pos1
+            self.pos2 = pos2
+            self.pos3 = pos3
+            self.lemma = lemma
+            self.orthBase = orth_base or lemma
+            self.formBase = self.orthBase
+            self.cType = ctype
+
+    class Token:
+        def __init__(self, surface, feature):
+            self.surface = surface
+            self.feature = feature
+
+    def fake_tagger(text):
+        if text == "\u79c1\u306f\u52c9\u5f37\u3057\u305f":
+            return [
+                Token("\u79c1", Feature("\u4ee3\u540d\u8a5e", "\u79c1")),
+                Token("\u306f", Feature("\u52a9\u8a5e", "\u306f")),
+                Token("\u52c9\u5f37", Feature("\u540d\u8a5e", "\u52c9\u5f37", pos3="\u30b5\u5909\u53ef\u80fd")),
+                Token(
+                    "\u3057",
+                    Feature("\u52d5\u8a5e", "\u70ba\u308b", "\u3059\u308b", "\u30b5\u884c\u5909\u683c", "\u975e\u81ea\u7acb\u53ef\u80fd"),
+                ),
+                Token("\u305f", Feature("\u52a9\u52d5\u8a5e", "\u305f")),
+            ]
+        if text == "\u52c9\u5f37":
+            return [Token("\u52c9\u5f37", Feature("\u540d\u8a5e", "\u52c9\u5f37", pos3="\u30b5\u5909\u53ef\u80fd"))]
+        return []
+
+    client._tagger = fake_tagger
+    translate_calls = []
+    notes = []
+
+    monkeypatch.setattr(client, "_translate_word", lambda text: translate_calls.append(text) or "study")
+    monkeypatch.setattr(client, "_translate_sentence", lambda _text: "")
+    monkeypatch.setattr(client, "_to_furigana_brackets", lambda text, **_kwargs: f"ruby:{text}")
+    monkeypatch.setattr(client, "_get_model_field_names", lambda: {
+        client.add_rubies_to_front_field,
+        client.front_field,
+        client.back_field,
+        client.sentence_ja_field,
+        client.sentence_de_field,
+        client.add_rubies_to_sentence_ja_field,
+        client.definition_field,
+    })
+    monkeypatch.setattr(client, "_route_new_cards", lambda _note_id: {"reading": [], "reverse": [], "unrouted": []})
+
+    def fake_invoke(action, params=None):
+        if action == "multi":
+            return [{"result": None, "error": None} for _ in params["actions"]]
+        if action == "addNote":
+            notes.append(params["note"])
+            return 789
+        return None
+
+    monkeypatch.setattr(client, "_invoke", fake_invoke)
+
+    result = client.add_from_selection(
+        "\u52c9\u5f37",
+        subtitle_text="\u79c1\u306f\u52c9\u5f37\u3057\u305f",
+    )
+
+    assert translate_calls == ["\u52c9\u5f37\u3059\u308b"]
+    assert result["selection_surface_text"] == "\u52c9\u5f37"
+    assert result["selection_lookup_text"] == "\u52c9\u5f37\u3059\u308b"
+    assert result["anki_marker_tags"] == ["\u3059\u308b-Verb"]
+    assert notes[0]["tags"] == ["\u3059\u308b-Verb"]
+    assert notes[0]["fields"][client.add_rubies_to_front_field] == "\u52c9\u5f37\u3059\u308b"
+
+
+def test_sentence_context_keeps_suru_capable_noun_when_used_as_noun():
+    client = AnkiClient(ConfigManager("config.json"))
+
+    class Feature:
+        def __init__(self, pos1, lemma, orth_base="", ctype="", pos2="", pos3=""):
+            self.pos1 = pos1
+            self.pos2 = pos2
+            self.pos3 = pos3
+            self.lemma = lemma
+            self.orthBase = orth_base or lemma
+            self.formBase = self.orthBase
+            self.cType = ctype
+
+    class Token:
+        def __init__(self, surface, feature):
+            self.surface = surface
+            self.feature = feature
+
+    def fake_tagger(text):
+        if text == "\u52c9\u5f37\u306f\u697d\u3057\u3044":
+            return [
+                Token("\u52c9\u5f37", Feature("\u540d\u8a5e", "\u52c9\u5f37", pos3="\u30b5\u5909\u53ef\u80fd")),
+                Token("\u306f", Feature("\u52a9\u8a5e", "\u306f")),
+                Token("\u697d\u3057\u3044", Feature("\u5f62\u5bb9\u8a5e", "\u697d\u3057\u3044")),
+            ]
+        if text == "\u52c9\u5f37":
+            return [Token("\u52c9\u5f37", Feature("\u540d\u8a5e", "\u52c9\u5f37", pos3="\u30b5\u5909\u53ef\u80fd"))]
+        return []
+
+    client._tagger = fake_tagger
+
+    assert (
+        client._card_headword_for_anki("\u52c9\u5f37", "\u52c9\u5f37\u306f\u697d\u3057\u3044")
+        == "\u52c9\u5f37"
+    )
+    assert (
+        client._anki_marker_tags_for_selection(
+            "\u52c9\u5f37",
+            "\u52c9\u5f37",
+            "\u52c9\u5f37\u306f\u697d\u3057\u3044",
+        )
+        == []
+    )
+
+
+def test_sentence_context_marks_na_adjective_only_when_context_matches():
+    client = AnkiClient(ConfigManager("config.json"))
+
+    class Feature:
+        def __init__(self, pos1, lemma, pos3="", ctype=""):
+            self.pos1 = pos1
+            self.pos2 = ""
+            self.pos3 = pos3
+            self.lemma = lemma
+            self.orthBase = lemma
+            self.formBase = lemma
+            self.cType = ctype
+
+    class Token:
+        def __init__(self, surface, feature):
+            self.surface = surface
+            self.feature = feature
+
+    def fake_tagger(text):
+        if text == "\u7121\u7406\u306a\u8a71":
+            return [
+                Token("\u7121\u7406", Feature("\u540d\u8a5e", "\u7121\u7406", pos3="\u5f62\u72b6\u8a5e\u53ef\u80fd")),
+                Token("\u306a", Feature("\u52a9\u52d5\u8a5e", "\u3060", ctype="\u52a9\u52d5\u8a5e-\u30c0")),
+                Token("\u8a71", Feature("\u540d\u8a5e", "\u8a71")),
+            ]
+        if text == "\u7121\u7406\u3092\u3057\u305f":
+            return [
+                Token("\u7121\u7406", Feature("\u540d\u8a5e", "\u7121\u7406", pos3="\u5f62\u72b6\u8a5e\u53ef\u80fd")),
+                Token("\u3092", Feature("\u52a9\u8a5e", "\u3092")),
+                Token(
+                    "\u3057",
+                    Feature("\u52d5\u8a5e", "\u70ba\u308b", ctype="\u30b5\u884c\u5909\u683c"),
+                ),
+                Token("\u305f", Feature("\u52a9\u52d5\u8a5e", "\u305f")),
+            ]
+        if text == "\u7121\u7406":
+            return [Token("\u7121\u7406", Feature("\u540d\u8a5e", "\u7121\u7406", pos3="\u5f62\u72b6\u8a5e\u53ef\u80fd"))]
+        return []
+
+    client._tagger = fake_tagger
+
+    assert (
+        client._anki_marker_tags_for_selection(
+            "\u7121\u7406",
+            "\u7121\u7406",
+            "\u7121\u7406\u306a\u8a71",
+        )
+        == ["\u306a-Adj"]
+    )
+    assert (
+        client._anki_marker_tags_for_selection(
+            "\u7121\u7406",
+            "\u7121\u7406",
+            "\u7121\u7406\u3092\u3057\u305f",
+        )
+        == []
+    )
+
+
+def test_anki_marker_tags_for_adjectives():
+    client = AnkiClient(ConfigManager("config.json"))
+
+    class Feature:
+        def __init__(self, pos1, pos3="", ctype="", lemma=""):
+            self.pos1 = pos1
+            self.pos2 = ""
+            self.pos3 = pos3
+            self.cType = ctype
+            self.lemma = lemma
+
+    class Token:
+        def __init__(self, surface, feature):
+            self.surface = surface
+            self.feature = feature
+
+    def fake_tagger(text):
+        if text == "\u697d\u3057\u304b\u3063\u305f":
+            return [
+                Token("\u697d\u3057\u304b\u3063", Feature("\u5f62\u5bb9\u8a5e", lemma="\u697d\u3057\u3044")),
+                Token("\u305f", Feature("\u52a9\u52d5\u8a5e", lemma="\u305f")),
+            ]
+        if text == "\u9759\u304b\u306a":
+            return [
+                Token("\u9759\u304b", Feature("\u5f62\u72b6\u8a5e", lemma="\u9759\u304b")),
+                Token("\u306a", Feature("\u52a9\u52d5\u8a5e", ctype="\u52a9\u52d5\u8a5e-\u30c0", lemma="\u3060")),
+            ]
+        if text == "\u7121\u7406\u306a":
+            return [
+                Token("\u7121\u7406", Feature("\u540d\u8a5e", pos3="\u5f62\u72b6\u8a5e\u53ef\u80fd", lemma="\u7121\u7406")),
+                Token("\u306a", Feature("\u52a9\u52d5\u8a5e", ctype="\u52a9\u52d5\u8a5e-\u30c0", lemma="\u3060")),
+            ]
+        return []
+
+    client._tagger = fake_tagger
+
+    assert client._anki_marker_tags_for_selection("\u697d\u3057\u304b\u3063\u305f") == ["\u3044-Adj"]
+    assert client._anki_marker_tags_for_selection("\u9759\u304b\u306a") == ["\u306a-Adj"]
+    assert client._anki_marker_tags_for_selection("\u7121\u7406\u306a") == ["\u306a-Adj"]
 
 
 def test_copy_existing_sentence_media_fields_from_same_subtitle(monkeypatch):

@@ -43,7 +43,7 @@
     "ANKI_READING_DECK": "Japanese::Reading",
     "ANKI_REVERSE_DECK": "Japanese::DE -> JA",
     "ANKI_MODEL": "Standard (und umgekehrte Karte) Japanese",
-    "ANKI_TAGS": "subtitleplayer",
+    "ANKI_TAGS": "",
     "ANKI_WORD_TARGET_LANG": "de",
     "ANKI_SENTENCE_TARGET_LANG": "de",
     "ANKI_SPLIT_KANJI_MORAS": false,

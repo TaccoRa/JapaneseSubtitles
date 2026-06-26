@@ -118,10 +118,9 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         notebook.add(anki_tab, text="Anki")
         notebook.add(shortcuts_tab, text="Shortcuts")
         notebook.add(ocr_tab, text="OCR")
-        performance_tab = None
+        self._performance_tab = None
         if bool(self.config.get("DEBUGGING") or False):
-            performance_tab = tk.Frame(notebook)
-            notebook.add(performance_tab, text="Performance")
+            self._add_performance_tab()
         notebook.bind("<<NotebookTabChanged>>", self._on_advanced_tab_changed, add="+")
 
         self._build_advanced_tab(general_tab, self._advanced_general_columns())
@@ -131,8 +130,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
 
         self._build_general_actions(general_tab)
         self._build_ocr_actions(ocr_tab)
-        if performance_tab is not None:
-            self._build_performance_tab(performance_tab)
+        self._sync_performance_tab_visibility()
 
         self._load_advanced_values_into_vars()
 
@@ -192,6 +190,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             self._advanced_tab_sizes = {}
             self._advanced_tab_key_map = {}
             self._phone_mode_toggle_btn = None
+            self._performance_tab = None
             self._performance_text = None
             self._ocr_region_count_trace_var = None
             self._restore_main_settings_topmost_after_advanced()
@@ -605,7 +604,12 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                     {"key": "ANKI_READING_DECK", "label": "Reading deck", "type": "str", "default": "Japanese::Reading"},
                     {"key": "ANKI_REVERSE_DECK", "label": "Reverse deck", "type": "str", "default": "Japanese::DE -> JA"},
                     {"key": "ANKI_MODEL", "label": "Note type", "type": "str", "default": "Standard (und umgekehrte Karte) Japanese"},
-                    {"key": "ANKI_TAGS", "label": "Tags (comma-separated)", "type": "str", "default": "subtitleplayer", "allow_empty": True},
+                ],
+            ),
+            (
+                "Tags",
+                [
+                    {"key": "ANKI_TAGS", "label": "Custom tags (comma-separated)", "type": "str", "default": "", "allow_empty": True},
                 ],
             ),
             (
@@ -870,6 +874,70 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         self._build_ocr_screen_buttons(screen_row)
 
         self._update_ocr_screen_button_styles()
+
+    def _sync_performance_tab_visibility(self) -> None:
+        notebook = getattr(self, "_advanced_notebook", None)
+        if notebook is None:
+            return
+        try:
+            if not notebook.winfo_exists():
+                return
+        except Exception:
+            return
+
+        if bool(self.config.get("DEBUGGING") or False):
+            self._add_performance_tab()
+        else:
+            self._remove_performance_tab()
+
+        win = getattr(self, "advanced_window", None)
+        if win is not None:
+            try:
+                self._prepare_advanced_tab_sizes()
+                win.after(1, self._fit_advanced_window_to_selected_tab)
+            except Exception as e:
+                logger.debug("Failed to refit advanced window after debug tab change: %s", e, exc_info=True)
+
+    def _add_performance_tab(self) -> None:
+        notebook = getattr(self, "_advanced_notebook", None)
+        if notebook is None:
+            return
+        existing = getattr(self, "_performance_tab", None)
+        try:
+            if existing is not None and existing.winfo_exists():
+                return
+        except Exception:
+            pass
+
+        performance_tab = tk.Frame(notebook)
+        self._performance_tab = performance_tab
+        notebook.add(performance_tab, text="Performance")
+        self._build_performance_tab(performance_tab)
+
+    def _remove_performance_tab(self) -> None:
+        notebook = getattr(self, "_advanced_notebook", None)
+        performance_tab = getattr(self, "_performance_tab", None)
+        if notebook is None or performance_tab is None:
+            self._performance_text = None
+            self._performance_tab = None
+            return
+
+        tab_id = str(performance_tab)
+        try:
+            if notebook.select() == tab_id:
+                tabs = [tab for tab in notebook.tabs() if tab != tab_id]
+                if tabs:
+                    notebook.select(tabs[0])
+            notebook.forget(performance_tab)
+        except Exception as e:
+            logger.debug("Failed to remove Performance tab: %s", e, exc_info=True)
+        try:
+            performance_tab.destroy()
+        except Exception:
+            pass
+        self._advanced_tab_sizes.pop(tab_id, None)
+        self._performance_tab = None
+        self._performance_text = None
 
     def _build_performance_tab(self, performance_tab: tk.Frame) -> None:
         content = tk.Frame(performance_tab, padx=10, pady=10)

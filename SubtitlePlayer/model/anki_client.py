@@ -37,6 +37,9 @@ class AnkiClient:
     DEFAULT_DEEPL_URL = "https://api-free.deepl.com/v2/translate"
     DEFAULT_STROKE_SVG_BASE_URL = "https://raw.githubusercontent.com/KanjiVG/kanjivg/master/kanji"
     DEFAULT_STROKE_MEDIA_PREFIX = "stroke_"
+    ANKI_SURU_MARKER_TAG = "する-Verb"
+    ANKI_I_ADJECTIVE_MARKER_TAG = "い-Adj"
+    ANKI_NA_ADJECTIVE_MARKER_TAG = "な-Adj"
     TEXT_CACHE_LIMIT = 512
 
     def __init__(self, config) -> None:
@@ -138,7 +141,7 @@ class AnkiClient:
         self.enabled = True if enabled is None else bool(enabled)
         tags = self.config.get("ANKI_TAGS")
         if tags is None:
-            self.tags = ["subtitleplayer"]
+            self.tags = []
         elif isinstance(tags, list):
             self.tags = [str(t).strip() for t in tags if str(t).strip()]
         elif isinstance(tags, str):
@@ -231,7 +234,8 @@ class AnkiClient:
             raise ValueError("No selected text.")
 
         subtitle = (subtitle_text or "").strip()
-        card_word = self._card_headword_for_selection(selected)
+        card_word = self._card_headword_for_anki(selected, subtitle)
+        marker_tags = self._anki_marker_tags_for_selection(selected, card_word, subtitle)
         word_translation = self._translate_word(card_word)
         sentence_translation = self._translate_sentence(subtitle)
         full_definition = self._last_jisho_full_definition
@@ -266,7 +270,7 @@ class AnkiClient:
             "deckName": self.deck_name,
             "modelName": self.model_name,
             "fields": fields,
-            "tags": self.tags,
+            "tags": self._merge_anki_tags(self.tags, marker_tags),
             "options": {"allowDuplicate": True},
         }
         note_id = self._invoke("addNote", {"note": note})
@@ -283,6 +287,7 @@ class AnkiClient:
             "sentence_translation": sentence_translation,
             "selection_surface_text": selected,
             "selection_lookup_text": card_word,
+            "anki_marker_tags": marker_tags,
             "copied_media_fields": copied_media_fields,
             # "stroke_svg_sync": stroke_sync,
             "translation_candidates": translation_candidates,
@@ -654,6 +659,7 @@ class AnkiClient:
 
         For a selected Japanese verb inflection, use the dictionary-form lemma so
         lookups hit entries like 貫く instead of noun-biased matches for 貫い.
+        サ変 selections such as 勉強した are normalized to 勉強する.
         Non-verbs keep the original selected text.
         """
         selected = (text or "").strip()
@@ -671,16 +677,25 @@ class AnkiClient:
         if not tokens:
             return selected
 
-        for token in tokens:
+        meaningful_tokens = self._meaningful_morph_tokens(tokens)
+        suru_headword = self._suru_compound_headword(meaningful_tokens)
+        if suru_headword:
+            return suru_headword
+
+        for token in meaningful_tokens:
             surface = str(getattr(token, "surface", "") or "").strip()
             if not surface:
                 continue
 
             feature = getattr(token, "feature", None)
             pos1 = str(getattr(feature, "pos1", "") or "")
-            if pos1 in {"補助記号", "空白"}:
-                continue
             if pos1 != "動詞":
+                return selected
+
+            if self._is_suru_verb_token(token):
+                lemma = self._suru_token_base_text(token, surface)
+                if lemma and self._contains_japanese(lemma):
+                    return lemma
                 return selected
 
             lemma = self._token_lookup_text(token, surface)
@@ -689,6 +704,428 @@ class AnkiClient:
             return selected
 
         return selected
+
+    def _card_headword_for_anki(self, selected: str, subtitle: str = "") -> str:
+        selected = (selected or "").strip()
+        if not selected:
+            return ""
+
+        context_headword = self._card_headword_from_sentence_context(selected, subtitle)
+        if context_headword:
+            return context_headword
+
+        return self._card_headword_for_selection(selected)
+
+    def _card_headword_from_sentence_context(self, selected: str, subtitle: str = "") -> str:
+        for window in self._selection_context_token_windows(selected, subtitle):
+            suru_headword = self._suru_compound_headword(window)
+            if suru_headword:
+                return suru_headword
+        return ""
+
+    def _anki_marker_tags_for_selection(
+        self,
+        selected: str,
+        lookup_text: str = "",
+        subtitle: str = "",
+    ) -> List[str]:
+        markers: List[str] = []
+        selected = (selected or "").strip()
+        lookup_text = (lookup_text or "").strip()
+        if not selected:
+            return markers
+
+        context_windows = self._selection_context_token_windows(selected, subtitle)
+        if context_windows:
+            for window in context_windows:
+                has_suru = bool(
+                    (lookup_text.endswith("する") and self._selection_has_suru_verb(window))
+                    or self._suru_compound_headword(window)
+                )
+                if has_suru:
+                    markers.append(self.ANKI_SURU_MARKER_TAG)
+                if self._selection_has_i_adjective(window):
+                    markers.append(self.ANKI_I_ADJECTIVE_MARKER_TAG)
+                if not has_suru and self._selection_has_na_adjective(window):
+                    markers.append(self.ANKI_NA_ADJECTIVE_MARKER_TAG)
+            return self._merge_anki_tags(markers)
+
+        tagger = self._get_tagger()
+        if tagger is None:
+            if lookup_text.endswith("する") or selected.endswith("する"):
+                markers.append(self.ANKI_SURU_MARKER_TAG)
+            return markers
+
+        try:
+            tokens = list(tagger(selected))
+        except Exception:
+            if lookup_text.endswith("する") or selected.endswith("する"):
+                markers.append(self.ANKI_SURU_MARKER_TAG)
+            return markers
+
+        meaningful_tokens = self._meaningful_morph_tokens(tokens)
+        if not meaningful_tokens:
+            return markers
+
+        has_suru = bool(
+            (lookup_text.endswith("する") and self._selection_has_suru_verb(meaningful_tokens))
+            or self._suru_compound_headword(meaningful_tokens)
+        )
+        if has_suru:
+            markers.append(self.ANKI_SURU_MARKER_TAG)
+
+        if self._selection_has_i_adjective(meaningful_tokens):
+            markers.append(self.ANKI_I_ADJECTIVE_MARKER_TAG)
+        if not has_suru and self._selection_has_na_adjective(meaningful_tokens):
+            markers.append(self.ANKI_NA_ADJECTIVE_MARKER_TAG)
+
+        return self._merge_anki_tags(markers)
+
+    def _selection_context_token_windows(self, selected: str, subtitle: str = "") -> List[List[object]]:
+        selected = (selected or "").strip()
+        subtitle = (subtitle or "").strip()
+        if not selected or not subtitle or selected == subtitle:
+            return []
+
+        positioned = self._tokenize_with_positions(subtitle)
+        if not positioned:
+            return []
+
+        windows: List[List[object]] = []
+        for start, end in self._selected_text_occurrences(selected, subtitle):
+            match = self._matching_context_token_range(positioned, selected, start, end)
+            if match is None:
+                continue
+            token_start, token_end = match
+            window = self._context_window_after_selection(positioned, token_start, token_end)
+            if window:
+                windows.append(window)
+        return windows
+
+    def _tokenize_with_positions(self, text: str) -> List[tuple[object, int, int]]:
+        tagger = self._get_tagger()
+        if tagger is None:
+            return []
+        try:
+            tokens = list(tagger(text))
+        except Exception:
+            return []
+
+        positioned: List[tuple[object, int, int]] = []
+        cursor = 0
+        for token in tokens:
+            surface = str(getattr(token, "surface", "") or "")
+            if not surface:
+                continue
+            start = text.find(surface, cursor)
+            if start < 0:
+                start = text.find(surface)
+            if start < 0:
+                continue
+            end = start + len(surface)
+            cursor = end
+            positioned.append((token, start, end))
+        return positioned
+
+    def _selected_text_occurrences(self, selected: str, text: str) -> List[tuple[int, int]]:
+        occurrences: List[tuple[int, int]] = []
+        start = 0
+        while True:
+            idx = text.find(selected, start)
+            if idx < 0:
+                break
+            occurrences.append((idx, idx + len(selected)))
+            start = idx + max(1, len(selected))
+        return occurrences
+
+    def _matching_context_token_range(
+        self,
+        positioned: List[tuple[object, int, int]],
+        selected: str,
+        start: int,
+        end: int,
+    ) -> tuple[int, int] | None:
+        for idx, (_token, token_start, token_end) in enumerate(positioned):
+            if token_end <= start:
+                continue
+            if token_start >= end:
+                break
+            if token_start != start:
+                continue
+
+            surfaces: List[str] = []
+            j = idx
+            while j < len(positioned) and positioned[j][1] < end:
+                _next_token, next_start, next_end = positioned[j]
+                if next_start < start or next_end > end:
+                    return None
+                surfaces.append(str(getattr(_next_token, "surface", "") or ""))
+                j += 1
+
+            if "".join(surfaces) == selected and j > idx:
+                return idx, j
+
+        return None
+
+    def _context_window_after_selection(
+        self,
+        positioned: List[tuple[object, int, int]],
+        token_start: int,
+        token_end: int,
+    ) -> List[object]:
+        window = [item[0] for item in positioned[token_start:token_end]]
+        saw_suru = any(self._is_suru_verb_token(token) for token in window)
+        idx = token_end
+
+        while idx < len(positioned):
+            token = positioned[idx][0]
+            if not saw_suru:
+                if self._is_suru_verb_token(token):
+                    window.append(token)
+                    saw_suru = True
+                    idx += 1
+                    continue
+                if self._is_suru_linking_token(token, window):
+                    window.append(token)
+                    idx += 1
+                    continue
+                window.append(token)
+                break
+
+            if self._is_suru_inflection_tail_token(token):
+                window.append(token)
+                idx += 1
+                continue
+            break
+
+        return window
+
+    def _is_suru_linking_token(self, token, current_window: List[object]) -> bool:
+        if not current_window:
+            return False
+        surface = str(getattr(token, "surface", "") or "").strip()
+        feature = getattr(token, "feature", None)
+        pos1 = str(getattr(feature, "pos1", "") or "")
+        ctype = str(getattr(feature, "cType", "") or "")
+
+        previous = current_window[-1]
+        if surface == "に" and (
+            pos1 == "助動詞" or ctype == "助動詞-ダ"
+        ):
+            return self._token_has_na_adjective_potential(previous)
+        if surface == "を" and pos1 == "助詞":
+            return self._token_has_suru_potential(previous)
+        return False
+
+    def _is_suru_inflection_tail_token(self, token) -> bool:
+        surface = str(getattr(token, "surface", "") or "").strip()
+        if not surface:
+            return True
+        feature = getattr(token, "feature", None)
+        pos1 = str(getattr(feature, "pos1", "") or "")
+        pos2 = str(getattr(feature, "pos2", "") or "")
+        if pos1 in {"補助記号", "空白", "助動詞"}:
+            return True
+        if pos1 == "助詞":
+            return True
+        if pos1 == "動詞" and pos2 == "非自立可能":
+            return True
+        return False
+
+    def _merge_anki_tags(self, *tag_groups) -> List[str]:
+        merged: List[str] = []
+        seen: set[str] = set()
+        for group in tag_groups:
+            if group is None:
+                continue
+            if isinstance(group, str):
+                values = [group]
+            else:
+                try:
+                    values = list(group)
+                except TypeError:
+                    values = [group]
+            for value in values:
+                tag = str(value or "").strip()
+                if not tag or tag in seen:
+                    continue
+                seen.add(tag)
+                merged.append(tag)
+        return merged
+
+    def _meaningful_morph_tokens(self, tokens) -> List[object]:
+        meaningful: List[object] = []
+        for token in tokens or []:
+            surface = str(getattr(token, "surface", "") or "").strip()
+            if not surface:
+                continue
+            feature = getattr(token, "feature", None)
+            pos1 = str(getattr(feature, "pos1", "") or "")
+            if pos1 in {"補助記号", "空白"}:
+                continue
+            meaningful.append(token)
+        return meaningful
+
+    def _suru_compound_headword(self, tokens: List[object]) -> str:
+        for idx, token in enumerate(tokens or []):
+            if idx <= 0 or not self._is_suru_verb_token(token):
+                continue
+            if not self._tokens_after_suru_are_inflection(tokens[idx + 1:]):
+                continue
+            stem = self._suru_stem_text(tokens[:idx])
+            if stem:
+                return f"{stem}する"
+        return ""
+
+    def _suru_stem_text(self, tokens: List[object]) -> str:
+        if not tokens:
+            return ""
+
+        parts: List[str] = []
+        saw_stem = False
+        for idx, token in enumerate(tokens):
+            surface = str(getattr(token, "surface", "") or "").strip()
+            if not surface:
+                continue
+            feature = getattr(token, "feature", None)
+            pos1 = str(getattr(feature, "pos1", "") or "")
+            pos3 = str(getattr(feature, "pos3", "") or "")
+
+            if pos1 in {"名詞", "形状詞", "接頭辞", "接尾辞"}:
+                parts.append(surface)
+                saw_stem = True
+                continue
+
+            if (
+                surface == "に"
+                and pos1 == "助動詞"
+                and saw_stem
+                and idx == len(tokens) - 1
+                and self._token_has_na_adjective_potential(tokens[idx - 1])
+            ):
+                parts.append(surface)
+                continue
+
+            if (
+                surface == "を"
+                and pos1 == "助詞"
+                and saw_stem
+                and idx == len(tokens) - 1
+                and self._token_has_suru_potential(tokens[idx - 1])
+            ):
+                continue
+
+            if "サ変" in pos3 or "形状詞" in pos3:
+                parts.append(surface)
+                saw_stem = True
+                continue
+
+            return ""
+
+        stem = "".join(parts).strip()
+        if not stem or not self._contains_japanese(stem):
+            return ""
+        return stem
+
+    def _tokens_after_suru_are_inflection(self, tokens: List[object]) -> bool:
+        for token in tokens or []:
+            surface = str(getattr(token, "surface", "") or "").strip()
+            if not surface:
+                continue
+            feature = getattr(token, "feature", None)
+            pos1 = str(getattr(feature, "pos1", "") or "")
+            pos2 = str(getattr(feature, "pos2", "") or "")
+            if pos1 in {"補助記号", "空白", "助動詞"}:
+                continue
+            if pos1 == "助詞":
+                continue
+            if pos1 == "動詞" and pos2 == "非自立可能":
+                continue
+            return False
+        return True
+
+    def _selection_has_suru_verb(self, tokens: List[object]) -> bool:
+        return any(self._is_suru_verb_token(token) for token in tokens or [])
+
+    def _is_suru_verb_token(self, token) -> bool:
+        feature = getattr(token, "feature", None)
+        pos1 = str(getattr(feature, "pos1", "") or "")
+        if pos1 != "動詞":
+            return False
+
+        ctype = str(getattr(feature, "cType", "") or "")
+        values = [
+            str(getattr(token, "surface", "") or ""),
+            str(getattr(feature, "lemma", "") or ""),
+            str(getattr(feature, "orthBase", "") or ""),
+            str(getattr(feature, "formBase", "") or ""),
+            str(getattr(feature, "kanaBase", "") or ""),
+        ]
+        if "サ行変格" in ctype and any(value in {"する", "為る", "スル"} for value in values):
+            return True
+        return any(value.endswith("する") or value.endswith("スル") for value in values)
+
+    def _suru_token_base_text(self, token, surface: str) -> str:
+        feature = getattr(token, "feature", None)
+        if feature is not None:
+            for attr in ("lemma", "orthBase", "formBase"):
+                value = getattr(feature, attr, None)
+                if value and value != "*":
+                    text = str(value).strip()
+                    if text.endswith("する"):
+                        return text
+            for attr in ("orthBase", "formBase"):
+                value = getattr(feature, attr, None)
+                if value and value != "*":
+                    text = str(value).strip()
+                    if text == "する":
+                        return "する"
+            lemma = str(getattr(feature, "lemma", "") or "").strip()
+            if lemma == "為る":
+                return "する"
+        if surface in {"し", "する", "すれ", "せ", "さ"}:
+            return "する"
+        return self._token_lookup_text(token, surface)
+
+    def _selection_has_i_adjective(self, tokens: List[object]) -> bool:
+        for token in tokens or []:
+            feature = getattr(token, "feature", None)
+            if str(getattr(feature, "pos1", "") or "") == "形容詞":
+                return True
+        return False
+
+    def _selection_has_na_adjective(self, tokens: List[object]) -> bool:
+        for idx, token in enumerate(tokens or []):
+            feature = getattr(token, "feature", None)
+            pos1 = str(getattr(feature, "pos1", "") or "")
+            if pos1 == "形状詞":
+                return True
+            if not self._token_has_na_adjective_potential(token):
+                continue
+            if idx + 1 >= len(tokens):
+                return True
+            next_token = tokens[idx + 1]
+            next_surface = str(getattr(next_token, "surface", "") or "").strip()
+            next_feature = getattr(next_token, "feature", None)
+            next_pos1 = str(getattr(next_feature, "pos1", "") or "")
+            next_ctype = str(getattr(next_feature, "cType", "") or "")
+            if next_surface in {"な", "だ", "に"} and (
+                next_pos1 == "助動詞" or next_ctype == "助動詞-ダ"
+            ):
+                return True
+        return False
+
+    def _token_has_na_adjective_potential(self, token) -> bool:
+        feature = getattr(token, "feature", None)
+        pos1 = str(getattr(feature, "pos1", "") or "")
+        pos3 = str(getattr(feature, "pos3", "") or "")
+        return pos1 == "形状詞" or "形状詞" in pos3
+
+    def _token_has_suru_potential(self, token) -> bool:
+        feature = getattr(token, "feature", None)
+        pos1 = str(getattr(feature, "pos1", "") or "")
+        pos3 = str(getattr(feature, "pos3", "") or "")
+        return pos1 in {"名詞", "形状詞"} and "サ変" in pos3
 
     def _split_kanji_moras_enabled(self) -> bool:
         try:

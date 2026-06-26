@@ -34,6 +34,7 @@ from controller.overlay_controller import OverlayController
 from controller.playback_controller import PlaybackController
 from controller.subtitle_navigation import SubtitleNavigationController
 from logging_setup import set_debug_logging
+from utils import get_window_screen_rect
 
 logger = logging.getLogger(__name__)
 
@@ -162,6 +163,8 @@ class SubtitleController:
         self._update_loop_job = None
         self._input_pump_job = None
         self._repeat_job = None
+        self._settings_pointer_job = None
+        self._settings_pointer_inside = False
         self._repeat_lock = threading.Lock()
         self._held_repeat_next_fire: dict[str, float] = {}
         self._held_repeat_fired: set[str] = set()
@@ -252,6 +255,7 @@ class SubtitleController:
         self.overlay.bind_sub_handle_enter          (self.sub_handle_enter)   
         self.settings.root.bind                     ("<Enter>", lambda _e: self._hide_subtitle_handle_for_settings(), add="+")
         self.settings.root.bind                     ("<Leave>", lambda _e: self._restore_subtitle_handle_after_settings(), add="+")
+        self._settings_pointer_job = self.settings.root.after(150, self._poll_settings_pointer_for_handle)
 
     def _start_input_listeners(self) -> None:
         self._mouse_listener = MouseListener(on_click=self.hotkey_controller._on_global_click)
@@ -415,13 +419,19 @@ class SubtitleController:
             logger.debug("Failed to persist DEBUGGING=%s", enabled, exc_info=True)
         set_debug_logging(enabled)
         logger.info("Debug logging %s", "enabled" if enabled else "disabled")
+        refresh_debugging_visibility = getattr(self.settings, "refresh_debugging_visibility", None)
+        if callable(refresh_debugging_visibility):
+            try:
+                refresh_debugging_visibility()
+            except Exception:
+                logger.debug("Failed to refresh debug UI visibility", exc_info=True)
         status_var = getattr(self.settings, "_advanced_status_var", None)
         if status_var is not None:
             try:
                 status_var.set(
-                    "Debugging enabled. Reopen Advanced Settings to show Performance tab."
+                    "Debugging enabled. Performance tab is visible."
                     if enabled else
-                    "Debugging disabled."
+                    "Debugging disabled. Performance tab is hidden."
                 )
             except Exception:
                 pass
@@ -674,6 +684,51 @@ class SubtitleController:
     def _restore_subtitle_handle_after_settings(self):
         return self.overlay_controller._restore_subtitle_handle_after_settings()
 
+    def _poll_settings_pointer_for_handle(self) -> None:
+        if self._shutting_down:
+            return
+
+        inside = False
+        try:
+            inside = self._pointer_inside_settings_windows()
+            if inside != bool(getattr(self, "_settings_pointer_inside", False)):
+                self._settings_pointer_inside = inside
+                if inside:
+                    self._hide_subtitle_handle_for_settings()
+                else:
+                    self._restore_subtitle_handle_after_settings()
+        except Exception:
+            logger.debug("Failed to poll settings pointer for subtitle handle", exc_info=True)
+
+        try:
+            self._settings_pointer_job = self.settings.root.after(150, self._poll_settings_pointer_for_handle)
+        except Exception:
+            self._settings_pointer_job = None
+
+    def _pointer_inside_settings_windows(self) -> bool:
+        root = getattr(self.settings, "root", None)
+        if root is None:
+            return False
+        px = int(root.winfo_pointerx())
+        py = int(root.winfo_pointery())
+        for win in (root, getattr(self.settings, "advanced_window", None)):
+            if win is None:
+                continue
+            try:
+                if not win.winfo_exists():
+                    continue
+                if str(win.state()) == "withdrawn":
+                    continue
+            except Exception:
+                continue
+            rect = get_window_screen_rect(win)
+            if not rect:
+                continue
+            left, top, right, bottom = rect
+            if left <= px <= right and top <= py <= bottom:
+                return True
+        return False
+
     # ---------------------------------------------------------------------
     # OCR / Anki public routing
     # ---------------------------------------------------------------------
@@ -778,7 +833,8 @@ class SubtitleController:
         root = getattr(self.settings, "root", None)
         for job in ("subtitle_timeout_job", "_con_hide_job", "_input_pump_job",
                     "_repeat_job", "_ocr_job", "_update_loop_job", "_slider_render_job",
-                    "_anki_success_popup_job", "_ocr_box_preview_job"):
+                    "_anki_success_popup_job", "_ocr_box_preview_job",
+                    "_settings_pointer_job"):
             handle = getattr(self, job, None)
             if handle is not None:
                 try:

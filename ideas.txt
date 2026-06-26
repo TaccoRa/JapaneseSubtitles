@@ -3,7 +3,6 @@ AI Ideas:
 - Add a small logging setup with log levels and a rotating file instead of scattered `print(...)` debug output. Keep user-facing messages in the UI and keep diagnostics in logs.
 - Move runtime-only values such as last window position, last subtitle file, and last playback time out of the tracked `config.json` into a local user config file. Keep a clean default config in the repo.
 - Add cancellation tokens/generation checks to every background worker path: auto ruby, remote downloads, episode preparation, OCR, and Anki stroke sync. Some already have generation checks; make it consistent.
-- Add a small performance panel or debug command that reports slider render time, auto-ruby cache hits, episode switch time, remote download queue length, and OCR duration.
 - Split `requirements.txt` into runtime and dev requirements later. The current file mixes app dependencies, benchmarks, Selenium experiments, and pytest.
 - Add controller tests with fake Tk objects for episode switching, slider scrubbing, popup selection, and shutdown. The model tests are useful, but controller/view logic still depends heavily on manual testing.
 - Store source episode metadata on Anki notes so media reuse can match the same subtitle/episode more safely than text matching alone.
@@ -11,9 +10,7 @@ AI Ideas:
 - Consider a lightweight task queue abstraction for background work so throttling and shutdown behavior are handled in one place.
 
 To Do:
-Add suru marker in anki or if the word is used as a verb and has suru then the base form should be suru also add i/na adj marker in anki
 when selecting the beginning of the sentence the whole line to the right is selected
-hovering over the X of the settigns window the handle does not disappear (maybe hard to implement)
 remove remaining non speaker modes is not correcting for deleting the line it is in (maybe implemented)
 Also make rubies copyable in popup (dont know how because i also want dictionary and rubies and not rubies to copy so maybe hotkeys to show this or that)
 automatically find timebox (machinelearning)
@@ -33,6 +30,9 @@ Change subtitle width to fit current subtitle (maybe flashes --> YES)
 
 
 Added:
+Advanced Settings Performance tab is available only while DEBUGGING is enabled with Ctrl+Shift+D; pressing it again hides the tab.
+Anki custom tags can be set in Advanced Settings > Anki > Tags; no default subtitleplayer tag is added.
+Anki now adds grammar marker tags from sentence context: する-Verb, い-Adj, and な-Adj.
 stra+a to select all in popup
 hovering over kanji --> in line glossary or/and translation
 x1button text dissapears if pressed again reappears (same for button in control window)
@@ -78,6 +78,8 @@ add config for phone mode default true/false
 
 
 Fixed:
+selecting only a suru-capable stem now checks the subtitle sentence, e.g. selected 勉強 in 私は勉強した becomes 勉強する with する-Verb.
+hovering over the titlebar/X area of the settings or advanced settings window now hides the phone-mode subtitle handle.
 when moving the subtitle window in phone mode the little white handle on the left is not moved simoultaniously
 I think there is an extra window open which is unused.
 when any number on the numpad is pressed it weirdly jumps around or even tough it is mode1 when 4 or 6 is pressed it jumps around almost like it want to write 4 or 6 insinde the time entry. Also when inside any entry the numpad should be usable without hotkeys
