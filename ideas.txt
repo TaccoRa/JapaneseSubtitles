@@ -11,6 +11,7 @@ AI Ideas:
 - Consider a lightweight task queue abstraction for background work so throttling and shutdown behavior are handled in one place.
 
 To Do:
+Add suru marker in anki or if the word is used as a verb and has suru then the base form should be suru also add i/na adj marker in anki
 when selecting the beginning of the sentence the whole line to the right is selected
 hovering over the X of the settigns window the handle does not disappear (maybe hard to implement)
 remove remaining non speaker modes is not correcting for deleting the line it is in (maybe implemented)
