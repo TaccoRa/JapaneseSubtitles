@@ -206,5 +206,11 @@
     "S01E22": 22,
     "S01E23": 23,
     "S01E24": 24
-  }
+  },
+  "schema_version": 2,
+  "display_name": "Parasyte",
+  "aliases": [
+    "Kiseijuu. Sei no Kakuritsu",
+    "Kiseijuu._Sei_no_Kakuritsu"
+  ]
 }

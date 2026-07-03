@@ -30,6 +30,29 @@ def _get_windows_hwnd(win: tk.Misc):
         return None
 
 
+def get_window_root_hwnd(win: tk.Misc):
+    return _get_windows_hwnd(win)
+
+
+def get_foreground_root_hwnd() -> int | None:
+    try:
+        import ctypes
+        import sys
+
+        if not sys.platform.startswith("win"):
+            return None
+        user32 = ctypes.windll.user32
+        foreground = int(user32.GetForegroundWindow())
+        if not foreground:
+            return 0
+        try:
+            return int(user32.GetAncestor(foreground, 2)) or foreground  # GA_ROOT
+        except Exception:
+            return foreground
+    except Exception:
+        return None
+
+
 def get_window_screen_rect(win: tk.Misc):
     """
     Return full outer window bounds as (left, top, right, bottom).
@@ -174,6 +197,160 @@ def make_nonactivating_window(win: tk.Toplevel, topmost: bool = True) -> bool:
     except Exception as e:
         logger.debug("make_nonactivating_window failed: %s", e, exc_info=True)
         return False
+
+
+def make_interactive_tool_window(win: tk.Toplevel, topmost: bool = False) -> bool:
+    """Keep a normal owned window interactive, with standard titlebar buttons."""
+    try:
+        import ctypes
+        import sys
+
+        if not sys.platform.startswith("win"):
+            return False
+        try:
+            win.update_idletasks()
+        except Exception:
+            pass
+        hwnd = _get_windows_hwnd(win)
+        if not hwnd:
+            return False
+
+        user32 = ctypes.windll.user32
+        gwl_style = -16
+        gwl_exstyle = -20
+        ws_ex_toolwindow = 0x00000080
+        ws_ex_appwindow = 0x00040000
+        ws_caption = 0x00C00000
+        ws_sysmenu = 0x00080000
+        ws_thickframe = 0x00040000
+        ws_minimizebox = 0x00020000
+        ws_maximizebox = 0x00010000
+        hwnd_topmost = -1
+        hwnd_notopmost = -2
+        swp_nosize = 0x0001
+        swp_nomove = 0x0002
+        swp_noactivate = 0x0010
+        swp_framechanged = 0x0020
+
+        get_style = getattr(user32, "GetWindowLongPtrW", user32.GetWindowLongW)
+        set_style = getattr(user32, "SetWindowLongPtrW", user32.SetWindowLongW)
+        style = int(get_style(hwnd, gwl_style))
+        style |= ws_caption | ws_sysmenu | ws_thickframe | ws_minimizebox | ws_maximizebox
+        set_style(hwnd, gwl_style, style)
+        exstyle = int(get_style(hwnd, gwl_exstyle))
+        exstyle &= ~ws_ex_toolwindow
+        exstyle &= ~ws_ex_appwindow
+        set_style(hwnd, gwl_exstyle, exstyle)
+        user32.SetWindowPos(
+            hwnd,
+            hwnd_topmost if topmost else hwnd_notopmost,
+            0,
+            0,
+            0,
+            0,
+            swp_nomove | swp_nosize | swp_noactivate | swp_framechanged,
+        )
+        return True
+    except Exception as e:
+        logger.debug("make_interactive_tool_window failed: %s", e, exc_info=True)
+        return False
+
+
+def is_any_window_foreground(windows) -> bool | None:
+    foreground = get_foreground_root_hwnd()
+    if foreground is None:
+        return None
+    if not foreground:
+        return False
+    for win in windows or []:
+        if win is None:
+            continue
+        if isinstance(win, int):
+            hwnd = win
+        else:
+            hwnd = _get_windows_hwnd(win)
+        if hwnd and int(hwnd) == int(foreground):
+            return True
+    return False
+
+
+def set_window_topmost_no_activate(win: tk.Toplevel, topmost: bool) -> bool:
+    """Change topmost state without asking Windows to activate the window."""
+    try:
+        import ctypes
+        import sys
+
+        if not sys.platform.startswith("win"):
+            return False
+        try:
+            win.update_idletasks()
+        except Exception:
+            pass
+        hwnd = _get_windows_hwnd(win)
+        if not hwnd:
+            return False
+        user32 = ctypes.windll.user32
+        hwnd_topmost = -1
+        hwnd_notopmost = -2
+        swp_nosize = 0x0001
+        swp_nomove = 0x0002
+        swp_noactivate = 0x0010
+        user32.SetWindowPos(
+            hwnd,
+            hwnd_topmost if topmost else hwnd_notopmost,
+            0,
+            0,
+            0,
+            0,
+            swp_nomove | swp_nosize | swp_noactivate,
+        )
+        return True
+    except Exception as e:
+        logger.debug("set_window_topmost_no_activate failed: %s", e, exc_info=True)
+        return False
+
+
+def show_normal_window_no_activate(win: tk.Toplevel, topmost: bool = False) -> bool:
+    """Show a normal interactive window without foreground activation on Windows."""
+    try:
+        import ctypes
+        import sys
+
+        if not sys.platform.startswith("win"):
+            return False
+        try:
+            win.update_idletasks()
+        except Exception:
+            pass
+        hwnd = _get_windows_hwnd(win)
+        if not hwnd:
+            return False
+
+        user32 = ctypes.windll.user32
+        sw_shownoactivate = 4
+        hwnd_topmost = -1
+        hwnd_top = 0
+        swp_nosize = 0x0001
+        swp_nomove = 0x0002
+        swp_noactivate = 0x0010
+        swp_showwindow = 0x0040
+
+        make_interactive_tool_window(win, topmost=topmost)
+        user32.ShowWindow(hwnd, sw_shownoactivate)
+        user32.SetWindowPos(
+            hwnd,
+            hwnd_topmost if topmost else hwnd_top,
+            0,
+            0,
+            0,
+            0,
+            swp_nomove | swp_nosize | swp_noactivate | swp_showwindow,
+        )
+        return True
+    except Exception as e:
+        logger.debug("show_normal_window_no_activate failed: %s", e, exc_info=True)
+        return False
+
 
 def show_window_no_activate_minimizable(win: tk.Toplevel, topmost: bool = True) -> None:
     """Show a normal minimizable window without asking Windows to foreground this process."""

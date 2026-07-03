@@ -1,6 +1,8 @@
 from SubtitlePlayer.model.config_manager import ConfigManager
 from SubtitlePlayer.model.subtitle_manager import SubtitleManager
 from SubtitlePlayer.utils import parse_time_value
+import datetime
+import srt
 
 
 class _DictConfig:
@@ -117,7 +119,7 @@ def test_strip_parenthetical_notes_preserves_source_ruby_after_kanji():
     assert manager._clean_text("\u6f22\u5b57\uff08\u304b\u3093\u3058\uff09") == "\u6f22\u5b57\uff08\u304b\u3093\u3058\uff09"
 
 
-def test_strip_parenthetical_notes_removes_source_ruby_when_auto_ruby_enabled():
+def test_strip_parenthetical_notes_preserves_source_ruby_when_auto_ruby_enabled():
     manager = _cleaner(
         {
             "SUBTITLE_AUTO_RUBY": True,
@@ -125,7 +127,7 @@ def test_strip_parenthetical_notes_removes_source_ruby_when_auto_ruby_enabled():
             "SUBTITLE_STRIP_PAREN_NOTES": True,
         }
     )
-    assert manager._clean_text("\u6f22\u5b57\uff08\u304b\u3093\u3058\uff09") == "\u6f22\u5b57"
+    assert manager._clean_text("\u6f22\u5b57\uff08\u304b\u3093\u3058\uff09") == "\u6f22\u5b57\uff08\u304b\u3093\u3058\uff09"
 
 
 def test_parenthetical_note_only_line_respects_setting():
@@ -137,6 +139,115 @@ def test_parenthetical_note_only_line_respects_setting():
         }
     )
     assert manager._clean_text("\uff08\u6b53\u58f0\uff09") == "\uff08\u6b53\u58f0\uff09"
+
+
+def test_clean_text_preserves_source_ruby_when_auto_ruby_enabled():
+    manager = _cleaner(
+        {
+            "SUBTITLE_AUTO_RUBY": True,
+            "SUBTITLE_SPEAKER_MODE": "hide",
+            "SUBTITLE_STRIP_PAREN_NOTES": True,
+        }
+    )
+    assert manager._clean_text("\u5927\u6728(\u304a\u304a\u304d)\u304c\u6765\u305f\uff08\u8db3\u97f3\uff09") == "\u5927\u6728(\u304a\u304a\u304d)\u304c\u6765\u305f"
+
+
+def test_clean_text_strips_speaker_with_inner_source_ruby_parentheses():
+    manager = _cleaner(
+        {
+            "SUBTITLE_AUTO_RUBY": True,
+            "SUBTITLE_SPEAKER_MODE": "hide",
+            "SUBTITLE_STRIP_PAREN_NOTES": True,
+        }
+    )
+
+    assert manager._clean_text("\uff08\u771f\u6a39\u5b50(\u307e\u304d\u3053)\uff09\u3044\u306a\u3044\u306a\u3042") == "\u3044\u306a\u3044\u306a\u3042"
+
+
+def test_parse_ruby_segments_mixes_source_and_auto_ruby():
+    manager = _cleaner({"SUBTITLE_AUTO_RUBY": True})
+    manager._auto_ruby_segments = lambda text: [("\u79d1", "\u304b"), ("\u5b66", "\u304c\u304f"), (" ", None)] if text == "\u79d1\u5b66 " else None
+    manager._get_ruby_generator = lambda: None
+
+    assert manager._parse_ruby_segments("\u79d1\u5b66 \u5927\u6728(\u304a\u304a\u304d)", allow_auto=True) == [
+        ("\u79d1", "\u304b"),
+        ("\u5b66", "\u304c\u304f"),
+        (" ", None),
+        ("\u5927\u6728", "\u304a\u304a\u304d"),
+    ]
+
+
+def test_parse_ruby_segments_default_keeps_source_compound_whole():
+    manager = _cleaner({"SUBTITLE_AUTO_RUBY": True, "ANKI_SPLIT_KANJI_MORAS": False})
+    manager._auto_ruby_segments = lambda _text: None
+    manager._get_ruby_generator = lambda: None
+
+    assert manager._parse_ruby_segments("\u4eba\u9593(\u306b\u3093\u3052\u3093)", allow_auto=True) == [
+        ("\u4eba\u9593", "\u306b\u3093\u3052\u3093"),
+    ]
+
+
+def test_build_display_payload_skips_empty_cleaned_duplicate_timestamp():
+    manager = _cleaner(
+        {
+            "SUBTITLE_AUTO_RUBY": False,
+            "SUBTITLE_SPEAKER_MODE": "hide",
+            "SUBTITLE_STRIP_PAREN_NOTES": True,
+            "DEFAULT_START_TIME": 0.0,
+            "AUTO_RUBY_EAGER_WINDOW_SEC": 0.0,
+        }
+    )
+    manager._ruby_stats = {"episode_load_times": []}
+    manager.load_subtitles = lambda _path: [
+        srt.Subtitle(
+            index=98,
+            start=datetime.timedelta(seconds=410.993),
+            end=datetime.timedelta(seconds=414.080),
+            content="\uff08\u65b0\u4e00\uff09\u30db\u30f3\u30c8\u306b \u3088\u304f\u6ce3\u304f\u4eba\u3060\u306a",
+        ),
+        srt.Subtitle(
+            index=99,
+            start=datetime.timedelta(seconds=410.993),
+            end=datetime.timedelta(seconds=414.080),
+            content="{\\an8}\uff08\u5b87\u7530\u306e\u6ce3\u304d\u58f0\uff09",
+        ),
+    ]
+
+    payload = manager._build_subtitle_display_payload("dummy.srt", allow_eager_auto=False)
+
+    assert payload["display_start_times"] == [410.993]
+    assert payload["display_end_times"] == [414.080]
+    assert payload["display_data"][0][0] == "\u30db\u30f3\u30c8\u306b \u3088\u304f\u6ce3\u304f\u4eba\u3060\u306a"
+
+
+def test_candidate_geometry_lines_keep_source_subtitle_lines_separate():
+    manager = _cleaner({"SUBTITLE_GEOMETRY_CANDIDATE_LINES": 32})
+    top = [("\u305d\u308c\u306f", None)]
+    bottom = [
+        ("\u5e38", "\u3064\u306d"),
+        ("\u306b\u65b0\u3057\u3044\u8840\u6db2\u304c\u6d41\u308c\u3066\u304f\u308b\u5834\u6240", None),
+    ]
+    manager.display_data = [("dummy", 1.0, top, bottom)]
+
+    candidates = list(manager._candidate_geometry_lines())
+
+    assert top in candidates
+    assert bottom in candidates
+    assert top + [(" ", None)] + bottom not in candidates
+
+
+def test_ensure_auto_ruby_invalidates_geometry_cache():
+    manager = _cleaner({"SUBTITLE_AUTO_RUBY": True})
+    manager.display_data = [("\u6f22\u5b57", 1.0, [], [("\u6f22\u5b57", None)])]
+    manager._auto_ruby_ready_indices = set()
+    manager._geometry_cache = {"old": (100, 80)}
+    manager._parse_ruby_segments = lambda _line, allow_auto=True: [("\u6f22\u5b57", "\u304b\u3093\u3058")]
+
+    manager.ensure_auto_ruby_for_index(0)
+
+    assert manager._geometry_cache == {}
+    assert manager.display_data[0][3] == [("\u6f22\u5b57", "\u304b\u3093\u3058")]
+
 
 def test_print_first_subtitles():
     config = ConfigManager("config.json")

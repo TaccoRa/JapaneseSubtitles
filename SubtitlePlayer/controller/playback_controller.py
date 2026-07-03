@@ -33,6 +33,11 @@ class PlaybackController:
         delta = now - last_update
         self.controller.last_update = now
         if abs(delta) > 0.0:
+            if bool(getattr(self.controller, "fast_forward_active", False)):
+                try:
+                    delta *= float(getattr(self.controller, "fast_forward_speed", 1.0) or 1.0)
+                except Exception:
+                    pass
             self.set_current_time(
                 float(self.controller.current_time or 0.0) + delta,
                 allow_end_toggle=allow_end_toggle,
@@ -153,11 +158,9 @@ class PlaybackController:
         self.controller.playing = not was_playing
 
         if self.controller.playing:
-            self.controller.settings.play_pause_btn.config(text="Stop", bg="red", activebackground="red")
             self.controller.last_update = now
             self.schedule_update()
         else:
-            self.controller.settings.play_pause_btn.config(text="Play", bg="green", activebackground="green")
             if self.controller._update_loop_job:
                 try:
                     self.controller.overlay.root.after_cancel(self.controller._update_loop_job)
@@ -170,6 +173,40 @@ class PlaybackController:
             if self.controller.subtitle_deleted and self.controller.last_subtitle_text:
                 self.controller.subtitle_deleted = False
 
+        self._set_play_button_state()
+        self.controller.update_time_and_subtitle_displays()
+        self.controller._schedule_hide_controls()
+
+    def _set_play_button_state(self) -> None:
+        if self.controller.playing:
+            if bool(getattr(self.controller, "fast_forward_active", False)):
+                speed = float(getattr(self.controller, "fast_forward_speed", 1.0) or 1.0)
+                self.controller.settings.play_pause_btn.config(
+                    text=f"Fast {speed:.1f}x",
+                    bg="#d9822b",
+                    activebackground="#d9822b",
+                )
+            else:
+                self.controller.settings.play_pause_btn.config(text="Stop", bg="red", activebackground="red")
+        else:
+            self.controller.settings.play_pause_btn.config(text="Play", bg="green", activebackground="green")
+
+    def toggle_fast_forward(self, event_time: float | None = None) -> None:
+        if self.controller._shutting_down:
+            return
+        now = self._now() if event_time is None else float(event_time)
+        if self.controller.playing:
+            self._advance_playing_time_to_now(
+                now=now,
+                allow_end_toggle=False,
+                update_display=False,
+            )
+            self.controller.last_update = now
+        self.controller.fast_forward_speed = self.controller._coerce_fast_forward_speed(
+            getattr(self.controller, "fast_forward_speed", 1.5)
+        )
+        self.controller.fast_forward_active = not bool(getattr(self.controller, "fast_forward_active", False))
+        self._set_play_button_state()
         self.controller.update_time_and_subtitle_displays()
         self.controller._schedule_hide_controls()
 
@@ -253,15 +290,35 @@ class PlaybackController:
         offset = self.controller.get_offset_value()
         sub_t = max(0.0, float(self.controller.current_time) - offset)
         epsilon = 0.05
+        padding_sec = float(self.controller.audio_padding)*0.001
 
         idx = bisect.bisect_right(start_times, sub_t + epsilon) - 1
-        if idx < 0 or idx >= len(self.controller.sub_manager.subtitles):
+        try:
+            end_times = self.controller._get_display_end_times()
+        except Exception:
+            end_times = getattr(self.controller.sub_manager, "display_end_times", [])
+        if idx < 0 or idx >= len(start_times) or idx >= len(end_times):
             if synced:
                 self._publish_current_time()
             return
 
-        sub = self.controller.sub_manager.subtitles[idx]
-        target_time = sub.end.total_seconds() + float(self.controller.audio_padding)*0.001 + offset
+        end_time = float(end_times[idx])
+        if sub_t > end_time + epsilon:
+            next_idx = bisect.bisect_right(start_times, sub_t + epsilon)
+            if next_idx < len(start_times) and next_idx < len(end_times):
+                target_time = float(end_times[next_idx]) + padding_sec + offset
+                self.set_current_time(target_time)
+                self.controller._schedule_hide_controls()
+                return
+            if synced:
+                self._publish_current_time()
+            return
+
+        target_time = end_time + padding_sec + offset
+        if target_time < float(self.controller.current_time or 0.0) - epsilon:
+            if synced:
+                self._publish_current_time()
+            return
 
         self.set_current_time(target_time)
         self.controller._schedule_hide_controls()

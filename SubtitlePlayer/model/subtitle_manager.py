@@ -29,6 +29,10 @@ from tkinter import font as tkFont
 from tkinter import filedialog, messagebox, simpledialog
 
 from model.anki_ruby import AddonRubyGenerator
+try:
+    from SubtitlePlayer.furigana_splitter import split_furigana
+except ImportError:
+    from furigana_splitter import split_furigana
 
 from model.config_manager import ConfigManager
 from model.remote_search_cache import (
@@ -58,6 +62,11 @@ class SubtitleManager:
     SPEAKER_PATTERN = re.compile(
         r'^\s*(?P<dash>[-\u2010-\u2015\u2212\uff0d]\s*)?'
         r'[\uFF08(]\s*(?P<name>[^)\uFF09]{1,60})\s*[\uFF09)]\s*'
+        r'[:\uFF1A]?\s*(?P<rest>.*)$'
+    )
+    FULLWIDTH_SPEAKER_PATTERN = re.compile(
+        r'^\s*(?P<dash>[-\u2010-\u2015\u2212\uff0d]\s*)?'
+        r'\uFF08\s*(?P<name>(?:[^\uFF08\uFF09]|\([^)]*\)){1,80})\s*\uFF09\s*'
         r'[:\uFF1A]?\s*(?P<rest>.*)$'
     )
     NON_SPEAKER_HINTS = (
@@ -361,6 +370,7 @@ class SubtitleManager:
             str(self.config.get("SUBTITLE_SPEAKER_MODE") or ""),
             str(self.config.get("SUBTITLE_SPEAKER_TEMPLATE") or ""),
             self._config_bool("SUBTITLE_STRIP_PAREN_NOTES", True),
+            self._config_bool("ANKI_SPLIT_KANJI_MORAS", False),
             self._config_float("DEFAULT_START_TIME", 0.0, minimum=0.0),
             self._config_float("AUTO_RUBY_EAGER_WINDOW_SEC", 180.0, minimum=0.0),
         )
@@ -415,6 +425,7 @@ class SubtitleManager:
 
         display_data = []
         display_start_times = []
+        display_end_times = []
         auto_ruby_ready_indices = set()
         
         # Use start time as a warm area for eager auto-ruby, lazy-load everything else on demand.
@@ -433,9 +444,12 @@ class SubtitleManager:
 
         for idx, sub in enumerate(subtitles):
             clean = self._clean_text(sub.content)
+            if not clean.strip():
+                continue
             start_times = sub.start.total_seconds()
             lines = [l for l in clean.splitlines() if l.strip()]
             display_start_times.append(start_times)
+            display_end_times.append(sub.end.total_seconds())
             allow_auto_for_idx = (not auto_ruby_enabled) or (
                 bool(allow_eager_auto) and eager_start <= start_times <= eager_end
             )
@@ -446,15 +460,17 @@ class SubtitleManager:
             else:
                 top = _segments_for_line(lines[0], allow_auto=allow_auto_for_idx)
                 bottom = _segments_for_line(lines[1], allow_auto=allow_auto_for_idx)
+            display_idx = len(display_data)
             display_data.append((clean, start_times, top, bottom))
             if allow_auto_for_idx:
-                auto_ruby_ready_indices.add(int(idx))
+                auto_ruby_ready_indices.add(int(display_idx))
         
         episode_time = time.time() - episode_start
         return {
             "subtitles": subtitles,
             "display_data": display_data,
             "display_start_times": display_start_times,
+            "display_end_times": display_end_times,
             "auto_ruby_ready_indices": auto_ruby_ready_indices,
             "episode_time": episode_time,
         }
@@ -463,6 +479,7 @@ class SubtitleManager:
         self.subtitles = payload["subtitles"]
         self.display_data = payload["display_data"]
         self.display_start_times = payload["display_start_times"]
+        self.display_end_times = payload.get("display_end_times") or self._display_end_times_from_subtitles()
         self._auto_ruby_ready_indices = payload["auto_ruby_ready_indices"]
         episode_time = float(payload.get("episode_time", 0.0))
         if hasattr(self, '_ruby_stats'):
@@ -472,6 +489,24 @@ class SubtitleManager:
             self._ruby_stats["cache_misses"] = 0
             self._ruby_stats["generator_calls"] = 0
             self._ruby_stats["generator_time"] = 0.0
+
+    def _display_end_times_from_subtitles(self) -> List[float]:
+        ends_by_start: Dict[float, List[float]] = defaultdict(list)
+        for sub in getattr(self, "subtitles", []) or []:
+            try:
+                ends_by_start[sub.start.total_seconds()].append(sub.end.total_seconds())
+            except Exception:
+                continue
+        end_times: List[float] = []
+        for item in getattr(self, "display_data", []) or []:
+            try:
+                start_time = float(item[1])
+            except Exception:
+                continue
+            values = ends_by_start.get(start_time)
+            if values:
+                end_times.append(values.pop(0))
+        return end_times
 
     def set_subtitle_display_data(self, local_path):
         payload = self._take_prepared_episode_payload(local_path)
@@ -485,9 +520,6 @@ class SubtitleManager:
     def _clean_text(self, text: str) -> str:
         cleaned = self.CLEAN_PATTERN.sub('', text)
         cleaned = self._clean_html_tags(cleaned)
-        use_source_ruby = not self._auto_ruby_enabled()
-        if not use_source_ruby:
-            cleaned = self.RUBY_PATTERN.sub(r'\1', cleaned)
 
         speaker_mode = str(self.config.get("SUBTITLE_SPEAKER_MODE") or "").strip().lower()
         if not speaker_mode:
@@ -519,7 +551,7 @@ class SubtitleManager:
                     line = rest
             if strip_paren_notes and line:
                 before_strip = line
-                stripped = self._strip_parenthetical_notes(line, keep_ruby=use_source_ruby)
+                stripped = self._strip_parenthetical_notes(line, keep_ruby=True)
                 if stripped != before_strip and self._is_residual_note_punctuation(stripped):
                     line = ""
                 else:
@@ -605,7 +637,7 @@ class SubtitleManager:
         # Some subtitle lines have multiple leading (...) tags; we only treat tags
         # that look like an actual speaker label as speaker names.
         for _ in range(6):
-            m = self.SPEAKER_PATTERN.match(current)
+            m = self.FULLWIDTH_SPEAKER_PATTERN.match(current) or self.SPEAKER_PATTERN.match(current)
             if not m:
                 break
             candidate = (m.group("name") or "").strip()
@@ -759,16 +791,41 @@ class SubtitleManager:
         segments: List[tuple[str, Optional[str]]] = []
         last = 0
         found_ruby = False
+
+        def append_plain(plain_text: str) -> None:
+            if not plain_text:
+                return
+            auto = self._auto_ruby_segments(plain_text) if allow_auto else None
+            if auto:
+                segments.extend(auto)
+            else:
+                segments.append((plain_text, None))
+
+        def source_ruby_segments(base_text: str, ruby_text: str) -> List[tuple[str, Optional[str]]]:
+            generator = self._get_ruby_generator() if allow_auto else None
+            reader = getattr(generator, "single_kanji_reading", None) if generator is not None else None
+            if callable(reader):
+                try:
+                    split = split_furigana(
+                        base_text,
+                        ruby_text,
+                        reader,
+                        split_kanji_compounds=self._split_kanji_moras_enabled(),
+                    )
+                    if split:
+                        return split
+                except Exception:
+                    logger.debug("Failed to split source ruby: %s[%s]", base_text, ruby_text, exc_info=True)
+            return [(base_text, ruby_text)]
+
         for m in self.RUBY_PATTERN.finditer(text):
             found_ruby = True
             plain = text[last:m.start()]
-            if plain:
-                segments.append((plain, None))
-            segments.append((m.group(1), m.group(2)))
+            append_plain(plain)
+            segments.extend(source_ruby_segments(m.group(1), m.group(2)))
             last = m.end()
         tail = text[last:]
-        if tail:
-            segments.append((tail, None))
+        append_plain(tail)
         if found_ruby:
             return segments
 
@@ -780,6 +837,12 @@ class SubtitleManager:
     def _auto_ruby_enabled(self) -> bool:
         try:
             return bool(self.config.get("SUBTITLE_AUTO_RUBY") or False)
+        except Exception:
+            return False
+
+    def _split_kanji_moras_enabled(self) -> bool:
+        try:
+            return bool(self.config.get("ANKI_SPLIT_KANJI_MORAS") or False)
         except Exception:
             return False
 
@@ -812,7 +875,8 @@ class SubtitleManager:
         if cache is None:
             cache = {}
             self._auto_ruby_cache = cache
-        cached = cache.get(text)
+        cache_key = (text, self._split_kanji_moras_enabled())
+        cached = cache.get(cache_key)
         if cached is self._AUTO_RUBY_CACHE_MISS:
             self._ruby_stats["cache_misses"] += 1
             return None
@@ -827,7 +891,10 @@ class SubtitleManager:
         # Time the generator call
         gen_start = time.time()
         try:
-            segments = generator.segments(text)
+            segments = generator.segments(
+                text,
+                split_kanji_compounds=self._split_kanji_moras_enabled(),
+            )
         except Exception:
             return None
         gen_end = time.time()
@@ -836,18 +903,18 @@ class SubtitleManager:
         self._ruby_stats["generator_time"] += (gen_end - gen_start)
         
         if not segments:
-            cache[text] = self._AUTO_RUBY_CACHE_MISS
+            cache[cache_key] = self._AUTO_RUBY_CACHE_MISS
             return None
         if any(ruby for _base, ruby in segments):
             cached_segments = tuple((base, ruby) for base, ruby in segments)
-            cache[text] = cached_segments
+            cache[cache_key] = cached_segments
             while len(cache) > int(self.AUTO_RUBY_CACHE_LIMIT):
                 try:
                     cache.pop(next(iter(cache)))
                 except Exception:
                     break
             return [tuple(seg) for seg in cached_segments]
-        cache[text] = self._AUTO_RUBY_CACHE_MISS
+        cache[cache_key] = self._AUTO_RUBY_CACHE_MISS
         return None
 
     def ensure_auto_ruby_for_index(self, idx: int) -> None:
@@ -886,6 +953,7 @@ class SubtitleManager:
             new_bottom = self._parse_ruby_segments(lines[1], allow_auto=True)
 
         self.display_data[i] = (clean, start_times, new_top, new_bottom)
+        self._invalidate_geometry_cache()
         ready.add(i)
 
     def _process_ruby_batch(self, line_texts: List[str], line_segment_cache: Dict[str, List[tuple[str, Optional[str]]]]) -> List[List[tuple[str, Optional[str]]]]:
@@ -1005,6 +1073,7 @@ class SubtitleManager:
             self._config_int("SUBTITLE_FONT_SIZE", 18, minimum=1),
             self._config_int("SUBTITLE_WRAP_LIMIT_PX", 0, minimum=0),
             self._config_bool("SUBTITLE_AUTO_RUBY", False),
+            self._config_bool("ANKI_SPLIT_KANJI_MORAS", False),
             str(self.config.get("SUBTITLE_SPEAKER_MODE") or ""),
             str(self.config.get("SUBTITLE_SPEAKER_TEMPLATE") or ""),
             self._config_bool("SUBTITLE_STRIP_PAREN_NOTES", True),
@@ -1051,6 +1120,11 @@ class SubtitleManager:
         while len(cache) > self.GEOMETRY_CACHE_LIMIT:
             cache.popitem(last=False)
         return value
+
+    def _invalidate_geometry_cache(self) -> None:
+        cache = getattr(self, "_geometry_cache", None)
+        if cache is not None:
+            cache.clear()
 
     def _get_cached_geometry(self, key: tuple):
         cache = getattr(self, "_geometry_cache", None)
@@ -1141,6 +1215,14 @@ class SubtitleManager:
     def _calculate_geometry_from_line_segments(self, segments):
         font, ruby_font = self._get_subtitle_fonts()
         max_width = self._measure_line_width(segments, font, ruby_font)
+        return self._geometry_from_measured_width(max_width)
+
+    def calculate_geometry_for_display_lines(self, *lines):
+        font, ruby_font = self._get_subtitle_fonts()
+        max_width = 0
+        for segments in lines:
+            if segments:
+                max_width = max(max_width, self._measure_line_width(segments, font, ruby_font))
         return self._geometry_from_measured_width(max_width)
 
     def get_episode_metadata(self): return (self.github_owner, self.github_repo, self.remote_path,

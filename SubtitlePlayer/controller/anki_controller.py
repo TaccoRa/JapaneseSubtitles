@@ -50,6 +50,10 @@ class AnkiController(_ControllerProxy):
                 logger.debug("Add Selection To Anki skipped because no text is selected")
                 return
             self._set_busy_cursor(True)
+            try:
+                self.settings.root.after(0, self.popup.mark_anki_busy)
+            except Exception:
+                pass
 
             def worker():
                 started = time.perf_counter()
@@ -61,41 +65,105 @@ class AnkiController(_ControllerProxy):
                         selection_text=selected,
                         subtitle_text=subtitle_text,
                     )
+                    annotation_entries = self._annotation_entries_for_added_anki_note(result)
 
                     elapsed = time.perf_counter() - started
-                    logger.info("Anki note created in %.2fs", elapsed)
-
-                    candidates = result.get("translation_candidates") or {}
-                    word_cands = candidates.get("word") or {}
-                    sentence_cands = candidates.get("sentence") or {}
-                    lookup_text = str(result.get("selection_lookup_text") or selected).strip()
-
-                    logger.debug("Note ID: %s", result.get("note_id", ""))
-                    logger.debug("Marked Word: %s", selected)
-                    if lookup_text and lookup_text != selected:
-                        logger.debug("Anki Headword: %s", lookup_text)
-                    copied_media = result.get("copied_media_fields") or {}
-                    if copied_media:
-                        logger.debug("Copied Media: %s", ", ".join(sorted(copied_media.keys())))
-                    logger.debug("Word Jisho: %s", self._format_translation_csv(word_cands.get("jisho", "")))
-                    logger.debug("Word Google: %s", self._format_translation_csv(word_cands.get("google", "")))
-                    logger.debug("Sentence DeepL: %s", self._format_translation_csv(sentence_cands.get("deepl", "")))
-                    logger.debug("Sentence Google: %s", self._format_translation_csv(sentence_cands.get("google", "")))
+                    self._log_anki_add_result(
+                        result=result,
+                        selected=selected,
+                        elapsed=elapsed,
+                    )
 
                     fields = result.get("stroke_svg_sync_fields")
+                    lookup_text = str(result.get("selection_lookup_text") or selected).strip()
                     if fields:
                         self.anki.sync_missing_stroke_svgs_async(lookup_text or selected, fields)
+                    if annotation_entries:
+                        self.settings.root.after(
+                            0,
+                            lambda entries=annotation_entries: self._store_added_anki_annotation_entries(entries),
+                        )
                     self.settings.root.after(0, self._schedule_ocr_sync_after_anki)
-                    self.settings.root.after(0, self.popup.mark_anki_success)
-                    print("Anki card added", flush=True)
-                    logger.info("Anki card added")
+                    if result.get("routing_error"):
+                        self.settings.root.after(0, self.popup.mark_anki_warning)
+                    else:
+                        self.settings.root.after(0, self.popup.mark_anki_success)
+                        self._schedule_auto_jump_after_anki()
                 except Exception as e:
                     logger.exception("Anki add failed: %s", e)
+                    try:
+                        self.settings.root.after(0, self.popup.mark_anki_failure)
+                    except Exception:
+                        pass
                 finally:
                     self.settings.root.after(0, lambda: self._set_busy_cursor(False))
 
             threading.Thread(target=worker, daemon=True).start()
 
+    def _schedule_auto_jump_after_anki(self) -> None:
+            try:
+                enabled = bool(self.config.get("ANKI_AUTO_JUMP_AFTER_ADD") or False)
+            except Exception:
+                enabled = False
+            if not enabled:
+                return
+
+            def _jump() -> None:
+                try:
+                    self.playback.on_jump_sub_end()
+                    logger.info("Auto jump after Anki add executed")
+                except Exception:
+                    logger.exception("Auto jump after Anki add failed")
+
+            try:
+                self.settings.root.after(0, _jump)
+            except Exception:
+                _jump()
+
+    def _log_anki_add_result(self, result: dict, selected: str, elapsed: float) -> None:
+            candidates = result.get("translation_candidates") or {}
+            word_cands = candidates.get("word") or {}
+            sentence_cands = candidates.get("sentence") or {}
+            lookup_text = str(result.get("selection_lookup_text") or selected).strip()
+            copied_media = result.get("copied_media_fields") or {}
+            routed = result.get("routed_cards") or {}
+            routed_ids = [
+                str(card_id)
+                for values in routed.values()
+                for card_id in (values or [])
+            ]
+            providers = result.get("translation_provider_used") or {}
+
+            def _value(value, default="<empty>"):
+                text = self._format_translation_csv(value)
+                return text if text else default
+
+            fallback_used = []
+            if providers.get("word") and providers.get("word") != getattr(self.anki, "word_translate_provider", ""):
+                fallback_used.append(f"word->{providers.get('word')}")
+            if providers.get("sentence") and providers.get("sentence") != getattr(self.anki, "sentence_translate_provider", ""):
+                fallback_used.append(f"sentence->{providers.get('sentence')}")
+
+            def _print(line: str) -> None:
+                print(line, flush=True)
+
+            _print(f"Time: {elapsed:.2f}s")
+            _print(f"Word: {selected}")
+            _print(f"Lookup: {lookup_text or selected}")
+            _print(f"Translation: {_value(result.get('word_translation', ''))}")
+            _print(f"Sentence DeepL: {_value(sentence_cands.get('deepl', ''))}")
+            _print(f"Sentence Google: {_value(sentence_cands.get('google', ''))}")
+            _print(f"Definition: {_value(result.get('definition', ''))}")
+            _print(f"Sound copied: {'yes' if self.anki.sound_field in copied_media else 'no'}")
+            _print(f"Image copied: {'yes' if self.anki.image_field in copied_media else 'no'}")
+            _print(f"Note ID: {result.get('note_id', '')}")
+            _print(f"Card IDs: {', '.join(routed_ids) if routed_ids else '<none reported>'}")
+            _print(f"Providers: word={providers.get('word', '') or 'none'} sentence={providers.get('sentence', '') or 'none'}")
+            _print(f"Fallback: {', '.join(fallback_used) if fallback_used else 'none'}")
+            _print(f"Word Jisho: {_value(word_cands.get('jisho', ''))}")
+            _print(f"Word Google: {_value(word_cands.get('google', ''))}")
+            if result.get("routing_error"):
+                _print(f"Routing warning: note was created but card routing failed: {result.get('routing_error')}")
 
 
     def _schedule_ocr_sync_after_anki(self, duration_sec: float = 5.0, interval_sec: float = 1.0) -> None:
@@ -161,19 +229,38 @@ class AnkiController(_ControllerProxy):
                 return True
             return bool(raw)
 
-    def _show_anki_wait_dialog(self, selected_text: str, subtitle_text: str = "") -> None:
-            self._pending_anki_payload = {
-                "selected_text": selected_text,
-                "subtitle_text": subtitle_text,
-            }
+    def prompt_anki_connection(self, *, on_ready=None) -> None:
+            def _show() -> None:
+                self._show_anki_wait_dialog(on_ready=on_ready)
+
+            try:
+                self.settings.root.after(0, _show)
+            except Exception:
+                _show()
+
+    def _show_anki_wait_dialog(self, selected_text: str = "", subtitle_text: str = "", on_ready=None) -> None:
+            selected = (selected_text or "").strip()
 
             existing = getattr(self, "_anki_wait_window", None)
             if existing is not None:
                 if existing.winfo_exists():
+                    if selected:
+                        self._pending_anki_payload = {
+                            "selected_text": selected,
+                            "subtitle_text": subtitle_text,
+                        }
                     existing.deiconify()
                     existing.lift()
                     existing.attributes("-topmost", True)
                     return
+
+            if selected:
+                self._pending_anki_payload = {
+                    "selected_text": selected,
+                    "subtitle_text": subtitle_text,
+                }
+            else:
+                self._pending_anki_payload = None
 
             parent = getattr(self.settings, "root", None)
             win = tk.Toplevel(parent) if parent is not None else tk.Toplevel()
@@ -232,10 +319,15 @@ class AnkiController(_ControllerProxy):
                             def _finish():
                                 if win_ref.winfo_exists():
                                     win_ref.destroy()
-                                self._start_anki_add_worker(
-                                    selected_text=payload.get("selected_text", ""),
-                                    subtitle_text=payload.get("subtitle_text", ""),
-                                )
+                                if callable(on_ready):
+                                    on_ready()
+                                    return
+                                payload_selected = (payload.get("selected_text", "") or "").strip()
+                                if payload_selected:
+                                    self._start_anki_add_worker(
+                                        selected_text=payload_selected,
+                                        subtitle_text=payload.get("subtitle_text", ""),
+                                    )
 
                             try:
                                 self.settings.root.after(0, _finish)
@@ -261,17 +353,70 @@ class AnkiController(_ControllerProxy):
             win.bind("<Destroy>", _on_destroy)
             win.bind("<Escape>", lambda _e: win.destroy())
 
+            self._center_anki_wait_window(win, parent)
+
+    @staticmethod
+    def _centered_position_on_monitor(
+        width: int,
+        height: int,
+        monitors,
+        anchor_x: int | None = None,
+        anchor_y: int | None = None,
+    ) -> tuple[int, int]:
+            monitors = list(monitors or [(0, 0, 1920, 1080)])
+            monitor = monitors[0]
+            if anchor_x is not None and anchor_y is not None:
+                containing = [
+                    rect
+                    for rect in monitors
+                    if rect[0] <= anchor_x < rect[0] + rect[2]
+                    and rect[1] <= anchor_y < rect[1] + rect[3]
+                ]
+                if containing:
+                    monitor = containing[0]
+                else:
+                    monitor = min(
+                        monitors,
+                        key=lambda rect: (
+                            anchor_x - (rect[0] + rect[2] / 2.0)
+                        ) ** 2
+                        + (
+                            anchor_y - (rect[1] + rect[3] / 2.0)
+                        ) ** 2,
+                    )
+            mx, my, mw, mh = monitor
+            x = mx + max((mw - int(width)) // 2, 0)
+            y = my + max((mh - int(height)) // 2, 0)
+            return int(x), int(y)
+
+    def _center_anki_wait_window(self, win, parent=None) -> None:
             try:
                 win.update_idletasks()
-                if parent is not None:
-                    px, py = parent.winfo_rootx(), parent.winfo_rooty()
-                    pw, ph = parent.winfo_width(), parent.winfo_height()
-                    ww, wh = win.winfo_reqwidth(), win.winfo_reqheight()
-                    x = px + max((pw - ww) // 2, 0)
-                    y = py + max((ph - wh) // 2, 0)
-                    win.geometry(f"+{x}+{y}")
+                ww = int(win.winfo_reqwidth())
+                wh = int(win.winfo_reqheight())
+
+                anchor_x = anchor_y = None
+                for source in (parent, win):
+                    if source is None:
+                        continue
+                    try:
+                        anchor_x = int(source.winfo_pointerx())
+                        anchor_y = int(source.winfo_pointery())
+                        break
+                    except Exception:
+                        pass
+                if (anchor_x is None or anchor_y is None) and parent is not None:
+                    try:
+                        anchor_x = int(parent.winfo_rootx()) + int(parent.winfo_width()) // 2
+                        anchor_y = int(parent.winfo_rooty()) + int(parent.winfo_height()) // 2
+                    except Exception:
+                        anchor_x = anchor_y = None
+
+                monitors = get_monitor_rects(parent or win)
+                x, y = self._centered_position_on_monitor(ww, wh, monitors, anchor_x, anchor_y)
+                win.geometry(f"+{x}+{y}")
             except Exception:
-                pass
+                logger.debug("Failed to center Anki wait dialog", exc_info=True)
 
     def _format_translation_csv(self, value: str) -> str:
             text = (value or "").replace("\n", " ").replace("\r", " ").strip()
@@ -310,9 +455,12 @@ class AnkiController(_ControllerProxy):
 
     def on_anki_check_connection(self) -> bool:
             try:
-                return bool(self.anki.ping())
+                connected = bool(self.anki.ping())
             except Exception:
-                return False
+                connected = False
+            if not connected:
+                self.prompt_anki_connection()
+            return connected
 
     def _show_anki_success_popup(self, message: str = "Anki card added") -> None:
             try:

@@ -12,16 +12,21 @@ import queue
 import re
 import threading
 import time
+import os
 from typing import Any
 import logging
 
 from pynput.keyboard import Listener as KeyboardListener
 from pynput.mouse import Listener as MouseListener
 
-from model.anki_client import AnkiClient
+from model.anki_client import AnkiClient, AnkiConnectRequestError
+from model.anki_word_sync import AnkiSyncSettings, AnkiWordSync, split_csv_values
+from model.annotation_provider import AnnotationProvider
 from model.config_manager import ConfigManager
 from model.renderer import SubtitleRenderer
 from model.subtitle_manager import SubtitleManager
+from model.wanikani_client import WaniKaniClient
+from model.word_database import WordDatabase, WordEntry
 from view.popup import CopyPopup
 from view.settings_ui import SettingsUI
 from view.subtitle_overlay import SubtitleOverlayUI
@@ -58,6 +63,7 @@ class SubtitleController:
         "SHORTCUT_POPUP_DEEPL_TRANSLATE": "t",
         "SHORTCUT_POPUP_GOOGLE_TRANSLATE": "g",
         "SHORTCUT_POPUP_ADD_ANKI": "a",
+        "SHORTCUT_TOGGLE_FAST_FORWARD": "f",
         "SHORTCUT_TOGGLE_DEBUGGING": "ctrl+shift+d",
     }
     HOTKEY_DISABLE_KEYS = {
@@ -69,6 +75,7 @@ class SubtitleController:
         "subtitle_back": "DISABLE_HOTKEY_SUBTITLE_BACK",
         "subtitle_forward": "DISABLE_HOTKEY_SUBTITLE_FORWARD",
         "jump_sub_end": "DISABLE_HOTKEY_JUMP_SUB_END",
+        "toggle_fast_forward": "DISABLE_HOTKEY_TOGGLE_FAST_FORWARD",
     }
     OCR_TIME_PATTERN = re.compile(r"(\d{1,2}:\d{2}(?::\d{2})?)[/\\|](\d{1,2}:\d{2}(?::\d{2})?)")
     
@@ -121,10 +128,18 @@ class SubtitleController:
         self.video_click = bool(self.config.get("VIDEO_CLICK") or False)
         self.video_click_play = True if self.config.get("VIDEO_CLICK_PLAY") is None else bool(self.config.get("VIDEO_CLICK_PLAY"))
         self.video_click_window = False if self.config.get("VIDEO_CLICK_WINDOW") is None else bool(self.config.get("VIDEO_CLICK_WINDOW"))
+        self.subtitle_hover_pause_video = bool(self.config.get("SUBTITLE_HOVER_PAUSE_VIDEO") or False)
+        self.fast_forward_active = False
+        self.fast_forward_speed = self._coerce_fast_forward_speed(self.config.get("FAST_FORWARD_SPEED"))
+        self._hover_video_pause_active = False
+        self._hover_timer_pause_active = False
+        self._suppress_synthetic_space_until = 0.0
 
         self.playing = False
         self.entry_editing = False
         self.subtitle_deleted = False
+        self.subtitles_user_hidden = False
+        self.subtitles_hidden_until_index = None
         self.alt_pressed = False
         self.ctrl_pressed = False
         self.shift_pressed = False
@@ -194,6 +209,15 @@ class SubtitleController:
         self.last_rendered_index = None
         self.last_rendered_sub_time = None
 
+    @staticmethod
+    def _coerce_fast_forward_speed(value) -> float:
+        try:
+            speed = float(value)
+        except Exception:
+            speed = 1.5
+        speed = max(1.0, min(8.0, speed))
+        return round(speed, 1)
+
     def _create_services_and_controllers(self) -> None:
         self.playback = PlaybackController(self)
         self.subtitle_navigation = SubtitleNavigationController(self)
@@ -202,7 +226,21 @@ class SubtitleController:
         self.hotkey_controller = HotkeyController(self)
         self.anki_controller = AnkiController(self)
         self.ocr_controller = OCRController(self)
+        self.word_database = None
+        self.annotation_provider = None
+        if self._annotation_is_enabled():
+            self._ensure_annotation_services()
         self.anki = AnkiClient(self.config)
+
+    def _annotation_database_path(self) -> str:
+        configured = str(self.config.get("ANNOTATION_LOCAL_DB_PATH") or "").strip()
+        if configured:
+            if os.path.isabs(configured):
+                return configured
+            base_dir = os.path.dirname(os.path.abspath(getattr(self.config, "path", "config.json")))
+            return os.path.join(base_dir, configured)
+        base_dir = os.path.dirname(os.path.abspath(getattr(self.config, "path", "config.json")))
+        return os.path.join(base_dir, "annotation_words.json")
 
     def _bind_ui_events(self) -> None:
         self.settings.root.protocol("WM_DELETE_WINDOW", self._on_app_close)
@@ -237,19 +275,35 @@ class SubtitleController:
         self.settings.bind_performance_snapshot     (self.get_performance_snapshot)
         self.settings.bind_performance_reset        (self.reset_performance_stats)
         self.settings.bind_settings_open            (self._hide_subtitle_handle_for_settings)
+        self.settings.bind_annotation_callbacks     (
+            list_words=self.annotation_list_words,
+            add_word=self.annotation_add_word,
+            delete_word=self.annotation_delete_word,
+            import_words=self.annotation_import_words,
+            export_words=self.annotation_export_words,
+            refresh_words=self.annotation_refresh_words,
+            anki_refresh=self.annotation_anki_refresh,
+            anki_model_fields=self.annotation_anki_model_fields,
+            anki_sync=self.annotation_sync_anki,
+            wanikani_test=self.annotation_test_wanikani,
+            wanikani_sync=self.annotation_sync_wanikani,
+            wanikani_clear=self.annotation_clear_wanikani,
+        )
         self.settings.bind_update_display           (self.update_time_and_subtitle_displays)
         self.overlay.subtitle_canvas.bind           ("<Button-3>", self._on_copy_popup)
         self.popup.bind_add_to_anki                 (self._add_selection_to_anki)
         self.popup.bind_dictionary_lookup           (self._lookup_dictionary_entry)
         self.popup.bind_translation_lookup          (self._translate_hover_selection)
         self.popup.bind_word_tokenizer              (self._word_spans_for_lookup)
-        self.popup.bind_shift_state                 (lambda: bool(self.shift_pressed))
+        self.popup.bind_annotation_provider         (self.annotation_provider if self._annotation_is_enabled() else None)
+        self.popup.bind_shift_state                 (self._plain_shift_hover_active)
         self.popup.bind_translation_state           (lambda: bool(self.translation_pressed))
         self.popup.bind_translation_provider        (lambda: str(self.translation_provider or "deepl"))
         self.popup.bind_anchor_window               (self._popup_anchor_window)
         self.renderer.bind_dictionary_lookup        (self._lookup_dictionary_entry)
         self.renderer.bind_word_tokenizer           (self._word_spans_for_lookup)
-        self.renderer.bind_shift_state              (lambda: bool(self.shift_pressed) and not self._popup_is_open())
+        self.renderer.bind_annotation_provider      (self.annotation_provider if self._annotation_is_enabled() else None)
+        self.renderer.bind_shift_state              (lambda: self._plain_shift_hover_active() and not self._popup_is_open())
         self.overlay.bind_sub_window_enter          (self.sub_window_enter)
         self.overlay.bind_sub_window_leave          (self.sub_window_leave)
         self.overlay.bind_sub_handle_enter          (self.sub_handle_enter)   
@@ -276,6 +330,9 @@ class SubtitleController:
 
     def _get_display_start_times(self):
         return self.episode_controller._get_display_start_times()
+
+    def _get_display_end_times(self):
+        return self.episode_controller._get_display_end_times()
 
     def _on_copy_popup(self, event=None):
         try:
@@ -312,6 +369,11 @@ class SubtitleController:
         except Exception:
             return False
 
+    def _plain_shift_hover_active(self) -> bool:
+        if not bool(self.config.get("SHIFT_HOVER_KANJI_DICTIONARY") or False):
+            return False
+        return bool(self.shift_pressed) and not bool(self.ctrl_pressed) and not bool(self.alt_pressed)
+
     def _popup_anchor_window(self):
         return getattr(self.overlay, "sub_window", None)
 
@@ -320,6 +382,498 @@ class SubtitleController:
             return self.anki.word_spans(text)
         except Exception:
             return []
+
+    def _annotation_is_enabled(self) -> bool:
+        return bool(self.config.get("ANNOTATION_ENABLED") or False)
+
+    def _apply_annotation_runtime_config(self, values: dict) -> None:
+        cfg = getattr(self.config, "config", None)
+        if not isinstance(cfg, dict):
+            return
+        for key, value in values.items():
+            if str(key).startswith("ANNOTATION_"):
+                cfg[key] = value
+
+    def _ensure_annotation_services(self):
+        if self.word_database is None:
+            self.word_database = WordDatabase(self._annotation_database_path())
+        if self.annotation_provider is None:
+            self.annotation_provider = AnnotationProvider(self.config, self.word_database)
+        return self.word_database, self.annotation_provider
+
+    @staticmethod
+    def _annotation_disabled_result(**extra) -> dict:
+        result = {"ok": False, "error": "Annotation is disabled."}
+        result.update(extra)
+        return result
+
+    @staticmethod
+    def _is_anki_connection_error(value) -> bool:
+        if isinstance(value, AnkiConnectRequestError):
+            return True
+        text = str(value or "").lower()
+        if "ankiconnect" in text and any(
+            part in text
+            for part in ("not reachable", "unavailable", "failed", "closed", "restarted")
+        ):
+            return True
+        if "http request to" in text and (
+            "127.0.0.1" in text or ":8765" in text or "ankiconnect" in text
+        ):
+            return True
+        return False
+
+    def _prompt_for_anki_connection(self) -> None:
+        prompt = getattr(getattr(self, "anki_controller", None), "prompt_anki_connection", None)
+        if not callable(prompt):
+            return
+        try:
+            prompt()
+        except Exception:
+            logger.debug("Failed to show Anki connection prompt", exc_info=True)
+
+    def _anki_connection_unavailable_result(self, *, prompt: bool = True, **extra) -> dict:
+        if prompt:
+            self._prompt_for_anki_connection()
+        result = {
+            "ok": False,
+            "error": "AnkiConnect is not reachable. Please open Anki, then press Anki opened.",
+        }
+        result.update(extra)
+        return result
+
+    def _anki_connect_available_or_prompt(self) -> bool:
+        ping = getattr(getattr(self, "anki", None), "ping", None)
+        if not callable(ping):
+            return True
+        try:
+            connected = bool(ping())
+        except Exception as exc:
+            if self._is_anki_connection_error(exc):
+                self._prompt_for_anki_connection()
+            return False
+        if not connected:
+            self._prompt_for_anki_connection()
+        return connected
+
+    def _refresh_annotation_runtime(self, *, redraw: bool = True) -> None:
+        provider = None
+        if self._annotation_is_enabled():
+            try:
+                _database, provider = self._ensure_annotation_services()
+                provider.refresh()
+            except Exception:
+                logger.exception("Failed to refresh annotation index")
+                provider = None
+        try:
+            self.renderer.bind_annotation_provider(provider)
+        except Exception:
+            logger.debug("Failed to rebind renderer annotation provider", exc_info=True)
+        try:
+            self.popup.bind_annotation_provider(provider)
+        except Exception:
+            logger.debug("Failed to rebind popup annotation provider", exc_info=True)
+        if redraw:
+            self.last_subtitle_text = ""
+            self.update_time_and_subtitle_displays()
+
+    @staticmethod
+    def _bool_setting(value, default: bool = False) -> bool:
+        if value is None:
+            return bool(default)
+        if isinstance(value, str):
+            return value.strip().lower() not in {"", "0", "false", "no", "off"}
+        return bool(value)
+
+    def _annotation_anki_sync_settings(self, settings: dict | None = None) -> AnkiSyncSettings:
+        settings = settings or {}
+
+        def _fields(settings_key: str, config_key: str, fallback_key: str | None = None) -> list[str]:
+            values = split_csv_values(settings.get(settings_key) or self.config.get(config_key))
+            if values or not fallback_key:
+                return values
+            fallback = self.config.get(fallback_key)
+            return split_csv_values(fallback)
+
+        sentence_fields = split_csv_values(settings.get("sentence_fields") or self.config.get("ANNOTATION_ANKI_SENTENCE_FIELDS"))
+        if not sentence_fields:
+            sentence_fields = split_csv_values(self.config.get("ANKI_FIELD_ADD_RUBIES_SENTENCE_JA"))
+            sentence_fields.extend(
+                field
+                for field in split_csv_values(self.config.get("ANKI_FIELD_SENTENCE_JA"))
+                if field not in sentence_fields
+            )
+
+        return AnkiSyncSettings(
+            decks=split_csv_values(settings.get("decks") or self.config.get("ANNOTATION_ANKI_DECKS")),
+            word_fields=_fields("word_fields", "ANNOTATION_ANKI_WORD_FIELDS", "ANKI_FIELD_FRONT") or ["Front"],
+            sentence_fields=sentence_fields,
+            sentence_translated_fields=_fields(
+                "sentence_translated_fields",
+                "ANNOTATION_ANKI_SENTENCE_TRANSLATED_FIELDS",
+                "ANKI_FIELD_SENTENCE_DE",
+            ),
+            reading_fields=split_csv_values(settings.get("reading_fields") or self.config.get("ANNOTATION_ANKI_READING_FIELDS")),
+            meaning_fields=_fields("meaning_fields", "ANNOTATION_ANKI_MEANING_FIELDS", "ANKI_FIELD_BACK"),
+            include_sentence_words=self._bool_setting(
+                settings.get("include_sentence_words")
+                if "include_sentence_words" in settings
+                else self.config.get("ANNOTATION_ANKI_INCLUDE_SENTENCE_WORDS")
+            ),
+            use_mature_threshold=self._bool_setting(
+                settings.get("use_mature_threshold")
+                if "use_mature_threshold" in settings
+                else self.config.get("ANNOTATION_USE_ANKI_MATURE_THRESHOLD"),
+                default=True,
+            ),
+            mature_interval_days=int(settings.get("mature_interval_days") or self.config.get("ANNOTATION_ANKI_MATURE_INTERVAL_DAYS") or 21),
+            suspended_as=str(settings.get("suspended_as") or self.config.get("ANNOTATION_ANKI_SUSPENDED_AS") or "normal"),
+            tokenizer=self._word_spans_for_lookup,
+        )
+
+    def _annotation_entries_for_added_anki_note(self, result: dict) -> list[WordEntry]:
+        if not self._annotation_is_enabled():
+            return []
+        try:
+            note_id = int((result or {}).get("note_id") or 0)
+        except Exception:
+            note_id = 0
+        if note_id <= 0:
+            return []
+        try:
+            return AnkiWordSync.from_client(self.anki).entries_for_note(
+                note_id,
+                self._annotation_anki_sync_settings({}),
+            )
+        except Exception:
+            logger.warning("Failed to prepare added Anki note for annotation database", exc_info=True)
+            return []
+
+    def _store_added_anki_annotation_entries(self, entries: list[WordEntry]) -> dict:
+        if not self._annotation_is_enabled():
+            return self._annotation_disabled_result(added=0)
+        try:
+            entries = [entry for entry in (entries or []) if isinstance(entry, WordEntry)]
+            if not entries:
+                return {"ok": True, "added": 0}
+            database, _provider = self._ensure_annotation_services()
+            added = database.upsert_many(entries, preserve_existing=False, replace_source=None)
+            self._refresh_annotation_runtime()
+            logger.info("Added %d freshly-created Anki word(s) to annotation database", added)
+            return {"ok": True, "added": int(added)}
+        except Exception as exc:
+            logger.warning("Failed to store added Anki note in annotation database: %s", exc, exc_info=True)
+            return {"ok": False, "error": str(exc), "added": 0}
+
+    def annotation_list_words(self, query: str = "") -> list[dict]:
+        if not self._annotation_is_enabled():
+            return []
+        try:
+            database, _provider = self._ensure_annotation_services()
+            return [entry.to_dict() | {"key": entry.key} for entry in database.search(query)]
+        except Exception:
+            logger.exception("Failed to list annotation words")
+            return []
+
+    def annotation_add_word(self, payload: dict) -> dict:
+        if not self._annotation_is_enabled():
+            return self._annotation_disabled_result()
+        try:
+            database, _provider = self._ensure_annotation_services()
+            old_key = str(payload.get("old_key") or "")
+            existing = database.get_key(old_key) if old_key else None
+            extra = dict(existing.extra or {}) if existing is not None else {}
+            if isinstance(payload.get("extra"), dict):
+                extra.update(payload.get("extra") or {})
+            surface = payload.get("surface") or payload.get("word") or ""
+            base = payload.get("base") or ""
+            normalized = payload.get("normalized") or ""
+            word_changed = existing is not None and (
+                str(surface or "") != str(existing.surface or "") or str(base or "") != str(existing.base or "")
+            )
+            if word_changed:
+                normalized = ""
+            entry = WordEntry.from_dict(
+                {
+                    "surface": surface,
+                    "normalized": normalized or (existing.normalized if existing is not None and not word_changed else ""),
+                    "base": base,
+                    "reading": payload.get("reading") or "",
+                    "meaning": payload.get("meaning") or "",
+                    "source": payload.get("source") or "local",
+                    "status": payload.get("status") or "local_known",
+                    "created_at": payload.get("created_at") or (existing.created_at if existing is not None else ""),
+                    "notes": payload.get("notes") or "",
+                    "extra": extra,
+                }
+            )
+            if not entry.normalized:
+                return {"ok": False, "error": "Word is empty."}
+            if entry.source == "anki":
+                anki_result = self._annotation_write_entry_to_anki(entry, existing)
+                if not anki_result.get("ok"):
+                    return anki_result
+                entry.extra.update(anki_result.get("extra") or {})
+            database.upsert(entry)
+            if old_key and old_key != entry.key:
+                database.delete_key(old_key)
+            self._refresh_annotation_runtime()
+            return {"ok": True, "entry": entry.to_dict() | {"key": entry.key}}
+        except Exception as exc:
+            logger.exception("Failed to add annotation word")
+            return {"ok": False, "error": str(exc)}
+
+    def _annotation_write_entry_to_anki(self, entry: WordEntry, existing: WordEntry | None = None) -> dict:
+        extra = dict(existing.extra or {}) if existing is not None else {}
+        extra.update(entry.extra or {})
+        try:
+            note_id = int(extra.get("note_id") or 0)
+        except Exception:
+            note_id = 0
+        if note_id <= 0:
+            return {"ok": False, "error": "Cannot write this word back to Anki because the note id is missing."}
+
+        fields: dict[str, str] = {}
+
+        def _changed(attr: str) -> bool:
+            if existing is None:
+                return bool(str(getattr(entry, attr) or "").strip())
+            return str(getattr(entry, attr) or "") != str(getattr(existing, attr) or "")
+
+        def _configured_first(key: str) -> str:
+            values = split_csv_values(self.config.get(key))
+            return values[0] if values else ""
+
+        word_field = str(extra.get("field") or "").strip() or _configured_first("ANNOTATION_ANKI_WORD_FIELDS")
+        if _changed("surface") and word_field:
+            fields[word_field] = entry.surface
+        if _changed("reading"):
+            field = str(extra.get("reading_field") or "").strip() or _configured_first("ANNOTATION_ANKI_READING_FIELDS")
+            if field:
+                fields[field] = entry.reading
+        if _changed("meaning"):
+            field = str(extra.get("meaning_field") or "").strip() or _configured_first("ANNOTATION_ANKI_MEANING_FIELDS")
+            if field:
+                fields[field] = entry.meaning
+
+        changed_anki_fields = _changed("surface") or _changed("reading") or _changed("meaning")
+        if not fields and changed_anki_fields:
+            return {"ok": False, "error": "Cannot write this edit back to Anki because the target Anki field is not configured."}
+        if not fields:
+            return {"ok": True, "extra": extra}
+
+        if not self._anki_connect_available_or_prompt():
+            return self._anki_connection_unavailable_result(prompt=False)
+
+        try:
+            AnkiWordSync.from_client(self.anki).update_note_fields(note_id, fields)
+        except Exception as exc:
+            if self._is_anki_connection_error(exc):
+                return self._anki_connection_unavailable_result()
+            logger.warning("Failed to write annotation word edit back to Anki note %s: %s", note_id, exc, exc_info=True)
+            return {"ok": False, "error": f"Failed to update Anki note {note_id}: {exc}"}
+
+        extra["note_modified"] = time.strftime("%H:%M %d-%m-%Y")
+        return {"ok": True, "extra": extra}
+
+    def annotation_delete_word(self, key: str) -> dict:
+        if not self._annotation_is_enabled():
+            return self._annotation_disabled_result()
+        try:
+            database, _provider = self._ensure_annotation_services()
+            ok = database.delete_key(str(key or ""))
+            self._refresh_annotation_runtime()
+            return {"ok": bool(ok)}
+        except Exception as exc:
+            logger.exception("Failed to delete annotation word")
+            return {"ok": False, "error": str(exc)}
+
+    def annotation_import_words(self, path: str) -> dict:
+        if not self._annotation_is_enabled():
+            return self._annotation_disabled_result()
+        try:
+            database, _provider = self._ensure_annotation_services()
+            result = database.import_file(path, source="local", status="local_known")
+            self._refresh_annotation_runtime()
+            result["ok"] = True
+            return result
+        except Exception as exc:
+            logger.exception("Failed to import annotation words")
+            return {"ok": False, "error": str(exc)}
+
+    def annotation_export_words(self, path: str) -> dict:
+        if not self._annotation_is_enabled():
+            return self._annotation_disabled_result()
+        try:
+            database, _provider = self._ensure_annotation_services()
+            result = database.export_file(path)
+            result["ok"] = True
+            return result
+        except Exception as exc:
+            logger.exception("Failed to export annotation words")
+            return {"ok": False, "error": str(exc)}
+
+    def annotation_refresh_words(self) -> dict:
+        if not self._annotation_is_enabled():
+            return self._annotation_disabled_result(count=0)
+        try:
+            database, _provider = self._ensure_annotation_services()
+            database.load()
+            self._refresh_annotation_runtime()
+            return {"ok": True, "count": len(database.list_entries())}
+        except Exception as exc:
+            logger.exception("Failed to refresh annotation words")
+            return {"ok": False, "error": str(exc)}
+
+    def annotation_anki_refresh(self) -> dict:
+        if not self._annotation_is_enabled():
+            return self._annotation_disabled_result(decks=[], models=[])
+        if not self._anki_connect_available_or_prompt():
+            return self._anki_connection_unavailable_result(prompt=False, decks=[], models=[])
+        try:
+            sync = AnkiWordSync.from_client(self.anki)
+            return {
+                "ok": True,
+                "decks": sync.deck_names(),
+                "models": sync.model_names(),
+            }
+        except Exception as exc:
+            if self._is_anki_connection_error(exc):
+                return self._anki_connection_unavailable_result(decks=[], models=[])
+            logger.warning("Failed to refresh Anki annotation metadata: %s", exc, exc_info=True)
+            return {"ok": False, "error": str(exc), "decks": [], "models": []}
+
+    def annotation_anki_model_fields(self, model_name: str) -> dict:
+        if not self._annotation_is_enabled():
+            return self._annotation_disabled_result(fields=[])
+        if not self._anki_connect_available_or_prompt():
+            return self._anki_connection_unavailable_result(prompt=False, fields=[])
+        try:
+            sync = AnkiWordSync.from_client(self.anki)
+            return {"ok": True, "fields": sync.model_field_names(model_name)}
+        except Exception as exc:
+            if self._is_anki_connection_error(exc):
+                return self._anki_connection_unavailable_result(fields=[])
+            logger.warning("Failed to refresh Anki model fields: %s", exc, exc_info=True)
+            return {"ok": False, "error": str(exc), "fields": []}
+
+    def annotation_sync_anki(self, settings: dict) -> dict:
+        if not self._annotation_is_enabled():
+            return self._annotation_disabled_result(collected=0, skipped=0, failed=0)
+        if not self._anki_connect_available_or_prompt():
+            return self._anki_connection_unavailable_result(prompt=False, collected=0, skipped=0, skip_reasons={}, failed=0)
+        try:
+            database, _provider = self._ensure_annotation_services()
+            sync_settings = self._annotation_anki_sync_settings(settings)
+            result = AnkiWordSync.from_client(self.anki).sync(sync_settings)
+            if result.error:
+                if self._is_anki_connection_error(result.error):
+                    return self._anki_connection_unavailable_result(
+                        collected=result.collected,
+                        skipped=result.skipped,
+                        skip_reasons=dict(result.skip_reasons),
+                        failed=result.failed,
+                    )
+                return {
+                    "ok": False,
+                    "error": result.error,
+                    "collected": result.collected,
+                    "skipped": result.skipped,
+                    "skip_reasons": dict(result.skip_reasons),
+                    "failed": result.failed,
+                }
+            missing_only = self._bool_setting(settings.get("missing_only"), default=False)
+            if missing_only:
+                entries_to_save = [
+                    entry
+                    for entry in result.entries
+                    if database.get(entry.source, entry.normalized or entry.surface or entry.base) is None
+                ]
+                database.upsert_many(entries_to_save, preserve_existing=False, replace_source=None)
+            else:
+                entries_to_save = result.entries
+                database.upsert_many(entries_to_save, preserve_existing=False, replace_source="anki")
+            now = time.strftime("%Y-%m-%d %H:%M:%S")
+            self.config.set_many(
+                {
+                    "ANNOTATION_ANKI_LAST_SYNC": now,
+                    "ANNOTATION_ANKI_LAST_COUNT": int(len(entries_to_save) if missing_only else result.collected),
+                    "ANNOTATION_ANKI_LAST_SKIPPED": int(result.skipped),
+                    "ANNOTATION_ANKI_LAST_FAILED": int(result.failed),
+                }
+            )
+            self._refresh_annotation_runtime()
+            return {
+                "ok": True,
+                "last_sync": now,
+                "collected": result.collected,
+                "added": len(entries_to_save),
+                "missing_only": bool(missing_only),
+                "skipped": result.skipped,
+                "skip_reasons": dict(result.skip_reasons),
+                "failed": result.failed,
+                "elapsed_ms": result.elapsed_ms,
+            }
+        except Exception as exc:
+            if self._is_anki_connection_error(exc):
+                return self._anki_connection_unavailable_result(collected=0, skipped=0, skip_reasons={}, failed=0)
+            logger.exception("Failed to sync annotation words from Anki")
+            return {"ok": False, "error": str(exc)}
+
+    def annotation_test_wanikani(self, token: str = "") -> dict:
+        if not self._annotation_is_enabled():
+            return {"ok": False, "message": "Annotation is disabled."}
+        try:
+            client = WaniKaniClient(token or self.config.get("ANNOTATION_WANIKANI_API_TOKEN") or "")
+            ok, message = client.test_token()
+            return {"ok": bool(ok), "message": message}
+        except Exception as exc:
+            logger.warning("Failed to test WaniKani token: %s", exc, exc_info=True)
+            return {"ok": False, "message": str(exc)}
+
+    def annotation_sync_wanikani(self, token: str = "") -> dict:
+        if not self._annotation_is_enabled():
+            return self._annotation_disabled_result()
+        try:
+            database, _provider = self._ensure_annotation_services()
+            token_value = str(token or self.config.get("ANNOTATION_WANIKANI_API_TOKEN") or "").strip()
+            client = WaniKaniClient(token_value)
+            result = client.sync()
+            if result.error:
+                return {"ok": False, "error": result.error}
+            database.upsert_many(result.entries, preserve_existing=False, replace_source="wanikani")
+            now = time.strftime("%Y-%m-%d %H:%M:%S")
+            self.config.set_many(
+                {
+                    "ANNOTATION_WANIKANI_LAST_SYNC": now,
+                    "ANNOTATION_WANIKANI_VOCAB_COUNT": int(result.vocabulary_count),
+                    "ANNOTATION_WANIKANI_KANJI_COUNT": int(result.kanji_count),
+                }
+            )
+            self._refresh_annotation_runtime()
+            return {
+                "ok": True,
+                "last_sync": now,
+                "vocabulary_count": result.vocabulary_count,
+                "kanji_count": result.kanji_count,
+                "failed": result.failed,
+                "elapsed_ms": result.elapsed_ms,
+            }
+        except Exception as exc:
+            logger.exception("Failed to sync WaniKani annotation words")
+            return {"ok": False, "error": str(exc)}
+
+    def annotation_clear_wanikani(self) -> dict:
+        if not self._annotation_is_enabled():
+            return self._annotation_disabled_result(removed=0)
+        try:
+            database, _provider = self._ensure_annotation_services()
+            removed = database.delete_source("wanikani")
+            self._refresh_annotation_runtime()
+            return {"ok": True, "removed": removed}
+        except Exception as exc:
+            logger.exception("Failed to clear WaniKani annotation cache")
+            return {"ok": False, "error": str(exc)}
 
     def _record_perf_sample(self, name: str, elapsed_ms: float) -> None:
         try:
@@ -469,6 +1023,11 @@ class SubtitleController:
         self.phone_windows_hide_control_ms = max(
             100, _as_int("PHONEMODE_WINDOWS_HIDE_DELAY_MS", self.phone_windows_hide_control_ms)
         )
+        if "SUBTITLE_HOVER_PAUSE_VIDEO" in values:
+            self.subtitle_hover_pause_video = bool(values.get("SUBTITLE_HOVER_PAUSE_VIDEO"))
+        if "FAST_FORWARD_SPEED" in values:
+            self.fast_forward_speed = self._coerce_fast_forward_speed(values.get("FAST_FORWARD_SPEED"))
+            self.playback._set_play_button_state()
 
         if "AUDIO_PADDING" in values:
             self.audio_padding = float(values.get("AUDIO_PADDING"))
@@ -490,6 +1049,7 @@ class SubtitleController:
         self._apply_startup_settings(values)
         self._apply_hotkey_settings(values)
         self._apply_anki_settings(values)
+        self._apply_annotation_settings(values)
 
     def _apply_popup_style_settings(self, values: dict) -> None:
         if "POPUP_FONT" in values:
@@ -530,6 +1090,7 @@ class SubtitleController:
     def _apply_subtitle_cleaning_settings(self, values: dict) -> None:
         subtitle_cleaning_keys = {
             "SUBTITLE_AUTO_RUBY",
+            "ANKI_SPLIT_KANJI_MORAS",
             "SUBTITLE_SPEAKER_MODE",
             "SUBTITLE_SPEAKER_TEMPLATE",
             "SUBTITLE_STRIP_PAREN_NOTES",
@@ -573,6 +1134,7 @@ class SubtitleController:
 
         if (
             "SKIP_BUTTONS_USE_SUBTITLE_SEGMENTS" in values
+            or any(str(k).startswith("SHORTCUT_") for k in values.keys())
             or any(str(k).startswith("DISABLE_HOTKEY_") for k in values.keys())
         ):
             self._reset_hotkey_state()
@@ -587,6 +1149,12 @@ class SubtitleController:
                 pass
             self.anki = AnkiClient(self.config)
             self.anki_busy_cursor = self.anki_busy_cursor or "wait"
+
+    def _apply_annotation_settings(self, values: dict) -> None:
+        if not any(str(k).startswith("ANNOTATION_") for k in values.keys()):
+            return
+        self._apply_annotation_runtime_config(values)
+        self._refresh_annotation_runtime(redraw=True)
 
     # ---------------------------------------------------------------------
     # Time handling
@@ -626,6 +1194,9 @@ class SubtitleController:
 
     def toggle_play(self):
         return self.playback.toggle_play()
+
+    def toggle_fast_forward(self):
+        return self.playback.toggle_fast_forward()
 
     def go_forward(self):
         return self.playback.go_forward()
@@ -794,6 +1365,11 @@ class SubtitleController:
             w_s, h_s = size.split("x", 1)
             x_s, y_s = pos.split("+", 1)
             return int(x_s), int(y_s), int(w_s), int(h_s)
+
+        try:
+            self.episode_controller.save_current_episode_position()
+        except Exception as e:
+            logger.debug("Failed to save current episode resume position: %s", e, exc_info=True)
         
         x, y, w, h = _read_settings_geometry()
 

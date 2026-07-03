@@ -1,6 +1,12 @@
 """Overlay/window visibility helper for control-window and subtitle-handle behavior."""
 
+import logging
+import time
 from typing import Any
+
+from pynput.keyboard import Controller as KeyboardController, Key
+
+logger = logging.getLogger(__name__)
 
 class _ControllerProxy:
     """Proxy base that forwards attribute access and assignment to SubtitleController."""
@@ -30,8 +36,32 @@ class OverlayController(_ControllerProxy):
     def _hide_controls_after(self, ms: int):
         if self._shutting_down:
             return
-        if getattr(self, "_con_hide_job", None): self.settings.control_window.after_cancel(self._con_hide_job)
-        self._con_hide_job = self.settings.control_window.after(ms,self.settings.control_window.lower)
+        if not self._windows_alive():
+            return
+        if getattr(self, "_con_hide_job", None):
+            self.settings.control_window.after_cancel(self._con_hide_job)
+        self._con_hide_job = self.settings.control_window.after(ms, self._hide_controls_if_pointer_outside)
+
+    def _hide_controls_if_pointer_outside(self):
+        self._con_hide_job = None
+        if not self._windows_alive():
+            return
+        if self._pointer_inside_window(self.settings.control_window) or self._pointer_inside_window(self.overlay.sub_window):
+            return
+        self.settings.control_window.lower()
+
+    @staticmethod
+    def _pointer_inside_window(win) -> bool:
+        try:
+            x = int(win.winfo_pointerx())
+            y = int(win.winfo_pointery())
+            left = int(win.winfo_rootx())
+            top = int(win.winfo_rooty())
+            right = left + int(win.winfo_width())
+            bottom = top + int(win.winfo_height())
+            return left <= x < right and top <= y < bottom
+        except Exception:
+            return False
 
     def _windows_alive(self) -> bool:
         if self._shutting_down:
@@ -48,43 +78,100 @@ class OverlayController(_ControllerProxy):
     def sub_window_enter(self, event):
         if not self._windows_alive():
             return
+        if getattr(self, "subtitles_user_hidden", False):
+            return
+        self._trigger_background_video_space(paused=True)
         self.overlay.sub_window.attributes("-transparentcolor", "")
+        self.settings.control_window.deiconify()
+        self.settings.control_window.lift()
         self.settings.control_window.attributes("-topmost", True)
         self.overlay.sub_window.attributes("-topmost", True)
         self.popup.ensure_on_top()
         if getattr(self, "_con_hide_job", None) is not None:
             self.settings.control_window.after_cancel(self._con_hide_job)
             self._con_hide_job = None
-        self.subtitle_deleted = False
 
     def sub_window_leave(self, event):
         if not self._windows_alive():
             return
+        if getattr(self, "subtitles_user_hidden", False):
+            return
+        self._trigger_background_video_space(paused=False)
         self.overlay.sub_window.attributes("-transparentcolor", "grey")
         if not self.settings.default_phone_mode:
             self._hide_controls_after(self.windows_hide_control_ms)
 
+    def _trigger_background_video_space(self, *, paused: bool) -> None:
+        if not bool(getattr(self, "subtitle_hover_pause_video", False)):
+            if not paused:
+                self._hover_video_pause_active = False
+                self._hover_timer_pause_active = False
+            return
+        now = time.perf_counter()
+        if paused:
+            if bool(getattr(self, "_hover_video_pause_active", False)):
+                return
+            self._hover_video_pause_active = True
+        else:
+            if not bool(getattr(self, "_hover_video_pause_active", False)):
+                return
+            self._hover_video_pause_active = False
+        self._sync_timer_for_hover_pause(paused=paused, event_time=now)
+        try:
+            self._suppress_synthetic_space_until = now + 0.45
+            keyboard = getattr(self, "_hover_pause_keyboard", None)
+            if keyboard is None:
+                keyboard = KeyboardController()
+                self._hover_pause_keyboard = keyboard
+            keyboard.press(Key.space)
+            keyboard.release(Key.space)
+        except Exception:
+            logger.warning("Failed to send subtitle-hover spacebar toggle", exc_info=True)
+
+    def _sync_timer_for_hover_pause(self, *, paused: bool, event_time: float | None = None) -> None:
+        try:
+            if paused:
+                if bool(getattr(self, "playing", False)):
+                    self.playback.toggle_play(event_time=event_time)
+                    self._hover_timer_pause_active = True
+                else:
+                    self._hover_timer_pause_active = False
+                return
+
+            if bool(getattr(self, "_hover_timer_pause_active", False)):
+                if not bool(getattr(self, "playing", False)):
+                    self.playback.toggle_play(event_time=event_time)
+                self._hover_timer_pause_active = False
+        except Exception:
+            logger.warning("Failed to sync app timer with subtitle-hover pause", exc_info=True)
+
     def sub_handle_enter(self, event):
         if not self._windows_alive():
             return
+        if getattr(self, "subtitles_user_hidden", False):
+            return
+        self.settings.control_window.deiconify()
+        self.settings.control_window.lift()
         self.settings.control_window.attributes("-topmost", True)
         self.overlay.sub_window.attributes("-topmost", True)
         self.popup.ensure_on_top()
         if getattr(self, "_con_hide_job", None):
             self.settings.control_window.after_cancel(self._con_hide_job)
             self._con_hide_job = None
-        self.subtitle_deleted = False
 
     def control_window_enter(self, event):
         if not self._windows_alive():
             return
+        if getattr(self, "subtitles_user_hidden", False):
+            return
+        self.settings.control_window.deiconify()
+        self.settings.control_window.lift()
         self.settings.control_window.attributes("-topmost", True)
         self.overlay.sub_window.attributes("-topmost", True)
         self.popup.ensure_on_top()
         if getattr(self, "_con_hide_job", None):
             self.settings.control_window.after_cancel(self._con_hide_job)
             self._con_hide_job = None
-        self.subtitle_deleted = False
 
     def control_window_leave(self, event):
         if self._shutting_down:

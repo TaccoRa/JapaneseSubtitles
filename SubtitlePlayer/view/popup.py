@@ -40,6 +40,10 @@ class _PopupMeasurements:
 class CopyPopup:
     _INLINE_RUBY_RE = re.compile(r"([^\[\]\n]+?)\[(.+?)\]")
     _TRAILING_TOKEN_RE = re.compile(r"^(.*?)(\S+)$", re.DOTALL)
+    _TRAILING_RUBY_BASE_RE = re.compile(
+        r"^(.*?)([\u3400-\u9fff\uf900-\ufaff\u3005]+|[\u30a0-\u30ff\u30fc]+)$",
+        re.DOTALL,
+    )
     _FALLBACK_SCREEN_RECT: ScreenRect = (0, 0, 1920, 1080)
     _TEXT_PAD_X = 8
     _TEXT_PAD_Y = 4
@@ -74,6 +78,7 @@ class CopyPopup:
         self._hover_ruby_window: tk.Toplevel | None = None
         self._hover_ruby_label: tk.Label | None = None
         self._word_tokenizer = None
+        self._annotation_provider = None
 
         self.root.bind("<Destroy>", self._on_root_destroy, add="+")
         self.root.bind_all("<Control-a>", self._select_all_if_pointer_in_popup, add="+")
@@ -142,6 +147,9 @@ class CopyPopup:
         text = text or ""
         if not text:
             return "", ""
+        ruby_base_match = cls._TRAILING_RUBY_BASE_RE.match(text)
+        if ruby_base_match:
+            return ruby_base_match.group(1), ruby_base_match.group(2)
         match = cls._TRAILING_TOKEN_RE.match(text)
         if not match:
             return "", text
@@ -746,6 +754,72 @@ class CopyPopup:
                     }
                 )
 
+    def _apply_annotation_tags(self, plain_text: str) -> None:
+        provider = getattr(self, "_annotation_provider", None)
+        entry = getattr(self, "_entry_widget", None)
+        if provider is None or entry is None:
+            return
+        try:
+            if not provider.enabled():
+                return
+            if bool(self.config.get("ANNOTATION_ONLY_ON_HOVER") or False):
+                return
+        except Exception:
+            return
+
+        lines = (plain_text or "").splitlines()
+        if not lines and plain_text:
+            lines = [plain_text]
+
+        configured_tags: set[str] = set()
+        for line_no, line in enumerate(lines, start=1):
+            try:
+                tokens = provider._tokens_for_line(line, self._word_tokenizer)
+                intervals = provider._matched_intervals(tokens)
+            except Exception:
+                tokens = self._tokenize_words(line)
+                intervals = []
+                for token in tokens:
+                    try:
+                        match = provider.match_token(token)
+                    except Exception:
+                        match = None
+                    if match is not None:
+                        intervals.append((int(token.get("start") or 0), int(token.get("end") or 0), match))
+            for start_col, end_col, match in intervals:
+                try:
+                    start_col = int(start_col)
+                    end_col = int(end_col)
+                except Exception:
+                    continue
+                if end_col <= start_col:
+                    continue
+                try:
+                    style = provider._style_for_status(match.status)
+                except Exception:
+                    style = {}
+                if not bool(style.get("enabled")):
+                    continue
+                tag_name = f"annotation_{match.status}"
+                if tag_name not in configured_tags:
+                    options = {}
+                    if style.get("text_color"):
+                        options["foreground"] = str(style.get("text_color"))
+                    if style.get("background_color"):
+                        options["background"] = str(style.get("background_color"))
+                    if style.get("underline"):
+                        options["underline"] = True
+                    try:
+                        if options:
+                            entry.tag_configure(tag_name, **options)
+                    except Exception:
+                        logger.debug("Failed to configure popup annotation tag", exc_info=True)
+                    configured_tags.add(tag_name)
+                try:
+                    entry.tag_add(tag_name, f"{line_no}.{start_col}", f"{line_no}.{end_col}")
+                except Exception:
+                    logger.debug("Failed to add popup annotation tag", exc_info=True)
+
     def _rebuild_segment_hits(self) -> None:
         self._segment_hits = []
         entry = getattr(self, "_entry_widget", None)
@@ -1071,6 +1145,7 @@ class CopyPopup:
         entry = self._create_text_widget(popup, plain_text, base_font, measurements.line_count)
         self._rebuild_segment_hits()
         self._rebuild_word_hits(plain_text)
+        self._apply_annotation_tags(plain_text)
         entry.config(state="disabled")
         entry.pack(fill="both", expand=True)
 
@@ -1105,6 +1180,9 @@ class CopyPopup:
 
     def bind_word_tokenizer(self, callback) -> None:
         self._word_tokenizer = callback
+
+    def bind_annotation_provider(self, provider) -> None:
+        self._annotation_provider = provider
 
     def bind_shift_state(self, callback) -> None:
         self._shift_state_callback = callback
@@ -1202,6 +1280,34 @@ class CopyPopup:
             except Exception:
                 pass
 
+    def _set_popup_colors(self, bg: str, entry_cursor: str = "xterm") -> None:
+        popup = getattr(self, "_popup", None)
+        if not self._window_exists(popup):
+            return
+        try:
+            popup.configure(bg=bg)
+        except Exception:
+            pass
+        entry = getattr(self, "_entry_widget", None)
+        if entry is not None:
+            try:
+                entry.configure(bg=bg, cursor=entry_cursor)
+            except Exception:
+                pass
+        grip = getattr(self, "_drag_grip", None)
+        if grip is not None:
+            try:
+                grip.configure(bg=bg)
+            except Exception:
+                pass
+
+    def mark_anki_busy(self) -> None:
+        popup = getattr(self, "_popup", None)
+        if not self._window_exists(popup):
+            return
+        self._cancel_close()
+        self._set_popup_colors(str(self.bg_color or "black"), entry_cursor="watch")
+
     def mark_anki_success(self, duration_ms: int = 1200) -> None:
         popup = getattr(self, "_popup", None)
         if not self._window_exists(popup):
@@ -1209,24 +1315,39 @@ class CopyPopup:
 
         success_bg = "#168a3a"
         self._cancel_close()
+        self._set_popup_colors(success_bg, entry_cursor="xterm")
         try:
-            popup.configure(bg=success_bg, cursor="")
+            popup.configure(cursor="")
         except Exception:
             pass
-        entry = getattr(self, "_entry_widget", None)
-        if entry is not None:
-            try:
-                entry.configure(bg=success_bg, cursor="xterm")
-            except Exception:
-                pass
-        grip = getattr(self, "_drag_grip", None)
-        if grip is not None:
-            try:
-                grip.configure(bg=success_bg)
-            except Exception:
-                pass
         if not self._pointer_inside_window(popup):
             self._schedule_close(popup, max(300, int(duration_ms)))
+
+    def mark_anki_warning(self, duration_ms: int = 1800) -> None:
+        popup = getattr(self, "_popup", None)
+        if not self._window_exists(popup):
+            return
+        self._cancel_close()
+        self._set_popup_colors("#a66a00", entry_cursor="xterm")
+        try:
+            popup.configure(cursor="")
+        except Exception:
+            pass
+        if not self._pointer_inside_window(popup):
+            self._schedule_close(popup, max(500, int(duration_ms)))
+
+    def mark_anki_failure(self, duration_ms: int = 2200) -> None:
+        popup = getattr(self, "_popup", None)
+        if not self._window_exists(popup):
+            return
+        self._cancel_close()
+        self._set_popup_colors("#9f2525", entry_cursor="xterm")
+        try:
+            popup.configure(cursor="")
+        except Exception:
+            pass
+        if not self._pointer_inside_window(popup):
+            self._schedule_close(popup, max(800, int(duration_ms)))
 
     def _schedule_close(self, popup: tk.Toplevel, delay_ms: int) -> None:
         self._cancel_close()

@@ -9,7 +9,7 @@ import logging
 from typing import List, Optional
 
 from model.config_manager import ConfigManager
-from utils import make_draggable, make_nonactivating_tool_window, show_window_no_activate
+from utils import get_monitor_rects, make_draggable, make_nonactivating_tool_window, show_window_no_activate
 
 logger = logging.getLogger(__name__)
 
@@ -203,8 +203,59 @@ class SubtitleOverlayUI:
         self._bind_subtitle_drag()
 
     def _save_center_position(self, x, y, w, h):
-        self.center_x = x + w / 2
-        self.center_y = y + h / 2
+        center_x = x + w / 2
+        center_y = y + h / 2
+        center_x, center_y = self._snap_center_position(center_x, center_y, w, h)
+        self.center_x = center_x
+        self.center_y = center_y
+
+    def _snap_center_position(self, center_x: float, center_y: float, w: int, h: int) -> tuple[float, float]:
+        if not bool(self.config.get("SUBTITLE_CENTER_SNAP_ENABLED") or False):
+            return center_x, center_y
+        try:
+            threshold = int(self.config.get("SUBTITLE_CENTER_SNAP_THRESHOLD_PX") or 32)
+        except Exception:
+            threshold = 32
+        threshold = max(1, min(500, threshold))
+        try:
+            rects = get_monitor_rects(self.root)
+        except Exception:
+            rects = []
+        if not rects:
+            return center_x, center_y
+
+        def _contains(rect):
+            left, top, right, bottom = rect
+            return left <= center_x <= right and top <= center_y <= bottom
+
+        rect = next((r for r in rects if _contains(r)), None)
+        if rect is None:
+            rect = min(
+                rects,
+                key=lambda r: (
+                    center_x - ((r[0] + r[2]) / 2.0)
+                ) ** 2 + (
+                    center_y - ((r[1] + r[3]) / 2.0)
+                ) ** 2,
+            )
+        left, top, right, bottom = rect
+        snap_x = (left + right) / 2.0
+        changed = False
+        if abs(center_x - snap_x) <= threshold:
+            center_x = snap_x
+            changed = True
+        if changed:
+            x = int(center_x - (int(w) / 2.0))
+            y = int(center_y - (int(h) / 2.0))
+            x = max(int(left), min(x, int(right) - int(w)))
+            try:
+                self.sub_window.geometry(f"+{x}+{y}")
+                self._sync_handle_to_subtitle()
+                center_x = x + int(w) / 2.0
+                center_y = y + int(h) / 2.0
+            except Exception:
+                logger.debug("Failed to snap subtitle overlay to monitor center", exc_info=True)
+        return center_x, center_y
         
     def save_state(self):
         if (self.center_x, self.center_y) != (self.config.get("LAST_SUB_CENTER_X"), self.config.get("LAST_SUB_CENTER_Y")):

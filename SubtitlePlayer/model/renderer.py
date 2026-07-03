@@ -45,6 +45,7 @@ class SubtitleRenderer:
         self._dictionary_lookup: Callable[[str], str] | None = None
         self._word_tokenizer: Callable[[str], List[dict[str, Any]]] | None = None
         self._shift_state_callback: Callable[[], bool] | None = None
+        self._annotation_provider = None
 
         self.font: Optional[tkFont.Font] = None
         self.ruby_font: Optional[tkFont.Font] = None
@@ -105,12 +106,16 @@ class SubtitleRenderer:
                 self._layout_cache.clear()
                 self._last_overlay_width = int(overlay.max_w)
 
+            render_top_segments = self._prepare_annotation_segments(top_segments)
+            render_bottom_segments = self._prepare_annotation_segments(bottom_segments)
+
             layout_cache_key = (
-                self._freeze_segments(top_segments),
-                self._freeze_segments(bottom_segments),
+                self._freeze_segments(render_top_segments),
+                self._freeze_segments(render_bottom_segments),
                 int(overlay.max_w),
                 self._font_settings,
                 int(wrap_limit_px) if wrap_limit_px else -1,
+                int(getattr(getattr(self, "_annotation_provider", None), "version", 0) or 0),
             )
 
             cached_layout = self._layout_cache.get(layout_cache_key)
@@ -121,11 +126,11 @@ class SubtitleRenderer:
             else:
                 self._layout_cache_misses += 1
                 wrapped_top = self._wrap_segments(
-                    top_segments, overlay.max_w, line_limit_px=wrap_limit_px
-                ) if top_segments else ()
+                    render_top_segments, overlay.max_w, line_limit_px=wrap_limit_px
+                ) if render_top_segments else ()
                 wrapped_bottom = self._wrap_segments(
-                    bottom_segments, overlay.max_w, line_limit_px=wrap_limit_px
-                ) if bottom_segments else ()
+                    render_bottom_segments, overlay.max_w, line_limit_px=wrap_limit_px
+                ) if render_bottom_segments else ()
                 self._layout_cache[layout_cache_key] = {
                     "wrapped_top": wrapped_top,
                     "wrapped_bottom": wrapped_bottom,
@@ -171,10 +176,86 @@ class SubtitleRenderer:
     def _freeze_segments(self, segments) -> FrozenSegments:
         if not segments:
             return ()
-        frozen: List[Segment] = []
-        for base, ruby in segments:
-            frozen.append((base or "", ruby))
+        frozen = []
+        for segment in segments:
+            base = self._segment_base(segment)
+            ruby = self._segment_ruby(segment)
+            meta = self._segment_meta(segment)
+            if meta:
+                style = meta.get("style") if isinstance(meta.get("style"), dict) else {}
+                frozen.append(
+                    (
+                        base,
+                        ruby,
+                        str(meta.get("status") or ""),
+                        bool(meta.get("hide_ruby")),
+                        bool(meta.get("normal_style_visible", True)),
+                        str(style.get("text_color") or ""),
+                        str(style.get("background_color") or ""),
+                        bool(style.get("underline")),
+                        bool(style.get("overline")),
+                        bool(style.get("outline")),
+                        str(meta.get("ruby_group_id") or ""),
+                        str(meta.get("ruby_group_base") or ""),
+                        str(meta.get("ruby_group_ruby") or ""),
+                    )
+                )
+            else:
+                frozen.append((base, ruby))
         return tuple(frozen)
+
+    def _prepare_annotation_segments(self, segments):
+        provider = getattr(self, "_annotation_provider", None)
+        if not segments or provider is None:
+            return segments
+        try:
+            enabled = provider.enabled()
+        except Exception:
+            enabled = False
+        if not enabled:
+            return segments
+        try:
+            return provider.annotate_segments(segments, self._word_tokenizer)
+        except Exception:
+            logger.debug("Failed to prepare annotation segments", exc_info=True)
+            return segments
+
+    @staticmethod
+    def _segment_base(segment) -> str:
+        if isinstance(segment, dict):
+            return str(segment.get("base") or "")
+        try:
+            return str(segment[0] or "")
+        except Exception:
+            return ""
+
+    @staticmethod
+    def _segment_ruby(segment) -> str | None:
+        if isinstance(segment, dict):
+            value = segment.get("ruby")
+        else:
+            try:
+                value = segment[1]
+            except Exception:
+                value = None
+        return str(value) if value else None
+
+    @staticmethod
+    def _segment_meta(segment) -> dict:
+        if isinstance(segment, dict):
+            value = segment.get("meta") or {}
+        else:
+            try:
+                value = segment[2] if len(segment) > 2 else {}
+            except Exception:
+                value = {}
+        return value if isinstance(value, dict) else {}
+
+    @staticmethod
+    def _make_segment(base: str, ruby: str | None, meta: dict | None = None):
+        if meta:
+            return (base, ruby, meta)
+        return (base, ruby)
 
     def _get_wrap_limit_px(self) -> Optional[int]:
         wrap_limit_px = None
@@ -224,25 +305,93 @@ class SubtitleRenderer:
         seg_meta = []
         total_w = 0
         collect_word_regions = (not preview and self._shift_hover_dictionary_enabled())
-        line_text = "".join((base or "") for base, _ruby in segments) if collect_word_regions else ""
+        line_text = "".join(self._segment_base(segment) for segment in segments) if collect_word_regions else ""
         line_region_meta = []
         line_col = 0
 
-        for base, ruby in segments:
+        for segment in segments:
+            base = self._segment_base(segment)
+            ruby = self._segment_ruby(segment)
+            meta = self._segment_meta(segment)
+            ruby_group_id = str(meta.get("ruby_group_id") or "")
+            ruby_group_ruby = str(meta.get("ruby_group_ruby") or "")
+            visible_ruby = None if ruby_group_id or meta.get("hide_ruby") else ruby
+            hover_ruby = str(meta.get("hidden_ruby") or ruby or "")
             base_w = self._measure_text(self.font, base)
-            if ruby:
-                ruby_w = self._measure_text(self.ruby_font, ruby)
+            if visible_ruby:
+                ruby_w = self._measure_text(self.ruby_font, visible_ruby)
                 seg_w = max(base_w, ruby_w)
             else:
                 ruby_w = 0
                 seg_w = base_w
-            seg_meta.append((base, ruby, base_w, ruby_w, seg_w))
+            hover_ruby_w = self._measure_text(self.ruby_font, hover_ruby) if hover_ruby else 0
+            seg_meta.append(
+                {
+                    "base": base,
+                    "ruby": visible_ruby,
+                    "base_w": base_w,
+                    "ruby_w": ruby_w,
+                    "seg_w": seg_w,
+                    "meta": meta,
+                    "hover_ruby": hover_ruby,
+                    "hover_ruby_w": hover_ruby_w,
+                    "ruby_group_id": ruby_group_id,
+                    "ruby_group_ruby": ruby_group_ruby,
+                    "pre_pad": 0.0,
+                    "post_pad": 0.0,
+                }
+            )
             total_w += seg_w
 
-        cur_x = (max_width - total_w) / 2
+        idx = 0
+        while idx < len(seg_meta):
+            ruby_group_id = seg_meta[idx].get("ruby_group_id") or ""
+            if not ruby_group_id:
+                idx += 1
+                continue
+            start_idx = idx
+            while idx < len(seg_meta) and seg_meta[idx].get("ruby_group_id") == ruby_group_id:
+                idx += 1
+            group_items = seg_meta[start_idx:idx]
+            group_ruby = str(group_items[0].get("ruby_group_ruby") or "")
+            if not group_ruby:
+                continue
+            group_base = "".join(str(item.get("base") or "") for item in group_items)
+            group_base_w = sum(int(item.get("base_w") or 0) for item in group_items)
+            group_ruby_w = self._measure_text(self.ruby_font, group_ruby)
+            extra_w = max(0, group_ruby_w - group_base_w)
+            if extra_w:
+                left_pad = extra_w / 2
+                right_pad = extra_w - left_pad
+                group_items[0]["pre_pad"] = float(group_items[0].get("pre_pad") or 0.0) + left_pad
+                group_items[-1]["post_pad"] = float(group_items[-1].get("post_pad") or 0.0) + right_pad
+                total_w += extra_w
+            group_items[0]["ruby_group_draw"] = True
+            group_slot_w = group_base_w + extra_w
+            for group_item in group_items:
+                group_item["ruby_group_base"] = group_base
+                group_item["ruby_group_base_w"] = group_base_w
+                group_item["ruby_group_ruby_w"] = group_ruby_w
+                group_item["ruby_group_slot_w"] = group_slot_w
 
-        for base, ruby, base_w, ruby_w, seg_w in seg_meta:
-            cx = cur_x + seg_w / 2
+        cur_x = (max_width - total_w) / 2
+        pending_group_hover_regions = []
+        ruby_group_positions = {}
+
+        for item in seg_meta:
+            base = str(item.get("base") or "")
+            ruby = item.get("ruby")
+            base_w = int(item.get("base_w") or 0)
+            ruby_w = int(item.get("ruby_w") or 0)
+            seg_w = int(item.get("seg_w") or 0)
+            meta = item.get("meta") if isinstance(item.get("meta"), dict) else {}
+            hover_ruby = str(item.get("hover_ruby") or "")
+            hover_ruby_w = int(item.get("hover_ruby_w") or 0)
+            slot_left = cur_x
+            cur_x += float(item.get("pre_pad") or 0.0)
+            seg_left = cur_x
+            seg_right = seg_left + seg_w
+            cx = seg_left + seg_w / 2
             base_left = cx - (base_w / 2)
             if collect_word_regions:
                 line_region_meta.append(
@@ -255,6 +404,86 @@ class SubtitleRenderer:
                 )
                 line_col += len(base or "")
 
+            if item.get("ruby_group_draw"):
+                group_ruby = str(item.get("ruby_group_ruby") or "")
+                group_base = str(item.get("ruby_group_base") or "")
+                group_base_w = int(item.get("ruby_group_base_w") or 0)
+                group_ruby_w = int(item.get("ruby_group_ruby_w") or 0)
+                group_slot_w = float(item.get("ruby_group_slot_w") or group_base_w)
+                group_cx = slot_left + group_slot_w / 2
+                ruby_group_positions[str(item.get("ruby_group_id") or "")] = {
+                    "ruby": group_ruby,
+                    "base_w": group_base_w,
+                    "ruby_w": group_ruby_w,
+                    "cx": group_cx,
+                    "ruby_y": ruby_y,
+                    "base": group_base,
+                    "lookup": group_base,
+                }
+                if group_ruby and not self.hover_ruby_enabled:
+                    self._draw_ruby_text(group_ruby, group_base_w, group_ruby_w, group_cx, ruby_y)
+                elif (
+                    group_ruby
+                    and self.hover_ruby_enabled
+                    and not preview
+                    and self._has_hoverable_ruby_base(group_base)
+                ):
+                    pending_group_hover_regions.append(
+                        {
+                            "bbox": (
+                                slot_left,
+                                base_y - (self.line_height / 2),
+                                slot_left + group_slot_w,
+                                base_y + (self.line_height / 2),
+                            ),
+                            "ruby": group_ruby,
+                            "base_w": group_base_w,
+                            "ruby_w": group_ruby_w,
+                            "cx": group_cx,
+                            "ruby_y": ruby_y,
+                            "base": group_base,
+                            "lookup": group_base,
+                        }
+                    )
+
+            annotation_region_added = False
+            if meta.get("annotation") and not preview:
+                annotation_ruby = hover_ruby
+                annotation_base_w = base_w
+                annotation_ruby_w = hover_ruby_w
+                annotation_cx = cx
+                show_ruby_on_hover = bool(meta.get("show_ruby_on_hover", True)) or not bool(meta.get("hide_ruby"))
+                group_position = ruby_group_positions.get(str(item.get("ruby_group_id") or ""))
+                if group_position and group_position.get("ruby"):
+                    annotation_ruby = str(group_position.get("ruby") or "")
+                    annotation_base_w = int(group_position.get("base_w") or base_w)
+                    annotation_ruby_w = int(group_position.get("ruby_w") or hover_ruby_w)
+                    annotation_cx = float(group_position.get("cx") or cx)
+                self._hover_regions.append(
+                    {
+                        "bbox": (
+                            seg_left,
+                            base_y - (self.line_height / 2),
+                            seg_right,
+                            base_y + (self.line_height / 2),
+                        ),
+                        "ruby": annotation_ruby,
+                        "base_w": annotation_base_w,
+                        "ruby_w": annotation_ruby_w,
+                        "cx": annotation_cx,
+                        "ruby_y": ruby_y,
+                        "base": base,
+                        "lookup": str(meta.get("lookup") or base),
+                        "annotation": True,
+                        "annotation_text": str(meta.get("annotation_text") or ""),
+                        "hover_highlight": bool(meta.get("hover_highlight", True)),
+                        "show_ruby_on_hover": show_ruby_on_hover,
+                    }
+                )
+                annotation_region_added = True
+
+            self._draw_annotation_background(meta, seg_left, seg_right, base_y)
+
             if ruby and not self.hover_ruby_enabled:
                 self._draw_ruby_text(ruby, base_w, ruby_w, cx, ruby_y)
             elif (
@@ -262,13 +491,14 @@ class SubtitleRenderer:
                 and self.hover_ruby_enabled
                 and not preview
                 and self._has_hoverable_ruby_base(base)
+                and not annotation_region_added
             ):
                 self._hover_regions.append(
                     {
                         "bbox": (
-                            cur_x,
+                            seg_left,
                             base_y - (self.line_height / 2),
-                            cur_x + seg_w,
+                            seg_right,
                             base_y + (self.line_height / 2),
                         ),
                         "ruby": ruby,
@@ -281,20 +511,87 @@ class SubtitleRenderer:
                     }
                 )
 
+            fill, outline, thickness = self._text_style_for_segment(meta)
             self._draw_outlined_text(
                 self.canvas,
                 cx,
                 base_y,
                 base,
                 self.font,
-                fill=self.color,
-                outline=self.glow_color,
-                thickness=self.glow_radius,
+                fill=fill,
+                outline=outline,
+                thickness=thickness,
             )
-            cur_x += seg_w
+            self._draw_annotation_lines(meta, seg_left, seg_right, base_y)
+            cur_x = seg_right + float(item.get("post_pad") or 0.0)
+
+        self._hover_regions.extend(pending_group_hover_regions)
 
         if collect_word_regions:
             self._add_word_regions_for_line(line_text, line_region_meta, base_y, ruby_y)
+
+    def _annotation_style_visible(self, meta: dict) -> bool:
+        if not meta or not meta.get("annotation"):
+            return False
+        if not bool(meta.get("normal_style_visible", True)):
+            return False
+        style = meta.get("style")
+        return isinstance(style, dict) and bool(style.get("enabled"))
+
+    def _text_style_for_segment(self, meta: dict) -> tuple[str, str, int]:
+        if not self._annotation_style_visible(meta):
+            return self.color, self.glow_color, self.glow_radius
+        style = meta.get("style") or {}
+        fill = str(style.get("text_color") or self.color)
+        if bool(style.get("outline")):
+            outline = str(style.get("outline_color") or self.glow_color)
+            try:
+                thickness = int(float(style.get("outline_thickness") or self.glow_radius))
+            except Exception:
+                thickness = self.glow_radius
+            return fill, outline, max(0, min(20, thickness))
+        return fill, self.glow_color, self.glow_radius
+
+    def _draw_annotation_background(self, meta: dict, x1: float, x2: float, base_y: float) -> None:
+        if not self._annotation_style_visible(meta):
+            return
+        style = meta.get("style") or {}
+        color = str(style.get("background_color") or "").strip()
+        if not color:
+            return
+        # Tk canvas items are not per-item alpha composited; background_alpha is stored for future backends.
+        try:
+            pad_x = 3
+            pad_y = 2
+            self.canvas.create_rectangle(
+                x1 - pad_x,
+                base_y - (self.line_height / 2) + pad_y,
+                x2 + pad_x,
+                base_y + (self.line_height / 2) - pad_y,
+                fill=color,
+                outline="",
+                tags=("annotation_bg",),
+            )
+        except Exception:
+            logger.debug("Failed to draw annotation background", exc_info=True)
+
+    def _draw_annotation_lines(self, meta: dict, x1: float, x2: float, base_y: float) -> None:
+        if not self._annotation_style_visible(meta):
+            return
+        style = meta.get("style") or {}
+        try:
+            if bool(style.get("underline")):
+                width = max(1, int(float(style.get("underline_thickness") or 1)))
+                color = str(style.get("underline_color") or style.get("text_color") or self.color)
+                y = base_y + (self.line_height * 0.40)
+                self.canvas.create_line(x1, y, x2, y, fill=color, width=width, tags=("annotation_underline",))
+            if bool(style.get("overline")):
+                width = max(1, int(float(style.get("overline_thickness") or 1)))
+                color = str(style.get("overline_color") or style.get("text_color") or self.color)
+                y = base_y - (self.line_height * 0.44)
+                self.canvas.create_line(x1, y, x2, y, fill=color, width=width, tags=("annotation_overline",))
+        except Exception:
+            logger.debug("Failed to draw annotation line", exc_info=True)
 
     def _refresh_fonts_if_needed(self) -> None:
         font_family = self.config.get("SUBTITLE_FONT")
@@ -349,7 +646,7 @@ class SubtitleRenderer:
         self,
         segments: List[Tuple[str, Optional[str]]],
         max_width: int,
-        padding: int = 40,
+        padding: int = 0,
         line_limit_px: Optional[int] = None,
     ) -> WrappedLines:
         cache_key = (
@@ -387,19 +684,70 @@ class SubtitleRenderer:
                 cur = []
                 cur_w = 0
 
-            for base, ruby in segments:
+            segment_list = list(segments)
+            idx = 0
+            while idx < len(segment_list):
+                segment = segment_list[idx]
+                base = self._segment_base(segment)
+                ruby = self._segment_ruby(segment)
+                meta = self._segment_meta(segment)
+                ruby_group_id = str(meta.get("ruby_group_id") or "")
                 if not base:
+                    idx += 1
                     continue
 
+                if ruby_group_id:
+                    unit: list[Segment] = []
+                    unit_base_w = 0
+                    unit_base = ""
+                    unit_ruby = str(meta.get("ruby_group_ruby") or "")
+                    while idx < len(segment_list):
+                        grouped_segment = segment_list[idx]
+                        grouped_meta = self._segment_meta(grouped_segment)
+                        if str(grouped_meta.get("ruby_group_id") or "") != ruby_group_id:
+                            break
+                        grouped_base = self._segment_base(grouped_segment)
+                        if grouped_base:
+                            unit_base += grouped_base
+                            unit_base_w += self._measure_text(self.font, grouped_base)
+                            unit.append(
+                                self._make_segment(
+                                    grouped_base,
+                                    self._segment_ruby(grouped_segment),
+                                    grouped_meta,
+                                )
+                            )
+                        idx += 1
+                    if not unit:
+                        continue
+                    ruby_w = self._measure_text(self.ruby_font, unit_ruby) if unit_ruby else 0
+                    unit_w = max(unit_base_w, ruby_w)
+
+                    if cur and (cur_w + unit_w) <= limit:
+                        cur.extend(unit)
+                        cur_w += unit_w
+                        continue
+
+                    if cur and (cur_w + unit_w) > limit:
+                        _flush()
+
+                    cur.extend(unit)
+                    cur_w += unit_w
+                    if unit_w > limit:
+                        _flush()
+                    continue
+
+                idx += 1
+                visible_ruby = None if meta.get("hide_ruby") else ruby
                 base_w = self._measure_text(self.font, base)
-                if ruby:
-                    ruby_w = self._measure_text(self.ruby_font, ruby)
+                if visible_ruby:
+                    ruby_w = self._measure_text(self.ruby_font, visible_ruby)
                     seg_w = max(base_w, ruby_w)
                 else:
                     seg_w = base_w
 
                 if cur and (cur_w + seg_w) <= limit:
-                    cur.append((base, ruby))
+                    cur.append(self._make_segment(base, ruby, meta))
                     cur_w += seg_w
                     continue
 
@@ -407,12 +755,12 @@ class SubtitleRenderer:
                     _flush()
 
                 if seg_w <= limit:
-                    cur.append((base, ruby))
+                    cur.append(self._make_segment(base, ruby, meta))
                     cur_w += seg_w
                     continue
 
-                if ruby:
-                    cur.append((base, ruby))
+                if visible_ruby:
+                    cur.append(self._make_segment(base, ruby, meta))
                     _flush()
                     continue
 
@@ -420,7 +768,7 @@ class SubtitleRenderer:
                     chunk_w = self._measure_text(self.font, chunk)
                     if cur and (cur_w + chunk_w) > limit:
                         _flush()
-                    cur.append((chunk, None))
+                    cur.append(self._make_segment(chunk, None, meta))
                     cur_w += chunk_w
 
             _flush()
@@ -824,6 +1172,22 @@ class SubtitleRenderer:
         if dictionary_mode:
             self._draw_word_highlight(hit)
             self._show_hover_dictionary(hit)
+        elif hit.get("annotation"):
+            if bool(hit.get("hover_highlight")):
+                self._draw_word_highlight(hit)
+            ruby = str(hit.get("ruby") or "")
+            if ruby and bool(hit.get("show_ruby_on_hover", True)):
+                self._draw_ruby_text(
+                    ruby,
+                    int(hit.get("base_w") or 0),
+                    int(hit.get("ruby_w") or 0),
+                    float(hit.get("cx") or 0.0),
+                    float(hit.get("ruby_y") or 0.0),
+                    tags=("hover_ruby",),
+                )
+            text = str(hit.get("annotation_text") or "").strip()
+            if text:
+                self._show_hover_text(hit, text)
         else:
             self._draw_ruby_text(
                 hit["ruby"],
@@ -954,7 +1318,7 @@ class SubtitleRenderer:
             canvas_x = int(self.canvas.winfo_rootx())
             canvas_y = int(self.canvas.winfo_rooty())
             desired_x = int(canvas_x + ((x1 + x2) / 2) - (hover_w / 2))
-            desired_y = int(canvas_y + y1 - hover_h - 5)
+            desired_y = int(canvas_y + y2 + 8)
         except Exception:
             return
 
@@ -1042,6 +1406,11 @@ class SubtitleRenderer:
 
     def bind_shift_state(self, callback) -> None:
         self._shift_state_callback = callback
+
+    def bind_annotation_provider(self, provider) -> None:
+        self._annotation_provider = provider
+        self._layout_cache.clear()
+        self._wrap_cache.clear()
 
     @staticmethod
     def _contains_kanji(text: str) -> bool:

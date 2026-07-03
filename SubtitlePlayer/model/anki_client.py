@@ -5,25 +5,33 @@ AnkiConnect client used to create notes from popup selections.
 from __future__ import annotations
 import base64
 import functools
+import logging
 import os
 import re
 import sys
 import threading
+import time
 from html import escape
 from typing import Dict, List, Optional
 
 import requests
 
+logger = logging.getLogger(__name__)
+
+
+class AnkiConnectRequestError(RuntimeError):
+    """Raised when AnkiConnect drops or rejects a request."""
+
 try:
-    from SubtitlePlayer.furigana_splitter import split_furigana, split_moras
+    from SubtitlePlayer.furigana_splitter import iter_number_counter_matches, split_furigana, split_moras
 except ImportError:
     try:
-        from furigana_splitter import split_furigana, split_moras
+        from furigana_splitter import iter_number_counter_matches, split_furigana, split_moras
     except ImportError:
         _package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
         if _package_dir not in sys.path:
             sys.path.insert(0, _package_dir)
-        from furigana_splitter import split_furigana, split_moras
+        from furigana_splitter import iter_number_counter_matches, split_furigana, split_moras
 
 try:
     from fugashi import Tagger
@@ -40,6 +48,9 @@ class AnkiClient:
     ANKI_SURU_MARKER_TAG = "する-Verb"
     ANKI_I_ADJECTIVE_MARKER_TAG = "い-Adj"
     ANKI_NA_ADJECTIVE_MARKER_TAG = "な-Adj"
+    RUBY_READING_OVERRIDES = {
+        "十分": "じゅうぶん",
+    }
     TEXT_CACHE_LIMIT = 512
 
     def __init__(self, config) -> None:
@@ -148,6 +159,9 @@ class AnkiClient:
             self.tags = [t.strip() for t in tags.replace(";", ",").split(",") if t.strip()]
         else:
             self.tags = []
+        self.tag_suru_verbs = self._config_bool("ANKI_TAG_SURU_VERBS", True)
+        self.tag_i_adjectives = self._config_bool("ANKI_TAG_I_ADJECTIVES", True)
+        self.tag_na_adjectives = self._config_bool("ANKI_TAG_NA_ADJECTIVES", True)
 
     def is_enabled(self) -> bool:
         return self.enabled
@@ -173,6 +187,23 @@ class AnkiClient:
         except Exception:
             pass
 
+    def _config_bool(self, key: str, default: bool = False) -> bool:
+        try:
+            value = self.config.get(key)
+        except Exception:
+            value = None
+        if value is None:
+            return bool(default)
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            text = value.strip().lower()
+            if text in {"1", "true", "yes", "on"}:
+                return True
+            if text in {"0", "false", "no", "off"}:
+                return False
+        return bool(value)
+
     def _cache_put(self, cache: Dict, key, value, limit: int | None = None) -> None:
         cache[key] = value
         max_items = int(limit or self.TEXT_CACHE_LIMIT)
@@ -190,20 +221,53 @@ class AnkiClient:
             str(target_lang or "").strip().lower(),
         )
 
-    def _request(self, method: str, url: str, *, timeout: float | None = None, **kwargs) -> requests.Response:
+    def _request(
+        self,
+        method: str,
+        url: str,
+        *,
+        timeout: float | None = None,
+        retries: int = 0,
+        backoff_sec: float = 0.15,
+        **kwargs,
+    ) -> requests.Response:
         if self._closed:
             raise RuntimeError("Anki client is closed.")
-        response = self._http.request(
-            method,
-            url,
-            timeout=self.http_timeout if timeout is None else timeout,
-            **kwargs,
-        )
-        response.raise_for_status()
-        return response
+        attempts = max(1, int(retries or 0) + 1)
+        last_exc: Exception | None = None
+        for attempt in range(attempts):
+            try:
+                response = self._http.request(
+                    method,
+                    url,
+                    timeout=self.http_timeout if timeout is None else timeout,
+                    **kwargs,
+                )
+                response.raise_for_status()
+                return response
+            except requests.exceptions.RequestException as exc:
+                last_exc = exc
+                if attempt >= attempts - 1:
+                    break
+                logger.warning(
+                    "HTTP request to %s failed (%s); retrying in %.2fs",
+                    url,
+                    exc,
+                    backoff_sec,
+                )
+                time.sleep(max(0.0, float(backoff_sec)) * (attempt + 1))
+        raise AnkiConnectRequestError(f"HTTP request to {url} failed: {last_exc}") from last_exc
 
-    def _request_json(self, method: str, url: str, *, timeout: float | None = None, **kwargs):
-        return self._request(method, url, timeout=timeout, **kwargs).json()
+    def _request_json(
+        self,
+        method: str,
+        url: str,
+        *,
+        timeout: float | None = None,
+        retries: int = 0,
+        **kwargs,
+    ):
+        return self._request(method, url, timeout=timeout, retries=retries, **kwargs).json()
 
     def _get_tagger(self):
         if self._tagger is not None:
@@ -244,6 +308,7 @@ class AnkiClient:
             subtitle,
             word_translation=word_translation,
             sentence_translation=sentence_translation,
+            fetch_missing_google_sentence=True,
         )
         self._last_jisho_full_definition = full_definition
         word_provider_used = self._detect_translation_provider(
@@ -273,8 +338,19 @@ class AnkiClient:
             "tags": self._merge_anki_tags(self.tags, marker_tags),
             "options": {"allowDuplicate": True},
         }
-        note_id = self._invoke("addNote", {"note": note})
-        routed = self._route_new_cards(note_id)
+        note_id = self._add_note_without_duplicate_retry(note, fields)
+        routing_error = ""
+        try:
+            routed = self._route_new_cards(note_id)
+        except Exception as exc:
+            routed = {"reading": [], "reverse": [], "unrouted": []}
+            routing_error = str(exc)
+            logger.warning(
+                "Anki note %s was created, but routing new cards failed: %s",
+                note_id,
+                exc,
+                exc_info=True,
+            )
         # stroke_sync = self._sync_missing_stroke_svgs_for_new_note(
         #     selected_text=selected,
         #     fields=fields,
@@ -283,8 +359,10 @@ class AnkiClient:
         return {
             "note_id": note_id,
             "routed_cards": routed,
+            "routing_error": routing_error,
             "word_translation": word_translation,
             "sentence_translation": sentence_translation,
+            "definition": full_definition,
             "selection_surface_text": selected,
             "selection_lookup_text": card_word,
             "anki_marker_tags": marker_tags,
@@ -297,6 +375,88 @@ class AnkiClient:
             },
             "stroke_svg_sync_fields": fields,
         }
+
+
+    def _add_note_without_duplicate_retry(self, note: Dict, fields: Dict[str, str]) -> int:
+        try:
+            return self._invoke("addNote", {"note": note})
+        except AnkiConnectRequestError as exc:
+            logger.warning(
+                "AnkiConnect dropped during addNote; verifying whether the note already exists before retrying.",
+                exc_info=True,
+            )
+
+            existing = self._find_existing_note_id_for_fields(fields)
+            if existing:
+                logger.warning("Using existing note %s after dropped addNote response", existing)
+                return existing
+
+            try:
+                logger.warning("No matching note found after dropped addNote response; retrying addNote once.")
+                return self._invoke("addNote", {"note": note})
+            except AnkiConnectRequestError as retry_exc:
+                raise RuntimeError(
+                    "AnkiConnect closed or restarted while creating the note. "
+                    "The app could not verify creation without risking a duplicate."
+                ) from retry_exc
+            except Exception:
+                raise
+
+    def _find_existing_note_id_for_fields(self, fields: Dict[str, str]) -> Optional[int]:
+        queries: List[str] = []
+        for name in (
+            self.add_rubies_to_front_field,
+            self.front_field,
+            self.add_rubies_to_sentence_ja_field,
+            self.sentence_ja_field,
+        ):
+            value = str(fields.get(name) or "").strip()
+            if not value:
+                continue
+            query = self._quote_anki_search_text(value)
+            if query not in queries:
+                queries.append(query)
+
+        note_ids: set[int] = set()
+        for query in queries:
+            found = self._invoke("findNotes", {"query": query}) or []
+            for note_id in found:
+                try:
+                    note_ids.add(int(note_id))
+                except Exception:
+                    continue
+        if not note_ids:
+            return None
+
+        notes = self._invoke("notesInfo", {"notes": sorted(note_ids, reverse=True)[:50]}) or []
+        for note in sorted(notes, key=lambda item: int(item.get("noteId") or 0), reverse=True):
+            if self._note_core_fields_match(note, fields):
+                try:
+                    return int(note.get("noteId"))
+                except Exception:
+                    return None
+        return None
+
+    def _note_core_fields_match(self, note: Dict, fields: Dict[str, str]) -> bool:
+        if str(note.get("modelName") or "").strip() != self.model_name:
+            return False
+        names = [
+            self.add_rubies_to_front_field,
+            self.front_field,
+            self.back_field,
+            self.add_rubies_to_sentence_ja_field,
+            self.sentence_ja_field,
+        ]
+        compared = 0
+        for name in names:
+            expected = self._normalize_media_sentence_value(str(fields.get(name) or ""))
+            if not expected:
+                continue
+            actual = self._normalize_media_sentence_value(self._note_field_value(note, name))
+            if actual != expected:
+                return False
+            compared += 1
+        return compared > 0
 
 
     def sync_missing_stroke_svgs_async(self, selected_text: str, fields: Dict[str, str]):
@@ -412,7 +572,9 @@ class AnkiClient:
             try:
                 found = self._invoke("findNotes", {"query": query}) or []
             except Exception:
+                logger.exception("Anki media-copy findNotes failed for query: %s", query)
                 continue
+
             for note_id in found:
                 try:
                     note_ids.add(int(note_id))
@@ -420,11 +582,18 @@ class AnkiClient:
                     continue
 
         if not note_ids:
+            logger.info(
+                "No existing Anki notes found for media copy. raw=%r rendered=%r queries=%r",
+                raw_sentence,
+                rendered_sentence,
+                queries,
+            )
             return {}
 
         try:
-            notes = self._invoke("notesInfo", {"notes": sorted(note_ids, reverse=True)[:50]}) or []
+            notes = self._invoke("notesInfo", {"notes": sorted(note_ids, reverse=True)[:100]}) or []
         except Exception:
+            logger.exception("Anki media-copy notesInfo failed")
             return {}
 
         target_raw = self._normalize_media_sentence_value(raw_sentence)
@@ -432,28 +601,73 @@ class AnkiClient:
         best: Dict[str, str] = {}
 
         for note in sorted(notes, key=lambda item: int(item.get("noteId") or 0), reverse=True):
-            if not self._note_matches_media_sentence(note, target_raw, target_rendered):
+            if not self._note_matches_media_sentence(note, target_raw, target_rendered, exact_add_rubies_only=True):
                 continue
+
             for name in media_fields:
                 if best.get(name):
                     continue
                 value = self._note_field_value(note, name).strip()
                 if value:
                     best[name] = value
+
             if all(best.get(name) for name in media_fields):
+                logger.info("Copied existing Anki media fields: %s", sorted(best.keys()))
                 return best
 
+        logger.info(
+            "No previous exact AddRubiesToSentenceJA note had copyable media; checking rendered-sentence fallback."
+        )
+
+        for note in sorted(notes, key=lambda item: int(item.get("noteId") or 0), reverse=True):
+            if not self._note_matches_media_sentence(note, target_raw, target_rendered):
+                continue
+
+            for name in media_fields:
+                if best.get(name):
+                    continue
+                value = self._note_field_value(note, name).strip()
+                if value:
+                    best[name] = value
+
+            if all(best.get(name) for name in media_fields):
+                logger.info("Copied existing Anki media fields from fallback match: %s", sorted(best.keys()))
+                return best
+
+        logger.info(
+            "Existing notes matched sentence but had no copyable media. note_count=%s media_fields=%s",
+            len(notes),
+            media_fields,
+        )
         return best
+
 
     def _media_copy_search_queries(self, raw_sentence: str, rendered_sentence: str) -> List[str]:
         queries: List[str] = []
-        for value in (raw_sentence, rendered_sentence):
-            normalized = self._normalize_media_sentence_value(value)
-            if not normalized:
-                continue
-            quoted = self._quote_anki_search_text(normalized)
-            if quoted not in queries:
-                queries.append(quoted)
+
+        def add_query(query: str) -> None:
+            query = str(query or "").strip()
+            if query and query not in queries:
+                queries.append(query)
+
+        def quote(value: str) -> str:
+            value = self._normalize_media_sentence_value(value)
+            value = value.replace("\\", "\\\\").replace('"', '\\"')
+            return f'"{value}"'
+
+        raw_normalized = self._normalize_media_sentence_value(raw_sentence)
+        rendered_normalized = self._normalize_media_sentence_value(rendered_sentence)
+
+        if raw_normalized:
+            raw_quoted = quote(raw_normalized)
+            add_query(raw_quoted)
+            add_query(f'{self.add_rubies_to_sentence_ja_field}:{raw_quoted}')
+
+        if rendered_normalized:
+            rendered_quoted = quote(rendered_normalized)
+            add_query(rendered_quoted)
+            add_query(f'{self.sentence_ja_field}:{rendered_quoted}')
+
         return queries
 
     def _quote_anki_search_text(self, text: str) -> str:
@@ -461,7 +675,14 @@ class AnkiClient:
         value = value.replace("\\", "\\\\").replace('"', '\\"')
         return f'"{value}"'
 
-    def _note_matches_media_sentence(self, note: Dict, target_raw: str, target_rendered: str) -> bool:
+    def _note_matches_media_sentence(
+        self,
+        note: Dict,
+        target_raw: str,
+        target_rendered: str,
+        *,
+        exact_add_rubies_only: bool = False,
+    ) -> bool:
         model_name = str(note.get("modelName") or "").strip()
         if model_name and model_name != self.model_name:
             return False
@@ -472,6 +693,9 @@ class AnkiClient:
             )
             if note_raw == target_raw:
                 return True
+
+        if exact_add_rubies_only:
+            return False
 
         if target_rendered:
             note_rendered = self._normalize_media_sentence_value(
@@ -536,12 +760,14 @@ class AnkiClient:
         for i, (base, ruby) in enumerate(segments):
             if not base:
                 continue
+            if base in self.RUBY_READING_OVERRIDES:
+                ruby = self.RUBY_READING_OVERRIDES[base]
             if (
                 ruby
                 and self._starts_with_kanji(base)
                 and out
                 and not out[-1].endswith((" ", "\n", "\t"))
-                and not out[-1].endswith(("[", "(", "{", "<", "\u300c", "\u300e"))
+                and not out[-1].endswith(("[", "(", "\uff08", "{", "\uff5b", "<", "\uff1c", "\u300c", "\u300e", "\u3010"))
             ):
                 out.append(" ")
             if ruby:
@@ -567,6 +793,93 @@ class AnkiClient:
         text: str,
         collapse_inline_reading: bool,
     ) -> List[tuple[str, Optional[str]]]:
+        counter_segments = self._tokenize_number_counter_segments(text, collapse_inline_reading)
+        if counter_segments is not None:
+            return counter_segments
+        return self._tokenize_with_reading_no_counters(
+            text=text,
+            collapse_inline_reading=collapse_inline_reading,
+        )
+
+    def _tokenize_number_counter_segments(
+        self,
+        text: str,
+        collapse_inline_reading: bool,
+    ) -> List[tuple[str, Optional[str]]] | None:
+        matches = list(iter_number_counter_matches(text or ""))
+        if not matches:
+            return None
+
+        segments: List[tuple[str, Optional[str]]] = []
+        cursor = 0
+        for match, reading in matches:
+            if match.start() > cursor:
+                segments.extend(
+                    self._tokenize_with_reading_no_counters_preserve_edges(
+                        text=text[cursor:match.start()],
+                        collapse_inline_reading=collapse_inline_reading,
+                    )
+                )
+            surface = match.group(0)
+            segments.append((surface, self.RUBY_READING_OVERRIDES.get(surface, reading)))
+            cursor = match.end()
+        if cursor < len(text):
+            segments.extend(
+                self._tokenize_with_reading_no_counters_preserve_edges(
+                    text=text[cursor:],
+                    collapse_inline_reading=collapse_inline_reading,
+                )
+            )
+        return segments
+
+    def _tokenize_with_reading_no_counters_preserve_edges(
+        self,
+        text: str,
+        collapse_inline_reading: bool,
+    ) -> List[tuple[str, Optional[str]]]:
+        if not text:
+            return []
+        leading_len = len(text) - len(text.lstrip())
+        trailing_len = len(text) - len(text.rstrip())
+        leading = text[:leading_len]
+        trailing = text[len(text) - trailing_len :] if trailing_len else ""
+        middle_end = len(text) - trailing_len if trailing_len else len(text)
+        middle = text[leading_len:middle_end]
+        segments: List[tuple[str, Optional[str]]] = []
+        if leading:
+            segments.append((leading, None))
+        if middle:
+            segments.extend(
+                self._tokenize_with_reading_no_counters(
+                    text=middle,
+                    collapse_inline_reading=collapse_inline_reading,
+                )
+            )
+        if trailing:
+            segments.append((trailing, None))
+        return segments
+
+    def _tokenize_with_reading_no_counters(
+        self,
+        text: str,
+        collapse_inline_reading: bool,
+    ) -> List[tuple[str, Optional[str]]]:
+        if re.search(r"\s", text or ""):
+            segments: List[tuple[str, Optional[str]]] = []
+            for part in re.split(r"(\s+)", text or ""):
+                if not part:
+                    continue
+                if part.isspace():
+                    segments.append((part, None))
+                else:
+                    segments.extend(
+                        self._tokenize_with_reading_no_counters(
+                            text=part,
+                            collapse_inline_reading=collapse_inline_reading,
+                        )
+                    )
+            return segments or [(text, None)]
+
         tagger = self._get_tagger()
         if tagger is None:
             return [(text, None)]
@@ -618,7 +931,35 @@ class AnkiClient:
             segments.extend(self._split_surface_and_reading(surface, reading_hira))
             i = consumed_until + 1
 
+        segments = self._merge_katakana_ruby_segments(segments)
         return segments or [(text, None)]
+
+    def _merge_katakana_ruby_segments(
+        self,
+        segments: List[tuple[str, Optional[str]]],
+    ) -> List[tuple[str, Optional[str]]]:
+        if not segments:
+            return segments
+        out: List[tuple[str, Optional[str]]] = []
+        i = 0
+        while i < len(segments):
+            base, ruby = segments[i]
+            if ruby and self._is_katakana_ruby_base(base):
+                merged_base = base
+                j = i + 1
+                while j < len(segments):
+                    next_base, next_ruby = segments[j]
+                    if next_ruby is not None or not self._is_katakana_fragment(next_base):
+                        break
+                    merged_base += next_base
+                    j += 1
+                if j > i + 1:
+                    out.append((merged_base, self._katakana_to_hiragana(merged_base)))
+                    i = j
+                    continue
+            out.append((base, ruby))
+            i += 1
+        return out
 
     def _token_reading(self, token) -> str:
         feature = getattr(token, "feature", None)
@@ -631,7 +972,13 @@ class AnkiClient:
         return ""
 
     def _split_surface_and_reading(self, surface: str, reading_kata: str) -> List[tuple[str, Optional[str]]]:
+        if surface in self.RUBY_READING_OVERRIDES:
+            return [(surface, self.RUBY_READING_OVERRIDES[surface])]
         if not reading_kata:
+            if self._is_katakana_ruby_base(surface):
+                hira = self._katakana_to_hiragana(surface)
+                if hira and hira != surface:
+                    return [(surface, hira)]
             return [(surface, None)]
 
         reading = self._katakana_to_hiragana(reading_kata)
@@ -649,9 +996,12 @@ class AnkiClient:
             return [(surface, None)]
         if self._looks_numeric(surface):
             return [(surface, None)]
-        if not self._split_kanji_moras_enabled():
-            return [(surface, reading)]
-        return split_furigana(surface, reading, self._single_kanji_reading_for_split)
+        return split_furigana(
+            surface,
+            reading,
+            self._single_kanji_reading_for_split,
+            split_kanji_compounds=self._split_kanji_moras_enabled(),
+        )
 
     def _card_headword_for_selection(self, text: str) -> str:
         """
@@ -742,24 +1092,24 @@ class AnkiClient:
                     (lookup_text.endswith("する") and self._selection_has_suru_verb(window))
                     or self._suru_compound_headword(window)
                 )
-                if has_suru:
+                if has_suru and self.tag_suru_verbs:
                     markers.append(self.ANKI_SURU_MARKER_TAG)
-                if self._selection_has_i_adjective(window):
+                if self.tag_i_adjectives and self._selection_has_i_adjective(window):
                     markers.append(self.ANKI_I_ADJECTIVE_MARKER_TAG)
-                if not has_suru and self._selection_has_na_adjective(window):
+                if self.tag_na_adjectives and not has_suru and self._selection_has_na_adjective(window):
                     markers.append(self.ANKI_NA_ADJECTIVE_MARKER_TAG)
             return self._merge_anki_tags(markers)
 
         tagger = self._get_tagger()
         if tagger is None:
-            if lookup_text.endswith("する") or selected.endswith("する"):
+            if self.tag_suru_verbs and (lookup_text.endswith("する") or selected.endswith("する")):
                 markers.append(self.ANKI_SURU_MARKER_TAG)
             return markers
 
         try:
             tokens = list(tagger(selected))
         except Exception:
-            if lookup_text.endswith("する") or selected.endswith("する"):
+            if self.tag_suru_verbs and (lookup_text.endswith("する") or selected.endswith("する")):
                 markers.append(self.ANKI_SURU_MARKER_TAG)
             return markers
 
@@ -771,12 +1121,12 @@ class AnkiClient:
             (lookup_text.endswith("する") and self._selection_has_suru_verb(meaningful_tokens))
             or self._suru_compound_headword(meaningful_tokens)
         )
-        if has_suru:
+        if has_suru and self.tag_suru_verbs:
             markers.append(self.ANKI_SURU_MARKER_TAG)
 
-        if self._selection_has_i_adjective(meaningful_tokens):
+        if self.tag_i_adjectives and self._selection_has_i_adjective(meaningful_tokens):
             markers.append(self.ANKI_I_ADJECTIVE_MARKER_TAG)
-        if not has_suru and self._selection_has_na_adjective(meaningful_tokens):
+        if self.tag_na_adjectives and not has_suru and self._selection_has_na_adjective(meaningful_tokens):
             markers.append(self.ANKI_NA_ADJECTIVE_MARKER_TAG)
 
         return self._merge_anki_tags(markers)
@@ -1292,6 +1642,17 @@ class AnkiClient:
             return False
         return has_katakana
 
+    def _is_katakana_fragment(self, text: str) -> bool:
+        value = str(text or "").strip()
+        if not value:
+            return False
+        for ch in value:
+            code = ord(ch)
+            if 0x30A0 <= code <= 0x30FF or ch in {"ー", "・", "･"}:
+                continue
+            return False
+        return True
+
     def _contains_kanji(self, text: str) -> bool:
         return any(self._is_kanji_char(ch) for ch in text or "")
 
@@ -1307,10 +1668,15 @@ class AnkiClient:
         code = ord(text[0])
         return (0x3040 <= code <= 0x309F) or (0x30A0 <= code <= 0x30FF)
 
+    def _ends_with_kana(self, text: str) -> bool:
+        if not text:
+            return False
+        code = ord(text[-1])
+        return (0x3040 <= code <= 0x309F) or (0x30A0 <= code <= 0x30FF)
+
     def _looks_numeric(self, text: str) -> bool:
-        kansuji = "\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u767e\u5343\u4e07\u5104\u5146\u3007\u96f6"
         full_width_digits = "".join(chr(cp) for cp in range(0xFF10, 0xFF1A))
-        number_chars = set("0123456789" + full_width_digits + kansuji)
+        number_chars = set("0123456789" + full_width_digits)
         cleaned = "".join(ch for ch in text if ch.strip())
         return bool(cleaned) and all(ch in number_chars for ch in cleaned)
 
@@ -1802,6 +2168,7 @@ class AnkiClient:
         subtitle: str,
         word_translation: str = "",
         sentence_translation: str = "",
+        fetch_missing_google_sentence: bool = False,
     ) -> Dict[str, Dict[str, str]]:
         selected_text = (selected or "").strip()
         subtitle_text = self._normalize_translation_input(subtitle)
@@ -1835,6 +2202,12 @@ class AnkiClient:
                 self._translation_cache_key(subtitle_text, "ja", self.sentence_target_lang),
                 "",
             )
+            if fetch_missing_google_sentence and not sentence_candidates["google"]:
+                sentence_candidates["google"] = self._translate_google(
+                    subtitle_text,
+                    source_lang="ja",
+                    target_lang=self.sentence_target_lang,
+                )
             sentence_provider = self._sentence_provider_cache.get(subtitle_text, "")
             if sentence_provider in sentence_candidates and sentence_translation:
                 sentence_candidates[sentence_provider] = sentence_translation
@@ -2043,13 +2416,25 @@ class AnkiClient:
             self._model_fields_cache = set(str(name) for name in names)
         return self._model_fields_cache
 
-    def _invoke(self, action: str, params: Optional[Dict] = None):
+    def _invoke(self, action: str, params: Optional[Dict] = None, *, retries: int | None = None):
         payload = {
             "action": action,
             "version": 6,
             "params": params or {},
         }
-        data = self._request_json("POST", self.url, json=payload, timeout=self.http_timeout)
+        if retries is None:
+            retries = 0 if action == "addNote" else 2
+        try:
+            data = self._request_json(
+                "POST",
+                self.url,
+                json=payload,
+                timeout=self.http_timeout,
+                retries=max(0, int(retries)),
+            )
+        except AnkiConnectRequestError:
+            logger.warning("AnkiConnect request failed for action %s", action, exc_info=True)
+            raise
         if data.get("error"):
             raise RuntimeError(str(data["error"]))
         return data.get("result")

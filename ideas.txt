@@ -1,107 +1,117 @@
+
 AI Ideas:
 - Split `SubtitleManager` into smaller pieces: subtitle parsing/cleaning, remote GitHub search, episode cache/download, and geometry calculation. It currently owns too many workflows, which makes performance bugs harder to isolate.
-- Add a small logging setup with log levels and a rotating file instead of scattered `print(...)` debug output. Keep user-facing messages in the UI and keep diagnostics in logs.
-- Move runtime-only values such as last window position, last subtitle file, and last playback time out of the tracked `config.json` into a local user config file. Keep a clean default config in the repo.
 - Add cancellation tokens/generation checks to every background worker path: auto ruby, remote downloads, episode preparation, OCR, and Anki stroke sync. Some already have generation checks; make it consistent.
 - Split `requirements.txt` into runtime and dev requirements later. The current file mixes app dependencies, benchmarks, Selenium experiments, and pytest.
-- Add controller tests with fake Tk objects for episode switching, slider scrubbing, popup selection, and shutdown. The model tests are useful, but controller/view logic still depends heavily on manual testing.
-- Store source episode metadata on Anki notes so media reuse can match the same subtitle/episode more safely than text matching alone.
 - Make remote search cache files versioned or schema-tagged. That will make it safer to change search heuristics without accidentally using stale cached JSON.
-- Consider a lightweight task queue abstraction for background work so throttling and shutdown behavior are handled in one place.
+- Consider a lightweight task queue abstraction for background work so throttling and shutdown behavior are handled in one place. This is mainly maintainability/shutdown safety, not a guaranteed performance improvement.
+- SubtitleManager has some extracted helpers/modules, but it still owns parsing/cleaning, remote search, episode maps, downloads, ruby, and geometry.
+- Add a word database which can be imported and exported to show the words you already know. Make a new tab with Annotation and one area is my word database where you can brows your wrods then beneath you can import or export words. These words will then be marked with (tbdl) if option is ticked on ("Mark words?"). Then next to it is the anki word database where you can configure target word and/or sentence fields to collect your known words from anki. Then another area with wanikani word database where an api token is needed (with button, open popup to insert the token). Then again for the anki area there is an option to Colorize subtitles based on known words, then there should be an option for specific level of words from anki for example >21 days (which can be modified) to not show the rubies for these words. Make an option to only show annotations on hover and highlight words on hover. Make the user choose the Anki decks and word and sentence fields. Also ask the user how to treat suspended Anki cards as dropdown(Normal, Mature, Young, Graduated, Learning Unknown). Also the styling should be optional so background underline overline outline thickness and so on choose color for mature young graduated learning unknown uncollected and the alpha and so on.
+. Add an option to auto pause/trigger the spacebar to pause the background video as well, when hovering over the subtitle window with the mouse.
+- Add a raster lock for the subtitle window that when it is near the middle of the screen it should snap to it also optional. (maybe later move the window with arrow keys?)
+- Add profiles to have multiple users and saved settings which can be imported and exported.
+- Add a fast forward option with 0.1 increments of speed and a hotkey to toggle it.
+- Add a small Anki preview/test area in Advanced Settings that shows effective tags and lookup form for a sample selected word plus sentence.
+- Add optional toggles for automatic grammar marker tags (`する-Verb`, `い-Adj`, `な-Adj`) in case a deck does not want them.
+- Add a Performance tab "Copy diagnostics bundle" button that includes current subtitle file, episode, debug state, cache counts, and queue sizes.
+- Add a settings search/filter box for Advanced Settings tabs instead of scrolling or resizing the window.
+- Add a local-config cleanup/migration action that removes stale keys from `config.local.json`.
+- Add tests for multiple occurrences in one subtitle sentence, e.g. selecting `勉強` when only one occurrence is used as `勉強した`.
+- Add a compact Anki failure details popup showing whether failure came from AnkiConnect, model fields, translation, or duplicate/media routing.
+- Replace remaining `print(...)` debug output with module loggers now that logging setup exists.
 
 To Do:
-when selecting the beginning of the sentence the whole line to the right is selected
-remove remaining non speaker modes is not correcting for deleting the line it is in (maybe implemented)
-Also make rubies copyable in popup (dont know how because i also want dictionary and rubies and not rubies to copy so maybe hotkeys to show this or that)
-automatically find timebox (machinelearning)
-add profile settings for multiple users
-if ocr works good add that it jumps to the time when collecting anki cards (it is okay not very fast but usable not sure how to implement)
-Maybe change how the copy popup window is displayed.
+when adding a new anki card it should also be added automatically to the word database
+Still double click to get entry focus. When i am outside of the advanced window in a different window then my app and then want to write inside the adv window it doesnt let me and the focus is still ont the extern window. 
+- When selecting the beginning of the sentence, the whole line to the right is selected.
+- Remove remaining non-speaker modes is not correcting for deleting the line it is in (maybe implemented).
+- Make rubies copyable in popup. Need a design because sometimes plain text, dictionary text, and ruby text should copy differently.
+- Automatically find OCR timebox, maybe with image recognition / machine learning.
+- Add profile settings for multiple users.
+- If OCR works well, jump/sync to the current video time when collecting Anki cards.
+- Revisit how the copy popup window is displayed.
+- Implement season/episode search in the settings search bar.
+- Add HTML tag handling inside subtitle files as an optional mode.
 
 Bugs:
-when in remote switching to local and then to remote i think the flag is not set and it still searches in "subs"
-when pressing pause and play it does not synchr pause and play. Ours is faster. Or not faster because the time continues earlier.
-the subtitle window obstructs from using the main window (now only the minimize etc buttons)
+- When switching from remote to local and then back to remote, the flag may not be set and it still searches in `subs`.
+- Pressing pause/play does not sync perfectly with the video. The app timer seems faster or starts earlier.
+- The subtitle window can obstruct using the main window; currently mostly the minimize/titlebar buttons are affected.
+- Changed auto ruby handling: check if words like `toutou` are still correct.
+- Some windows like the search button window need to autosize.
+- Add result/status if "Read Now" set-time did not work.
 
 Dont do:
-if advanced window not fully visible have scroller and adjust size (wierd format maybe later)
-change second to ms and so on with certain buttons for Skip --> too clunky
-Change subtitle width to fit current subtitle (maybe flashes --> YES)
-
+- If advanced window is not fully visible, have scroller and adjust size. Weird format, maybe later.
+- Change seconds to milliseconds with certain skip buttons. Too clunky.
+- Change subtitle width to fit current subtitle. Maybe flashes.
 
 Added:
-Advanced Settings Performance tab is available only while DEBUGGING is enabled with Ctrl+Shift+D; pressing it again hides the tab.
-Anki custom tags can be set in Advanced Settings > Anki > Tags; no default subtitleplayer tag is added.
-Anki now adds grammar marker tags from sentence context: する-Verb, い-Adj, and な-Adj.
-stra+a to select all in popup
-hovering over kanji --> in line glossary or/and translation
-x1button text dissapears if pressed again reappears (same for button in control window)
-is there always a " " before kanjis in anki? yes
-does the kanjis still split? if needed 
-if word is double in anki add selection disrecard it: house, House
-Maybe change position of audio_padding variable in advanced window
-if buttonx2 is pressed and M3 is activated it should also be visible tick inside advanced window
-when ocr boxes are changed i does not immedietly take affect
-Only affect the windows which are actually in the OCr boxes to hide
-When i adjust the offset it should also jump by that offset: from 0 to -1 --> from 10:45(my)10:44(he) to 10:44(my)
-if string in control window it sets number to 0 instead of the one it was before
-main window not usable during advanced settings window open (wanted?)
-Add the html tags inside the subtitle files optional (not sure what html tags they use and what for)
-changed auto ruby handling check if words like toutou is correct
-some windows like the search button window needs to be autosized 
-Have the option to select muliple boxes across multiple screens so box 1 and box 2 on screen 1 and box 3 on screen 2 for example. 
-the clear OCR area is not needed
-add result if rean now set time not worked
-add warning if anki is not connected
-Optional ruby detection
-implement season episode search in search bar in settings window
-add filter when searching in cached(saved) searches
-Add listener for spacebar and arrow keys
-add extra function for searching movies
-add settings button to change for example default start time and so on
-remember last used offset, phone mde ...
-Remember also last geometry not only position of settings window
-connect anki
-dropdown menu for episode entry
-right click on opened window(sub) to select copy
-download splash screen or info
-add button to search new anime
-add anime name and sxex in title window
-Added the posibility to download and cache a season from a mirror github srt folder
-Show Kanji written above
-Add button in control window which shows settings window
-When longer than 1 h resize control window and episode entry and change time entry
-Remember last position of windows over to next run
-Change control time entry size if movie and bigger time string
-add config for phone mode default true/false
-
-
+- Optional ruby detection.
+- Add extra function for searching movies.
+- Add filter when searching cached/saved remote searches.
+- Advanced Settings Performance tab is available only while `DEBUGGING` is enabled with Ctrl+Shift+D; pressing it again hides the tab.
+- Performance tab reports slider timing, subtitle render timing, episode switch timing, renderer cache/timing, auto-ruby stats, OCR duration, and queue sizes.
+- Logging setup exists with runtime debug toggle and rotating log file support.
+- ConfigManager now writes local/runtime changes to `config.local.json` over tracked `config.json` defaults.
+- Anki custom tags can be set in Advanced Settings > Anki > Tags; no default `subtitleplayer` tag is added.
+- Anki now adds grammar marker tags from sentence context: `する-Verb`, `い-Adj`, and `な-Adj`.
+- Ctrl+A selects all text in popup.
+- Hovering over kanji supports inline glossary and/or translation.
+- X1 button text disappears if pressed again and reappears; same for button in control window.
+- There is a space before kanji ruby segments in Anki where needed.
+- Kanji ruby splitting can be enabled if needed.
+- Duplicate English definition entries are deduped case-insensitively, e.g. `house` / `House`.
+- Audio padding variable is available in Advanced Settings.
+- X2/M3 mode has an Advanced Settings indicator/toggle.
+- OCR box changes take effect at runtime.
+- OCR hiding only affects windows that are actually inside OCR boxes.
+- Adjusting offset also shifts the runtime position.
+- Invalid string in control window no longer resets number unexpectedly.
+- Advanced Settings no longer blocks the main settings window.
+- Multiple OCR boxes across multiple screens are supported.
+- Clear OCR area is not needed after region selection changes.
+- Warning/wait flow exists if Anki is not connected.
+- Spacebar and arrow key listener exists.
+- Settings button can change defaults such as start time, offset, skip, phone mode, etc.
+- Last used offset, phone mode, window geometry, and session state are remembered.
+- Anki integration through AnkiConnect is available.
+- Episode entry has a dropdown.
+- Right-click subtitle overlay opens the copy popup.
+- Startup/download splash/info exists.
+- Button to search new anime exists.
+- Anime name and season/episode can be shown in title/window context.
+- Remote season subtitles can be downloaded and cached from a GitHub subtitle mirror.
+- Kanji can be shown with ruby above.
+- Control window has a button to show the settings window.
+- Control window/time entry resizes for longer than 1 hour and movie-sized time strings.
+- Phone mode default can be configured.
 
 Fixed:
-selecting only a suru-capable stem now checks the subtitle sentence, e.g. selected 勉強 in 私は勉強した becomes 勉強する with する-Verb.
-hovering over the titlebar/X area of the settings or advanced settings window now hides the phone-mode subtitle handle.
-when moving the subtitle window in phone mode the little white handle on the left is not moved simoultaniously
-I think there is an extra window open which is unused.
-when any number on the numpad is pressed it weirdly jumps around or even tough it is mode1 when 4 or 6 is pressed it jumps around almost like it want to write 4 or 6 insinde the time entry. Also when inside any entry the numpad should be usable without hotkeys
-この間 複合した“宿り木の蔦(つた)” was not correctly ruby shown Hitoribochi 7. 4:57
-default skip is not saved
-switches through the tabs in the advanced settings
-when advanced settings window is open and the offset or skip entry is changed and then apply now is clicked inside the advanced settings the offset and skip entry jump back to the default values.  When it is written inside the entries it should also be adjusted inside the advanced settings window. 
-if i inside the time in the control winodw wihtout changing anything and then press the skip button it should go back to the same value from before
-when local srt file added during runtime cant find it. Probably because dir list done during init.
-picks last episode in cache if decreasing at first epoisode (because of last anime name not found)
-update episode number only if episode found
-creates season folder without finding season?
-Wrong episode when turning off?
-When offset is set after changing to movie for example the total duration is wrong
-When new srt file is chosen the list of the srt files available should be updated.
-When changing to movie the highest slide possible is to maximum of episode from before
-                       the window subtitle size is incorrect
-Select srt after remote session maybe weird. You have to select the folder again.
-Correct the search function for srt in github
-srt button cant be doen twice in a row while still open
-change how everything is initialized when a new srt is loaded. Currently the subtitle window size is not recalculated.
-If no .srt found dont reset to default slider position and so on
-when movie (when not japanese characters) the width of subtitle window is wrong
-When phone mode button to show settigns window issue
-if the offset is set to big or negative and so on the slider is not adjusted to this
+- Selecting only a suru-capable stem now checks the subtitle sentence, e.g. selected `勉強` in `私は勉強した` becomes `勉強する` with `する-Verb`.
+- Selecting a suru-capable noun used as a noun, e.g. `勉強は楽しい`, stays as `勉強` without `する-Verb`.
+- Hovering over the titlebar/X area of the settings or advanced settings window now hides the phone-mode subtitle handle.
+- Moving the subtitle window in phone mode also moves the small handle simultaneously.
+- Removed/handled an extra unused window.
+- Numpad hotkeys no longer jump while typing inside entries.
+- Ruby display fixed for a Hitoribocchi line around 7 / 4:57.
+- Default skip is saved.
+- Advanced settings no longer switches through tabs unexpectedly.
+- Advanced Settings Apply Now no longer resets changed offset/skip entries to defaults.
+- Pressing skip from an unchanged focused time entry keeps the prior value.
+- Newly added local SRT files can be found during runtime.
+- Decreasing from the first episode no longer picks the last cached episode.
+- Episode number updates only if an episode is found.
+- Avoid creating season folder without finding season.
+- Fixed wrong episode when turning off / changing episode state.
+- Slider duration is updated correctly when offset or movie mode changes.
+- New SRT selection updates the available SRT list.
+- Changing to movie no longer keeps the max slider value from the previous episode.
+- Subtitle window size recalculates after changing files.
+- Selecting SRT after remote session is more reliable.
+- GitHub SRT search was corrected.
+- SRT button cannot be opened twice in a row while already open.
+- If no `.srt` is found, the app does not reset to default slider position/state.
+- Movie/non-Japanese subtitle width is handled better.
+- Phone mode settings button issue fixed.
+- Large/negative offset updates the slider correctly.

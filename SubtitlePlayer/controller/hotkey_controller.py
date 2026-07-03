@@ -1,11 +1,13 @@
 """Keyboard shortcut, repeat-action, and global hotkey helper."""
 
 import logging
+import re
 import time
 import queue
 from pynput.mouse import Button
 from typing import Any
 from pynput.keyboard import Key
+from utils import get_window_root_hwnd, is_any_window_foreground
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +31,25 @@ class HotkeyController(_ControllerProxy):
 
     def __init__(self, controller: Any) -> None:
         super().__init__(controller)
+
+    def _focus_owner_windows(self) -> list[Any]:
+            return [
+                getattr(self.settings, "root", None),
+                getattr(self.settings, "control_window", None),
+                getattr(self.settings, "advanced_window", None),
+                getattr(self.popup, "_popup", None),
+            ]
+
+    def _refresh_app_window_hwnds(self) -> set[int]:
+            hwnds: set[int] = set()
+            for owner in self._focus_owner_windows():
+                if owner is None:
+                    continue
+                hwnd = get_window_root_hwnd(owner)
+                if hwnd:
+                    hwnds.add(int(hwnd))
+            self.controller._app_window_hwnds = hwnds
+            return hwnds
 
     def _enqueue_input_action(self, action: str, event_time: float | None = None) -> None:
             if self._shutting_down:
@@ -208,6 +229,10 @@ class HotkeyController(_ControllerProxy):
             if self._shutting_down:
                 return
             try:
+                try:
+                    self._refresh_app_window_hwnds()
+                except Exception as e:
+                    logger.debug("Failed to refresh app window handles: %s", e, exc_info=True)
                 for _ in range(50):
                     try:
                         item = self._input_actions.get_nowait()
@@ -232,7 +257,7 @@ class HotkeyController(_ControllerProxy):
                 self.playback.toggle_play(event_time=event_time)
             elif action == "toggle_subtitles":
                 self.subtitle_navigation.toggle_subtitle_visibility()
-                self._show_control_window_for_subtitle_toggle()
+                self._sync_control_window_for_subtitle_visibility()
             elif action == "go_back":
                 self.playback.go_back(event_time=event_time)
             elif action == "go_forward":
@@ -251,10 +276,13 @@ class HotkeyController(_ControllerProxy):
                 self.change_episode("dec")
             elif action == "clear_subtitle":
                 self.subtitle_navigation.toggle_subtitle_visibility()
+                self._sync_control_window_for_subtitle_visibility()
             elif action == "toggle_m3_mode":
                 self._toggle_m3_mode()
             elif action == "toggle_debugging":
                 self.toggle_debugging()
+            elif action == "toggle_fast_forward":
+                self.playback.toggle_fast_forward(event_time=event_time)
             elif action == "popup_add_anki":
                 add_selected = getattr(self.popup, "add_selected_to_anki_if_pointer_inside", None)
                 if callable(add_selected):
@@ -288,15 +316,22 @@ class HotkeyController(_ControllerProxy):
     def _get_shortcut_value(self, config_key: str) -> str:
             default = self.SHORTCUT_DEFAULTS.get(config_key, "")
             raw = self.config.get(config_key)
-            if not isinstance(raw, str) or not raw.strip():
+            if raw is None:
                 value = default
-            else:
+            elif isinstance(raw, str):
                 value = raw
+            else:
+                value = str(raw)
             value = str(value).strip().lower()
             if config_key == "SHORTCUT_TOGGLE_PLAY":
                 if bool(self.config.get("DISABLE_SPACE_HOTKEY") or False):
-                    if self._normalize_shortcut_token(value) == "space":
-                        return ""
+                    bindings = self._expand_shortcut_bindings(value, config_key=config_key)
+                    bindings = [
+                        binding
+                        for binding in bindings
+                        if self._split_shortcut(binding) != (set(), "space")
+                    ]
+                    return ", ".join(bindings)
             return value
     
     @staticmethod
@@ -323,54 +358,119 @@ class HotkeyController(_ControllerProxy):
             parts = [p for p in text.split("+") if p]
             mods = set()
             key_token = None
+            invalid = False
             for p in parts:
                 token = self._normalize_shortcut_token(p)
                 if token in {"shift", "alt", "ctrl"}:
                     mods.add(token)
                 elif key_token is None:
                     key_token = token
+                else:
+                    invalid = True
+            if invalid:
+                return mods, None
             return mods, key_token
+
+    def _warn_invalid_shortcut(self, config_key: str, binding: str) -> None:
+            warned = getattr(self.controller, "_warned_invalid_shortcuts", None)
+            if warned is None:
+                warned = set()
+                self.controller._warned_invalid_shortcuts = warned
+            marker = (str(config_key or ""), str(binding or ""))
+            if marker in warned:
+                return
+            warned.add(marker)
+            logger.warning("Ignoring invalid shortcut for %s: %r", config_key, binding)
+
+    def _expand_shortcut_bindings(self, value: str, config_key: str = "") -> list[str]:
+            bindings: list[str] = []
+            for raw_binding in re.split(r"[,;]", str(value or "")):
+                binding = raw_binding.strip().lower()
+                if not binding:
+                    continue
+                _mods, key_token = self._split_shortcut(binding)
+                if not key_token:
+                    self._warn_invalid_shortcut(config_key, binding)
+                    continue
+                bindings.append(binding)
+            return bindings
+
+    def _shortcut_bindings_for_key(self, config_key: str) -> list[str]:
+            return self._expand_shortcut_bindings(
+                self._get_shortcut_value(config_key),
+                config_key=config_key,
+            )
     
     @staticmethod
     def _is_text_input_widget(widget) -> bool:
             if widget is None:
                 return False
+
             try:
                 if not bool(widget.winfo_exists()):
                     return False
                 cls = str(widget.winfo_class() or "").lower()
             except Exception:
                 return False
-            return cls in {
+            try:
+                if not bool(widget.winfo_viewable()):
+                    return False
+            except Exception:
+                pass
+
+            if cls in {
                 "entry",
                 "tentry",
                 "ttk::entry",
-                "text",
                 "combobox",
                 "tcombobox",
                 "ttk::combobox",
                 "spinbox",
                 "ttk::spinbox",
-            }
+            }:
+                return True
+
+            if cls == "text":
+                try:
+                    state = str(widget.cget("state") or "").lower()
+                except Exception:
+                    state = ""
+
+                return state not in {"disabled", "readonly"}
+
+            return False
+    
+    def _is_popup_display_text_widget(self, widget) -> bool:
+            if widget is None:
+                return False
+            try:
+                popup_entry = getattr(getattr(self.controller, "popup", None), "_entry_widget", None)
+                return widget is popup_entry
+            except Exception:
+                return False
+
 
     def _is_text_input_focused(self) -> bool:
-            windows = [
-                getattr(self.settings, "root", None),
-                getattr(self.settings, "control_window", None),
-                getattr(self.settings, "advanced_window", None),
-                getattr(self.popup, "_popup", None),
-            ]
-            for owner in windows:
+            cached_hwnds = getattr(self.controller, "_app_window_hwnds", None)
+            app_foreground = is_any_window_foreground(
+                cached_hwnds if cached_hwnds is not None else self._focus_owner_windows()
+            )
+            if app_foreground is False:
+                return False
+
+            for owner in self._focus_owner_windows():
                 if owner is None:
                     continue
                 try:
                     widget = owner.focus_get()
                 except Exception as e:
-                    logger.debug("Failed to inspect focused text input: %s", e, exc_info=True)
-                    widget = None
-                # Treat control time entry as text-focused only while actively editing.
-                if widget is getattr(self.settings, "time_entry", None) and not bool(self.entry_editing):
+                    logger.debug("Failed to inspect focused widget: %s", e, exc_info=True)
                     continue
+
+                if widget is None:
+                    continue
+                if self._is_popup_display_text_widget(widget):
+                    return False
                 if self._is_text_input_widget(widget):
                     return True
             return False
@@ -407,82 +507,105 @@ class HotkeyController(_ControllerProxy):
 
             return {self._normalize_shortcut_token(t) for t in tokens}
 
+    def _is_suppressed_synthetic_space(self, key) -> bool:
+            try:
+                until = float(getattr(self.controller, "_suppress_synthetic_space_until", 0.0) or 0.0)
+            except Exception:
+                until = 0.0
+            if until <= 0.0 or time.perf_counter() > until:
+                return False
+            return "space" in self._key_tokens(key)
+
     def _shortcut_matches(self, binding: str, key) -> bool:
             mods, key_token = self._split_shortcut(binding)
             if not key_token:
                 return False
 
-            if "shift" in mods and not self.shift_pressed:
-                return False
-            if "alt" in mods and not self.alt_pressed:
-                return False
-            if "ctrl" in mods and not self.ctrl_pressed:
+            active_mods = set()
+            if self.shift_pressed:
+                active_mods.add("shift")
+            if self.alt_pressed:
+                active_mods.add("alt")
+            if self.ctrl_pressed:
+                active_mods.add("ctrl")
+            if active_mods != mods:
                 return False
 
             return key_token in self._key_tokens(key)
 
-    def _repeat_action_bindings(self):
+    def _mode2_numpad_enabled(self) -> bool:
             try:
-                mode2_numpad = int(getattr(self.settings, "input_mode", 1)) == 2
+                return int(getattr(self.settings, "input_mode", 1)) == 2
             except Exception as e:
                 logger.debug("Failed to inspect input mode: %s", e, exc_info=True)
-                mode2_numpad = bool(getattr(self.settings, "numpad_mode_enabled", False))
+                return bool(getattr(self.settings, "numpad_mode_enabled", False))
+
+    def _repeat_action_bindings(self):
+            mode2_numpad = self._mode2_numpad_enabled()
             if mode2_numpad:
-                bindings = [
-                    ("subtitle_back", self._get_shortcut_value("SHORTCUT_MODE2_SUBTITLE_BACK")),
-                    ("subtitle_forward", self._get_shortcut_value("SHORTCUT_MODE2_SUBTITLE_FORWARD")),
-                    ("go_back", self._get_shortcut_value("SHORTCUT_MODE2_GO_BACK")),
-                    ("go_forward", self._get_shortcut_value("SHORTCUT_MODE2_GO_FORWARD")),
+                binding_specs = [
+                    ("subtitle_back", "SHORTCUT_MODE2_SUBTITLE_BACK"),
+                    ("subtitle_forward", "SHORTCUT_MODE2_SUBTITLE_FORWARD"),
+                    ("go_back", "SHORTCUT_MODE2_GO_BACK"),
+                    ("go_forward", "SHORTCUT_MODE2_GO_FORWARD"),
                 ]
             else:
-                bindings = [
-                    ("subtitle_back", self._get_shortcut_value("SHORTCUT_SUBTITLE_BACK")),
-                    ("subtitle_forward", self._get_shortcut_value("SHORTCUT_SUBTITLE_FORWARD")),
-                    ("go_back", self._get_shortcut_value("SHORTCUT_GO_BACK")),
-                    ("go_forward", self._get_shortcut_value("SHORTCUT_GO_FORWARD")),
+                binding_specs = [
+                    ("subtitle_back", "SHORTCUT_SUBTITLE_BACK"),
+                    ("subtitle_forward", "SHORTCUT_SUBTITLE_FORWARD"),
+                    ("go_back", "SHORTCUT_GO_BACK"),
+                    ("go_forward", "SHORTCUT_GO_FORWARD"),
                 ]
-            return [(action, binding) for action, binding in bindings if not self._hotkey_action_disabled(action)]
+            bindings = []
+            for action, config_key in binding_specs:
+                if self._hotkey_action_disabled(action):
+                    continue
+                for binding in self._shortcut_bindings_for_key(config_key):
+                    bindings.append((action, binding))
+            return bindings
 
     def _single_fire_bindings(self):
-            bindings = [
-                ("toggle_play", self._get_shortcut_value("SHORTCUT_TOGGLE_PLAY")),
-                ("toggle_play", self._get_shortcut_value("SHORTCUT_MODE2_TOGGLE_PLAY")),
-                ("alt_x", self._get_shortcut_value("SHORTCUT_BRING_TO_FRONT")),
-                ("episode_inc", self._get_shortcut_value("SHORTCUT_EPISODE_INC")),
-                ("episode_dec", self._get_shortcut_value("SHORTCUT_EPISODE_DEC")),
-                ("jump_sub_end", self._get_shortcut_value("SHORTCUT_JUMP_SUB_END")),
-                ("toggle_subtitles", self._get_shortcut_value("SHORTCUT_TOGGLE_SUBTITLES")),
-                ("toggle_debugging", self._get_shortcut_value("SHORTCUT_TOGGLE_DEBUGGING")),
+            play_shortcut_key = (
+                "SHORTCUT_MODE2_TOGGLE_PLAY"
+                if self._mode2_numpad_enabled()
+                else "SHORTCUT_TOGGLE_PLAY"
+            )
+            binding_specs = [
+                ("toggle_play", play_shortcut_key),
+                ("alt_x", "SHORTCUT_BRING_TO_FRONT"),
+                ("episode_inc", "SHORTCUT_EPISODE_INC"),
+                ("episode_dec", "SHORTCUT_EPISODE_DEC"),
+                ("jump_sub_end", "SHORTCUT_JUMP_SUB_END"),
+                ("toggle_subtitles", "SHORTCUT_TOGGLE_SUBTITLES"),
+                ("toggle_fast_forward", "SHORTCUT_TOGGLE_FAST_FORWARD"),
+                ("toggle_debugging", "SHORTCUT_TOGGLE_DEBUGGING"),
             ]
-            return [(action, binding) for action, binding in bindings if not self._hotkey_action_disabled(action)]
+            bindings = []
+            for action, config_key in binding_specs:
+                if self._hotkey_action_disabled(action):
+                    continue
+                for binding in self._shortcut_bindings_for_key(config_key):
+                    bindings.append((action, binding))
+            return bindings
 
     def _popup_translation_bindings(self):
-            return [
-                ("popup_deepl_translate", self._get_shortcut_value("SHORTCUT_POPUP_DEEPL_TRANSLATE"), "deepl"),
-                ("popup_google_translate", self._get_shortcut_value("SHORTCUT_POPUP_GOOGLE_TRANSLATE"), "google"),
-            ]
+            bindings = []
+            for action, config_key, provider in (
+                ("popup_deepl_translate", "SHORTCUT_POPUP_DEEPL_TRANSLATE", "deepl"),
+                ("popup_google_translate", "SHORTCUT_POPUP_GOOGLE_TRANSLATE", "google"),
+            ):
+                for binding in self._shortcut_bindings_for_key(config_key):
+                    bindings.append((action, binding, provider))
+            return bindings
 
-    def _popup_add_anki_binding(self) -> str:
-            return self._get_shortcut_value("SHORTCUT_POPUP_ADD_ANKI")
-
-    def _popup_add_anki_press(self, key) -> bool:
-            if not self._is_popup_open():
-                return False
-            binding = self._popup_add_anki_binding()
-            if not binding or not self._shortcut_matches(binding, key):
-                return False
-            action = "popup_add_anki"
-            if action in self._single_fire_actions:
-                return True
-            self._single_fire_actions.add(action)
-            self._enqueue_input_action(action)
-            return True
+    def _popup_add_anki_bindings(self) -> list[str]:
+            return self._shortcut_bindings_for_key("SHORTCUT_POPUP_ADD_ANKI")
 
     def _popup_add_anki_release_matches(self, key) -> bool:
-            binding = self._popup_add_anki_binding()
-            if not binding:
-                return False
-            _mods, key_token = self._split_shortcut(binding)
+            return any(self._binding_release_matches(binding, key) for binding in self._popup_add_anki_bindings())
+
+    def _binding_release_matches(self, binding: str, key) -> bool:
+            mods, key_token = self._split_shortcut(binding)
             released_tokens = self._key_tokens(key)
             if key_token and key_token in released_tokens:
                 return True
@@ -493,40 +616,125 @@ class HotkeyController(_ControllerProxy):
                 modifier = "alt"
             elif key in (Key.ctrl_l, Key.ctrl_r):
                 modifier = "ctrl"
-            mods, _ = self._split_shortcut(binding)
             return bool(modifier and modifier in mods)
 
-    def _popup_translation_press(self, key) -> tuple[str, str] | None:
-            if not self._is_popup_open():
-                return None
-            for action, binding, provider in self._popup_translation_bindings():
-                if binding and self._shortcut_matches(binding, key):
-                    return action, provider
-            return None
-
     def _translation_release_matches(self, action: str, key) -> bool:
+            active_binding = getattr(self, "_active_translation_binding", None)
+            if active_binding:
+                return self._binding_release_matches(active_binding, key)
             for candidate, binding, _provider in self._popup_translation_bindings():
                 if candidate != action:
                     continue
-                mods, key_token = self._split_shortcut(binding)
-                released_tokens = self._key_tokens(key)
-                if key_token and key_token in released_tokens:
+                if self._binding_release_matches(binding, key):
                     return True
-                modifier = None
-                if key in (Key.shift_l, Key.shift_r):
-                    modifier = "shift"
-                elif key in (Key.alt_l, Key.alt_r):
-                    modifier = "alt"
-                elif key in (Key.ctrl_l, Key.ctrl_r):
-                    modifier = "ctrl"
-                return bool(modifier and modifier in mods)
             return False
 
+    def _shortcut_candidate_identity(self, candidate: dict) -> tuple:
+            return (
+                candidate.get("kind"),
+                candidate.get("action"),
+                candidate.get("provider"),
+                bool(candidate.get("single_fire")),
+            )
+
+    def _dedupe_shortcut_candidates(self, candidates: list[dict]) -> list[dict]:
+            deduped = []
+            seen = set()
+            for candidate in candidates:
+                marker = (
+                    self._shortcut_candidate_identity(candidate),
+                    str(candidate.get("binding") or ""),
+                )
+                if marker in seen:
+                    continue
+                seen.add(marker)
+                deduped.append(candidate)
+            return deduped
+
+    def _warn_ambiguous_shortcut(self, candidates: list[dict]) -> None:
+            warned = getattr(self.controller, "_warned_ambiguous_shortcuts", None)
+            if warned is None:
+                warned = set()
+                self.controller._warned_ambiguous_shortcuts = warned
+            marker = tuple(
+                sorted(
+                    (
+                        str(candidate.get("binding") or ""),
+                        str(candidate.get("kind") or ""),
+                        str(candidate.get("action") or ""),
+                        str(candidate.get("provider") or ""),
+                    )
+                    for candidate in candidates
+                )
+            )
+            if marker in warned:
+                return
+            warned.add(marker)
+            details = ", ".join(
+                f"{candidate.get('binding')} -> {candidate.get('action')}"
+                + (f"/{candidate.get('provider')}" if candidate.get("provider") else "")
+                for candidate in candidates
+            )
+            logger.warning("Ignoring ambiguous shortcut assignment: %s", details)
+
+    def _resolve_shortcut_candidates(self, candidates: list[dict]) -> dict | None:
+            candidates = self._dedupe_shortcut_candidates(candidates)
+            if not candidates:
+                return None
+            identities = {self._shortcut_candidate_identity(candidate) for candidate in candidates}
+            if len(identities) > 1:
+                self._warn_ambiguous_shortcut(candidates)
+                return None
+            return candidates[0]
+
+    def _matching_shortcut_candidates(self, key) -> list[dict]:
+            candidates = []
+            if self._is_popup_open():
+                for binding in self._popup_add_anki_bindings():
+                    if self._shortcut_matches(binding, key):
+                        candidates.append(
+                            {
+                                "kind": "popup_add",
+                                "action": "popup_add_anki",
+                                "binding": binding,
+                                "single_fire": True,
+                            }
+                        )
+                for action, binding, provider in self._popup_translation_bindings():
+                    if binding and self._shortcut_matches(binding, key):
+                        candidates.append(
+                            {
+                                "kind": "popup_translation",
+                                "action": action,
+                                "binding": binding,
+                                "provider": provider,
+                                "single_fire": True,
+                            }
+                        )
+            if not self._hotkeys_disabled():
+                for action, binding in self._single_fire_bindings():
+                    if self._shortcut_matches(binding, key):
+                        candidates.append(
+                            {
+                                "kind": "single",
+                                "action": action,
+                                "binding": binding,
+                                "single_fire": True,
+                            }
+                        )
+                for action, binding in self._repeat_action_bindings():
+                    if self._shortcut_matches(binding, key):
+                        candidates.append(
+                            {
+                                "kind": "repeat",
+                                "action": action,
+                                "binding": binding,
+                                "single_fire": False,
+                            }
+                        )
+            return candidates
+
     def _hotkeys_disabled(self) -> bool:
-            if bool(getattr(self.sub_manager, "is_search_dialog_active", lambda: False)()):
-                return True
-            if int(getattr(self.settings, "input_mode", 1)) == 3:
-                return True
             return bool(self.config.get("SHORTCUTS_DISABLED") or False)
 
     def _reset_hotkey_state(self, reset_shift: bool = True) -> None:
@@ -537,6 +745,7 @@ class HotkeyController(_ControllerProxy):
             self.translation_pressed = False
             self.translation_provider = "deepl"
             self._active_translation_action = None
+            self._active_translation_binding = None
             self.alt_pressed = False
             self.ctrl_pressed = False
             self._single_fire_actions.clear()
@@ -558,61 +767,102 @@ class HotkeyController(_ControllerProxy):
             self._reset_hotkey_state(reset_shift=False)
 
     def _on_key_press(self, key):
+            if self._is_suppressed_synthetic_space(key):
+                return
+            text_input_focused = self._is_text_input_focused()
+
+            if text_input_focused:
+                popup_add_candidate = None
+                if self._is_popup_open():
+                    popup_add_candidates = []
+                    for binding in self._popup_add_anki_bindings():
+                        if self._shortcut_matches(binding, key):
+                            popup_add_candidates.append(
+                                {
+                                    "kind": "popup_add",
+                                    "action": "popup_add_anki",
+                                    "binding": binding,
+                                    "single_fire": True,
+                                }
+                            )
+
+                    popup_add_candidate = self._resolve_shortcut_candidates(popup_add_candidates)
+
+                if popup_add_candidate is not None:
+                    action = popup_add_candidate.get("action")
+                    if action in self._single_fire_actions:
+                        return
+                    self._single_fire_actions.add(action)
+                    self._enqueue_input_action(action)
+                    return
+
+                self._reset_hotkey_state(reset_shift=True)
+                return
+
             if key in (Key.shift_l, Key.shift_r):
                 if self.shift_pressed:
                     return
                 self.shift_pressed = True
+                if self.ctrl_pressed or self.alt_pressed:
+                    self._clear_shift_hover_displays()
                 return
-            if self._popup_add_anki_press(key):
+        
+            if key in (Key.alt_l, Key.alt_r):
+                self.alt_pressed = True
+                if self.shift_pressed:
+                    self._clear_shift_hover_displays()
                 return
-            popup_translation = self._popup_translation_press(key)
-            if popup_translation is not None:
-                action, provider = popup_translation
+            if key in (Key.ctrl_l, Key.ctrl_r):
+                self.ctrl_pressed = True
+                if self.shift_pressed:
+                    self._clear_shift_hover_displays()
+                return
+
+            candidate = self._resolve_shortcut_candidates(self._matching_shortcut_candidates(key))
+            if candidate is None:
+                return
+            kind = candidate.get("kind")
+            action = candidate.get("action")
+            if kind == "popup_translation":
+                provider = candidate.get("provider") or "deepl"
+                binding = candidate.get("binding")
                 if self.translation_pressed:
                     if self.translation_provider != provider:
                         self.translation_provider = provider
                         self._active_translation_action = action
+                        self._active_translation_binding = binding
                         self._refresh_popup_translation_display()
                     return
                 self.translation_pressed = True
                 self.translation_provider = provider
                 self._active_translation_action = action
+                self._active_translation_binding = binding
                 self._refresh_popup_translation_display()
                 return
-            if self._hotkeys_disabled():
-                self._reset_hotkey_state(reset_shift=False)
-                return
-            if key in (Key.alt_l, Key.alt_r):
-                self.alt_pressed = True
-                return
-            if key in (Key.ctrl_l, Key.ctrl_r):
-                self.ctrl_pressed = True
-                return
-
-            if self._is_text_input_focused():
-                self._reset_hotkey_state(reset_shift=False)
-                return
-
-            mapping = []
-            mapping.extend((binding, action, True) for action, binding in self._single_fire_bindings())
-            mapping.extend((binding, action, False) for action, binding in self._repeat_action_bindings())
-
-            for binding, action, single_fire in mapping:
-                if not self._shortcut_matches(binding, key):
-                    continue
-                if single_fire and action in self._single_fire_actions:
+            if kind == "popup_add":
+                if action in self._single_fire_actions:
                     return
-                if single_fire:
-                    self._single_fire_actions.add(action)
-                    self._enqueue_input_action(action)
+                self._single_fire_actions.add(action)
+                self._enqueue_input_action(action)
+                return
+            if bool(candidate.get("single_fire")):
+                if action in self._single_fire_actions:
                     return
-                if not self._hold_repeat_action(action):
-                    return
-                if not self._is_seek_repeat_action(action):
-                    self._queue_repeat_step(action)
+                self._single_fire_actions.add(action)
+                self._enqueue_input_action(action)
+                return
+            if not self._hold_repeat_action(action):
+                return
+            if not self._is_seek_repeat_action(action):
+                self._queue_repeat_step(action)
                 return
 
     def _on_key_release(self, key):
+            if self._is_suppressed_synthetic_space(key):
+                return
+            if self._is_text_input_focused():
+                self._reset_hotkey_state(reset_shift=True)
+                return
             if self._popup_add_anki_release_matches(key):
                 self._single_fire_actions.discard("popup_add_anki")
 
@@ -621,6 +871,7 @@ class HotkeyController(_ControllerProxy):
                 self.translation_pressed = False
                 self.translation_provider = "deepl"
                 self._active_translation_action = None
+                self._active_translation_binding = None
                 self._refresh_popup_translation_display()
                 return
 
@@ -636,10 +887,6 @@ class HotkeyController(_ControllerProxy):
                 return
 
             if self._hotkeys_disabled():
-                self._reset_hotkey_state(reset_shift=False)
-                return
-
-            if self._is_text_input_focused():
                 self._reset_hotkey_state(reset_shift=False)
                 return
 
@@ -693,12 +940,26 @@ class HotkeyController(_ControllerProxy):
             except Exception:
                 return False
 
-    def _show_control_window_for_subtitle_toggle(self) -> None:
+    def _sync_control_window_for_subtitle_visibility(self) -> None:
             control = getattr(self.settings, "control_window", None)
+            overlay = getattr(getattr(self.controller, "overlay", None), "sub_window", None)
             if control is None:
                 return
             try:
-                if control.winfo_exists():
+                if not control.winfo_exists():
+                    return
+                if bool(getattr(self.controller, "subtitles_user_hidden", False)):
+                    control.withdraw()
+                    if overlay is not None and overlay.winfo_exists():
+                        overlay.withdraw()
+                else:
+                    if overlay is not None and overlay.winfo_exists():
+                        overlay.deiconify()
+                        overlay.lift()
+                        try:
+                            overlay.attributes("-topmost", True)
+                        except Exception:
+                            pass
                     control.deiconify()
                     control.lift()
                     try:
@@ -710,6 +971,9 @@ class HotkeyController(_ControllerProxy):
 
     def _on_global_click(self, x, y, button, pressed):
             if not pressed:
+                return
+            if self._is_text_input_focused():
+                self._reset_hotkey_state(reset_shift=True)
                 return
             if button == Button.x2:
                 if not self._hotkey_action_disabled("clear_subtitle"):

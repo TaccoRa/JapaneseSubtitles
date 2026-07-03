@@ -169,6 +169,24 @@ $env:PYTHONPATH='.;SubtitlePlayer'
 python -m pytest dev\tests\model
 ```
 
+Test ruby/furigana for one sentence:
+
+```powershell
+python dev\audit_furigana_srt.py --sentence "人間 乗り換える 煮え切らない １ 匹" --compare-split-modes
+```
+
+Test ruby/furigana for one SRT file:
+
+```powershell
+python dev\audit_furigana_srt.py --file "subs\寄生獣.セイの格率.S01E07.Stage 7.暗夜行路.WEBRip.Netflix.ja[cc].srt" --max-examples-per-file 10
+```
+
+Preview Anki ruby fields without creating a note:
+
+```powershell
+python dev\preview_anki_ruby.py --word "人間" --sentence "人間 乗り換える 煮え切らない １ 匹" --json
+```
+
 Run slider benchmark:
 
 ```powershell

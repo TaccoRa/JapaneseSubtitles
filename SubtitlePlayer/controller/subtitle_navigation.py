@@ -186,6 +186,27 @@ class SubtitleNavigationController(_ControllerProxy):
         copy_text = self.segments_to_copy_text(top, bottom) or clean
         self.last_subtitle_raw = copy_text
 
+        if getattr(self, "subtitles_user_hidden", False):
+            hidden_idx = getattr(self, "subtitles_hidden_until_index", None)
+            try:
+                same_hidden_cue = hidden_idx is not None and int(hidden_idx) == int(idx)
+            except Exception:
+                same_hidden_cue = False
+            if not same_hidden_cue:
+                self.subtitles_user_hidden = False
+                self.subtitles_hidden_until_index = None
+                self._show_subtitle_overlay_window()
+                self.last_subtitle_text = ""
+            else:
+                if self.subtitle_timeout_job:
+                    try:
+                        self.overlay.root.after_cancel(self.subtitle_timeout_job)
+                    except Exception:
+                        pass
+                    self.subtitle_timeout_job = None
+                self._reset_canvas()
+                return
+
         # KEEP HIDDEN UNTIL SUBTITLE CHANGES
         if (
             not force
@@ -216,6 +237,7 @@ class SubtitleNavigationController(_ControllerProxy):
             self.overlay.root.after_cancel(self.subtitle_timeout_job)
             self.subtitle_timeout_job = None
 
+        self._ensure_overlay_width_for_display_lines(top, bottom)
         self.renderer.update_canvas(self.overlay.subtitle_canvas)
 
         self.last_subtitle_text = copy_text
@@ -232,13 +254,91 @@ class SubtitleNavigationController(_ControllerProxy):
             self.hide_subtitles_ms,
             self._hide_subtitles_temporarily
         )
+
+    def _ensure_overlay_width_for_display_lines(self, top, bottom) -> None:
+        """Grow the overlay when lazy ruby makes the current cue wider than the cached size."""
+        calculator = getattr(self.sub_manager, "calculate_geometry_for_display_lines", None)
+        updater = getattr(self.overlay, "update_geometry", None)
+        if not callable(calculator) or not callable(updater):
+            return
+
+        try:
+            target_w, target_h = calculator(top, bottom)
+            target_w = int(target_w)
+            target_h = int(target_h)
+        except Exception:
+            logger.debug("Failed to measure current subtitle geometry", exc_info=True)
+            return
+
+        try:
+            current_w = int(getattr(self.overlay, "max_w", 0) or 0)
+            current_h = int(getattr(self.overlay, "max_h", 0) or 0)
+        except Exception:
+            current_w = 0
+            current_h = 0
+
+        if target_w <= current_w:
+            return
+
+        try:
+            updater(target_w, max(current_h, target_h))
+        except Exception:
+            logger.debug("Failed to grow subtitle overlay for current subtitle", exc_info=True)
+
+    def _show_subtitle_overlay_window(self) -> None:
+        try:
+            show = getattr(self.overlay, "show", None)
+            if callable(show):
+                show()
+                return
+        except Exception:
+            pass
+        try:
+            self.overlay.sub_window.deiconify()
+            self.overlay.sub_window.lift()
+            self.overlay.sub_window.attributes("-topmost", True)
+        except Exception:
+            pass
+
+    def _hide_subtitle_overlay_window(self) -> None:
+        try:
+            if hasattr(self.renderer, "destroy_hover_windows"):
+                self.renderer.destroy_hover_windows()
+        except Exception:
+            pass
+        try:
+            self.overlay.sub_window.withdraw()
+        except Exception:
+            pass
+        try:
+            self.overlay.hide_handle()
+        except Exception:
+            pass
     
     @staticmethod
     def segments_to_copy_text(top_segments, bottom_segments) -> str:
+        def _starts_with_kanji(text: str) -> bool:
+            if not text:
+                return False
+            code = ord(text[0])
+            return (
+                code == 0x3005
+                or 0x3400 <= code <= 0x4DBF
+                or 0x4E00 <= code <= 0x9FFF
+                or 0xF900 <= code <= 0xFAFF
+            )
+
         def _line_text(segments) -> str:
             out = []
             for base, ruby in segments or []:
                 if ruby:
+                    if (
+                        _starts_with_kanji(str(base or ""))
+                        and out
+                        and not out[-1].endswith((" ", "\n", "\t"))
+                        and not out[-1].endswith(("[", "(", "\uff08", "{", "\uff5b", "<", "\uff1c", "\u300c", "\u300e", "\u3010"))
+                    ):
+                        out.append(" ")
                     out.append(f"{base}[{ruby}]")
                 else:
                     out.append(str(base or ""))
@@ -315,18 +415,24 @@ class SubtitleNavigationController(_ControllerProxy):
                 pass
             self.subtitle_timeout_job = None
 
-        if self.subtitle_deleted:
+        if getattr(self, "subtitles_user_hidden", False):
+            self.subtitles_user_hidden = False
+            self.subtitles_hidden_until_index = None
+            self._show_subtitle_overlay_window()
             self.subtitle_deleted = False
             self.last_subtitle_text = ""
             self._update_subtitle_display(force=True)
             return "break"
 
+        self.subtitles_user_hidden = True
+        self.subtitles_hidden_until_index = getattr(self, "last_rendered_index", None)
         try:
             self.renderer.canvas.delete("all")
             if hasattr(self.renderer, "destroy_hover_windows"):
                 self.renderer.destroy_hover_windows()
         except Exception:
             pass
+        self._hide_subtitle_overlay_window()
         self.subtitle_deleted = True
         return "break"
 
@@ -346,6 +452,9 @@ class SubtitleNavigationController(_ControllerProxy):
             self.overlay.root.after_cancel(self.subtitle_timeout_job)
             self.subtitle_timeout_job = None
         self.last_subtitle_text = ""
+        self.subtitles_user_hidden = False
+        self.subtitles_hidden_until_index = None
+        self._show_subtitle_overlay_window()
         self.subtitle_deleted    = False
         self.update_time_and_subtitle_displays()
 

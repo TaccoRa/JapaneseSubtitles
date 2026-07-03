@@ -142,7 +142,7 @@ class SubtitlePlayerApp:
     def _build_ui(self):
         self.popup = CopyPopup(root=self.root, config=self.config)
 
-        overlay_geometry = self.sub_manager.calculate_geometry_for_longest_lines(5)
+        overlay_geometry = self.sub_manager.calculate_geometry()
         cleaned_subs = [item[0] for item in self.sub_manager.display_data]
 
         self.sub_overlay_ui = SubtitleOverlayUI(

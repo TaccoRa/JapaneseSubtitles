@@ -10,7 +10,13 @@ from tkinter import ttk
 from re import fullmatch
 from model.config_manager import ConfigManager
 from view.settings_advanced_ui import SettingsAdvancedUI
-from utils import (make_draggable,format_time,get_monitor_rects,make_nonactivating_window,show_window_no_activate_minimizable)
+from utils import (
+    make_draggable,
+    format_time,
+    get_monitor_rects,
+    make_nonactivating_window,
+    set_window_topmost_no_activate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -66,12 +72,11 @@ class SettingsUI:
         self.slider = None
         self.advanced_window = None
         self._advanced_notebook = None
-        self._advanced_tab_sizes = {}
         self._advanced_tab_key_map = {}
-        self._advanced_resize_job = None
         self._performance_tab = None
         self._performance_text = None
         self._root_topmost_before_advanced = None
+        self._settings_window_from_control = False
         self._ocr_region_count_trace_var = None
         self._ocr_region_count_refresh_job = None
         self.adv_settings = SettingsAdvancedUI(self)
@@ -128,27 +133,11 @@ class SettingsUI:
             parsed = int(mode) or None
         except Exception:
             parsed = None
-        if parsed in (1, 2):
+        if parsed in (1, 2, 3):
             return parsed
-        if parsed == 3:
-            last_active = self.config.get("LAST_ACTIVE_INPUT_MODE")
-            try:
-                last_active = int(last_active) or None
-            except Exception:
-                last_active = None
-            if last_active in (1, 2):
-                return last_active
-            return 1
         parsed = 2 if bool(self.config.get("INPUT_MODE_NUMPAD") or False) else 1
         if bool(self.config.get("SHORTCUTS_DISABLED") or False):
-            last_active = self.config.get("LAST_ACTIVE_INPUT_MODE")
-            try:
-                last_active = int(last_active) or None
-            except Exception:
-                last_active = None
-            if last_active in (1, 2):
-                return last_active
-            return 1
+            return 3
         return parsed
 
     def _init_vars(self):
@@ -185,7 +174,11 @@ class SettingsUI:
                      "advanced_apply",
                      "ocr_read_now", "ocr_sync_now", "ocr_show_boxes",
                      "anki_check", "performance_snapshot", "performance_reset",
-                     "settings_open"):
+                     "settings_open",
+                     "annotation_list_words", "annotation_add_word", "annotation_delete_word",
+                     "annotation_import_words", "annotation_export_words", "annotation_refresh_words",
+                     "annotation_anki_refresh", "annotation_anki_model_fields", "annotation_anki_sync",
+                     "annotation_wanikani_test", "annotation_wanikani_sync", "annotation_wanikani_clear"):
             setattr(self, f"_on_{name}", self._noop)
 
     # --------- SETTINGS FRAME ------------------------------------------------------------------------------------
@@ -409,7 +402,7 @@ class SettingsUI:
         self.play_pause_btn.bind("<ButtonPress>", lambda event: (self._on_play_pause()))
         self.settings_btn.bind("<ButtonPress>", self._on_settings)
         self.refresh_btn.bind("<ButtonPress>", lambda ev: self._on_toggle_subtitles(ev))
-        self.time_entry.bind("<Button-1>", lambda ev: self._on_time_entry_clear(ev))
+        self.time_entry.bind("<Button-1>", self._on_time_entry_click)
         self.time_entry.bind("<FocusOut>", lambda ev: self._on_time_entry_return(ev))
         self.time_entry.bind("<Return>", lambda ev:   self._on_time_entry_return(ev))
         self.control_window.bind("<ButtonPress-1>", self._on_control_window_click, add="+")
@@ -424,6 +417,115 @@ class SettingsUI:
         self._set_phone_mode_styles(self.default_phone_mode)
         self.control_window.lift()
         self.control_window.attributes("-topmost", True)
+
+    def _settings_window_is_topmost(self) -> bool:
+        try:
+            return bool(self.root.attributes("-topmost"))
+        except Exception:
+            return False
+
+    def _settings_window_is_visible(self) -> bool:
+        try:
+            state = str(self.root.state() or "").lower()
+            if state in {"iconic", "withdrawn"}:
+                return False
+        except Exception:
+            pass
+        try:
+            return bool(self.root.winfo_viewable())
+        except Exception:
+            return False
+
+    def _advanced_window_is_open(self) -> bool:
+        win = getattr(self, "advanced_window", None)
+        try:
+            return bool(win is not None and win.winfo_exists())
+        except Exception:
+            return False
+
+    @staticmethod
+    def _window_is_visible(win) -> bool:
+        try:
+            if win is None or not win.winfo_exists():
+                return False
+            state = str(win.state() or "").lower()
+            if state in {"iconic", "withdrawn"}:
+                return False
+        except Exception:
+            pass
+        try:
+            return bool(win.winfo_viewable())
+        except Exception:
+            return True
+
+    def _advanced_window_is_visible(self) -> bool:
+        return self._window_is_visible(getattr(self, "advanced_window", None))
+
+    def show_settings_window(self) -> None:
+        """Show the main settings window through the normal reliable Tk path."""
+        shown = False
+        try:
+            self.root.deiconify()
+            self.root.state("normal")
+            self.root.attributes("-topmost", True)
+            self.root.lift()
+            shown = True
+        except Exception as e:
+            logger.debug("Failed to show settings window normally: %s", e, exc_info=True)
+        if not shown:
+            try:
+                self.root.lift()
+                self.root.focus_force()
+            except Exception:
+                pass
+        self._settings_window_from_control = True
+
+    def demote_settings_window(self) -> None:
+        """Send the settings window behind fullscreen video without minimizing it."""
+        if not set_window_topmost_no_activate(self.root, False):
+            try:
+                self.root.attributes("-topmost", False)
+            except Exception:
+                pass
+        try:
+            self.root.lower()
+        except Exception:
+            pass
+        self._settings_window_from_control = False
+
+    def _show_advanced_window_from_control(self) -> None:
+        win = getattr(self, "advanced_window", None)
+        try:
+            if win is not None and win.winfo_exists():
+                self.adv_settings._show_advanced_window(win)
+        except Exception:
+            logger.debug("Failed to show advanced settings window from control button", exc_info=True)
+
+    def _hide_advanced_window_from_control(self) -> None:
+        win = getattr(self, "advanced_window", None)
+        try:
+            if win is not None and win.winfo_exists():
+                try:
+                    self.adv_settings._save_advanced_window_position(win)
+                except Exception:
+                    pass
+                win.withdraw()
+        except Exception:
+            logger.debug("Failed to hide advanced settings window from control button", exc_info=True)
+
+    def toggle_settings_window_from_control(self) -> bool:
+        group_visible = (
+            self._settings_window_from_control
+            and self._settings_window_is_visible()
+            and self._settings_window_is_topmost()
+        ) or self._advanced_window_is_visible()
+        if group_visible:
+            self._hide_advanced_window_from_control()
+            self.demote_settings_window()
+            return False
+        self.show_settings_window()
+        self._show_advanced_window_from_control()
+        return True
         
     def _save_control_window_pos(self, x, y, w, h):
         self._control_win_x = x
@@ -487,6 +589,25 @@ class SettingsUI:
     def bind_performance_snapshot(self, cb): self._on_performance_snapshot = cb
     def bind_performance_reset(self, cb):    self._on_performance_reset = cb
     def bind_settings_open(self, cb):        self._on_settings_open = cb
+    def bind_annotation_callbacks(self, **callbacks):
+        mapping = {
+            "list_words": "annotation_list_words",
+            "add_word": "annotation_add_word",
+            "delete_word": "annotation_delete_word",
+            "import_words": "annotation_import_words",
+            "export_words": "annotation_export_words",
+            "refresh_words": "annotation_refresh_words",
+            "anki_refresh": "annotation_anki_refresh",
+            "anki_model_fields": "annotation_anki_model_fields",
+            "anki_sync": "annotation_anki_sync",
+            "wanikani_test": "annotation_wanikani_test",
+            "wanikani_sync": "annotation_wanikani_sync",
+            "wanikani_clear": "annotation_wanikani_clear",
+        }
+        for source, target in mapping.items():
+            callback = callbacks.get(source)
+            if callable(callback):
+                setattr(self, f"_on_{target}", callback)
     def refresh_debugging_visibility(self):  self.adv_settings._sync_performance_tab_visibility()
 
     def update_time_overlay_position(self):
@@ -554,6 +675,7 @@ class SettingsUI:
         if self.input_mode in (1, 2):
             self._last_active_input_mode = self.input_mode
         self._sync_input_mode_runtime_flags()
+        self._persist_input_mode_state()
         self._refresh_input_mode_button()
 
     def set_hotkeys_disabled(self, disabled: bool):
@@ -567,6 +689,7 @@ class SettingsUI:
         if self.input_mode in (1, 2):
             self._last_active_input_mode = self.input_mode
         self._sync_input_mode_runtime_flags()
+        self._persist_input_mode_state()
         self._refresh_input_mode_button()
 
     def _sync_input_mode_runtime_flags(self):
@@ -589,6 +712,24 @@ class SettingsUI:
                     hotkey_var.set(is_m3)
                 except Exception:
                     pass
+
+    def _persist_input_mode_state(self) -> None:
+        updates = {
+            "INPUT_MODE": int(self.input_mode),
+            "INPUT_MODE_NUMPAD": bool(self.input_mode == 2),
+            "SHORTCUTS_DISABLED": bool(self.input_mode == 3),
+        }
+        if self._last_active_input_mode in (1, 2):
+            updates["LAST_ACTIVE_INPUT_MODE"] = int(self._last_active_input_mode)
+        try:
+            if hasattr(self.config, "set_many"):
+                self.config.set_many(updates)
+            else:
+                for key, value in updates.items():
+                    if self.config.get(key) != value:
+                        self.config.set(key, value)
+        except Exception as e:
+            logger.debug("Failed to persist input mode state: %s", e, exc_info=True)
 
     def _refresh_input_mode_button(self):
         if not (getattr(self, "input_mode_btn", None) or getattr(self, "mode_toggle_btn", None)):
@@ -664,17 +805,28 @@ class SettingsUI:
     def _on_control_window_click(self, event):
         if event.widget is self.time_entry:
             return
-        self.control_window.focus_force()
         try:
             self.control_window.after_idle(lambda: self.control_window.tk.call("focus", ""))
         except Exception as e:
             logger.debug("Failed to clear control-window focus: %s", e, exc_info=True)
-            self.control_window.focus_set()
+
+    def _on_time_entry_click(self, event):
+        try:
+            self.control_window.deiconify()
+            self.control_window.lift()
+            self.control_window.attributes("-topmost", True)
+            self.time_entry.focus_force()
+            self.time_entry.icursor(tk.END)
+        except Exception as e:
+            logger.debug("Failed to focus control time entry: %s", e, exc_info=True)
+        self._on_time_entry_clear(event)
+        return None
 
     #HELPERS
     def _on_settings(self, event):#button to lift the root window
-        show_window_no_activate_minimizable(self.root, topmost=True)
-        self._on_settings_open()
+        opened = self.toggle_settings_window_from_control()
+        if opened:
+            self._on_settings_open()
         return "break"
 
     def _sync_advanced_startup_vars_from_runtime(self) -> None:
@@ -777,12 +929,10 @@ class SettingsUI:
 
         if not text or not fullmatch(r"[\d:.]+", text):
             self.setto_entry.delete(0, tk.END)
-            self.setto_entry.master.focus_set()
             return "break"
 
         if callable(self._on_set_to_return):
             self._on_set_to_return(text)
-        self.setto_entry.master.focus_set()
 
         return "break"
     
@@ -804,7 +954,6 @@ class SettingsUI:
                 self._apply_offset_change(value, persist=True, previous_value=previous)
             elif entry is self.skip_entry:
                 self._apply_skip_change(value, persist=True)
-        entry.master.focus_set()
 
     def _apply_offset_change(self, value_seconds: float, persist: bool, previous_value=None):
         try:

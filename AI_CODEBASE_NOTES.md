@@ -89,7 +89,13 @@ These notes are for future AI/code work. They summarize the repository shape, ru
 - Anki card headwords use the selected text plus the full subtitle sentence when available. This lets a selected stem such as `勉強` become `勉強する` when the sentence uses `勉強した`, while keeping noun usage such as `勉強は楽しい` unchanged.
 - Dynamic Anki grammar tags are `する-Verb`, `い-Adj`, and `な-Adj`. The old default `subtitleplayer` tag is not added unless a user explicitly puts it in `ANKI_TAGS`.
 - `ANKI_TAGS` is exposed in Advanced Settings > Anki > Tags and is parsed from comma/semicolon-separated text.
+- Ruby defaults to whole all-kanji compounds, e.g. `人間[にんげん]`. The advanced `ANKI_SPLIT_KANJI_MORAS` option enables per-kanji compound splitting. Mixed kanji/kana words still split by visible kana boundaries, e.g. `乗[の]り換[か]える`.
+- Number-counter expressions such as `１匹`, `１ 匹`, and `1匹` are pre-processed before ruby generation so the reading spans the full expression, e.g. `１ 匹[いっぴき]`.
+- Shortcuts support comma-separated alternatives such as `t, y` or `ctrl+shift+y, ctrl+j`. Empty shortcut fields are disabled and do not fall back to defaults.
+- Global hotkey matching requires exact modifiers, so `Ctrl+A` no longer fires a plain `a` action.
+- AnkiConnect requests retry small safe calls. `addNote` is not blindly retried; dropped responses are checked against existing notes first to reduce duplicate-note risk.
 - In phone mode, the subtitle drag handle is hidden while the pointer is over the full settings or advanced-settings window rectangle, including the native titlebar/X area on Windows.
+- Startup phase timings are logged through `SubtitlePlayer.App` and are visible in `logs/subtitleplayer.log`.
 
 ## Readability Notes
 
@@ -156,6 +162,19 @@ $env:PYTHONPATH='.;SubtitlePlayer'
 python -m pytest dev\tests\model
 ```
 
+Audit ruby for one sentence or one SRT:
+
+```powershell
+python dev\audit_furigana_srt.py --sentence "人間 乗り換える 煮え切らない １ 匹" --compare-split-modes
+python dev\audit_furigana_srt.py --file "subs\寄生獣.セイの格率.S01E07.Stage 7.暗夜行路.WEBRip.Netflix.ja[cc].srt"
+```
+
+Preview Anki ruby without creating cards:
+
+```powershell
+python dev\preview_anki_ruby.py --sentence "人間 乗り換える 煮え切らない １ 匹" --json
+```
+
 Run the slider benchmark:
 
 ```powershell
@@ -189,3 +208,13 @@ python dev\experiments\profile_autoruby.py
 4. Add remote search cache schema/version metadata.
 5. Centralize background task throttling, cancellation, and shutdown.
 6. Split `SubtitleManager` once tests cover the main episode/search flows.
+
+## Suggested Commit Message - 2026-06-28
+
+Improve ruby splitting, hotkeys, Anki resilience, and subtitle display
+
+- keep all-kanji ruby compounds whole by default while preserving optional per-kanji split
+- fix mixed kanji/kana ruby, source ruby cleanup, number-counter readings, and Anki ruby output
+- support multiple exact-modifier shortcuts, disabled empty shortcuts, and Ctrl+A text selection
+- add Anki add status logging, popup status reset, auto-jump setting, and safer AnkiConnect retries
+- fix same-time empty subtitle cue handling, subtitle/control hide sync, wrapping geometry, and startup timing logs

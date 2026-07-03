@@ -1,6 +1,6 @@
 from SubtitlePlayer.model.config_manager import ConfigManager
 import SubtitlePlayer.model.anki_client as anki_client_module
-from SubtitlePlayer.model.anki_client import AnkiClient
+from SubtitlePlayer.model.anki_client import AnkiClient, AnkiConnectRequestError
 
 
 def test_extract_jisho_translation_list():
@@ -92,6 +92,38 @@ def test_kanji_mora_splitting_can_be_enabled():
         ("\u6f22", "\u304b\u3093"),
         ("\u5b57", "\u3058"),
     ]
+
+
+def test_mixed_kanji_kana_splits_visible_kana_boundaries_by_default():
+    config = ConfigManager("config.json")
+    config.config["ANKI_SPLIT_KANJI_MORAS"] = False
+    client = AnkiClient(config)
+
+    assert client._split_surface_and_reading("\u4e57\u308a\u63db\u3048\u308b", "\u306e\u308a\u304b\u3048\u308b") == [
+        ("\u4e57", "\u306e"),
+        ("\u308a", None),
+        ("\u63db", "\u304b"),
+        ("\u3048\u308b", None),
+    ]
+    assert client._split_surface_and_reading("\u716e\u3048\u5207\u3089\u306a\u3044", "\u306b\u3048\u304d\u3089\u306a\u3044") == [
+        ("\u716e", "\u306b"),
+        ("\u3048", None),
+        ("\u5207", "\u304d"),
+        ("\u3089\u306a\u3044", None),
+    ]
+
+
+def test_anki_counter_reading_spans_number_and_counter():
+    client = AnkiClient(ConfigManager("config.json"))
+
+    assert (
+        client._to_furigana_brackets(
+            "\uff11 \u5339",
+            collapse_inline_reading=True,
+            sentence_spacing=True,
+        )
+        == "\uff11 \u5339[\u3044\u3063\u3074\u304d]"
+    )
 
 
 def test_katakana_word_gets_hiragana_ruby():
@@ -342,6 +374,49 @@ def test_add_from_selection_includes_custom_anki_tags(monkeypatch):
     assert notes[0]["tags"] == ["anime", "mined", "custom"]
 
 
+def test_suru_marker_tag_can_be_disabled():
+    config = ConfigManager("config.json")
+    config.config["ANKI_TAG_SURU_VERBS"] = False
+    client = AnkiClient(config)
+    client._tagger_load_attempted = True
+
+    assert client._anki_marker_tags_for_selection("\u52c9\u5f37\u3059\u308b", "\u52c9\u5f37\u3059\u308b", "") == []
+
+
+def test_adjective_marker_tags_can_be_disabled():
+    config = ConfigManager("config.json")
+    config.config["ANKI_TAG_I_ADJECTIVES"] = False
+    config.config["ANKI_TAG_NA_ADJECTIVES"] = False
+    client = AnkiClient(config)
+
+    class Feature:
+        def __init__(self, pos1, lemma):
+            self.pos1 = pos1
+            self.lemma = lemma
+            self.orthBase = lemma
+            self.formBase = lemma
+            self.cType = ""
+            self.pos2 = ""
+            self.pos3 = ""
+
+    class Token:
+        def __init__(self, surface, feature):
+            self.surface = surface
+            self.feature = feature
+
+    def fake_tagger(text):
+        if text == "\u65b0\u3057\u3044":
+            return [Token("\u65b0\u3057\u3044", Feature("\u5f62\u5bb9\u8a5e", "\u65b0\u3057\u3044"))]
+        if text == "\u9759\u304b":
+            return [Token("\u9759\u304b", Feature("\u5f62\u72b6\u8a5e", "\u9759\u304b"))]
+        return []
+
+    client._tagger = fake_tagger
+
+    assert client._anki_marker_tags_for_selection("\u65b0\u3057\u3044", "\u65b0\u3057\u3044", "") == []
+    assert client._anki_marker_tags_for_selection("\u9759\u304b", "\u9759\u304b", "") == []
+
+
 def test_add_from_selection_uses_sentence_context_for_selected_suru_stem(monkeypatch):
     client = AnkiClient(ConfigManager("config.json"))
 
@@ -382,6 +457,7 @@ def test_add_from_selection_uses_sentence_context_for_selected_suru_stem(monkeyp
 
     monkeypatch.setattr(client, "_translate_word", lambda text: translate_calls.append(text) or "study")
     monkeypatch.setattr(client, "_translate_sentence", lambda _text: "")
+    monkeypatch.setattr(client, "_translate_google", lambda *_args, **_kwargs: "")
     monkeypatch.setattr(client, "_to_furigana_brackets", lambda text, **_kwargs: f"ruby:{text}")
     monkeypatch.setattr(client, "_get_model_field_names", lambda: {
         client.add_rubies_to_front_field,
@@ -629,6 +705,7 @@ def test_add_from_selection_copies_media_before_creating_note(monkeypatch):
     monkeypatch.setattr(client, "_card_headword_for_selection", lambda text: text)
     monkeypatch.setattr(client, "_translate_word", lambda _text: "word")
     monkeypatch.setattr(client, "_translate_sentence", lambda _text: "")
+    monkeypatch.setattr(client, "_translate_google", lambda *_args, **_kwargs: "")
     monkeypatch.setattr(client, "_to_furigana_brackets", lambda text, **_kwargs: f"ruby:{text}")
     monkeypatch.setattr(client, "_get_model_field_names", lambda: {
         client.add_rubies_to_front_field,
@@ -690,6 +767,36 @@ def test_bracket_text_spaces_before_kanji_ruby_segments():
         sentence_spacing=True,
     )
     assert rendered == "\u98df[\u305f]\u3079\u308b \u6f22[\u304b\u3093] \u5b57[\u3058]"
+
+    rendered_with_source_space = client._segments_to_bracket_text(
+        [
+            ("\u98df", "\u305f"),
+            ("\u3079\u308b ", None),
+            ("\u6f22", "\u304b\u3093"),
+            ("\u5b57", "\u3058"),
+        ],
+        sentence_spacing=True,
+    )
+    assert rendered_with_source_space == "\u98df[\u305f]\u3079\u308b \u6f22[\u304b\u3093] \u5b57[\u3058]"
+
+
+def test_anki_ruby_adds_katakana_ruby_and_common_reading_overrides():
+    client = AnkiClient(ConfigManager("config.json"))
+
+    rendered = client._to_furigana_brackets(
+        "\u30aa\u30ea\u30f3\u30d4\u30c3\u30af "
+        "\u30df\u30ae\u30fc "
+        "\u30d1\u30e9\u30b5\u30a4\u30c8\u3067\u5341\u5206\u3060",
+        collapse_inline_reading=True,
+        sentence_spacing=True,
+    )
+
+    assert rendered == (
+        "\u30aa\u30ea\u30f3\u30d4\u30c3\u30af[\u304a\u308a\u3093\u3074\u3063\u304f] "
+        "\u30df\u30ae\u30fc[\u307f\u304e\u30fc] "
+        "\u30d1\u30e9\u30b5\u30a4\u30c8[\u3071\u3089\u3055\u3044\u3068]\u3067 "
+        "\u5341\u5206[\u3058\u3085\u3046\u3076\u3093]\u3060"
+    )
 
 
 def test_split_all_kanji_chars_keeps_iteration_mark_with_word():
@@ -886,6 +993,27 @@ def test_collect_translation_candidates_uses_existing_caches(monkeypatch):
     assert candidates["sentence"] == {"deepl": "deepl sentence", "google": ""}
 
 
+def test_collect_translation_candidates_can_fetch_missing_google_sentence(monkeypatch):
+    client = AnkiClient(ConfigManager("config.json"))
+    calls = []
+
+    def fake_google(text, source_lang, target_lang):
+        calls.append((text, source_lang, target_lang))
+        return "Google Satz"
+
+    monkeypatch.setattr(client, "_translate_google", fake_google)
+
+    candidates = client._collect_translation_candidates(
+        "\u6f22\u5b57",
+        "\u6f22\u5b57\u3092\u8aad\u3080",
+        sentence_translation="DeepL Satz",
+        fetch_missing_google_sentence=True,
+    )
+
+    assert candidates["sentence"]["google"] == "Google Satz"
+    assert calls == [("\u6f22\u5b57\u3092\u8aad\u3080", "ja", client.sentence_target_lang)]
+
+
 def test_ensure_decks_batches_and_caches():
     client = AnkiClient(ConfigManager("config.json"))
     calls = []
@@ -914,3 +1042,65 @@ def test_ensure_decks_batches_and_caches():
         ),
         ("createDeck", {"deck": "Main::Reverse"}),
     ]
+
+
+def test_add_note_dropped_response_uses_verified_existing_note():
+    client = AnkiClient(ConfigManager("config.json"))
+    fields = {
+        client.add_rubies_to_front_field: "\u8a66\u9a13",
+        client.front_field: "\u8a66\u9a13[\u3057\u3051\u3093]",
+        client.back_field: "test",
+        client.add_rubies_to_sentence_ja_field: "\u8a66\u9a13\u3060",
+        client.sentence_ja_field: "\u8a66\u9a13[\u3057\u3051\u3093]\u3060",
+    }
+    calls = []
+
+    def fake_invoke(action, params=None, **kwargs):
+        calls.append(action)
+        if action == "addNote":
+            raise AnkiConnectRequestError("dropped")
+        if action == "findNotes":
+            return [42]
+        if action == "notesInfo":
+            return [
+                {
+                    "noteId": 42,
+                    "modelName": client.model_name,
+                    "fields": {name: {"value": value} for name, value in fields.items()},
+                }
+            ]
+        return None
+
+    client._invoke = fake_invoke
+
+    assert client._add_note_without_duplicate_retry({"fields": fields}, fields) == 42
+    assert calls == ["addNote", "findNotes", "findNotes", "findNotes", "findNotes", "notesInfo"]
+
+
+def test_add_from_selection_reports_routing_failure_after_note_creation(monkeypatch):
+    client = AnkiClient(ConfigManager("config.json"))
+
+    monkeypatch.setattr(client, "_card_headword_for_anki", lambda text, _subtitle="": text)
+    monkeypatch.setattr(client, "_anki_marker_tags_for_selection", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(client, "_translate_word", lambda _text: "test")
+    monkeypatch.setattr(client, "_translate_sentence", lambda _text: "")
+    monkeypatch.setattr(client, "_to_furigana_brackets", lambda text, **_kwargs: f"ruby:{text}")
+    monkeypatch.setattr(client, "_copy_existing_sentence_media_fields", lambda _fields: {})
+    monkeypatch.setattr(client, "_ensure_decks", lambda _decks: None)
+    monkeypatch.setattr(client, "_add_note_without_duplicate_retry", lambda _note, _fields: 123)
+    monkeypatch.setattr(client, "_route_new_cards", lambda _note_id: (_ for _ in ()).throw(AnkiConnectRequestError("closed")))
+    monkeypatch.setattr(client, "_get_model_field_names", lambda: {
+        client.add_rubies_to_front_field,
+        client.front_field,
+        client.back_field,
+        client.sentence_ja_field,
+        client.sentence_de_field,
+        client.add_rubies_to_sentence_ja_field,
+        client.definition_field,
+    })
+
+    result = client.add_from_selection("\u8a66\u9a13", subtitle_text="")
+
+    assert result["note_id"] == 123
+    assert result["routing_error"] == "closed"
+    assert result["routed_cards"] == {"reading": [], "reverse": [], "unrouted": []}

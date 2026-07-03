@@ -72,6 +72,7 @@ def make_controller(now: float = 0.0):
         update_interval_ms=100,
         update_time_and_subtitle_displays=lambda: display_updates.append(float(controller.current_time)),
         _get_display_start_times=lambda: [],
+        _get_display_end_times=lambda: [],
         _skip_buttons_use_subtitle_segments=lambda: False,
         _schedule_hide_controls=lambda: None,
         control_time_entry_return=lambda _event: None,
@@ -154,6 +155,24 @@ def test_update_loop_uses_monotonic_delta_and_reschedules():
     assert controller.last_update == pytest.approx(5.125)
     assert len(root.scheduled) == 1
     assert root.scheduled[0][1] == 100
+
+
+def test_fast_forward_multiplier_advances_playback_time():
+    now = 5.0
+    controller, playback, root, _slider, button = make_controller(now)
+    playback._now = lambda: now
+    controller._coerce_fast_forward_speed = lambda value: round(float(value), 1)
+    controller.fast_forward_speed = 1.5
+
+    playback.toggle_play()
+    playback.toggle_fast_forward()
+    now += 0.2
+    playback.update_loop()
+
+    assert controller.current_time == pytest.approx(0.3)
+    assert controller.last_update == pytest.approx(5.2)
+    assert root.scheduled[-1][1] == 100
+    assert button.configs[-1]["text"] == "Fast 1.5x"
 
 
 def test_pause_uses_event_time_even_if_update_tick_ran_later():
@@ -288,6 +307,47 @@ def test_hotkey_dispatch_passes_event_time_to_skip_actions():
     hotkeys._dispatch_input_action("go_forward", event_time=11.0)
 
     assert calls == [("back", pytest.approx(10.0)), ("forward", pytest.approx(11.0))]
+
+
+def test_jump_sub_end_uses_display_end_time_and_audio_padding():
+    controller, playback, _root, _slider, _button = make_controller()
+    controller.current_time = 12.0
+    controller.audio_padding = 500.0
+    controller._get_display_start_times = lambda: [10.0]
+    controller._get_display_end_times = lambda: [15.0]
+
+    playback.on_jump_sub_end()
+
+    assert controller.current_time == pytest.approx(15.5)
+    assert controller._display_updates == [pytest.approx(15.5)]
+
+
+def test_jump_sub_end_does_not_jump_back_after_current_display_cue_ended():
+    controller, playback, _root, _slider, _button = make_controller()
+    controller.current_time = 16.0
+    controller._get_display_start_times = lambda: [10.0]
+    controller._get_display_end_times = lambda: [15.0]
+
+    playback.on_jump_sub_end()
+
+    assert controller.current_time == pytest.approx(16.0)
+    assert controller._display_updates == []
+
+
+def test_repeated_jump_sub_end_advances_from_padding_gap_to_next_cue():
+    controller, playback, _root, _slider, _button = make_controller()
+    controller.current_time = 12.0
+    controller.audio_padding = 500.0
+    controller._get_display_start_times = lambda: [10.0, 20.0]
+    controller._get_display_end_times = lambda: [15.0, 23.0]
+
+    playback.on_jump_sub_end()
+    assert controller.current_time == pytest.approx(15.5)
+
+    playback.on_jump_sub_end()
+
+    assert controller.current_time == pytest.approx(23.5)
+    assert controller._display_updates == [pytest.approx(15.5), pytest.approx(23.5)]
 
 
 def test_hotkey_dispatch_toggles_debugging():

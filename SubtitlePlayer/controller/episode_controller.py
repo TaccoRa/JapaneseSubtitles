@@ -2,6 +2,7 @@
 
 import bisect
 import logging
+import os
 import re
 import time
 from typing import Any
@@ -51,23 +52,192 @@ class EpisodeController(_ControllerProxy):
                 logger.debug("Normalizing anime name failed", exc_info=True)
                 return ""
 
+    @staticmethod
+    def _coerce_bool(value, default: bool = False) -> bool:
+            if value is None:
+                return bool(default)
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, str):
+                text = value.strip().lower()
+                if text in {"1", "true", "yes", "on"}:
+                    return True
+                if text in {"0", "false", "no", "off"}:
+                    return False
+            return bool(value)
+
+    def _start_episodes_at_default_time(self) -> bool:
+            config = getattr(self, "config", None)
+            if config is None:
+                return False
+            try:
+                return self._coerce_bool(config.get("START_EPISODES_AT_DEFAULT_TIME"), False)
+            except Exception:
+                return False
+
+    def _episode_resume_positions(self) -> dict:
+            config = getattr(self, "config", None)
+            if config is None:
+                return {}
+            try:
+                raw = config.get("EPISODE_TIME_POSITIONS")
+            except Exception:
+                raw = None
+            return dict(raw) if isinstance(raw, dict) else {}
+
+    @staticmethod
+    def _normalize_resume_path(path) -> str:
+            text = str(path or "").strip()
+            if not text:
+                return ""
+            try:
+                text = os.path.normcase(os.path.abspath(text))
+            except Exception:
+                pass
+            return text.replace("\\", "/")
+
+    def _episode_resume_key(self) -> str | None:
+            sub_manager = getattr(self, "sub_manager", None)
+            if sub_manager is None:
+                return None
+
+            parts = ["v1"]
+            anime = self._normalize_anime_key(sub_manager.get_anime_name() if hasattr(sub_manager, "get_anime_name") else "")
+            if anime:
+                parts.append(f"anime={anime}")
+
+            season = getattr(sub_manager, "current_season", None)
+            episode = getattr(sub_manager, "current_episode", None)
+            try:
+                if hasattr(sub_manager, "get_current_season"):
+                    season = sub_manager.get_current_season()
+                if hasattr(sub_manager, "get_current_episode"):
+                    episode = sub_manager.get_current_episode()
+            except Exception:
+                logger.debug("Failed to read current episode metadata", exc_info=True)
+
+            global_episode = None
+            try:
+                if hasattr(sub_manager, "get_current_global"):
+                    global_episode = sub_manager.get_current_global()
+            except Exception:
+                global_episode = None
+
+            has_episode_identity = False
+            for label, value in (("s", season), ("e", episode), ("g", global_episode)):
+                if value is None:
+                    continue
+                has_episode_identity = True
+                try:
+                    parts.append(f"{label}={int(value)}")
+                except Exception:
+                    parts.append(f"{label}={value}")
+
+            remote_path = str(getattr(sub_manager, "remote_path", "") or "").strip()
+            if remote_path:
+                has_episode_identity = True
+                parts.append("remote=" + remote_path.replace("\\", "/").casefold())
+            else:
+                local_path = self._normalize_resume_path(getattr(sub_manager, "srt_file", ""))
+                if local_path:
+                    has_episode_identity = True
+                    parts.append("path=" + local_path)
+
+            if not has_episode_identity:
+                return None
+            return "|".join(parts)
+
+    def _current_episode_resume_time(self) -> float | None:
+            if self._start_episodes_at_default_time():
+                return None
+            key = self._episode_resume_key()
+            if not key:
+                return None
+            positions = self._episode_resume_positions()
+            raw = positions.get(key)
+            if isinstance(raw, dict):
+                raw = raw.get("time")
+            if raw is None:
+                return None
+            try:
+                return max(0.0, float(raw))
+            except Exception:
+                logger.debug("Saved episode time is invalid for %s", key, exc_info=True)
+                return None
+
+    def _default_episode_start_time(self) -> float:
+            try:
+                return max(0.0, float(self.default_start_time or 0.0))
+            except Exception:
+                return 0.0
+
+    def _episode_start_time_for_current(self) -> float:
+            saved = self._current_episode_resume_time()
+            if saved is not None:
+                return saved
+            return self._default_episode_start_time()
+
+    def _time_for_resume_save(self) -> float:
+            try:
+                current = max(0.0, float(self.current_time or 0.0))
+            except Exception:
+                current = 0.0
+            if bool(getattr(self, "playing", False)):
+                try:
+                    now = time.perf_counter()
+                    elapsed = max(0.0, now - float(getattr(self, "last_update", now)))
+                    current += elapsed
+                    self.current_time = current
+                    self.last_update = now
+                except Exception:
+                    logger.debug("Failed to advance current time before resume save", exc_info=True)
+            try:
+                total = float(getattr(self, "total_duration", 0.0) or 0.0) + float(self.get_offset_value())
+                if total > 0:
+                    current = min(current, total)
+            except Exception:
+                pass
+            return current
+
+    def save_current_episode_position(self) -> None:
+            config = getattr(self, "config", None)
+            if config is None:
+                return
+            key = self._episode_resume_key()
+            if not key:
+                return
+            positions = self._episode_resume_positions()
+            positions[key] = round(self._time_for_resume_save(), 3)
+            try:
+                config.set("EPISODE_TIME_POSITIONS", positions)
+            except Exception:
+                cfg = getattr(config, "config", None)
+                if isinstance(cfg, dict):
+                    cfg["EPISODE_TIME_POSITIONS"] = positions
+                logger.debug("Failed to persist episode resume position", exc_info=True)
+
     def restore_startup_time_and_mode(self) -> None:
             self._startup_resume_play = False
             try:
                 current_anime = self._normalize_anime_key(self.sub_manager.get_anime_name())
                 last_anime = self._normalize_anime_key(self.config.get("LAST_ANIME_NAME"))
                 if not current_anime or current_anime != last_anime:
-                    self.current_time = float(self.default_start_time or 0.0)
+                    self.current_time = self._default_episode_start_time()
                     return
-                saved_time = self.config.get("LAST_SESSION_TIME_SEC")
-                if saved_time is not None:
-                    try:
-                        self.current_time = max(0.0, float(saved_time))
-                    except Exception:#
-                        logger.debug("Saved startup time is invalid", exc_info=True)
-                        self.current_time = float(self.default_start_time or 0.0)
+
+                saved_episode_time = self._current_episode_resume_time()
+                if saved_episode_time is not None:
+                    self.current_time = saved_episode_time
                 else:
-                    self.current_time = float(self.default_start_time or 0.0)
+                    saved_time = None if self._start_episodes_at_default_time() else self.config.get("LAST_SESSION_TIME_SEC")
+                    if saved_time is not None:
+                        try:
+                            self.current_time = max(0.0, float(saved_time))
+                        except Exception:#
+                            logger.debug("Saved startup time is invalid", exc_info=True)
+                            self.current_time = self._default_episode_start_time()
+                    else:
+                        self.current_time = self._default_episode_start_time()
 
                 play_mode = self.config.get("LAST_SESSION_PLAY_MODE")
                 if play_mode is None:
@@ -75,7 +245,7 @@ class EpisodeController(_ControllerProxy):
                 self._startup_resume_play = bool(play_mode)
             except Exception:#
                 logger.debug("Saved startup state is invalid", exc_info=True)
-                self.current_time = float(self.default_start_time or 0.0)
+                self.current_time = self._default_episode_start_time()
                 self._startup_resume_play = False
 
     def _get_display_start_times(self):
@@ -84,13 +254,35 @@ class EpisodeController(_ControllerProxy):
                 return start_times
             return [item[1] for item in getattr(self.sub_manager, "display_data", [])]
 
+    def _get_display_end_times(self):
+            end_times = getattr(self.sub_manager, "display_end_times", None)
+            if isinstance(end_times, list) and end_times:
+                return end_times
+            by_start = {}
+            for sub in getattr(self.sub_manager, "subtitles", []) or []:
+                try:
+                    by_start.setdefault(sub.start.total_seconds(), []).append(sub.end.total_seconds())
+                except Exception:
+                    continue
+            result = []
+            for item in getattr(self.sub_manager, "display_data", []) or []:
+                try:
+                    values = by_start.get(float(item[1]))
+                except Exception:
+                    values = None
+                if values:
+                    result.append(values.pop(0))
+            return result
+
     def on_open_srt(self, event=None):
+            self.save_current_episode_position()
             path = self.sub_manager.set_new_file()
             if path:
                 self._after_episode_change()
 
     def change_episode(self, action: str):
             switch_start = time.perf_counter()
+            self.save_current_episode_position()
             def _restore_entry():
                 if self.sub_manager.current_episode is None:
                     self.settings.episode_var.set("Movie")
@@ -185,7 +377,7 @@ class EpisodeController(_ControllerProxy):
             self.update_max_width()
             title= f'S{self.sub_manager.get_current_season()}E{self.sub_manager.get_current_episode()} {self.sub_manager.get_anime_name()}'
             self.settings.root.title(title)
-            self.current_time = self.default_start_time
+            self.current_time = self._episode_start_time_for_current()
             self._defer_auto_ruby_once = True
             self.last_subtitle_text = ""
             self.playback.set_current_time(self.current_time)
