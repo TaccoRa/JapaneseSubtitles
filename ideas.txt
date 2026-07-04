@@ -14,6 +14,8 @@ AI Ideas:
 Subtitle difficulty heatmap, Review queue from episode (unknown words)
 
 To Do:
+still issues with annotations the popup is again right and different then the subtitle in this sentence たった１人 同じ 思いを
+分かり 合える 人だったのに. 合える is not maked. Or 分かり 合える is wrongly marked in the popup? Are the new rules also for the popup?
 In Annotation tab: show counts for unknown, learning, young, mature, due today, suspended.
 - make an option to before adding, open a small anki style window, which shows the exact Front, Back, sentence, audio, image, tags. Useful for catching bad ruby or wrong dictionary form.
 - make Better hover layers

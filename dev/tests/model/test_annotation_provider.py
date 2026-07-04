@@ -244,6 +244,153 @@ def test_renyou_form_matches_dictionary_verb_without_lookup(tmp_path):
     assert segments[0][2]["status"] == "anki_mature"
 
 
+def test_derived_verb_noun_does_not_match_dictionary_verb_by_default(tmp_path):
+    provider, db = _provider(tmp_path)
+    db.upsert(WordEntry(surface="\u52d5\u304f", source="anki", status="anki_mature"), save=False)
+    db.save()
+    provider.refresh()
+
+    match = provider.match_token(
+        {
+            "surface": "\u52d5\u304d",
+            "lookup": "\u52d5\u304d",
+            "reading": "\u3046\u3054\u304d",
+            "pos1": "\u540d\u8a5e",
+            "start": 0,
+            "end": 2,
+        }
+    )
+
+    assert match is None
+
+
+def test_exact_derived_verb_noun_still_matches(tmp_path):
+    provider, db = _provider(tmp_path)
+    db.upsert(WordEntry(surface="\u52d5\u304d", source="anki", status="anki_mature"), save=False)
+    db.save()
+    provider.refresh()
+
+    match = provider.match_token(
+        {
+            "surface": "\u52d5\u304d",
+            "lookup": "\u52d5\u304d",
+            "reading": "\u3046\u3054\u304d",
+            "pos1": "\u540d\u8a5e",
+            "start": 0,
+            "end": 2,
+        }
+    )
+
+    assert match.status == "anki_mature"
+
+
+def test_noun_token_does_not_match_different_lookup_by_default(tmp_path):
+    provider, db = _provider(tmp_path)
+    db.upsert(WordEntry(surface="\u52d5\u304f", source="anki", status="anki_mature"), save=False)
+    db.save()
+    provider.refresh()
+
+    match = provider.match_token(
+        {
+            "surface": "\u52d5\u304d",
+            "lookup": "\u52d5\u304f",
+            "reading": "\u3046\u3054\u304d",
+            "pos1": "\u540d\u8a5e",
+            "start": 0,
+            "end": 2,
+        }
+    )
+
+    assert match is None
+
+
+def test_derived_verb_noun_matching_can_be_enabled(tmp_path):
+    provider, db = _provider(tmp_path, {"ANNOTATION_MATCH_DERIVED_VERB_NOUNS": True})
+    db.upsert(WordEntry(surface="\u52d5\u304f", source="anki", status="anki_mature"), save=False)
+    db.save()
+    provider.refresh()
+
+    match = provider.match_token(
+        {
+            "surface": "\u52d5\u304d",
+            "lookup": "\u52d5\u304d",
+            "reading": "\u3046\u3054\u304d",
+            "pos1": "\u540d\u8a5e",
+            "start": 0,
+            "end": 2,
+        }
+    )
+
+    assert match.status == "anki_mature"
+
+
+def test_other_derived_verb_nouns_are_blocked_by_default(tmp_path):
+    provider, db = _provider(tmp_path)
+    db.upsert(WordEntry(surface="\u4f11\u3080", source="anki", status="anki_mature"), save=False)
+    db.upsert(WordEntry(surface="\u5207\u308b", source="anki", status="anki_mature"), save=False)
+    db.save()
+    provider.refresh()
+
+    assert provider.match_token(
+        {"surface": "\u4f11\u307f", "lookup": "\u4f11\u307f", "pos1": "\u540d\u8a5e", "start": 0, "end": 2}
+    ) is None
+    assert provider.match_token(
+        {"surface": "\u5207\u308a", "lookup": "\u5207\u308a", "pos1": "\u540d\u8a5e", "start": 0, "end": 2}
+    ) is None
+
+
+def test_real_verb_inflections_still_match_dictionary_form(tmp_path):
+    provider, db = _provider(tmp_path)
+    db.upsert(WordEntry(surface="\u52d5\u304f", source="anki", status="anki_mature"), save=False)
+    db.upsert(WordEntry(surface="\u98df\u3079\u308b", source="anki", status="anki_mature"), save=False)
+    db.save()
+    provider.refresh()
+
+    assert provider.match_token(
+        {"surface": "\u52d5\u3044\u305f", "lookup": "\u52d5\u304f", "pos1": "\u52d5\u8a5e", "start": 0, "end": 3}
+    ).status == "anki_mature"
+    assert provider.match_token(
+        {"surface": "\u98df\u3079\u307e\u3057\u305f", "lookup": "\u98df\u3079\u308b", "pos1": "\u52d5\u8a5e", "start": 0, "end": 6}
+    ).status == "anki_mature"
+
+
+def test_adjective_adverbial_matches_but_nominalization_does_not(tmp_path):
+    provider, db = _provider(tmp_path)
+    db.upsert(WordEntry(surface="\u9ad8\u3044", source="anki", status="anki_mature"), save=False)
+    db.save()
+    provider.refresh()
+
+    assert provider.match_token(
+        {"surface": "\u9ad8\u304f", "lookup": "\u9ad8\u3044", "pos1": "\u5f62\u5bb9\u8a5e", "start": 0, "end": 2}
+    ).status == "anki_mature"
+    assert provider.match_token(
+        {"surface": "\u9ad8\u3055", "lookup": "\u9ad8\u3055", "pos1": "\u540d\u8a5e", "start": 0, "end": 2}
+    ) is None
+
+
+def test_same_kanji_different_reading_does_not_match(tmp_path):
+    provider, db = _provider(tmp_path)
+    db.upsert(
+        WordEntry(surface="\u4eba\u6c17", reading="\u306b\u3093\u304d", source="anki", status="anki_mature"),
+        save=False,
+    )
+    db.save()
+    provider.refresh()
+
+    match = provider.match_token(
+        {
+            "surface": "\u4eba\u6c17",
+            "lookup": "\u4eba\u6c17",
+            "reading": "\u3072\u3068\u3051",
+            "pos1": "\u540d\u8a5e",
+            "start": 0,
+            "end": 2,
+        }
+    )
+
+    assert match is None
+
+
 def test_ruby_segment_can_match_inside_combined_token(tmp_path):
     provider, db = _provider(tmp_path)
     db.upsert(WordEntry(surface="\u524d", source="anki", status="anki_mature"), save=False)

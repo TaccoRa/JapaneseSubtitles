@@ -222,17 +222,15 @@ class AnnotationProvider:
         if not self._token_allowed(token, surface, lookup):
             return None
 
-        keys = self._candidate_keys_for_token(surface, lookup, reading)
+        keys = self._exact_candidate_keys_for_token(token, surface, lookup, reading)
+        match = self._first_enabled_match(keys, reading)
+        if match is not None:
+            return match
 
-        candidates: list[AnnotationMatch] = []
-        for key in keys:
-            candidates.extend(self._index.get(key, []))
-
-        for match in sorted(candidates, key=lambda item: STATUS_PRIORITY.get(item.status, 90)):
-            if match.status == "ignored":
-                return match
-            if self.source_enabled(match.source):
-                return match
+        keys = self._fallback_candidate_keys_for_token(token, surface, lookup, reading)
+        match = self._first_enabled_match(keys, reading)
+        if match is not None:
+            return match
 
         uncollected_style = self._style_for_status("uncollected")
         if bool(uncollected_style.get("enabled")):
@@ -245,22 +243,108 @@ class AnnotationProvider:
             )
         return None
 
-    def _candidate_keys_for_token(self, surface: str, lookup: str, reading: str) -> list[str]:
-        keys = []
-        for value in (
-            surface,
-            lookup,
-            *self._suru_lookup_candidates(surface, lookup),
-            *self._verb_lookup_candidates(surface, lookup),
-        ):
-            key = normalize_word(value)
-            if key and key not in keys:
-                keys.append(key)
+    def _first_enabled_match(self, keys: list[str], reading: str) -> AnnotationMatch | None:
+        candidates: list[AnnotationMatch] = []
+        for key in keys:
+            candidates.extend(self._index.get(key, []))
+
+        for match in sorted(candidates, key=lambda item: STATUS_PRIORITY.get(item.status, 90)):
+            if not self._reading_compatible(reading, match.reading):
+                continue
+            if match.status == "ignored":
+                return match
+            if self.source_enabled(match.source):
+                return match
+        return None
+
+    @staticmethod
+    def _reading_key(value: str) -> str:
+        text = unicodedata.normalize("NFKC", str(value or "")).strip()
+        text = "".join(
+            chr(ord(ch) - 0x60) if "\u30a1" <= ch <= "\u30f6" else ch
+            for ch in text
+        )
+        return normalize_word(text)
+
+    @classmethod
+    def _reading_compatible(cls, token_reading: str, entry_reading: str) -> bool:
+        token_key = cls._reading_key(token_reading)
+        entry_key = cls._reading_key(entry_reading)
+        return not token_key or not entry_key or token_key == entry_key
+
+    @staticmethod
+    def _add_candidate_key(keys: list[str], value: str) -> None:
+        key = normalize_word(value)
+        if key and key not in keys:
+            keys.append(key)
+
+    def _exact_candidate_keys_for_token(
+        self,
+        token: dict[str, Any] | None,
+        surface: str,
+        lookup: str,
+        reading: str,
+    ) -> list[str]:
+        keys: list[str] = []
+        self._add_candidate_key(keys, surface)
+        if self._allow_exact_lookup_candidate(token, surface, lookup):
+            self._add_candidate_key(keys, lookup)
         if _config_bool(self.config, "ANNOTATION_MATCH_READING", False):
-            key = normalize_word(reading)
-            if key and key not in keys:
-                keys.append(key)
+            self._add_candidate_key(keys, reading)
         return keys
+
+    @staticmethod
+    def _allow_exact_lookup_candidate(token: dict[str, Any] | None, surface: str, lookup: str) -> bool:
+        if normalize_word(surface) == normalize_word(lookup):
+            return True
+        if isinstance(token, dict) and str(token.get("pos1") or "") == "\u540d\u8a5e":
+            return False
+        return True
+
+    def _fallback_candidate_keys_for_token(
+        self,
+        token: dict[str, Any],
+        surface: str,
+        lookup: str,
+        reading: str,
+    ) -> list[str]:
+        keys: list[str] = []
+        for value in self._suru_lookup_candidates(surface, lookup):
+            self._add_candidate_key(keys, value)
+        if self._allow_verb_lookup_fallback(token, surface, lookup):
+            for value in self._verb_lookup_candidates(surface, lookup):
+                self._add_candidate_key(keys, value)
+        elif self._allow_verb_suffix_lookup_fallback(token, surface, lookup):
+            for value in self._verb_suffix_lookup_candidates(surface, lookup):
+                self._add_candidate_key(keys, value)
+        if _config_bool(self.config, "ANNOTATION_MATCH_READING", False):
+            self._add_candidate_key(keys, reading)
+        return keys
+
+    def _candidate_keys_for_token(self, surface: str, lookup: str, reading: str) -> list[str]:
+        keys = self._exact_candidate_keys_for_token(None, surface, lookup, reading)
+        for value in self._suru_lookup_candidates(surface, lookup):
+            self._add_candidate_key(keys, value)
+        for value in self._verb_lookup_candidates(surface, lookup):
+            self._add_candidate_key(keys, value)
+        return keys
+
+    def _allow_verb_lookup_fallback(self, token: dict[str, Any], surface: str, lookup: str) -> bool:
+        pos1 = str(token.get("pos1") or "")
+        if bool(token.get("compound")):
+            return True
+        if pos1 in {"\u52d5\u8a5e", "\u5f62\u5bb9\u8a5e"}:
+            return True
+        if pos1 == "\u540d\u8a5e":
+            return _config_bool(self.config, "ANNOTATION_MATCH_DERIVED_VERB_NOUNS", False)
+        return normalize_word(surface) != normalize_word(lookup)
+
+    @staticmethod
+    def _allow_verb_suffix_lookup_fallback(token: dict[str, Any], surface: str, lookup: str) -> bool:
+        pos1 = str(token.get("pos1") or "")
+        if pos1 == "\u540d\u8a5e":
+            return False
+        return normalize_word(surface) == normalize_word(lookup)
 
     @staticmethod
     def _suru_lookup_candidates(surface: str, lookup: str) -> list[str]:
@@ -286,10 +370,26 @@ class AnnotationProvider:
             if not text:
                 continue
             candidates.extend(search_query_variants(text))
-            for suffix, replacement in VERB_LOOKUP_SUFFIXES:
-                if text.endswith(suffix) and len(text) > len(suffix):
-                    candidates.append(text[: -len(suffix)] + replacement)
-                    break
+            candidates.extend(AnnotationProvider._verb_suffix_candidates_for_text(text))
+        return candidates
+
+    @staticmethod
+    def _verb_suffix_lookup_candidates(surface: str, lookup: str) -> list[str]:
+        candidates = []
+        for value in (lookup, surface):
+            text = str(value or "").strip()
+            if not text:
+                continue
+            candidates.extend(AnnotationProvider._verb_suffix_candidates_for_text(text))
+        return candidates
+
+    @staticmethod
+    def _verb_suffix_candidates_for_text(text: str) -> list[str]:
+        candidates = []
+        for suffix, replacement in VERB_LOOKUP_SUFFIXES:
+            if text.endswith(suffix) and len(text) > len(suffix):
+                candidates.append(text[: -len(suffix)] + replacement)
+                break
         return candidates
 
     def _token_allowed(self, token: dict[str, Any], surface: str, lookup: str) -> bool:

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-07-04T19:29:38+00:00",
+  "updated_at": "2026-07-04T20:07:54+00:00",
   "words": [
     {
       "surface": "(not tsu...)",
@@ -17904,6 +17904,33 @@
       }
     },
     {
+      "surface": "信ずる",
+      "normalized": "信ずる",
+      "base": "",
+      "reading": "",
+      "meaning": "glauben, an etwas glauben, Vertrauen in etwas setzen",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-04T20:00:56+00:00",
+      "updated_at": "2026-07-04T20:00:56+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1783195255985,
+        "card_ids": "1783195255985,1783195255986",
+        "due_date": "",
+        "reviews": 0,
+        "note_modified": "22:00 04-07-2026",
+        "sentence": "信じられん",
+        "sentence_translated": "Das ist unglaublich.",
+        "reading_field": "",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "信ずる"
+      }
+    },
+    {
       "surface": "修復",
       "normalized": "修復",
       "base": "",
@@ -19960,20 +19987,20 @@
       "normalized": "分かる",
       "base": "",
       "reading": "",
-      "meaning": "wissen, verstehen (not s/g)",
+      "meaning": "verstehen, begreifen, erfassen",
       "source": "anki",
-      "status": "anki_mature",
-      "created_at": "2026-07-03T18:28:24+00:00",
-      "updated_at": "2026-07-03T18:28:24+00:00",
+      "status": "anki_unknown",
+      "created_at": "2026-07-04T20:07:54+00:00",
+      "updated_at": "2026-07-04T20:07:54+00:00",
       "notes": "",
       "extra": {
-        "note_id": 1694085840674,
-        "card_ids": "1694085840675,1694085840676",
+        "note_id": 1783195674098,
+        "card_ids": "1783195674098,1783195674099",
         "due_date": "",
-        "reviews": 52,
-        "note_modified": "21:22 02-03-2026",
-        "sentence": "",
-        "sentence_translated": "",
+        "reviews": 0,
+        "note_modified": "22:07 04-07-2026",
+        "sentence": "たった1人 同じ 思いを\n分かり 合える 人だったのに",
+        "sentence_translated": "Dabei war er doch der einzige Mensch, der meine Gefühle verstehen konnte",
         "reading_field": "",
         "meaning_field": "Back",
         "sentence_field": "AddRubiesToSentenceJA",
@@ -24246,6 +24273,33 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "変わる"
+      }
+    },
+    {
+      "surface": "変形する",
+      "normalized": "変形する",
+      "base": "",
+      "reading": "",
+      "meaning": "Verwandlung, Veränderung, Metamorphose",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-04T19:59:18+00:00",
+      "updated_at": "2026-07-04T19:59:18+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1783195158641,
+        "card_ids": "1783195158641,1783195158642",
+        "due_date": "",
+        "reviews": 0,
+        "note_modified": "21:59 04-07-2026",
+        "sentence": "そうか ものすごいスピードで\n変形しながら 動いていたのか",
+        "sentence_translated": "Ach so, es hat sich also mit unglaublicher Geschwindigkeit bewegt und dabei seine Form verändert?",
+        "reading_field": "",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "変形する"
       }
     },
     {
@@ -29025,6 +29079,33 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "怖い"
+      }
+    },
+    {
+      "surface": "思い",
+      "normalized": "思い",
+      "base": "",
+      "reading": "",
+      "meaning": "Gedanke, Vorstellungskraft, Verstand",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-04T20:07:47+00:00",
+      "updated_at": "2026-07-04T20:07:47+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1783195667506,
+        "card_ids": "1783195667506,1783195667507",
+        "due_date": "",
+        "reviews": 0,
+        "note_modified": "22:07 04-07-2026",
+        "sentence": "たった1人 同じ 思いを\n分かり 合える 人だったのに",
+        "sentence_translated": "Dabei war er doch der einzige Mensch, der meine Gefühle verstehen konnte",
+        "reading_field": "",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "思い"
       }
     },
     {

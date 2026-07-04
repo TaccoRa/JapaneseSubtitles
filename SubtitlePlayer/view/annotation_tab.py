@@ -78,6 +78,7 @@ ANNOTATION_SPECS = [
     {"key": "ANNOTATION_COLORIZE_ANKI", "type": "bool", "default": False},
     {"key": "ANNOTATION_COLORIZE_WANIKANI", "type": "bool", "default": False},
     {"key": "ANNOTATION_INCLUDE_PARTICLES", "type": "bool", "default": False},
+    {"key": "ANNOTATION_MATCH_DERIVED_VERB_NOUNS", "type": "bool", "default": False},
     {"key": "ANNOTATION_MIN_TOKEN_LENGTH", "type": "int", "default": 1, "min": 1, "max": 20},
     {"key": "ANNOTATION_ONLY_ON_HOVER", "type": "bool", "default": False},
     {"key": "ANNOTATION_HIGHLIGHT_ON_HOVER", "type": "bool", "default": True},
@@ -672,10 +673,16 @@ class AnnotationTab:
         tk.Checkbutton(section, text="Show meaning in hover popup", variable=self._var("ANNOTATION_SHOW_MEANING_ON_HOVER")).grid(row=4, column=0, columnspan=2, sticky="w")
         tk.Checkbutton(section, text="Show Anki/local status in hover popup", variable=self._var("ANNOTATION_SHOW_CARD_STATUS_ON_HOVER")).grid(row=5, column=0, columnspan=2, sticky="w")
         tk.Checkbutton(section, text="Include particles in annotation matching", variable=self._var("ANNOTATION_INCLUDE_PARTICLES")).grid(row=6, column=0, columnspan=2, sticky="w")
+        derived_nouns = tk.Checkbutton(section, text="Match derived verb nouns", variable=self._var("ANNOTATION_MATCH_DERIVED_VERB_NOUNS"))
+        derived_nouns.grid(row=7, column=0, columnspan=2, sticky="w")
+        _Tooltip(
+            derived_nouns,
+            "Off by default. When off, noun-like forms such as \u52d5\u304d are not marked known just because \u52d5\u304f is in the database.",
+        )
         min_len_label = tk.Label(section, text="Minimum token length for annotation")
-        min_len_label.grid(row=7, column=0, sticky="w")
+        min_len_label.grid(row=8, column=0, sticky="w")
         min_len_entry = tk.Entry(section, textvariable=self._var("ANNOTATION_MIN_TOKEN_LENGTH"), width=self._w(8))
-        min_len_entry.grid(row=7, column=1, sticky="w")
+        min_len_entry.grid(row=8, column=1, sticky="w")
         min_len_help = "Minimum subtitle-token length to mark. Example: 2 skips one-character tokens like は or の, but still marks 重要."
         _Tooltip(min_len_label, min_len_help)
         _Tooltip(min_len_entry, min_len_help)

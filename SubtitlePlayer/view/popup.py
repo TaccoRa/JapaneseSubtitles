@@ -100,6 +100,15 @@ class CopyPopup:
         self.font_color = self.config.get("POPUP_FONT_COLOR")
         self.font_size = self.config.get("POPUP_FONT_SIZE")
         self.close_delay = int(self.config.get("POPUP_CLOSE_TIMER") or 1000)
+        self.hover_clear_delay = self._coerce_hover_clear_delay(self.config.get("POPUP_HOVER_CLEAR_DELAY_MS"))
+
+    @staticmethod
+    def _coerce_hover_clear_delay(value) -> int:
+        try:
+            delay = int(float(value))
+        except Exception:
+            delay = 500
+        return max(0, min(60000, delay))
 
     @staticmethod
     def _window_exists(window: tk.Misc | None) -> bool:
@@ -724,10 +733,12 @@ class CopyPopup:
             pass
         self._hover_clear_job = None
 
-    def _schedule_hover_clear(self, delay_ms: int = 500, *, keep_if_inside_popup: bool = False) -> None:
+    def _schedule_hover_clear(self, delay_ms: int | None = None, *, keep_if_inside_popup: bool = False) -> None:
         self._cancel_hover_clear()
         if self._pinned or self._menu_open or self._dragging:
             return
+        if delay_ms is None:
+            delay_ms = self._coerce_hover_clear_delay(getattr(self, "hover_clear_delay", 500))
 
         def _clear_if_not_reentered() -> None:
             self._hover_clear_job = None
@@ -759,7 +770,7 @@ class CopyPopup:
                 width = int(entry.winfo_width())
                 height = int(entry.winfo_height())
                 if x < 0 or y < 0 or x >= width or y >= height:
-                    self._schedule_hover_clear(500, keep_if_inside_popup=True)
+                    self._schedule_hover_clear(keep_if_inside_popup=True)
                     return
             except Exception:
                 pass
@@ -830,7 +841,7 @@ class CopyPopup:
             return
 
         if hit is None:
-            self._schedule_hover_clear(500, keep_if_inside_popup=False)
+            self._schedule_hover_clear(keep_if_inside_popup=False)
             return
 
         self._cancel_hover_clear()
@@ -1670,7 +1681,7 @@ class CopyPopup:
             self._cancel_close()
             self._cancel_hover_clear()
             return
-        self._schedule_hover_clear(500, keep_if_inside_popup=True)
+        self._schedule_hover_clear(keep_if_inside_popup=True)
 
     def _on_popup_drag_start(self, event=None) -> None:
         self._dragging = True
