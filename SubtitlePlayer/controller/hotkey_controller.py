@@ -31,6 +31,8 @@ class HotkeyController(_ControllerProxy):
 
     def __init__(self, controller: Any) -> None:
         super().__init__(controller)
+        if not hasattr(controller, "_pressed_key_tokens"):
+            controller._pressed_key_tokens = set()
 
     def _focus_owner_windows(self) -> list[Any]:
             return [
@@ -281,8 +283,10 @@ class HotkeyController(_ControllerProxy):
                 self._toggle_m3_mode()
             elif action == "toggle_debugging":
                 self.toggle_debugging()
-            elif action == "toggle_fast_forward":
-                self.playback.toggle_fast_forward(event_time=event_time)
+            elif action == "fast_forward_speed_up":
+                self.playback.change_fast_forward_speed(0.1)
+            elif action == "fast_forward_speed_down":
+                self.playback.change_fast_forward_speed(-0.1)
             elif action == "popup_add_anki":
                 add_selected = getattr(self.popup, "add_selected_to_anki_if_pointer_inside", None)
                 if callable(add_selected):
@@ -348,6 +352,13 @@ class HotkeyController(_ControllerProxy):
                 "np4": "numpad4",
                 "num6": "numpad6",
                 "np6": "numpad6",
+                ".": "period",
+                "dot": "period",
+                ">": "period",
+                ":": "period",
+                ",": "comma",
+                "<": "comma",
+                ";": "comma",
             }
             return alias.get(t, t)
 
@@ -533,6 +544,92 @@ class HotkeyController(_ControllerProxy):
 
             return key_token in self._key_tokens(key)
 
+    def _active_modifier_tokens(self) -> set[str]:
+            active_mods = set()
+            if self.shift_pressed:
+                active_mods.add("shift")
+            if self.alt_pressed:
+                active_mods.add("alt")
+            if self.ctrl_pressed:
+                active_mods.add("ctrl")
+            return active_mods
+
+    def _set_pressed_key_tokens(self, key, pressed: bool) -> None:
+            tokens = self._key_tokens(key)
+            if not tokens:
+                return
+            pressed_tokens = getattr(self.controller, "_pressed_key_tokens", None)
+            if not isinstance(pressed_tokens, set):
+                pressed_tokens = set()
+                self.controller._pressed_key_tokens = pressed_tokens
+            if pressed:
+                pressed_tokens.update(tokens)
+            else:
+                pressed_tokens.difference_update(tokens)
+
+    def _hold_binding_active(self, binding: str) -> bool:
+            mods, key_token = self._split_shortcut(binding)
+            if not mods and not key_token:
+                return False
+            active_mods = self._active_modifier_tokens()
+            if not mods.issubset(active_mods):
+                return False
+            if key_token is None:
+                return bool(mods)
+            pressed_tokens = getattr(self.controller, "_pressed_key_tokens", set())
+            return key_token in pressed_tokens
+
+    def _config_bool(self, key: str, default: bool = False) -> bool:
+            try:
+                value = self.config.get(key)
+            except Exception:
+                return bool(default)
+            if value is None:
+                return bool(default)
+            if isinstance(value, str):
+                return value.strip().lower() in {"1", "true", "yes", "on"}
+            return bool(value)
+
+    def hover_hold_active(
+        self,
+        enabled_key: str,
+        hotkey_key: str,
+        default_hotkey: str,
+        *,
+        legacy_enabled_key: str | None = None,
+    ) -> bool:
+            enabled_default = False
+            if legacy_enabled_key:
+                enabled_default = self._config_bool(legacy_enabled_key, False)
+            enabled = self._config_bool(enabled_key, enabled_default)
+            if legacy_enabled_key:
+                enabled = enabled or self._config_bool(legacy_enabled_key, False)
+            if not enabled:
+                return False
+            raw = self.config.get(hotkey_key)
+            value = str(raw if raw is not None else default_hotkey or "").strip().lower()
+            if not value:
+                return False
+            for raw_binding in re.split(r"[,;]", value):
+                binding = raw_binding.strip().lower()
+                if binding and self._hold_binding_active(binding):
+                    return True
+            return False
+
+    def _current_hover_mode_for_refresh(self) -> str:
+            callback = getattr(self.controller, "_hover_modifier_mode", None)
+            if callable(callback):
+                try:
+                    return str(callback() or "ruby")
+                except Exception:
+                    pass
+            return "ruby"
+
+    def _refresh_hover_displays_if_mode_changed(self, old_mode: str) -> None:
+            new_mode = self._current_hover_mode_for_refresh()
+            if str(old_mode or "ruby") != str(new_mode or "ruby"):
+                self._refresh_hover_displays()
+
     def _mode2_numpad_enabled(self) -> bool:
             try:
                 return int(getattr(self.settings, "input_mode", 1)) == 2
@@ -577,7 +674,8 @@ class HotkeyController(_ControllerProxy):
                 ("episode_dec", "SHORTCUT_EPISODE_DEC"),
                 ("jump_sub_end", "SHORTCUT_JUMP_SUB_END"),
                 ("toggle_subtitles", "SHORTCUT_TOGGLE_SUBTITLES"),
-                ("toggle_fast_forward", "SHORTCUT_TOGGLE_FAST_FORWARD"),
+                ("fast_forward_speed_up", "SHORTCUT_FAST_FORWARD_SPEED_UP"),
+                ("fast_forward_speed_down", "SHORTCUT_FAST_FORWARD_SPEED_DOWN"),
                 ("toggle_debugging", "SHORTCUT_TOGGLE_DEBUGGING"),
             ]
             bindings = []
@@ -742,6 +840,7 @@ class HotkeyController(_ControllerProxy):
             was_translation_pressed = bool(getattr(self, "translation_pressed", False))
             if reset_shift:
                 self.shift_pressed = False
+            self.controller._pressed_key_tokens = set()
             self.translation_pressed = False
             self.translation_provider = "deepl"
             self._active_translation_action = None
@@ -772,6 +871,7 @@ class HotkeyController(_ControllerProxy):
             text_input_focused = self._is_text_input_focused()
 
             if text_input_focused:
+                self._set_pressed_key_tokens(key, False)
                 popup_add_candidate = None
                 if self._is_popup_open():
                     popup_add_candidates = []
@@ -799,24 +899,30 @@ class HotkeyController(_ControllerProxy):
                 self._reset_hotkey_state(reset_shift=True)
                 return
 
+            old_hover_mode = self._current_hover_mode_for_refresh()
+            self._set_pressed_key_tokens(key, True)
+
             if key in (Key.shift_l, Key.shift_r):
                 if self.shift_pressed:
                     return
                 self.shift_pressed = True
-                if self.ctrl_pressed or self.alt_pressed:
-                    self._clear_shift_hover_displays()
+                self._refresh_hover_displays_if_mode_changed(old_hover_mode)
                 return
         
             if key in (Key.alt_l, Key.alt_r):
+                if self.alt_pressed:
+                    return
                 self.alt_pressed = True
-                if self.shift_pressed:
-                    self._clear_shift_hover_displays()
+                self._refresh_hover_displays_if_mode_changed(old_hover_mode)
                 return
             if key in (Key.ctrl_l, Key.ctrl_r):
+                if self.ctrl_pressed:
+                    return
                 self.ctrl_pressed = True
-                if self.shift_pressed:
-                    self._clear_shift_hover_displays()
+                self._refresh_hover_displays_if_mode_changed(old_hover_mode)
                 return
+
+            self._refresh_hover_displays_if_mode_changed(old_hover_mode)
 
             candidate = self._resolve_shortcut_candidates(self._matching_shortcut_candidates(key))
             if candidate is None:
@@ -861,8 +967,11 @@ class HotkeyController(_ControllerProxy):
             if self._is_suppressed_synthetic_space(key):
                 return
             if self._is_text_input_focused():
+                self._set_pressed_key_tokens(key, False)
                 self._reset_hotkey_state(reset_shift=True)
                 return
+            old_hover_mode = self._current_hover_mode_for_refresh()
+            self._set_pressed_key_tokens(key, False)
             if self._popup_add_anki_release_matches(key):
                 self._single_fire_actions.discard("popup_add_anki")
 
@@ -878,7 +987,7 @@ class HotkeyController(_ControllerProxy):
             if key in (Key.shift_l, Key.shift_r):
                 if self.shift_pressed:
                     self.shift_pressed = False
-                    self._clear_shift_hover_displays()
+                    self._refresh_hover_displays_if_mode_changed(old_hover_mode)
                 with self._repeat_lock:
                     repeat_actions_to_drop = set(self._held_repeat_next_fire.keys())
                 if not repeat_actions_to_drop:
@@ -891,9 +1000,13 @@ class HotkeyController(_ControllerProxy):
                 return
 
             if key in (Key.alt_l, Key.alt_r):
-                self.alt_pressed = False
+                if self.alt_pressed:
+                    self.alt_pressed = False
+                    self._refresh_hover_displays_if_mode_changed(old_hover_mode)
             if key in (Key.ctrl_l, Key.ctrl_r):
-                self.ctrl_pressed = False
+                if self.ctrl_pressed:
+                    self.ctrl_pressed = False
+                    self._refresh_hover_displays_if_mode_changed(old_hover_mode)
 
             released_tokens = self._key_tokens(key)
             for action, binding in self._single_fire_bindings():
@@ -909,6 +1022,7 @@ class HotkeyController(_ControllerProxy):
             if key in (Key.shift_l, Key.shift_r, Key.alt_l, Key.alt_r, Key.ctrl_l, Key.ctrl_r):
                 repeat_actions_to_drop.update(action for action, _ in self._repeat_action_bindings())
             self._release_repeat_actions(repeat_actions_to_drop, settle_seek=True)
+            self._refresh_hover_displays_if_mode_changed(old_hover_mode)
 
     def on_alt_x(self, event=None):
             self.settings.control_window.attributes("-topmost", True)
@@ -921,6 +1035,16 @@ class HotkeyController(_ControllerProxy):
                     clear = getattr(owner, "_clear_hover_ruby", None)
                     if callable(clear):
                         clear()
+                except Exception:
+                    pass
+
+    def _refresh_hover_displays(self) -> None:
+            for owner_name in ("popup", "renderer"):
+                try:
+                    owner = getattr(self.controller, owner_name, None)
+                    refresh = getattr(owner, "refresh_hover_display", None)
+                    if callable(refresh):
+                        refresh()
                 except Exception:
                     pass
 

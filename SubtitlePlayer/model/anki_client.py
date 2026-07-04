@@ -293,6 +293,14 @@ class AnkiClient:
         selection_text: str,
         subtitle_text: str = "",
     ) -> Dict:
+        prepared = self.prepare_note_from_selection(selection_text, subtitle_text)
+        return self.commit_prepared_note(prepared)
+
+    def prepare_note_from_selection(
+        self,
+        selection_text: str,
+        subtitle_text: str = "",
+    ) -> Dict:
         selected = (selection_text or "").strip()
         if not selected:
             raise ValueError("No selected text.")
@@ -329,8 +337,6 @@ class AnkiClient:
         )
         copied_media_fields = self._copy_existing_sentence_media_fields(fields)
 
-        self._ensure_decks((self.deck_name, self.reading_deck, self.reverse_deck))
-
         note = {
             "deckName": self.deck_name,
             "modelName": self.model_name,
@@ -338,6 +344,45 @@ class AnkiClient:
             "tags": self._merge_anki_tags(self.tags, marker_tags),
             "options": {"allowDuplicate": True},
         }
+
+        return {
+            "note": note,
+            "fields": fields,
+            "routing_error": "",
+            "word_translation": word_translation,
+            "sentence_translation": sentence_translation,
+            "definition": full_definition,
+            "selection_surface_text": selected,
+            "selection_lookup_text": card_word,
+            "anki_marker_tags": marker_tags,
+            "copied_media_fields": copied_media_fields,
+            "translation_candidates": translation_candidates,
+            "translation_provider_used": {
+                "word": word_provider_used,
+                "sentence": sentence_provider_used,
+            },
+            "stroke_svg_sync_fields": fields,
+        }
+
+    def commit_prepared_note(self, prepared: Dict) -> Dict:
+        if not isinstance(prepared, dict):
+            raise ValueError("Prepared Anki note is invalid.")
+        note = prepared.get("note")
+        if not isinstance(note, dict):
+            raise ValueError("Prepared Anki note is missing note payload.")
+        fields = note.get("fields")
+        if not isinstance(fields, dict):
+            fields = prepared.get("fields")
+        if not isinstance(fields, dict):
+            raise ValueError("Prepared Anki note is missing fields.")
+        note["fields"] = fields
+        tags = note.get("tags")
+        if isinstance(tags, str):
+            note["tags"] = self._merge_anki_tags(tags.replace(";", ",").split(","))
+        elif not isinstance(tags, list):
+            note["tags"] = []
+
+        self._ensure_decks((note.get("deckName") or self.deck_name, self.reading_deck, self.reverse_deck))
         note_id = self._add_note_without_duplicate_retry(note, fields)
         routing_error = ""
         try:
@@ -356,25 +401,15 @@ class AnkiClient:
         #     fields=fields,
         # )
 
-        return {
+        result = dict(prepared)
+        result.update({
             "note_id": note_id,
             "routed_cards": routed,
             "routing_error": routing_error,
-            "word_translation": word_translation,
-            "sentence_translation": sentence_translation,
-            "definition": full_definition,
-            "selection_surface_text": selected,
-            "selection_lookup_text": card_word,
-            "anki_marker_tags": marker_tags,
-            "copied_media_fields": copied_media_fields,
             # "stroke_svg_sync": stroke_sync,
-            "translation_candidates": translation_candidates,
-            "translation_provider_used": {
-                "word": word_provider_used,
-                "sentence": sentence_provider_used,
-            },
             "stroke_svg_sync_fields": fields,
-        }
+        })
+        return result
 
 
     def _add_note_without_duplicate_retry(self, note: Dict, fields: Dict[str, str]) -> int:

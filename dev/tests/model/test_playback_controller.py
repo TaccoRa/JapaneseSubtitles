@@ -162,17 +162,53 @@ def test_fast_forward_multiplier_advances_playback_time():
     controller, playback, root, _slider, button = make_controller(now)
     playback._now = lambda: now
     controller._coerce_fast_forward_speed = lambda value: round(float(value), 1)
+    controller.fast_forward_enabled = True
     controller.fast_forward_speed = 1.5
 
     playback.toggle_play()
-    playback.toggle_fast_forward()
     now += 0.2
     playback.update_loop()
 
     assert controller.current_time == pytest.approx(0.3)
     assert controller.last_update == pytest.approx(5.2)
     assert root.scheduled[-1][1] == 100
-    assert button.configs[-1]["text"] == "Fast 1.5x"
+    assert button.configs[-1]["text"] == "Stop"
+
+
+def test_fast_forward_speed_delta_clamps_and_persists():
+    controller, playback, _root, _slider, _button = make_controller(0.0)
+    saved = {}
+    controller.config = SimpleNamespace(set=lambda key, value: saved.setdefault(key, value))
+    controller._coerce_fast_forward_speed = lambda value: max(0.1, min(8.0, round(float(value), 1)))
+    controller.fast_forward_enabled = True
+    controller.fast_forward_speed = 1.5
+
+    assert playback.change_fast_forward_speed(0.1) == pytest.approx(1.6)
+    assert controller.fast_forward_speed == pytest.approx(1.6)
+    assert saved["FAST_FORWARD_SPEED"] == pytest.approx(1.6)
+
+    playback.change_fast_forward_speed(-5.0)
+    assert controller.fast_forward_speed == pytest.approx(0.1)
+
+    controller.fast_forward_speed = 0.0
+    playback.change_fast_forward_speed(-0.1)
+    assert controller.fast_forward_speed == pytest.approx(0.1)
+
+
+def test_fast_forward_disabled_uses_normal_speed_and_ignores_speed_hotkey():
+    now = 5.0
+    controller, playback, _root, _slider, _button = make_controller(now)
+    playback._now = lambda: now
+    controller.fast_forward_enabled = False
+    controller.fast_forward_speed = 3.0
+
+    playback.toggle_play()
+    now += 0.2
+    playback.update_loop()
+
+    assert controller.current_time == pytest.approx(0.2)
+    assert playback.change_fast_forward_speed(0.1) == pytest.approx(1.0)
+    assert controller.fast_forward_speed == pytest.approx(3.0)
 
 
 def test_pause_uses_event_time_even_if_update_tick_ran_later():

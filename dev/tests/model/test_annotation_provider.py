@@ -242,3 +242,36 @@ def test_renyou_form_matches_dictionary_verb_without_lookup(tmp_path):
 
     assert len(segments[0]) == 3
     assert segments[0][2]["status"] == "anki_mature"
+
+
+def test_ruby_segment_can_match_inside_combined_token(tmp_path):
+    provider, db = _provider(tmp_path)
+    db.upsert(WordEntry(surface="\u524d", source="anki", status="anki_mature"), save=False)
+    db.save()
+    provider.refresh()
+
+    tokens = [
+        {
+            "surface": "\u304a\u524d",
+            "lookup": "\u5fa1\u524d",
+            "reading": "\u304a\u307e\u3048",
+            "pos1": "\u4ee3\u540d\u8a5e",
+            "start": 1,
+            "end": 3,
+        }
+    ]
+    segments = provider.annotate_segments(
+        [
+            ("\u201c\u304a", None),
+            ("\u524d", "\u307e\u3048"),
+            ("\u3082\u201d\uff1f", None),
+        ],
+        lambda _text: tokens,
+    )
+
+    assert [segment[0] for segment in segments] == [
+        "\u201c\u304a",
+        "\u524d",
+        "\u3082\u201d\uff1f",
+    ]
+    assert segments[1][2]["status"] == "anki_mature"

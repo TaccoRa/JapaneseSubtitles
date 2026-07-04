@@ -49,6 +49,49 @@ class AnkiController(_ControllerProxy):
             if not selected:
                 logger.debug("Add Selection To Anki skipped because no text is selected")
                 return
+            if bool(self.config.get("ANKI_PREVIEW_BEFORE_ADD") or False):
+                self._start_anki_preview_worker(selected_text=selected, subtitle_text=subtitle_text)
+                return
+            self._start_anki_commit_worker(selected_text=selected, subtitle_text=subtitle_text)
+
+    def _start_anki_preview_worker(self, selected_text: str, subtitle_text: str = "") -> None:
+            selected = (selected_text or "").strip()
+            if not selected:
+                return
+            self._set_busy_cursor(True)
+            try:
+                self.settings.root.after(0, self.popup.mark_anki_busy)
+            except Exception:
+                pass
+
+            def worker():
+                try:
+                    if not self.anki.ping():
+                        raise RuntimeError("AnkiConnect not reachable.")
+                    prepared = self.anki.prepare_note_from_selection(
+                        selection_text=selected,
+                        subtitle_text=subtitle_text,
+                    )
+                    self.settings.root.after(
+                        0,
+                        lambda payload=prepared: self._show_anki_preview_window(payload, selected, subtitle_text),
+                    )
+                except Exception as e:
+                    logger.exception("Anki preview preparation failed: %s", e)
+                    try:
+                        self.settings.root.after(0, self.popup.mark_anki_failure)
+                    except Exception:
+                        pass
+                finally:
+                    self.settings.root.after(0, lambda: self._set_busy_cursor(False))
+
+            threading.Thread(target=worker, daemon=True).start()
+
+    def _start_anki_commit_worker(self, selected_text: str, subtitle_text: str = "", prepared: dict | None = None) -> None:
+            selected = (selected_text or "").strip()
+            if not selected:
+                logger.debug("Add Selection To Anki skipped because no text is selected")
+                return
             self._set_busy_cursor(True)
             try:
                 self.settings.root.after(0, self.popup.mark_anki_busy)
@@ -61,10 +104,13 @@ class AnkiController(_ControllerProxy):
                     if not self.anki.ping():
                         raise RuntimeError("AnkiConnect not reachable.")
 
-                    result = self.anki.add_from_selection(
-                        selection_text=selected,
-                        subtitle_text=subtitle_text,
-                    )
+                    if prepared is None:
+                        result = self.anki.add_from_selection(
+                            selection_text=selected,
+                            subtitle_text=subtitle_text,
+                        )
+                    else:
+                        result = self.anki.commit_prepared_note(prepared)
                     annotation_entries = self._annotation_entries_for_added_anki_note(result)
 
                     elapsed = time.perf_counter() - started
@@ -99,6 +145,155 @@ class AnkiController(_ControllerProxy):
                     self.settings.root.after(0, lambda: self._set_busy_cursor(False))
 
             threading.Thread(target=worker, daemon=True).start()
+
+    def _show_anki_preview_window(self, prepared: dict, selected: str, subtitle_text: str = "") -> None:
+            note = prepared.get("note") if isinstance(prepared, dict) else None
+            if not isinstance(note, dict):
+                logger.debug("Anki preview skipped because prepared note is invalid")
+                return
+            fields = note.get("fields")
+            if not isinstance(fields, dict):
+                fields = {}
+                note["fields"] = fields
+
+            win = tk.Toplevel(self.settings.root)
+            win.title("Preview Anki Note")
+            win.resizable(True, True)
+            try:
+                win.transient(self.settings.root)
+            except Exception:
+                pass
+
+            outer = tk.Frame(win, padx=10, pady=10)
+            outer.pack(fill="both", expand=True)
+            outer.grid_columnconfigure(0, weight=1)
+            outer.grid_rowconfigure(1, weight=1)
+
+            header = tk.Frame(outer)
+            header.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+            header.grid_columnconfigure(1, weight=1)
+            tk.Label(header, text="Deck").grid(row=0, column=0, sticky="w")
+            deck_var = tk.StringVar(value=str(note.get("deckName") or ""))
+            tk.Entry(header, textvariable=deck_var).grid(row=0, column=1, sticky="ew", padx=(8, 0))
+            tk.Label(header, text="Note type").grid(row=1, column=0, sticky="w", pady=(4, 0))
+            model_var = tk.StringVar(value=str(note.get("modelName") or ""))
+            tk.Entry(header, textvariable=model_var).grid(row=1, column=1, sticky="ew", padx=(8, 0), pady=(4, 0))
+
+            canvas = tk.Canvas(outer, borderwidth=0, highlightthickness=0)
+            scroll = tk.Scrollbar(outer, orient="vertical", command=canvas.yview)
+            fields_frame = tk.Frame(canvas)
+            canvas_window = canvas.create_window((0, 0), window=fields_frame, anchor="nw")
+            canvas.configure(yscrollcommand=scroll.set)
+            canvas.grid(row=1, column=0, sticky="nsew")
+            scroll.grid(row=1, column=1, sticky="ns")
+            fields_frame.grid_columnconfigure(1, weight=1)
+
+            text_widgets: dict[str, tk.Text] = {}
+            preferred = [
+                getattr(self.anki, "front_field", "Front"),
+                getattr(self.anki, "back_field", "Back"),
+                getattr(self.anki, "sentence_ja_field", "SentenceJA"),
+                getattr(self.anki, "sentence_de_field", "SentenceDE"),
+                getattr(self.anki, "sound_field", "Sound"),
+                getattr(self.anki, "image_field", "Image"),
+            ]
+            ordered_names = []
+            for name in preferred:
+                if name in fields and name not in ordered_names:
+                    ordered_names.append(name)
+            for name in fields:
+                if name not in ordered_names:
+                    ordered_names.append(name)
+
+            for row, name in enumerate(ordered_names):
+                tk.Label(fields_frame, text=name, anchor="w").grid(row=row, column=0, sticky="nw", padx=(0, 8), pady=3)
+                value = str(fields.get(name) or "")
+                height = 4 if len(value) > 80 or "\n" in value else 2
+                widget = tk.Text(fields_frame, height=height, width=68, wrap="word", undo=True)
+                widget.insert("1.0", value)
+                widget.grid(row=row, column=1, sticky="ew", pady=3)
+                text_widgets[name] = widget
+
+            tags_var = tk.StringVar(value=", ".join(str(tag) for tag in (note.get("tags") or [])))
+            tag_row = len(ordered_names)
+            tk.Label(fields_frame, text="Tags", anchor="w").grid(row=tag_row, column=0, sticky="w", padx=(0, 8), pady=3)
+            tags_entry = tk.Entry(fields_frame, textvariable=tags_var)
+            tags_entry.grid(row=tag_row, column=1, sticky="ew", pady=3)
+
+            def _on_fields_configure(_event=None):
+                try:
+                    canvas.configure(scrollregion=canvas.bbox("all"))
+                    canvas.itemconfigure(canvas_window, width=canvas.winfo_width())
+                except Exception:
+                    pass
+
+            def _on_preview_mousewheel(event):
+                try:
+                    if getattr(event, "num", None) == 4:
+                        units = -3
+                    elif getattr(event, "num", None) == 5:
+                        units = 3
+                    else:
+                        delta = int(getattr(event, "delta", 0) or 0)
+                        units = -1 * int(delta / 120) if delta else 0
+                    if units:
+                        canvas.yview_scroll(units, "units")
+                except Exception:
+                    pass
+                return "break"
+
+            fields_frame.bind("<Configure>", _on_fields_configure)
+            canvas.bind("<Configure>", _on_fields_configure)
+            for wheel_widget in (win, outer, canvas, fields_frame, tags_entry, *text_widgets.values()):
+                wheel_widget.bind("<MouseWheel>", _on_preview_mousewheel, add="+")
+                wheel_widget.bind("<Button-4>", _on_preview_mousewheel, add="+")
+                wheel_widget.bind("<Button-5>", _on_preview_mousewheel, add="+")
+
+            btn_row = tk.Frame(outer)
+            btn_row.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+            btn_row.grid_columnconfigure(0, weight=1)
+
+            def _confirm() -> None:
+                note["deckName"] = deck_var.get().strip() or self.anki.deck_name
+                note["modelName"] = model_var.get().strip() or self.anki.model_name
+                for field_name, widget in text_widgets.items():
+                    fields[field_name] = widget.get("1.0", "end-1c")
+                note["fields"] = fields
+                note["tags"] = [tag.strip() for tag in tags_var.get().replace(";", ",").split(",") if tag.strip()]
+                prepared["fields"] = fields
+                prepared["stroke_svg_sync_fields"] = fields
+                try:
+                    win.destroy()
+                except Exception:
+                    pass
+                self._start_anki_commit_worker(selected_text=selected, subtitle_text=subtitle_text, prepared=prepared)
+
+            def _cancel() -> None:
+                try:
+                    win.destroy()
+                except Exception:
+                    pass
+
+            tk.Button(btn_row, text="Confirm Add", width=14, command=_confirm).pack(side="right")
+            tk.Button(btn_row, text="Cancel", width=10, command=_cancel).pack(side="right", padx=(0, 8))
+
+            win.update_idletasks()
+            width = min(820, max(620, int(win.winfo_reqwidth() or 620)))
+            height = min(680, max(420, int(win.winfo_reqheight() or 420)))
+            try:
+                root = self.settings.root
+                x = int(root.winfo_rootx() + (root.winfo_width() - width) / 2)
+                y = int(root.winfo_rooty() + (root.winfo_height() - height) / 2)
+                if x < 0 or y < 0:
+                    raise ValueError
+            except Exception:
+                x = int((win.winfo_screenwidth() - width) / 2)
+                y = int((win.winfo_screenheight() - height) / 2)
+            win.geometry(f"{width}x{height}+{max(0, x)}+{max(0, y)}")
+            try:
+                win.focus_set()
+            except Exception:
+                pass
 
     def _schedule_auto_jump_after_anki(self) -> None:
             try:

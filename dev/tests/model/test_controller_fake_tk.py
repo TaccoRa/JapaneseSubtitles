@@ -256,6 +256,40 @@ def test_hidden_subtitle_reappears_on_next_cue():
     assert renderer.calls[-1]["top"] == [("second", "second-ruby")]
 
 
+def test_subtitle_display_respects_cue_end_time_gap():
+    controller, navigation, renderer = make_slider_controller()
+    controller.sub_manager.display_end_times = [2.0, 12.0]
+    controller._get_display_end_times = lambda: controller.sub_manager.display_end_times
+
+    controller.current_time = 1.0
+    navigation._update_subtitle_display(force=True, allow_auto_ruby=False)
+    assert controller.last_rendered_index == 0
+    assert renderer.calls[-1]["top"] == [("first", "first-ruby")]
+
+    controller.current_time = 2.01
+    navigation._update_subtitle_display(allow_auto_ruby=False)
+    assert controller.last_rendered_index is None
+    assert controller.subtitle_deleted is True
+
+    controller.current_time = 10.1
+    navigation._update_subtitle_display(force=True, allow_auto_ruby=False)
+    assert controller.last_rendered_index == 1
+    assert renderer.calls[-1]["top"] == [("second", "second-ruby")]
+
+
+def test_copy_text_uses_visible_rendered_subtitle_index():
+    controller, navigation, _renderer = make_slider_controller()
+    controller.sub_manager.display_end_times = [2.0, 12.0]
+    controller._get_display_end_times = lambda: controller.sub_manager.display_end_times
+    controller.current_time = 10.1
+
+    navigation._update_subtitle_display(force=True, allow_auto_ruby=False)
+    controller.last_subtitle_raw = "stale first"
+
+    assert navigation.copy_text_for_current_subtitle() == "second[second-ruby]"
+    assert controller.last_subtitle_raw == "second[second-ruby]"
+
+
 def test_episode_switch_resets_time_and_schedules_preload():
     preload_calls = []
 
@@ -545,6 +579,94 @@ def test_popup_close_is_cancelled_when_pointer_is_inside():
     assert window.destroyed is False
     assert popup._popup is window
     assert popup._close_job is None
+
+
+def test_popup_close_is_cancelled_when_pointer_is_inside_hover_ruby():
+    class PopupWindow:
+        def __init__(self, name):
+            self.name = name
+            self.destroyed = False
+
+        def winfo_exists(self):
+            return True
+
+        def destroy(self):
+            self.destroyed = True
+
+    window = PopupWindow("popup")
+    hover = PopupWindow("hover")
+    popup = object.__new__(CopyPopup)
+    popup._popup = window
+    popup._hover_ruby_window = hover
+    popup._close_job = "job"
+    popup._pointer_inside_window = lambda target: target is hover
+    popup._destroy_hover_ruby_window = lambda: None
+    popup._reset_popup_state = lambda: None
+
+    popup._close(window)
+
+    assert window.destroyed is False
+    assert popup._popup is window
+    assert popup._close_job is None
+
+
+def test_hover_ruby_clear_is_delayed_until_timeout():
+    calls = []
+    root = FakeRoot()
+    popup = object.__new__(CopyPopup)
+    popup.root = root
+    popup._hover_clear_job = None
+    popup._pinned = False
+    popup._menu_open = False
+    popup._dragging = False
+    popup._popup = object()
+    popup._hover_ruby_window = object()
+    popup._pointer_inside_window = lambda _target: False
+    popup._clear_hover_ruby = lambda: calls.append("clear")
+    popup._restart_close = lambda: calls.append("restart")
+
+    popup._schedule_hover_clear(500)
+
+    assert calls == []
+    assert len(root.scheduled) == 1
+    assert root.scheduled[0][1] == 500
+
+    root.scheduled[0][2]()
+
+    assert calls == ["clear", "restart"]
+
+
+def test_hover_ruby_clear_is_cancelled_when_pointer_enters_hover_window():
+    calls = []
+    root = FakeRoot()
+    hover = object()
+    popup = object.__new__(CopyPopup)
+    popup.root = root
+    popup._hover_clear_job = None
+    popup._pinned = False
+    popup._menu_open = False
+    popup._dragging = False
+    popup._popup = object()
+    popup._hover_ruby_window = hover
+    popup._pointer_inside_window = lambda target: target is hover
+    popup._clear_hover_ruby = lambda: calls.append("clear")
+    popup._restart_close = lambda: calls.append("restart")
+    popup._cancel_close = lambda: calls.append("cancel_close")
+
+    popup._schedule_hover_clear(500)
+    root.scheduled[0][2]()
+
+    assert calls == ["cancel_close"]
+    assert popup._hover_clear_job is None
+
+
+def test_popup_hover_text_wraps_by_measured_pixel_width():
+    class Font:
+        def measure(self, text):
+            return len(text) * 10
+
+    assert CopyPopup._wrap_text_to_pixel_lines("abcdef", Font(), 30) == ["abc", "def"]
+    assert CopyPopup._wrap_text_to_pixel_lines("ab\ncdef", Font(), 30) == ["ab", "cde", "f"]
 
 
 def test_shutdown_sets_event_runs_cleanup_and_destroys_root():

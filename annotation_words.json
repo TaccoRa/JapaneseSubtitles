@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-07-03T18:40:52+00:00",
+  "updated_at": "2026-07-04T19:29:38+00:00",
   "words": [
     {
       "surface": "(not tsu...)",
@@ -6753,6 +6753,33 @@
       }
     },
     {
+      "surface": "そうか",
+      "normalized": "そうか",
+      "base": "",
+      "reading": "",
+      "meaning": "Straßenprostituierte (Edo-Zeit)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-03T22:57:05+00:00",
+      "updated_at": "2026-07-03T22:57:05+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1783119425293,
+        "card_ids": "1783119425293,1783119425294",
+        "due_date": "",
+        "reviews": 0,
+        "note_modified": "00:57 04-07-2026",
+        "sentence": "そうか ものすごいスピードで\n変形しながら 動いていたのか",
+        "sentence_translated": "Ach so, es hat sich also mit unglaublicher Geschwindigkeit bewegt und sich dabei verformt?",
+        "reading_field": "",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "そうか"
+      }
+    },
+    {
       "surface": "そうして",
       "normalized": "そうして",
       "base": "",
@@ -9858,6 +9885,33 @@
       }
     },
     {
+      "surface": "まさか",
+      "normalized": "まさか",
+      "base": "",
+      "reading": "",
+      "meaning": "Auf keinen Fall, niemals!, Na, das hätte ich nicht gedacht!",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-04T19:25:30+00:00",
+      "updated_at": "2026-07-04T19:25:30+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1783193130226,
+        "card_ids": "1783193130226,1783193130227",
+        "due_date": "",
+        "reviews": 0,
+        "note_modified": "21:25 04-07-2026",
+        "sentence": "よけた! まさか 人間に\nそんな 運動能力があるはずは...",
+        "sentence_translated": "Er ist ausgewichen! Das kann doch unmöglich sein – dass ein Mensch über solche motorischen Fähigkeiten verfügt...",
+        "reading_field": "",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "まさか"
+      }
+    },
+    {
       "surface": "まじめ に",
       "normalized": "まじめに",
       "base": "",
@@ -10098,6 +10152,33 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "まる"
+      }
+    },
+    {
+      "surface": "まるで",
+      "normalized": "まるで",
+      "base": "",
+      "reading": "",
+      "meaning": "als ob, so als ob, genau wie",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-04T19:22:12+00:00",
+      "updated_at": "2026-07-04T19:22:12+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1783192932308,
+        "card_ids": "1783192932308,1783192932309",
+        "due_date": "",
+        "reviews": 0,
+        "note_modified": "21:22 04-07-2026",
+        "sentence": "まるで 冬眠でもしているようだ",
+        "sentence_translated": "Es sieht fast so aus, als würde es Winterschlaf halten.",
+        "reading_field": "",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "まるで"
       }
     },
     {
@@ -11259,6 +11340,33 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "よろしくお 願いします"
+      }
+    },
+    {
+      "surface": "らしく",
+      "normalized": "らしく",
+      "base": "",
+      "reading": "",
+      "meaning": "ungewöhnlich, anders",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-04T18:14:24+00:00",
+      "updated_at": "2026-07-04T18:14:24+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1783188863807,
+        "card_ids": "1783188863807,1783188863808",
+        "due_date": "",
+        "reviews": 0,
+        "note_modified": "20:14 04-07-2026",
+        "sentence": "そうだ 来い\nバケモノはバケモノらしく!",
+        "sentence_translated": "Genau! Komm schon! Ein Monster muss sich wie ein Monster benehmen!",
+        "reading_field": "",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "らしく"
       }
     },
     {
@@ -16311,6 +16419,33 @@
       }
     },
     {
+      "surface": "人間",
+      "normalized": "人間",
+      "base": "",
+      "reading": "",
+      "meaning": "Mensch, Menschwesen, Person",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-04T19:23:39+00:00",
+      "updated_at": "2026-07-04T19:23:39+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1783193018631,
+        "card_ids": "1783193018631,1783193018632",
+        "due_date": "",
+        "reviews": 0,
+        "note_modified": "21:23 04-07-2026",
+        "sentence": "だとすれば 人間1匹に 何ができる",
+        "sentence_translated": "Wenn das so ist, was kann dann ein einzelner Mensch schon bewirken?",
+        "reading_field": "",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "人間"
+      }
+    },
+    {
       "surface": "今",
       "normalized": "今",
       "base": "",
@@ -20547,6 +20682,33 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "勉 強"
+      }
+    },
+    {
+      "surface": "動き",
+      "normalized": "動き",
+      "base": "",
+      "reading": "",
+      "meaning": "Bewegung, sich bewegen",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-04T19:29:38+00:00",
+      "updated_at": "2026-07-04T19:29:38+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1783193377967,
+        "card_ids": "1783193377967,1783193377968",
+        "due_date": "",
+        "reviews": 0,
+        "note_modified": "21:29 04-07-2026",
+        "sentence": "見える\nやつの 動きが 見えるぞ",
+        "sentence_translated": "Ich kann die Bewegungen des Typen sehen.",
+        "reading_field": "",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "動き"
       }
     },
     {
@@ -28299,6 +28461,33 @@
       }
     },
     {
+      "surface": "彼",
+      "normalized": "彼",
+      "base": "",
+      "reading": "",
+      "meaning": "dort, dort drüben, dieser Ort",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-04T16:01:54+00:00",
+      "updated_at": "2026-07-04T16:01:54+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1783180914340,
+        "card_ids": "1783180914346,1783180914347",
+        "due_date": "",
+        "reviews": 0,
+        "note_modified": "18:01 04-07-2026",
+        "sentence": "彼だ!  近くに 彼がいる",
+        "sentence_translated": "Das ist er! Er ist ganz in der Nähe.",
+        "reading_field": "",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "彼"
+      }
+    },
+    {
       "surface": "彼ら",
       "normalized": "彼ら",
       "base": "",
@@ -29700,6 +29889,33 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "戦い"
+      }
+    },
+    {
+      "surface": "戦う",
+      "normalized": "戦う",
+      "base": "",
+      "reading": "",
+      "meaning": "(gegen) Krieg führen, (mit) Krieg führen",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-03T22:55:12+00:00",
+      "updated_at": "2026-07-03T22:55:12+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1783119311857,
+        "card_ids": "1783119311857,1783119311858",
+        "due_date": "",
+        "reviews": 0,
+        "note_modified": "00:55 04-07-2026",
+        "sentence": "Aと 戦った 時とは 全然 違う",
+        "sentence_translated": "Es ist ganz anders als damals, als ich gegen A gekämpft habe.",
+        "reading_field": "",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "戦う"
       }
     },
     {
@@ -47577,6 +47793,33 @@
       }
     },
     {
+      "surface": "運動 能力",
+      "normalized": "運動能力",
+      "base": "",
+      "reading": "",
+      "meaning": "motorische Fähigkeiten, Motorik, Fortbewegung",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-03T22:52:25+00:00",
+      "updated_at": "2026-07-03T22:52:25+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1783119144907,
+        "card_ids": "1783119144907,1783119144908",
+        "due_date": "",
+        "reviews": 0,
+        "note_modified": "00:52 04-07-2026",
+        "sentence": "よけた! まさか 人間に\nそんな 運動能力があるはずは...",
+        "sentence_translated": "Er ist ausgewichen! Das kann doch unmöglich sein – dass ein Mensch über solche motorischen Fähigkeiten verfügt...",
+        "reading_field": "",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "運動 能力"
+      }
+    },
+    {
       "surface": "運 転",
       "normalized": "運転",
       "base": "",
@@ -47952,6 +48195,33 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "選手"
+      }
+    },
+    {
+      "surface": "避ける",
+      "normalized": "避ける",
+      "base": "",
+      "reading": "",
+      "meaning": "(körperlichen Kontakt) vermeiden, (eine Situation) vermeiden, (einer Frage, einem Thema) ausweichen",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-04T19:24:30+00:00",
+      "updated_at": "2026-07-04T19:24:30+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1783193070527,
+        "card_ids": "1783193070527,1783193070528",
+        "due_date": "",
+        "reviews": 0,
+        "note_modified": "21:24 04-07-2026",
+        "sentence": "よけた! まさか 人間に\nそんな 運動能力があるはずは...",
+        "sentence_translated": "Er ist ausgewichen! Das kann doch unmöglich sein – dass ein Mensch über solche motorischen Fähigkeiten verfügt...",
+        "reading_field": "",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "避ける"
       }
     },
     {

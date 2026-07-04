@@ -152,6 +152,75 @@ class SubtitleNavigationController(_ControllerProxy):
         self.update_time_display()
         self._update_subtitle_display()
 
+    def _display_start_times(self):
+        getter = getattr(self.controller, "_get_display_start_times", None)
+        if callable(getter):
+            return getter()
+        return getattr(self.sub_manager, "display_start_times", None) or [
+            item[1] for item in getattr(self.sub_manager, "display_data", []) or []
+        ]
+
+    def _display_end_times(self):
+        getter = getattr(self.controller, "_get_display_end_times", None)
+        if callable(getter):
+            try:
+                return getter()
+            except Exception:
+                logger.debug("Failed to read display end times from controller", exc_info=True)
+        return getattr(self.sub_manager, "display_end_times", None) or []
+
+    def _display_index_at_time(self, sub_t: float) -> int | None:
+        start_times = self._display_start_times()
+        if not start_times:
+            return None
+        idx = bisect.bisect_right(start_times, sub_t) - 1
+        if idx < 0:
+            return None
+
+        end_times = self._display_end_times()
+        if idx < len(end_times):
+            try:
+                end_time = float(end_times[idx])
+            except Exception:
+                end_time = None
+            if end_time is not None and float(sub_t) >= end_time - 0.0005:
+                return None
+        return idx
+
+    def _copy_text_for_display_index(self, idx: int | None) -> str:
+        if idx is None:
+            return ""
+        try:
+            clean, _, top, bottom = self.sub_manager.display_data[int(idx)]
+        except Exception:
+            return ""
+        return self.segments_to_copy_text(top, bottom) or str(clean or "")
+
+    def copy_text_for_current_subtitle(self) -> str:
+        idx = None
+        if not bool(getattr(self, "subtitle_deleted", False)):
+            try:
+                idx = int(getattr(self, "last_rendered_index"))
+            except Exception:
+                idx = None
+        text = self._copy_text_for_display_index(idx)
+        if text:
+            self.last_subtitle_raw = text
+            return text
+
+        try:
+            sub_t = float(self.current_time) - float(self.settings._last_offset_value)
+        except Exception:
+            sub_t = 0.0
+        idx = self._display_index_at_time(sub_t)
+        if idx is None:
+            return ""
+        text = self._copy_text_for_display_index(idx)
+        if text:
+            self.last_subtitle_raw = text
+            return text
+        return ""
+
     def _update_subtitle_display(
         self,
         force: bool = False,
@@ -173,10 +242,8 @@ class SubtitleNavigationController(_ControllerProxy):
             self._reset_canvas()
             return
 
-        start_times = self._get_display_start_times()
-        idx = bisect.bisect_right(start_times, sub_t) - 1
-
-        if idx < 0:
+        idx = self._display_index_at_time(sub_t)
+        if idx is None:
             self.last_rendered_index = None
             self.last_subtitle_text = ""
             self._reset_canvas()

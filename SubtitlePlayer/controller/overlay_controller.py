@@ -185,6 +185,12 @@ class OverlayController(_ControllerProxy):
 
     def show_subtitle_handle(self, is_phone):
         if is_phone:
+            try:
+                if self.controller._pointer_inside_settings_windows():
+                    self.overlay.hide_handle()
+                    return
+            except Exception:
+                pass
             self.overlay.show_handle()
         else:
             self.overlay.hide_handle()
@@ -195,4 +201,10 @@ class OverlayController(_ControllerProxy):
 
     def _restore_subtitle_handle_after_settings(self):
         if self.settings.default_phone_mode:
+            try:
+                if self.controller._pointer_inside_settings_windows():
+                    self.overlay.hide_handle()
+                    return
+            except Exception:
+                pass
             self.overlay.show_handle()

@@ -83,6 +83,17 @@ class ConfigManager:
             self._rebuild_merged_config()
             self._save()
 
+    def replace_local_config(self, data):
+        if not isinstance(data, dict):
+            raise ValueError("Local config replacement must be a JSON object.")
+        self.local_config = OrderedDict((str(key), value) for key, value in data.items())
+        self._local_key_order = list(self.local_config.keys())
+        self._rebuild_merged_config()
+        self._save()
+
+    def reload(self):
+        self._load()
+
     def _save(self):
         ordered = OrderedDict()
         for key in list(getattr(self, "_local_key_order", [])):

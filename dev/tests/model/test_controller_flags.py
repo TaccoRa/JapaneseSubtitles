@@ -840,10 +840,14 @@ def test_clear_subtitle_action_syncs_control_window():
 
 def test_plain_shift_hover_requires_no_ctrl_or_alt():
     controller = object.__new__(SubtitleController)
-    controller.config = _DictConfig({"SHIFT_HOVER_KANJI_DICTIONARY": True})
+    controller.config = _DictConfig({
+        "HOVER_DICTIONARY_ENABLED": True,
+        "HOVER_DICTIONARY_HOTKEY": "shift",
+    })
     controller.shift_pressed = True
     controller.ctrl_pressed = False
     controller.alt_pressed = False
+    controller.hotkey_controller = HotkeyController(controller)
 
     assert controller._plain_shift_hover_active() is True
 
@@ -853,3 +857,21 @@ def test_plain_shift_hover_requires_no_ctrl_or_alt():
     controller.ctrl_pressed = False
     controller.alt_pressed = True
     assert controller._plain_shift_hover_active() is False
+
+
+def test_hover_hold_active_supports_configurable_modifier_and_key_combo():
+    hotkeys, controller = _hotkey_runtime({
+        "HOVER_DICTIONARY_ENABLED": True,
+        "HOVER_DICTIONARY_HOTKEY": "ctrl+d",
+    })
+
+    assert hotkeys.hover_hold_active("HOVER_DICTIONARY_ENABLED", "HOVER_DICTIONARY_HOTKEY", "shift") is False
+
+    hotkeys._on_key_press(Key.ctrl_l)
+    hotkeys._on_key_press(_CharKey("d"))
+
+    assert controller._pressed_key_tokens == {"d"}
+    assert hotkeys.hover_hold_active("HOVER_DICTIONARY_ENABLED", "HOVER_DICTIONARY_HOTKEY", "shift") is True
+
+    hotkeys._on_key_release(_CharKey("d"))
+    assert hotkeys.hover_hold_active("HOVER_DICTIONARY_ENABLED", "HOVER_DICTIONARY_HOTKEY", "shift") is False

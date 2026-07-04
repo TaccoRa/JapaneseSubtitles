@@ -67,6 +67,7 @@ class SettingsUI:
         self.input_mode_btn = None
         self.mode_toggle_btn = None
         self.advanced_settings_btn = None
+        self.fast_forward_btn = None
         self._phone_mode_toggle_btn = None
         self.play_pause_btn = None
         self.slider = None
@@ -95,6 +96,7 @@ class SettingsUI:
         self._last_skip_value = float(self.default_skip)
         self.default_start = self._config_float("DEFAULT_START_TIME", 0.0)
         self.default_phone_mode = bool(get("PHONEMODE_DEFAULT") or False)
+        self.fast_forward_display_enabled = not bool(get("FAST_FORWARD_DISABLED") or False)
         self.input_mode = self._resolve_input_mode()
         self._last_active_input_mode = self.input_mode if self.input_mode in (1, 2) else 1
         self.numpad_mode_enabled = (self.input_mode == 2)
@@ -171,6 +173,7 @@ class SettingsUI:
                      "back", "forward", "play_pause",
                      "toggle_subtitles",
                      "time_entry_return", "time_entry_clear",
+                     "fast_forward_toggle", "fast_forward_speed_delta",
                      "advanced_apply",
                      "ocr_read_now", "ocr_sync_now", "ocr_show_boxes",
                      "anki_check", "performance_snapshot", "performance_reset",
@@ -370,6 +373,17 @@ class SettingsUI:
         
         self.forward_button = tk.Button(main_frame, text="Skip >>", font=("Arial", 12, "bold"),
                                         width=6, height=2, bg="#3582B5", activebackground="#42A1E0", relief="flat")
+        self.fast_forward_btn = tk.Label(
+            self.control_window,
+            text="\N{STOPWATCH}1.5x",
+            font=("Arial", 7, "bold"),
+            width=4,
+            height=1,
+            relief="flat",
+            bd=0,
+            bg="#303030",
+            fg="white",
+        )
 
         self.back_button.grid(row=0, column=0, rowspan=2, sticky="nsew")
         self.play_pause_btn.grid(row=1, column=1,pady=0, sticky="nsew")
@@ -378,10 +392,8 @@ class SettingsUI:
 
         self.handle_settings_frame = tk.Frame(self.control_window, width=30, height=10)
         self.handle_settings_frame.place(x=0, y=0)
-        self.settings_btn = tk.Button(self.handle_settings_frame,
-                                      relief="raised", bg= "grey")
-        self.refresh_btn = tk.Button(self.handle_settings_frame,
-                                     relief="raised", bg= "grey")
+        self.settings_btn = tk.Button(self.handle_settings_frame, relief="raised", bg= "grey")
+        self.refresh_btn = tk.Button(self.handle_settings_frame, relief="raised", bg= "grey")
         self.settings_btn.place(x=10, y=0, width=10, height=10)
         self.refresh_btn.place(x=20, y=0, width=10, height=10)
 
@@ -402,6 +414,9 @@ class SettingsUI:
         self.play_pause_btn.bind("<ButtonPress>", lambda event: (self._on_play_pause()))
         self.settings_btn.bind("<ButtonPress>", self._on_settings)
         self.refresh_btn.bind("<ButtonPress>", lambda ev: self._on_toggle_subtitles(ev))
+        self.fast_forward_btn.bind("<MouseWheel>", self._on_fast_forward_wheel)
+        self.fast_forward_btn.bind("<Button-4>", self._on_fast_forward_wheel)
+        self.fast_forward_btn.bind("<Button-5>", self._on_fast_forward_wheel)
         self.time_entry.bind("<Button-1>", self._on_time_entry_click)
         self.time_entry.bind("<FocusOut>", lambda ev: self._on_time_entry_return(ev))
         self.time_entry.bind("<Return>", lambda ev:   self._on_time_entry_return(ev))
@@ -409,6 +424,10 @@ class SettingsUI:
 
         self.control_window.bind("<Enter>", lambda ev: self.bind_control_window_enter(ev))
         self.control_window.bind("<Leave>", lambda ev: self.bind_control_window_leave(ev))
+        self.set_fast_forward_state(
+            self.fast_forward_display_enabled,
+            self._config_float("FAST_FORWARD_SPEED", 1.5),
+        )
 
     def show(self) -> None:
         """Show the floating control window (used after startup splash)."""
@@ -573,6 +592,11 @@ class SettingsUI:
     def bind_back(self,      cb):            self._on_back       = cb
     def bind_forward(self,   cb):            self._on_forward    = cb
     def bind_play_pause(self,cb):            self._on_play_pause = cb
+    def bind_fast_forward_controls(self, toggle=None, speed_delta=None):
+        if callable(toggle):
+            self._on_fast_forward_toggle = toggle
+        if callable(speed_delta):
+            self._on_fast_forward_speed_delta = speed_delta
     def bind_toggle_subtitles(self, cb):     self._on_toggle_subtitles = cb
     def bind_time_entry_return(self, cb):    self._on_time_entry_return = cb
     def bind_time_entry_clear(self,  cb):    self._on_time_entry_clear = cb
@@ -765,6 +789,7 @@ class SettingsUI:
             f_btn = ("Arial", 22, "bold")
             self.settings_btn.place_configure(x=40, y=0, width=40, height=40)
             self.refresh_btn .place_configure(x= 80, y=0, width=40, height=40)
+            self._place_fast_forward_display(phone_mode=True)
             h = 160
         else:
             self.handle_settings_frame.configure(width=30, height=10)
@@ -773,6 +798,7 @@ class SettingsUI:
             f_btn = ("Arial", 12, "bold")
             self.settings_btn.place_configure(x=10, y=0, width=10, height=10)
             self.refresh_btn .place_configure(x= 20, y=0, width=10, height=10)
+            self._place_fast_forward_display(phone_mode=False)
             h = 40
 
         self.time_entry.config(font=f_large)
@@ -821,6 +847,65 @@ class SettingsUI:
             logger.debug("Failed to focus control time entry: %s", e, exc_info=True)
         self._on_time_entry_clear(event)
         return None
+
+    def _on_fast_forward_wheel(self, event):
+        if not bool(getattr(self, "fast_forward_display_enabled", True)):
+            return "break"
+        delta = 0.1
+        try:
+            if getattr(event, "num", None) == 5 or int(getattr(event, "delta", 0) or 0) < 0:
+                delta = -0.1
+        except Exception:
+            delta = 0.1
+        try:
+            self._on_fast_forward_speed_delta(delta)
+        except Exception as e:
+            logger.debug("Failed to adjust fast-forward speed from wheel: %s", e, exc_info=True)
+        return "break"
+
+    def set_fast_forward_state(self, active: bool, speed: float) -> None:
+        btn = getattr(self, "fast_forward_btn", None)
+        if btn is None:
+            return
+        self.fast_forward_display_enabled = bool(active)
+        if not self.fast_forward_display_enabled:
+            try:
+                btn.place_forget()
+            except Exception:
+                pass
+            return
+        try:
+            speed = float(speed)
+        except Exception:
+            speed = 1.0
+        label = f"\N{STOPWATCH}{speed:.1f}x"
+        try:
+            btn.configure(
+                text=label,
+                bg="#303030",
+                fg="white",
+                relief=tk.FLAT,
+            )
+            self._place_fast_forward_display(bool(self.default_phone_mode))
+        except Exception:
+            pass
+
+    def _place_fast_forward_display(self, phone_mode: bool) -> None:
+        btn = getattr(self, "fast_forward_btn", None)
+        if btn is None:
+            return
+        if not bool(getattr(self, "fast_forward_display_enabled", True)):
+            try:
+                btn.place_forget()
+            except Exception:
+                pass
+            return
+        if phone_mode:
+            btn.place_configure(relx=1.0, x=-58, y=0, width=58, height=40)
+            btn.configure(font=("Arial", 10, "bold"))
+        else:
+            btn.place_configure(relx=1.0, x=-48, y=0, width=48, height=18)
+            btn.configure(font=("Arial", 7, "bold"))
 
     #HELPERS
     def _on_settings(self, event):#button to lift the root window
@@ -893,9 +978,15 @@ class SettingsUI:
     def set_episode_values(self, values) -> None:
         """
         Update the dropdown list for the episode combobox.
-        Values should be an iterable of ints/strings (will be converted to strings).
+        Values may be ints/strings or dicts with a display "label".
         """
-        self.episode_entry.configure(values=[str(v) for v in (values or [])])
+        labels = []
+        for value in values or []:
+            if isinstance(value, dict):
+                labels.append(str(value.get("label") or value.get("value") or ""))
+            else:
+                labels.append(str(value))
+        self.episode_entry.configure(values=[label for label in labels if label])
 
     def _on_episode_entry_click(self, event):
         elem = event.widget.identify(event.x, event.y)
@@ -916,13 +1007,20 @@ class SettingsUI:
         if text.lower() == "movie":
             self.episode_var.set(self._last_episode_value)
             return
-        try:
-            n = int(text)
-            if n <= 0:
-                raise ValueError()
-        except Exception as e:
-            logger.debug("Invalid episode entry on focus out: %s", e, exc_info=True)
-            self.episode_var.set(self._last_episode_value)
+        if fullmatch(r"\d+", text):
+            try:
+                if int(text) <= 0:
+                    raise ValueError()
+                return
+            except Exception as e:
+                logger.debug("Invalid episode entry on focus out: %s", e, exc_info=True)
+                self.episode_var.set(self._last_episode_value)
+                return
+        if fullmatch(r"(?i)\d+\s*\(\s*S\d{1,2}E\d{1,4}\s*\)", text):
+            return
+        if fullmatch(r"(?i)S\d{1,2}\s*E\d{1,4}", text):
+            return
+        self.episode_var.set(self._last_episode_value)
 
     def _on_set_to_commit(self, event=None) -> str:
         text = (self.setto_var.get() or "").strip()

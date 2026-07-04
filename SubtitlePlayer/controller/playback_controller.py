@@ -33,7 +33,7 @@ class PlaybackController:
         delta = now - last_update
         self.controller.last_update = now
         if abs(delta) > 0.0:
-            if bool(getattr(self.controller, "fast_forward_active", False)):
+            if bool(getattr(self.controller, "fast_forward_enabled", True)):
                 try:
                     delta *= float(getattr(self.controller, "fast_forward_speed", 1.0) or 1.0)
                 except Exception:
@@ -178,37 +178,57 @@ class PlaybackController:
         self.controller._schedule_hide_controls()
 
     def _set_play_button_state(self) -> None:
+        try:
+            fast_speed = getattr(self.controller, "fast_forward_speed", None)
+            if fast_speed is None:
+                fast_speed = 1.0
+            self.controller.settings.set_fast_forward_state(
+                bool(getattr(self.controller, "fast_forward_enabled", True)),
+                float(fast_speed),
+            )
+        except Exception:
+            pass
         if self.controller.playing:
-            if bool(getattr(self.controller, "fast_forward_active", False)):
-                speed = float(getattr(self.controller, "fast_forward_speed", 1.0) or 1.0)
-                self.controller.settings.play_pause_btn.config(
-                    text=f"Fast {speed:.1f}x",
-                    bg="#d9822b",
-                    activebackground="#d9822b",
-                )
-            else:
-                self.controller.settings.play_pause_btn.config(text="Stop", bg="red", activebackground="red")
+            self.controller.settings.play_pause_btn.config(text="Stop", bg="red", activebackground="red")
         else:
             self.controller.settings.play_pause_btn.config(text="Play", bg="green", activebackground="green")
 
     def toggle_fast_forward(self, event_time: float | None = None) -> None:
         if self.controller._shutting_down:
             return
-        now = self._now() if event_time is None else float(event_time)
+        self._set_play_button_state()
+
+    def change_fast_forward_speed(self, delta: float, *, persist: bool = True) -> float:
+        if self.controller._shutting_down:
+            return float(getattr(self.controller, "fast_forward_speed", 1.0) or 1.0)
+        if not bool(getattr(self.controller, "fast_forward_enabled", True)):
+            self._set_play_button_state()
+            return 1.0
+        try:
+            delta = float(delta)
+        except Exception:
+            delta = 0.0
         if self.controller.playing:
+            now = self._now()
             self._advance_playing_time_to_now(
                 now=now,
                 allow_end_toggle=False,
                 update_display=False,
             )
             self.controller.last_update = now
-        self.controller.fast_forward_speed = self.controller._coerce_fast_forward_speed(
-            getattr(self.controller, "fast_forward_speed", 1.5)
-        )
-        self.controller.fast_forward_active = not bool(getattr(self.controller, "fast_forward_active", False))
+        current = getattr(self.controller, "fast_forward_speed", None)
+        if current is None:
+            current = 1.5
+        self.controller.fast_forward_speed = self.controller._coerce_fast_forward_speed(float(current) + delta)
+        if persist:
+            try:
+                self.controller.config.set("FAST_FORWARD_SPEED", self.controller.fast_forward_speed)
+            except Exception:
+                pass
         self._set_play_button_state()
         self.controller.update_time_and_subtitle_displays()
         self.controller._schedule_hide_controls()
+        return float(self.controller.fast_forward_speed)
 
     def seek_relative(self, delta: float, event_time: float | None = None) -> None:
         self._sync_playing_time_to_event(

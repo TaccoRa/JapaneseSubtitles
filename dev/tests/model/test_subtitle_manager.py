@@ -24,6 +24,22 @@ def test_parse_time_value():
     assert parse_time_value("not a time", 0.0) == 0.0
 
 
+def test_episode_dropdown_items_include_season_episode_label():
+    manager = object.__new__(SubtitleManager)
+    manager.remote_flag = False
+    manager.local_srt_files = [
+        {"global": 27, "season": 2, "episode": 1, "name": "Show.S02E01.srt"},
+        {"global": 28, "season": 2, "episode": 2, "name": "Show.S02E02.srt"},
+    ]
+
+    items = manager.get_episode_dropdown_items()
+
+    assert [item["label"] for item in items] == ["27 (S2E1)", "28 (S2E2)"]
+    assert items[0]["global"] == 27
+    assert items[0]["season"] == 2
+    assert items[0]["episode"] == 1
+
+
 def test_clean_text_strips_html_tags_without_allowlist():
     manager = _cleaner({"SUBTITLE_AUTO_RUBY": False})
     assert manager._clean_text("<i>\u884c\u304f</i>") == "\u884c\u304f"
@@ -184,6 +200,39 @@ def test_parse_ruby_segments_default_keeps_source_compound_whole():
 
     assert manager._parse_ruby_segments("\u4eba\u9593(\u306b\u3093\u3052\u3093)", allow_auto=True) == [
         ("\u4eba\u9593", "\u306b\u3093\u3052\u3093"),
+    ]
+
+
+def test_auto_ruby_allows_katakana_in_hiragana_line_without_kanji():
+    manager = _cleaner({"SUBTITLE_AUTO_RUBY": True, "ANKI_SPLIT_KANJI_MORAS": False})
+    manager._auto_ruby_lock = None
+    manager._auto_ruby_cache = {}
+    manager._ruby_stats = {
+        "cache_hits": 0,
+        "cache_misses": 0,
+        "generator_calls": 0,
+        "generator_time": 0.0,
+    }
+
+    class Generator:
+        def segments(self, text, split_kanji_compounds=False):
+            assert text == "\u305d\u3046\u304b \u3082\u306e\u3059\u3054\u3044\u30b9\u30d4\u30fc\u30c9\u3067"
+            assert split_kanji_compounds is False
+            return [
+                ("\u305d\u3046\u304b \u3082\u306e\u3059\u3054\u3044", None),
+                ("\u30b9\u30d4\u30fc\u30c9", "\u3059\u3074\u30fc\u3069"),
+                ("\u3067", None),
+            ]
+
+    manager._get_ruby_generator = lambda: Generator()
+
+    assert manager._parse_ruby_segments(
+        "\u305d\u3046\u304b \u3082\u306e\u3059\u3054\u3044\u30b9\u30d4\u30fc\u30c9\u3067",
+        allow_auto=True,
+    ) == [
+        ("\u305d\u3046\u304b \u3082\u306e\u3059\u3054\u3044", None),
+        ("\u30b9\u30d4\u30fc\u30c9", "\u3059\u3074\u30fc\u3069"),
+        ("\u3067", None),
     ]
 
 

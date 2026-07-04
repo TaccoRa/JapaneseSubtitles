@@ -63,8 +63,12 @@ class SubtitleController:
         "SHORTCUT_POPUP_DEEPL_TRANSLATE": "t",
         "SHORTCUT_POPUP_GOOGLE_TRANSLATE": "g",
         "SHORTCUT_POPUP_ADD_ANKI": "a",
-        "SHORTCUT_TOGGLE_FAST_FORWARD": "f",
+        "SHORTCUT_FAST_FORWARD_SPEED_UP": "shift+.",
+        "SHORTCUT_FAST_FORWARD_SPEED_DOWN": "shift+comma",
         "SHORTCUT_TOGGLE_DEBUGGING": "ctrl+shift+d",
+        "HOVER_DICTIONARY_HOTKEY": "shift",
+        "HOVER_STATUS_HOTKEY": "ctrl",
+        "HOVER_TRANSLATION_HOTKEY": "alt",
     }
     HOTKEY_DISABLE_KEYS = {
         "toggle_play": "DISABLE_HOTKEY_TOGGLE_PLAY",
@@ -75,7 +79,8 @@ class SubtitleController:
         "subtitle_back": "DISABLE_HOTKEY_SUBTITLE_BACK",
         "subtitle_forward": "DISABLE_HOTKEY_SUBTITLE_FORWARD",
         "jump_sub_end": "DISABLE_HOTKEY_JUMP_SUB_END",
-        "toggle_fast_forward": "DISABLE_HOTKEY_TOGGLE_FAST_FORWARD",
+        "fast_forward_speed_up": "DISABLE_HOTKEY_FAST_FORWARD_SPEED_UP",
+        "fast_forward_speed_down": "DISABLE_HOTKEY_FAST_FORWARD_SPEED_DOWN",
     }
     OCR_TIME_PATTERN = re.compile(r"(\d{1,2}:\d{2}(?::\d{2})?)[/\\|](\d{1,2}:\d{2}(?::\d{2})?)")
     
@@ -129,7 +134,8 @@ class SubtitleController:
         self.video_click_play = True if self.config.get("VIDEO_CLICK_PLAY") is None else bool(self.config.get("VIDEO_CLICK_PLAY"))
         self.video_click_window = False if self.config.get("VIDEO_CLICK_WINDOW") is None else bool(self.config.get("VIDEO_CLICK_WINDOW"))
         self.subtitle_hover_pause_video = bool(self.config.get("SUBTITLE_HOVER_PAUSE_VIDEO") or False)
-        self.fast_forward_active = False
+        self.fast_forward_enabled = not bool(self.config.get("FAST_FORWARD_DISABLED") or False)
+        self.fast_forward_active = bool(self.fast_forward_enabled)
         self.fast_forward_speed = self._coerce_fast_forward_speed(self.config.get("FAST_FORWARD_SPEED"))
         self._hover_video_pause_active = False
         self._hover_timer_pause_active = False
@@ -215,7 +221,7 @@ class SubtitleController:
             speed = float(value)
         except Exception:
             speed = 1.5
-        speed = max(1.0, min(8.0, speed))
+        speed = max(0.1, min(8.0, speed))
         return round(speed, 1)
 
     def _create_services_and_controllers(self) -> None:
@@ -268,6 +274,9 @@ class SubtitleController:
         self.settings.bind_refresh_subtitles        (self.subtitle_navigation.on_refresh_subtitles)
         self.settings.bind_toggle_subtitles         (self.subtitle_navigation.toggle_subtitle_visibility)
         self.settings.bind_advanced_apply           (self.apply_advanced_settings)
+        self.settings.bind_fast_forward_controls    (
+            speed_delta=self.playback.change_fast_forward_speed,
+        )
         self.settings.bind_ocr_read_now             (self.ocr_controller.on_ocr_read_now)
         self.settings.bind_ocr_sync_now             (self.ocr_controller.on_ocr_sync_now)
         self.settings.bind_ocr_show_boxes           (self.ocr_controller.show_ocr_boxes)
@@ -297,13 +306,21 @@ class SubtitleController:
         self.popup.bind_word_tokenizer              (self._word_spans_for_lookup)
         self.popup.bind_annotation_provider         (self.annotation_provider if self._annotation_is_enabled() else None)
         self.popup.bind_shift_state                 (self._plain_shift_hover_active)
+        self.popup.bind_hover_mode                  (self._hover_modifier_mode)
         self.popup.bind_translation_state           (lambda: bool(self.translation_pressed))
-        self.popup.bind_translation_provider        (lambda: str(self.translation_provider or "deepl"))
+        self.popup.bind_translation_provider        (
+            lambda: str(self.translation_provider if self.translation_pressed else self._hover_translation_provider())
+        )
         self.popup.bind_anchor_window               (self._popup_anchor_window)
         self.renderer.bind_dictionary_lookup        (self._lookup_dictionary_entry)
+        self.renderer.bind_translation_lookup       (self._translate_hover_selection)
+        self.renderer.bind_translation_provider     (
+            lambda: str(self.translation_provider if self.translation_pressed else self._hover_translation_provider())
+        )
         self.renderer.bind_word_tokenizer           (self._word_spans_for_lookup)
         self.renderer.bind_annotation_provider      (self.annotation_provider if self._annotation_is_enabled() else None)
         self.renderer.bind_shift_state              (lambda: self._plain_shift_hover_active() and not self._popup_is_open())
+        self.renderer.bind_hover_mode               (lambda: "ruby" if self._popup_is_open() else self._hover_modifier_mode())
         self.overlay.bind_sub_window_enter          (self.sub_window_enter)
         self.overlay.bind_sub_window_leave          (self.sub_window_leave)
         self.overlay.bind_sub_handle_enter          (self.sub_handle_enter)   
@@ -339,7 +356,20 @@ class SubtitleController:
             self.renderer._clear_hover_ruby()
         except Exception:
             pass
-        self.popup.open_copy_popup(self.last_subtitle_raw)
+        try:
+            sync = getattr(self.playback, "_sync_playing_time_to_event", None)
+            if callable(sync):
+                sync(update_display=True, update_slider=False)
+        except Exception:
+            logger.debug("Failed to sync playback before opening subtitle popup", exc_info=True)
+        text = str(getattr(self, "last_subtitle_raw", "") or "")
+        try:
+            getter = getattr(self.subtitle_navigation, "copy_text_for_current_subtitle", None)
+            if callable(getter):
+                text = getter()
+        except Exception:
+            logger.debug("Failed to resolve current subtitle text for popup", exc_info=True)
+        self.popup.open_copy_popup(text)
         return "break"
 
     def _skip_buttons_use_subtitle_segments(self) -> bool:
@@ -363,6 +393,54 @@ class SubtitleController:
         except Exception:
             return ""
 
+    def _hover_translation_provider(self) -> str:
+        try:
+            provider = str(getattr(self.anki, "sentence_translate_provider", "") or "").strip().lower()
+            if provider in {"deepl", "google"}:
+                return provider
+        except Exception:
+            pass
+        return "deepl"
+
+    def _hover_modifier_mode(self) -> str:
+        if self._hover_hold_active("HOVER_TRANSLATION_ENABLED", "HOVER_TRANSLATION_HOTKEY", "alt"):
+            return "translation"
+        if self._hover_hold_active("HOVER_STATUS_ENABLED", "HOVER_STATUS_HOTKEY", "ctrl"):
+            return "status"
+        if self._hover_hold_active(
+            "HOVER_DICTIONARY_ENABLED",
+            "HOVER_DICTIONARY_HOTKEY",
+            "shift",
+            legacy_enabled_key="SHIFT_HOVER_KANJI_DICTIONARY",
+        ):
+            return "dictionary"
+        if bool(getattr(self, "translation_pressed", False)):
+            return "translation"
+        return "ruby"
+
+    def _hover_hold_active(
+        self,
+        enabled_key: str,
+        hotkey_key: str,
+        default_hotkey: str,
+        *,
+        legacy_enabled_key: str | None = None,
+    ) -> bool:
+        helper = getattr(getattr(self, "hotkey_controller", None), "hover_hold_active", None)
+        if not callable(helper):
+            return False
+        try:
+            return bool(
+                helper(
+                    enabled_key,
+                    hotkey_key,
+                    default_hotkey,
+                    legacy_enabled_key=legacy_enabled_key,
+                )
+            )
+        except Exception:
+            return False
+
     def _popup_is_open(self) -> bool:
         try:
             return bool(self.popup.is_open())
@@ -370,9 +448,12 @@ class SubtitleController:
             return False
 
     def _plain_shift_hover_active(self) -> bool:
-        if not bool(self.config.get("SHIFT_HOVER_KANJI_DICTIONARY") or False):
-            return False
-        return bool(self.shift_pressed) and not bool(self.ctrl_pressed) and not bool(self.alt_pressed)
+        return self._hover_hold_active(
+            "HOVER_DICTIONARY_ENABLED",
+            "HOVER_DICTIONARY_HOTKEY",
+            "shift",
+            legacy_enabled_key="SHIFT_HOVER_KANJI_DICTIONARY",
+        )
 
     def _popup_anchor_window(self):
         return getattr(self.overlay, "sub_window", None)
@@ -1025,8 +1106,21 @@ class SubtitleController:
         )
         if "SUBTITLE_HOVER_PAUSE_VIDEO" in values:
             self.subtitle_hover_pause_video = bool(values.get("SUBTITLE_HOVER_PAUSE_VIDEO"))
+        if "FAST_FORWARD_DISABLED" in values or "FAST_FORWARD_SPEED" in values:
+            if self.playing:
+                now = time.perf_counter()
+                self.playback._advance_playing_time_to_now(
+                    now=now,
+                    allow_end_toggle=False,
+                    update_display=False,
+                )
+                self.last_update = now
+        if "FAST_FORWARD_DISABLED" in values:
+            self.fast_forward_enabled = not bool(values.get("FAST_FORWARD_DISABLED"))
+            self.fast_forward_active = bool(self.fast_forward_enabled)
         if "FAST_FORWARD_SPEED" in values:
             self.fast_forward_speed = self._coerce_fast_forward_speed(values.get("FAST_FORWARD_SPEED"))
+        if "FAST_FORWARD_DISABLED" in values or "FAST_FORWARD_SPEED" in values:
             self.playback._set_play_button_state()
 
         if "AUDIO_PADDING" in values:
@@ -1080,6 +1174,12 @@ class SubtitleController:
             "SUBTITLE_WRAP_LIMIT_PX",
             "SUBTITLE_HOVER_RUBY",
             "SHIFT_HOVER_KANJI_DICTIONARY",
+            "HOVER_DICTIONARY_ENABLED",
+            "HOVER_DICTIONARY_HOTKEY",
+            "HOVER_STATUS_ENABLED",
+            "HOVER_STATUS_HOTKEY",
+            "HOVER_TRANSLATION_ENABLED",
+            "HOVER_TRANSLATION_HOTKEY",
             "GLOW_COLOR",
             "GLOW_RADIUS",
         }
@@ -1262,12 +1362,12 @@ class SubtitleController:
         inside = False
         try:
             inside = self._pointer_inside_settings_windows()
+            if inside:
+                self._hide_subtitle_handle_for_settings()
+            elif bool(getattr(self, "_settings_pointer_inside", False)):
+                self._restore_subtitle_handle_after_settings()
             if inside != bool(getattr(self, "_settings_pointer_inside", False)):
                 self._settings_pointer_inside = inside
-                if inside:
-                    self._hide_subtitle_handle_for_settings()
-                else:
-                    self._restore_subtitle_handle_after_settings()
         except Exception:
             logger.debug("Failed to poll settings pointer for subtitle handle", exc_info=True)
 
@@ -1292,12 +1392,24 @@ class SubtitleController:
                     continue
             except Exception:
                 continue
+            rects = []
             rect = get_window_screen_rect(win)
-            if not rect:
-                continue
-            left, top, right, bottom = rect
-            if left <= px <= right and top <= py <= bottom:
-                return True
+            if rect:
+                rects.append(rect)
+            try:
+                rects.append(
+                    (
+                        int(win.winfo_rootx()),
+                        int(win.winfo_rooty()),
+                        int(win.winfo_rootx()) + int(win.winfo_width()),
+                        int(win.winfo_rooty()) + int(win.winfo_height()),
+                    )
+                )
+            except Exception:
+                pass
+            for left, top, right, bottom in rects:
+                if left <= px <= right and top <= py <= bottom:
+                    return True
         return False
 
     # ---------------------------------------------------------------------

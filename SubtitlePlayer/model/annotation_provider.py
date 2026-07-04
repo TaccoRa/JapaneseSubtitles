@@ -321,6 +321,7 @@ class AnnotationProvider:
         if not line_text:
             return segments
         tokens = self._tokens_for_line(line_text, tokenizer)
+        tokens = self._merge_annotation_tokens(tokens, self._ruby_segment_tokens(segments))
         intervals = self._matched_intervals(tokens)
         if not intervals:
             return segments
@@ -407,6 +408,66 @@ class AnnotationProvider:
             for m in re.finditer(r"\S+", line_text)
         ]
         return self._expand_annotation_tokens(line_text, tokens)
+
+    def _ruby_segment_tokens(self, segments) -> list[dict[str, Any]]:
+        tokens: list[dict[str, Any]] = []
+        cursor = 0
+        for segment in segments or []:
+            base = _segment_base(segment)
+            ruby = _segment_ruby(segment)
+            start = cursor
+            end = start + len(base or "")
+            cursor = end
+            if not base or not ruby:
+                continue
+            lookup = str(base or "").strip()
+            if not normalize_word(lookup):
+                continue
+            tokens.append(
+                {
+                    "surface": base,
+                    "lookup": lookup,
+                    "reading": str(ruby or "").strip(),
+                    "start": start,
+                    "end": end,
+                    "ruby_segment": True,
+                }
+            )
+        return tokens
+
+    @staticmethod
+    def _merge_annotation_tokens(
+        tokens: list[dict[str, Any]],
+        extra_tokens: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        if not extra_tokens:
+            return tokens
+        merged = list(tokens or [])
+        seen = {
+            (
+                int(token.get("start") or 0),
+                int(token.get("end") or 0),
+                normalize_word(token.get("lookup") or token.get("surface") or ""),
+            )
+            for token in merged
+        }
+        for token in extra_tokens:
+            key = (
+                int(token.get("start") or 0),
+                int(token.get("end") or 0),
+                normalize_word(token.get("lookup") or token.get("surface") or ""),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(token)
+        merged.sort(
+            key=lambda token: (
+                int(token.get("start") or 0),
+                -(int(token.get("end") or 0) - int(token.get("start") or 0)),
+            )
+        )
+        return merged
 
     def _expand_annotation_tokens(self, line_text: str, tokens: list[dict[str, Any]]) -> list[dict[str, Any]]:
         tokens = self._expand_suru_annotation_tokens(line_text, tokens)

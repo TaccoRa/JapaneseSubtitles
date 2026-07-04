@@ -656,6 +656,9 @@ def split_furigana(
         return []
     if not reading:
         return [(base, None)]
+    for match, _counter_reading in iter_number_counter_matches(base):
+        if match.start() == 0 and match.end() == len(base):
+            return [(base, reading)]
     if not any(is_real_kanji(ch) for ch in base):
         return [(base, None)]
 

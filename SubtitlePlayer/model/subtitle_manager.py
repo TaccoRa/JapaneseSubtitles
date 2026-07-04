@@ -84,7 +84,10 @@ class SubtitleManager:
     )
     SEASON_PATTERN = re.compile(r'S(\d+)', re.IGNORECASE)
     EPISODE_PATTERN = re.compile(r'E(\d+)', re.IGNORECASE)
-    RUBY_PATTERN = regex.compile(r'(\p{Han}+)[(\uFF08]([^\)\uFF09]+)[)\uFF09]')
+    RUBY_PATTERN = regex.compile(
+        r'((?:[0-9\uFF10-\uFF19]+|[一二三四五六七八九十]+)[ \t\u3000]*(?:匹|本|杯|人|枚|個|回|階|円|歳|才|時|分)|\p{Han}+)'
+        r'[(\uFF08]([^\)\uFF09]+)[)\uFF09]'
+    )
     PAREN_NOTE_PATTERN = regex.compile(r'[(\uFF08][^)\uFF09]*[)\uFF09]')
     PAREN_NOTE_EXACT = (
         "\u97f3",
@@ -860,7 +863,7 @@ class SubtitleManager:
             return None
         if not text or ("[" in text and "]" in text):
             return None
-        if not regex.search(r"\p{Han}", text or ""):
+        if not regex.search(r"\p{Han}|[\u30A0-\u30FF\u30FC]", text or ""):
             return None
 
         lock = getattr(self, "_auto_ruby_lock", None)
@@ -1540,6 +1543,113 @@ class SubtitleManager:
             return sorted({int(r.get("episode")) for r in lst if r.get("episode") is not None})
         except Exception:
             return []
+
+    @staticmethod
+    def _episode_dropdown_label(global_value, season, episode) -> str:
+        try:
+            display = int(global_value)
+        except Exception:
+            try:
+                display = int(episode)
+            except Exception:
+                display = str(global_value or episode or "")
+        if season is not None and episode is not None:
+            try:
+                return f"{display} (S{int(season)}E{int(episode)})"
+            except Exception:
+                return f"{display} (S{season}E{episode})"
+        return str(display)
+
+    def get_episode_dropdown_items(self) -> List[dict]:
+        """
+        Rich dropdown rows for UI display. The plain integer API above remains
+        available for older callers/tests.
+        """
+        items: List[dict] = []
+
+        def add(global_value, season, episode, name=""):
+            key = (
+                int(global_value) if global_value is not None else None,
+                int(season) if season is not None else None,
+                int(episode) if episode is not None else None,
+            )
+            if key in seen:
+                return
+            seen.add(key)
+            label = self._episode_dropdown_label(global_value, season, episode)
+            items.append(
+                {
+                    "label": label,
+                    "value": key[0] if key[0] is not None else key[2],
+                    "global": key[0],
+                    "season": key[1],
+                    "episode": key[2],
+                    "name": name or "",
+                }
+            )
+
+        seen = set()
+        if getattr(self, "remote_flag", False):
+            m = getattr(self, "remote_episode_map_global", None)
+            if not isinstance(m, dict) or not m:
+                try:
+                    self.build_remote_episode_maps()
+                except Exception:
+                    pass
+                m = getattr(self, "remote_episode_map_global", None)
+            if isinstance(m, dict) and m:
+                for g in sorted(int(k) for k in m.keys()):
+                    rec = m.get(g) or {}
+                    add(g, rec.get("season"), rec.get("episode"), rec.get("name") or "")
+                if items:
+                    return items
+
+        if not getattr(self, "local_srt_files", None):
+            try:
+                if getattr(self, "remote_flag", False):
+                    self.update_local_srt_files()
+                else:
+                    self._build_local_episode_map()
+            except Exception:
+                pass
+
+        for rec in getattr(self, "local_srt_files", None) or []:
+            add(rec.get("global"), rec.get("season"), rec.get("episode"), rec.get("name") or "")
+
+        if items:
+            return sorted(
+                items,
+                key=lambda item: (
+                    item.get("global") is None,
+                    int(item.get("global") or item.get("episode") or 0),
+                    int(item.get("season") or 0),
+                    int(item.get("episode") or 0),
+                ),
+            )
+
+        return [
+            {
+                "label": str(v),
+                "value": int(v),
+                "global": int(v),
+                "season": None,
+                "episode": None,
+                "name": "",
+            }
+            for v in self.get_episode_dropdown_values()
+        ]
+
+    def get_current_episode_label(self) -> str:
+        if getattr(self, "current_episode", None) is None:
+            return "Movie"
+        season = getattr(self, "current_season", None)
+        episode = getattr(self, "current_episode", None)
+        global_value = None
+        try:
+            global_value = self.get_current_global()
+        except Exception:
+            global_value = None
+        return self._episode_dropdown_label(global_value if global_value is not None else episode, season, episode)
 
     def change_episode_remote(
         self,

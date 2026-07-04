@@ -755,6 +755,47 @@ def test_add_from_selection_copies_media_before_creating_note(monkeypatch):
     }
 
 
+def test_prepare_note_does_not_add_until_commit(monkeypatch):
+    client = AnkiClient(ConfigManager("config.json"))
+    monkeypatch.setattr(client, "_card_headword_for_anki", lambda selected, _subtitle: selected)
+    monkeypatch.setattr(client, "_anki_marker_tags_for_selection", lambda *_args: [])
+    monkeypatch.setattr(client, "_translate_word", lambda _text: "meaning")
+    monkeypatch.setattr(client, "_translate_sentence", lambda _text: "sentence translation")
+    monkeypatch.setattr(client, "_collect_translation_candidates", lambda *_args, **_kwargs: {"word": {}, "sentence": {}})
+    monkeypatch.setattr(client, "_detect_translation_provider", lambda **_kwargs: "test")
+    monkeypatch.setattr(client, "_to_furigana_brackets", lambda text, **_kwargs: text)
+    monkeypatch.setattr(client, "_copy_existing_sentence_media_fields", lambda _fields: {})
+    monkeypatch.setattr(client, "_ensure_decks", lambda _decks: None)
+    monkeypatch.setattr(client, "_route_new_cards", lambda _note_id: {"reading": [], "reverse": [], "unrouted": []})
+    monkeypatch.setattr(client, "_get_model_field_names", lambda: {
+        client.add_rubies_to_front_field,
+        client.front_field,
+        client.back_field,
+        client.sentence_ja_field,
+        client.sentence_de_field,
+        client.add_rubies_to_sentence_ja_field,
+    })
+    added_notes = []
+
+    def fake_invoke(action, params=None):
+        if action == "addNote":
+            added_notes.append(params["note"])
+            return 123
+        return None
+
+    monkeypatch.setattr(client, "_invoke", fake_invoke)
+
+    prepared = client.prepare_note_from_selection("\u65b0\u898f", "\u6587")
+    prepared["note"]["fields"][client.back_field] = "edited meaning"
+
+    assert added_notes == []
+
+    result = client.commit_prepared_note(prepared)
+
+    assert result["note_id"] == 123
+    assert added_notes[0]["fields"][client.back_field] == "edited meaning"
+
+
 def test_bracket_text_spaces_before_kanji_ruby_segments():
     client = AnkiClient(ConfigManager("config.json"))
     rendered = client._segments_to_bracket_text(

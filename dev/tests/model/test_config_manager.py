@@ -48,3 +48,22 @@ def test_set_many_preserves_existing_local_key_order(tmp_path):
     data = json.loads(local.read_text(encoding="utf-8"))
     assert list(data.keys()) == ["C", "B", "D"]
     assert data == {"C": 30, "B": 2, "D": 4}
+
+
+def test_replace_local_config_writes_full_profile_snapshot(tmp_path):
+    defaults = tmp_path / "config.json"
+    local = tmp_path / "config.local.json"
+    defaults.write_text('{"A": 1, "B": 2}', encoding="utf-8")
+    local.write_text('{"B": 20}', encoding="utf-8")
+
+    config = ConfigManager(str(defaults), local_path=str(local))
+    config.replace_local_config({"C": 30, "ACTIVE_SETTINGS_PROFILE": "User 1"})
+
+    assert config.get("A") == 1
+    assert config.get("B") == 2
+    assert config.get("C") == 30
+    assert config.get("ACTIVE_SETTINGS_PROFILE") == "User 1"
+    assert json.loads(local.read_text(encoding="utf-8")) == {
+        "C": 30,
+        "ACTIVE_SETTINGS_PROFILE": "User 1",
+    }

@@ -1,9 +1,12 @@
 """Advanced settings window helpers for SettingsUI."""
 
+import json
 import logging
+import os
+import re
 import threading
 import tkinter as tk
-from tkinter import ttk
+from tkinter import filedialog, messagebox, simpledialog, ttk
 from typing import Any
 
 from view.annotation_tab import AnnotationTab
@@ -210,6 +213,10 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         footer.grid(row=3, column=0, sticky="ew")
         footer.grid_columnconfigure(0, weight=1)
 
+        profiles_row = self._build_profiles_row(footer)
+        self._advanced_profiles_row = profiles_row
+        profiles_row.pack(fill="x", pady=(0, 6))
+
         status_row = tk.Frame(footer)
         status_row.pack(fill="x", pady=(0, 6))
         tk.Label(
@@ -277,6 +284,215 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             self._ocr_region_count_trace_var = None
 
         win.bind("<Destroy>", _on_destroy)
+
+    def _profiles_dir(self) -> str:
+        config_path = getattr(self.config, "local_path", None) or getattr(self.config, "path", "config.json")
+        base_dir = os.path.dirname(os.path.abspath(config_path)) or os.getcwd()
+        return os.path.join(base_dir, "settings_profiles")
+
+    @staticmethod
+    def _sanitize_profile_name(name: str) -> str:
+        value = re.sub(r"[^A-Za-z0-9_. -]+", "_", str(name or "").strip())
+        value = re.sub(r"\s+", " ", value).strip(" .")
+        return value or "Profile"
+
+    def _profile_path(self, name: str) -> str:
+        return os.path.join(self._profiles_dir(), f"{self._sanitize_profile_name(name)}.json")
+
+    def _list_profile_names(self) -> list[str]:
+        folder = self._profiles_dir()
+        if not os.path.isdir(folder):
+            return []
+        names = []
+        for filename in os.listdir(folder):
+            if filename.lower().endswith(".json"):
+                names.append(os.path.splitext(filename)[0])
+        return sorted(set(names), key=str.casefold)
+
+    def _current_local_config_snapshot(self, profile_name: str | None = None) -> dict:
+        data = dict(getattr(self.config, "local_config", {}) or {})
+        if profile_name:
+            data["ACTIVE_SETTINGS_PROFILE"] = self._sanitize_profile_name(profile_name)
+        return data
+
+    def _refresh_profile_values(self) -> None:
+        combo = getattr(self, "_profile_combo", None)
+        if combo is None:
+            return
+        names = self._list_profile_names()
+        try:
+            combo.configure(values=names)
+        except Exception:
+            pass
+        var = getattr(self, "_profile_var", None)
+        if var is not None and not str(var.get() or "").strip():
+            active = str(self.config.get("ACTIVE_SETTINGS_PROFILE") or "").strip()
+            if active:
+                var.set(active)
+
+    def _build_profiles_row(self, parent) -> tk.Frame:
+        row = tk.LabelFrame(parent, text="Profiles", padx=6, pady=5)
+        row.grid_columnconfigure(1, weight=1)
+        self._profile_var = tk.StringVar(value=str(self.config.get("ACTIVE_SETTINGS_PROFILE") or ""))
+        tk.Label(row, text="Profile").grid(row=0, column=0, sticky="w")
+        self._profile_combo = ttk.Combobox(row, textvariable=self._profile_var, values=self._list_profile_names(), width=24)
+        self._profile_combo.grid(row=0, column=1, sticky="ew", padx=(6, 6))
+        tk.Button(row, text="New", width=7, command=self._new_profile).grid(row=0, column=2, padx=(0, 4))
+        tk.Button(row, text="Save", width=7, command=self._save_profile).grid(row=0, column=3, padx=(0, 4))
+        tk.Button(row, text="Load", width=7, command=self._load_profile).grid(row=0, column=4, padx=(0, 4))
+        tk.Button(row, text="Delete", width=7, command=self._delete_profile).grid(row=0, column=5, padx=(0, 4))
+        tk.Button(row, text="Import", width=7, command=self._import_profile).grid(row=0, column=6, padx=(0, 4))
+        tk.Button(row, text="Export", width=7, command=self._export_profile).grid(row=0, column=7)
+        return row
+
+    def _selected_profile_name(self, *, prompt: bool = False) -> str:
+        var = getattr(self, "_profile_var", None)
+        name = self._sanitize_profile_name(var.get() if var is not None else "")
+        if prompt and (not name or name == "Profile"):
+            entered = simpledialog.askstring("Profile name", "Profile name:", parent=getattr(self, "advanced_window", None))
+            if not entered:
+                return ""
+            name = self._sanitize_profile_name(entered or "")
+            if var is not None:
+                var.set(name)
+        return name
+
+    def _write_profile_file(self, name: str, data: dict) -> str:
+        folder = self._profiles_dir()
+        os.makedirs(folder, exist_ok=True)
+        path = self._profile_path(name)
+        tmp_path = f"{path}.tmp"
+        with open(tmp_path, "w", encoding="utf-8") as handle:
+            json.dump(data, handle, indent=4, ensure_ascii=False)
+        os.replace(tmp_path, path)
+        return path
+
+    def _new_profile(self) -> None:
+        entered = simpledialog.askstring("New profile", "Profile name:", parent=getattr(self, "advanced_window", None))
+        if not entered:
+            return
+        name = self._sanitize_profile_name(entered)
+        if getattr(self, "_profile_var", None) is not None:
+            self._profile_var.set(name)
+        self._save_profile()
+
+    def _save_profile(self) -> None:
+        name = self._selected_profile_name(prompt=True)
+        if not name:
+            return
+        try:
+            data = self._current_local_config_snapshot(name)
+            self._write_profile_file(name, data)
+            self.config.set("ACTIVE_SETTINGS_PROFILE", name)
+            self._refresh_profile_values()
+            self._advanced_status_var.set(f'Profile "{name}" saved.')
+        except Exception as exc:
+            logger.exception("Failed to save settings profile")
+            messagebox.showerror("Profile save failed", str(exc), parent=getattr(self, "advanced_window", None))
+
+    def _read_profile_file(self, path: str) -> dict:
+        with open(path, "r", encoding="utf-8-sig") as handle:
+            data = json.load(handle)
+        if not isinstance(data, dict):
+            raise ValueError("Profile file must contain a JSON object.")
+        return data
+
+    def _apply_loaded_profile(self, name: str, data: dict) -> None:
+        data = dict(data)
+        data["ACTIVE_SETTINGS_PROFILE"] = name
+        replacer = getattr(self.config, "replace_local_config", None)
+        if callable(replacer):
+            replacer(data)
+        else:
+            for key, value in data.items():
+                self.config.set(key, value)
+        self._load_advanced_values_into_vars()
+        callback = getattr(self, "_on_advanced_apply", None)
+        if callable(callback):
+            callback(dict(getattr(self.config, "config", {}) or {}), False)
+        self._refresh_profile_values()
+
+    def _load_profile(self) -> None:
+        name = self._selected_profile_name(prompt=False)
+        path = self._profile_path(name)
+        if not name or not os.path.exists(path):
+            messagebox.showwarning("Profile not found", "Choose a saved profile first.", parent=getattr(self, "advanced_window", None))
+            return
+        try:
+            self._apply_loaded_profile(name, self._read_profile_file(path))
+            self._advanced_status_var.set(f'Profile "{name}" loaded and applied.')
+        except Exception as exc:
+            logger.exception("Failed to load settings profile")
+            messagebox.showerror("Profile load failed", str(exc), parent=getattr(self, "advanced_window", None))
+
+    def _delete_profile(self) -> None:
+        name = self._selected_profile_name(prompt=False)
+        path = self._profile_path(name)
+        if not name or not os.path.exists(path):
+            messagebox.showwarning("Profile not found", "Choose a saved profile first.", parent=getattr(self, "advanced_window", None))
+            return
+        if not messagebox.askyesno("Delete profile", f'Delete profile "{name}"?', parent=getattr(self, "advanced_window", None)):
+            return
+        try:
+            os.remove(path)
+            if str(self.config.get("ACTIVE_SETTINGS_PROFILE") or "") == name:
+                self.config.set("ACTIVE_SETTINGS_PROFILE", "")
+            if getattr(self, "_profile_var", None) is not None:
+                self._profile_var.set("")
+            self._refresh_profile_values()
+            self._advanced_status_var.set(f'Profile "{name}" deleted.')
+        except Exception as exc:
+            logger.exception("Failed to delete settings profile")
+            messagebox.showerror("Profile delete failed", str(exc), parent=getattr(self, "advanced_window", None))
+
+    def _import_profile(self) -> None:
+        path = filedialog.askopenfilename(
+            title="Import settings profile",
+            filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+            parent=getattr(self, "advanced_window", None),
+        )
+        if not path:
+            return
+        try:
+            data = self._read_profile_file(path)
+            default_name = self._sanitize_profile_name(data.get("ACTIVE_SETTINGS_PROFILE") or os.path.splitext(os.path.basename(path))[0])
+            name = simpledialog.askstring("Import profile", "Profile name:", initialvalue=default_name, parent=getattr(self, "advanced_window", None))
+            if not name:
+                return
+            name = self._sanitize_profile_name(name)
+            data["ACTIVE_SETTINGS_PROFILE"] = name
+            self._write_profile_file(name, data)
+            if getattr(self, "_profile_var", None) is not None:
+                self._profile_var.set(name)
+            self._refresh_profile_values()
+            self._advanced_status_var.set(f'Profile "{name}" imported.')
+        except Exception as exc:
+            logger.exception("Failed to import settings profile")
+            messagebox.showerror("Profile import failed", str(exc), parent=getattr(self, "advanced_window", None))
+
+    def _export_profile(self) -> None:
+        name = self._selected_profile_name(prompt=True)
+        if not name:
+            return
+        path = filedialog.asksaveasfilename(
+            title="Export settings profile",
+            initialfile=f"{name}.json",
+            defaultextension=".json",
+            filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+            parent=getattr(self, "advanced_window", None),
+        )
+        if not path:
+            return
+        try:
+            data = self._current_local_config_snapshot(name)
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(data, handle, indent=4, ensure_ascii=False)
+            self.config.set("ACTIVE_SETTINGS_PROFILE", name)
+            self._refresh_profile_values()
+            self._advanced_status_var.set(f'Profile "{name}" exported.')
+        except Exception as exc:
+            logger.exception("Failed to export settings profile")
+            messagebox.showerror("Profile export failed", str(exc), parent=getattr(self, "advanced_window", None))
 
     def _show_advanced_window(self, win) -> None:
         try:
@@ -992,7 +1208,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                     {"key": "SUBTITLE_HOVER_PAUSE_VIDEO", "label": "Pause background video while subtitle hovered", "type": "bool", "default": False},
                     {"key": "SUBTITLE_CENTER_SNAP_ENABLED", "label": "Snap subtitle window to screen center", "type": "bool", "default": False},
                     {"key": "SUBTITLE_CENTER_SNAP_THRESHOLD_PX", "label": "Center snap distance (px)", "type": "int", "default": 32, "min": 1, "max": 500},
-                    {"key": "FAST_FORWARD_SPEED", "label": "Fast-forward speed", "type": "float", "default": 1.5, "min": 1.0, "max": 8.0, "round": 1},
+                    {"key": "FAST_FORWARD_DISABLED", "label": "Disable speed display and run normal speed", "type": "bool", "default": False},
+                    {"key": "FAST_FORWARD_SPEED", "label": "Fast-forward speed", "type": "float", "default": 1.5, "min": 0.1, "max": 8.0, "round": 1},
                 ],
             ),
             (
@@ -1013,9 +1230,14 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             (
                 "Kanji / Ruby",
                 [
-                    {"key": "SUBTITLE_AUTO_RUBY", "label": "Auto-add ruby for kanji-only lines", "type": "bool", "default": False},
+                    {"key": "SUBTITLE_AUTO_RUBY", "label": "Auto-add ruby for kanji/katakana lines", "type": "bool", "default": False},
                     {"key": "SUBTITLE_HOVER_RUBY", "label": "Show ruby only on kanji hover", "type": "bool", "default": False},
-                    {"key": "SHIFT_HOVER_KANJI_DICTIONARY", "label": "Enable plain Shift-hover word definition window", "type": "bool", "default": False},
+                    {"key": "HOVER_DICTIONARY_ENABLED", "label": "Enable dictionary hover layer", "type": "bool", "default": False},
+                    {"key": "HOVER_DICTIONARY_HOTKEY", "label": "Dictionary hover hold key", "type": "str", "default": "shift", "allow_empty": True},
+                    {"key": "HOVER_STATUS_ENABLED", "label": "Enable Anki/database status hover layer", "type": "bool", "default": True},
+                    {"key": "HOVER_STATUS_HOTKEY", "label": "Status hover hold key", "type": "str", "default": "ctrl", "allow_empty": True},
+                    {"key": "HOVER_TRANSLATION_ENABLED", "label": "Enable translation hover layer", "type": "bool", "default": True},
+                    {"key": "HOVER_TRANSLATION_HOTKEY", "label": "Translation hover hold key", "type": "str", "default": "alt", "allow_empty": True},
                     {"key": "ANKI_SPLIT_KANJI_MORAS", "label": "Split all-kanji ruby per kanji", "type": "bool", "default": False},
                 ],
             ),
@@ -1063,6 +1285,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 "Anki Connection",
                 [
                     {"key": "ANKI_ENABLED", "label": "Enable Anki integration", "type": "bool", "default": True, "button_text": "Check Connection"},
+                    {"key": "ANKI_PREVIEW_BEFORE_ADD", "label": "Preview note before adding", "type": "bool", "default": False},
                     {"key": "ANKI_CONNECT_URL", "label": "AnkiConnect URL", "type": "str", "default": "http://127.0.0.1:8765"},
                     {"key": "ANKI_HTTP_TIMEOUT_SEC", "label": "HTTP timeout (sec)", "type": "float", "default": 4.0, "min": 0.5, "max": 120.0},
                 ],
@@ -1216,7 +1439,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                     {"key": "SHORTCUT_EPISODE_INC", "label": "Episode +", "type": "str", "default": "alt+c", "allow_empty": True},
                     {"key": "SHORTCUT_EPISODE_DEC", "label": "Episode -", "type": "str", "default": "alt+y", "allow_empty": True},
                     {"key": "SHORTCUT_JUMP_SUB_END", "label": "Jump to subtitle end / capture", "type": "str", "default": "ctrl+shift+y", "allow_empty": True},
-                    {"key": "SHORTCUT_TOGGLE_FAST_FORWARD", "label": "Toggle fast-forward", "type": "str", "default": "f", "allow_empty": True},
+                    {"key": "SHORTCUT_FAST_FORWARD_SPEED_UP", "label": "Fast-forward speed up", "type": "str", "default": "shift+.", "allow_empty": True},
+                    {"key": "SHORTCUT_FAST_FORWARD_SPEED_DOWN", "label": "Fast-forward speed down", "type": "str", "default": "shift+comma", "allow_empty": True},
                     {"key": "SHORTCUT_TOGGLE_DEBUGGING", "label": "Toggle debugging", "type": "str", "default": "ctrl+shift+d", "allow_empty": True},
                 ],
             ),
@@ -1239,7 +1463,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                     {"key": "DISABLE_HOTKEY_SUBTITLE_BACK", "label": "Disable subtitle-back hotkey", "type": "bool", "default": False},
                     {"key": "DISABLE_HOTKEY_SUBTITLE_FORWARD", "label": "Disable subtitle-forward hotkey", "type": "bool", "default": False},
                     {"key": "DISABLE_HOTKEY_JUMP_SUB_END", "label": "Disable jump-sub-end hotkey", "type": "bool", "default": False},
-                    {"key": "DISABLE_HOTKEY_TOGGLE_FAST_FORWARD", "label": "Disable fast-forward hotkey", "type": "bool", "default": False},
+                    {"key": "DISABLE_HOTKEY_FAST_FORWARD_SPEED_UP", "label": "Disable speed-up hotkey", "type": "bool", "default": False},
+                    {"key": "DISABLE_HOTKEY_FAST_FORWARD_SPEED_DOWN", "label": "Disable speed-down hotkey", "type": "bool", "default": False},
                     {"key": "DISABLE_HOTKEY_TOGGLE_SUBTITLES", "label": "Disable subtitle-toggle hotkeys", "type": "bool", "default": False},
                 ],
             ),
@@ -1348,10 +1573,10 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             row=0, column=1, sticky="ew", padx=(6, 0), pady=(0, 4)
         )
         tk.Button(action_grid, text="Sync Now (5s)", command=self._handle_ocr_sync_now).grid(
-            row=1, column=0, sticky="ew", padx=(0, 6)
+            row=1, column=1, sticky="ew", padx=(6, 0)
         )
         tk.Button(action_grid, text="Show Boxes", command=self._handle_ocr_show_boxes).grid(
-            row=1, column=1, sticky="ew", padx=(6, 0)
+            row=1, column=0, sticky="ew", padx=(0, 6)
         )
 
         screen_row = tk.Frame(actions)

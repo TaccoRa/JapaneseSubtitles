@@ -43,8 +43,11 @@ class SubtitleRenderer:
         self._hover_text_label: tk.Label | None = None
         self._hover_text_current: str = ""
         self._dictionary_lookup: Callable[[str], str] | None = None
+        self._translation_lookup: Callable[..., str] | None = None
+        self._translation_provider_callback: Callable[[], str] | None = None
         self._word_tokenizer: Callable[[str], List[dict[str, Any]]] | None = None
         self._shift_state_callback: Callable[[], bool] | None = None
+        self._hover_mode_callback: Callable[[], str] | None = None
         self._annotation_provider = None
 
         self.font: Optional[tkFont.Font] = None
@@ -304,7 +307,7 @@ class SubtitleRenderer:
 
         seg_meta = []
         total_w = 0
-        collect_word_regions = (not preview and self._shift_hover_dictionary_enabled())
+        collect_word_regions = not preview
         line_text = "".join(self._segment_base(segment) for segment in segments) if collect_word_regions else ""
         line_region_meta = []
         line_col = 0
@@ -452,7 +455,11 @@ class SubtitleRenderer:
                 annotation_base_w = base_w
                 annotation_ruby_w = hover_ruby_w
                 annotation_cx = cx
-                show_ruby_on_hover = bool(meta.get("show_ruby_on_hover", True)) or not bool(meta.get("hide_ruby"))
+                show_ruby_on_hover = (
+                    bool(self.hover_ruby_enabled)
+                    or bool(meta.get("show_ruby_on_hover", True))
+                    or not bool(meta.get("hide_ruby"))
+                )
                 group_position = ruby_group_positions.get(str(item.get("ruby_group_id") or ""))
                 if group_position and group_position.get("ruby"):
                     annotation_ruby = str(group_position.get("ruby") or "")
@@ -1030,6 +1037,7 @@ class SubtitleRenderer:
                     ),
                     "base": surface,
                     "lookup": str(token.get("lookup") or surface).strip(),
+                    "sentence_lookup": line_text,
                     "ruby": str(token.get("reading") or "").strip(),
                     "cx": (x1 + x2) / 2,
                     "ruby_y": ruby_y,
@@ -1133,8 +1141,13 @@ class SubtitleRenderer:
                 pass
             return
         has_ruby_hover = self.hover_ruby_enabled and self._hover_regions
-        has_dictionary_hover = self._shift_hover_dictionary_enabled() and self._word_regions
-        if has_ruby_hover or has_dictionary_hover:
+        has_dictionary_hover = self._shift_hover_dictionary_enabled() and bool(self._word_regions)
+        has_layer_hover = bool(self._word_regions and (
+            has_dictionary_hover
+            or callable(getattr(self, "_translation_lookup", None))
+            or getattr(self, "_annotation_provider", None) is not None
+        ))
+        if has_ruby_hover or has_layer_hover:
             self.canvas.bind("<Motion>", self._on_hover_motion)
             self.canvas.bind("<Leave>", self._clear_hover_ruby)
         else:
@@ -1146,57 +1159,76 @@ class SubtitleRenderer:
                 pass
 
     def _on_hover_motion(self, event) -> None:
-        dictionary_mode = self._shift_hover_dictionary_enabled() and self._is_shift_held()
-        hit = None
+        mode = self._hover_mode(event)
         x = float(getattr(event, "x", 0))
         y = float(getattr(event, "y", 0))
 
-        regions = self._word_regions if dictionary_mode else self._hover_regions
-        for region in regions:
-            x1, y1, x2, y2 = region["bbox"]
-            if x1 <= x <= x2 and y1 <= y <= y2:
-                hit = region
-                break
+        ruby_hit = self._region_at_point(self._hover_regions, x, y)
+        layer_hit = (
+            self._region_at_point(self._word_regions, x, y)
+            if mode in {"dictionary", "status", "translation"}
+            else None
+        )
+        active_key = (id(ruby_hit) if ruby_hit is not None else 0, id(layer_hit) if layer_hit is not None else 0)
 
-        mode = "dictionary" if dictionary_mode else "ruby"
-        if hit is self._hover_active_region and mode == self._hover_active_mode:
+        if active_key == self._hover_active_region and mode == self._hover_active_mode:
             return
 
         self._clear_hover_ruby()
-        self._hover_active_region = hit
+        self._hover_active_region = active_key
         self._hover_active_mode = mode
 
-        if hit is None:
+        if ruby_hit is None and layer_hit is None:
             return
 
-        if dictionary_mode:
-            self._draw_word_highlight(hit)
-            self._show_hover_dictionary(hit)
-        elif hit.get("annotation"):
-            if bool(hit.get("hover_highlight")):
-                self._draw_word_highlight(hit)
-            ruby = str(hit.get("ruby") or "")
-            if ruby and bool(hit.get("show_ruby_on_hover", True)):
-                self._draw_ruby_text(
-                    ruby,
-                    int(hit.get("base_w") or 0),
-                    int(hit.get("ruby_w") or 0),
-                    float(hit.get("cx") or 0.0),
-                    float(hit.get("ruby_y") or 0.0),
-                    tags=("hover_ruby",),
-                )
-            text = str(hit.get("annotation_text") or "").strip()
-            if text:
-                self._show_hover_text(hit, text)
-        else:
+        if ruby_hit is not None:
+            self._show_hover_ruby_region(ruby_hit, allow_annotation_highlight=(mode == "ruby"))
+
+        if layer_hit is None:
+            return
+        self._draw_word_highlight(layer_hit)
+        if mode == "translation":
+            self._show_hover_translation(layer_hit)
+        elif mode == "status":
+            self._show_hover_status(layer_hit)
+        elif mode == "dictionary":
+            self._show_hover_dictionary(layer_hit)
+
+    @staticmethod
+    def _region_at_point(regions: list[dict], x: float, y: float) -> dict | None:
+        for region in regions or []:
+            try:
+                x1, y1, x2, y2 = region["bbox"]
+            except Exception:
+                continue
+            if x1 <= x <= x2 and y1 <= y <= y2:
+                return region
+        return None
+
+    def _show_hover_ruby_region(self, region: dict, *, allow_annotation_highlight: bool) -> None:
+        if bool(region.get("annotation")):
+            if allow_annotation_highlight and bool(region.get("hover_highlight")):
+                self._draw_word_highlight(region)
+            ruby = str(region.get("ruby") or "")
+            if not (ruby and (bool(self.hover_ruby_enabled) or bool(region.get("show_ruby_on_hover", True)))):
+                return
             self._draw_ruby_text(
-                hit["ruby"],
-                hit["base_w"],
-                hit["ruby_w"],
-                hit["cx"],
-                hit["ruby_y"],
+                ruby,
+                int(region.get("base_w") or 0),
+                int(region.get("ruby_w") or 0),
+                float(region.get("cx") or 0.0),
+                float(region.get("ruby_y") or 0.0),
                 tags=("hover_ruby",),
             )
+            return
+        self._draw_ruby_text(
+            region["ruby"],
+            region["base_w"],
+            region["ruby_w"],
+            region["cx"],
+            region["ruby_y"],
+            tags=("hover_ruby",),
+        )
 
     def _draw_word_highlight(self, region: dict) -> None:
         try:
@@ -1229,7 +1261,7 @@ class SubtitleRenderer:
 
     def _shift_hover_dictionary_enabled(self) -> bool:
         try:
-            return bool(self.config.get("SHIFT_HOVER_KANJI_DICTIONARY") or False)
+            return bool(self.config.get("HOVER_DICTIONARY_ENABLED") or self.config.get("SHIFT_HOVER_KANJI_DICTIONARY") or False)
         except Exception:
             return False
 
@@ -1242,11 +1274,43 @@ class SubtitleRenderer:
         except Exception:
             return False
 
+    def _event_has_modifier_state(self, event) -> bool:
+        return event is not None and hasattr(event, "state")
+
+    def _hover_mode_from_event(self, event) -> str:
+        try:
+            state = int(getattr(event, "state", 0) or 0)
+        except Exception:
+            return "ruby"
+        if state & (0x0008 | 0x20000):
+            return "translation"
+        if state & 0x0004:
+            return "status"
+        if state & 0x0001 and self._shift_hover_dictionary_enabled():
+            callback = getattr(self, "_shift_state_callback", None)
+            if callable(callback) and not self._is_shift_held():
+                return "ruby"
+            return "dictionary"
+        return "ruby"
+
+    def _hover_mode(self, event=None) -> str:
+        callback = getattr(self, "_hover_mode_callback", None)
+        if callable(callback):
+            try:
+                mode = str(callback() or "").strip().lower()
+                if mode in {"ruby", "dictionary", "status", "translation"}:
+                    return mode
+            except Exception:
+                pass
+        if self._event_has_modifier_state(event):
+            return self._hover_mode_from_event(event)
+        return "dictionary" if self._shift_hover_dictionary_enabled() and self._is_shift_held() else "ruby"
+
     def _show_hover_dictionary(self, region: dict) -> None:
         lookup = getattr(self, "_dictionary_lookup", None)
         if not callable(lookup):
             return
-        query = str(region.get("lookup") or region.get("base") or "").strip()
+        query = str(region.get("lookup") or region.get("base") or region.get("sentence_lookup") or "").strip()
         if not query:
             return
         try:
@@ -1256,6 +1320,73 @@ class SubtitleRenderer:
         if not text:
             return
         self._show_hover_text(region, text)
+
+    def _translation_provider(self) -> str:
+        callback = getattr(self, "_translation_provider_callback", None)
+        if callable(callback):
+            try:
+                value = str(callback() or "").strip().lower()
+                if value in {"deepl", "google"}:
+                    return value
+            except Exception:
+                pass
+        return "deepl"
+
+    def _show_hover_translation(self, region: dict) -> None:
+        lookup = getattr(self, "_translation_lookup", None)
+        if not callable(lookup):
+            return
+        query = str(region.get("lookup") or region.get("base") or "").strip()
+        if not query:
+            return
+        try:
+            text = str(lookup(query, provider=self._translation_provider()) or "").strip()
+        except TypeError:
+            try:
+                text = str(lookup(query) or "").strip()
+            except Exception:
+                text = ""
+        except Exception:
+            text = ""
+        if text:
+            self._show_hover_text(region, text)
+
+    def _show_hover_status(self, region: dict) -> None:
+        provider = getattr(self, "_annotation_provider", None)
+        parts = []
+        if bool(region.get("annotation")):
+            status = str(region.get("status") or "").replace("_", " ").strip()
+            source = str(region.get("source") or "").strip()
+            if status:
+                parts.append(status if not source else f"{status} ({source})")
+            text = str(region.get("annotation_text") or "").strip()
+            if text:
+                parts.append(text)
+        elif provider is not None:
+            token = {
+                "surface": str(region.get("base") or "").strip(),
+                "lookup": str(region.get("lookup") or region.get("base") or "").strip(),
+                "reading": str(region.get("ruby") or "").strip(),
+            }
+            try:
+                match = provider.match_token(token)
+            except Exception:
+                match = None
+            if match is not None:
+                status = str(getattr(match, "status", "") or "").replace("_", " ").strip()
+                source = str(getattr(match, "source", "") or "").strip()
+                if status:
+                    parts.append(status if not source else f"{status} ({source})")
+                try:
+                    if bool(self.config.get("ANNOTATION_SHOW_MEANING_ON_HOVER") or False):
+                        meaning = str(getattr(match, "meaning", "") or "").strip()
+                        if meaning:
+                            parts.append(meaning)
+                except Exception:
+                    pass
+        text = "\n".join(part for part in parts if part)
+        if text:
+            self._show_hover_text(region, text)
 
     def _show_hover_text(self, region: dict, text: str) -> None:
         label_text = str(text or "").strip()
@@ -1401,11 +1532,20 @@ class SubtitleRenderer:
     def bind_dictionary_lookup(self, callback) -> None:
         self._dictionary_lookup = callback
 
+    def bind_translation_lookup(self, callback) -> None:
+        self._translation_lookup = callback
+
+    def bind_translation_provider(self, callback) -> None:
+        self._translation_provider_callback = callback
+
     def bind_word_tokenizer(self, callback) -> None:
         self._word_tokenizer = callback
 
     def bind_shift_state(self, callback) -> None:
         self._shift_state_callback = callback
+
+    def bind_hover_mode(self, callback) -> None:
+        self._hover_mode_callback = callback
 
     def bind_annotation_provider(self, provider) -> None:
         self._annotation_provider = provider

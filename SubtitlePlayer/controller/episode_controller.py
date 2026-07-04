@@ -41,8 +41,27 @@ class EpisodeController(_ControllerProxy):
                 can_dec, can_inc = True, True
                 is_movie = (self.sub_manager.current_episode is None)
             self.settings.set_episode_nav_state(can_dec=can_dec, can_inc=can_inc, is_movie=is_movie)
-            values = self.sub_manager.get_episode_dropdown_values()
+            getter = getattr(self.sub_manager, "get_episode_dropdown_items", None)
+            values = getter() if callable(getter) else self.sub_manager.get_episode_dropdown_values()
             self.settings.set_episode_values(values)
+
+    def _current_episode_label(self) -> str:
+            getter = getattr(self.sub_manager, "get_current_episode_label", None)
+            if callable(getter):
+                try:
+                    return str(getter())
+                except Exception:
+                    pass
+            if self.sub_manager.current_episode is None:
+                return "Movie"
+            return str(self.sub_manager.current_episode)
+
+    @staticmethod
+    def _parse_episode_label(text: str) -> tuple[int | None, int | None, int | None]:
+            match = re.fullmatch(r"\s*(?P<global>\d+)\s*\(\s*S(?P<s>\d{1,2})\s*E(?P<e>\d{1,4})\s*\)\s*", text or "", re.I)
+            if not match:
+                return None, None, None
+            return int(match.group("s")), int(match.group("e")), int(match.group("global"))
 
     @staticmethod
     def _normalize_anime_key(value) -> str:
@@ -284,16 +303,13 @@ class EpisodeController(_ControllerProxy):
             switch_start = time.perf_counter()
             self.save_current_episode_position()
             def _restore_entry():
-                if self.sub_manager.current_episode is None:
-                    self.settings.episode_var.set("Movie")
-                else:
-                    self.settings.episode_var.set(str(self.sub_manager.current_episode))
+                self.settings.episode_var.set(self._current_episode_label())
 
             raw = self.settings.episode_var.get().strip()
             if action in ("inc", "dec"):
                 target_season, target_episode = self.sub_manager.change_episode(action)
                 if target_episode is not None:
-                    self.settings.episode_var.set(str(target_episode))
+                    self.settings.episode_var.set(self._current_episode_label())
                     self._after_episode_change()
                 else:
                     _restore_entry()
@@ -311,23 +327,30 @@ class EpisodeController(_ControllerProxy):
             raw_int = None
             season_hint = None
             parsed_global = None
+            label_s, label_e, label_g = self._parse_episode_label(raw)
+            if label_s is not None and label_e is not None:
+                season_hint = label_s
+                raw_int = label_e
+                parsed_global = label_g
             try:
-                candidate = int(raw)
-                if candidate > 0:
-                    raw_int = candidate
+                if raw_int is None:
+                    candidate = int(raw)
+                    if candidate > 0:
+                        raw_int = candidate
             except ValueError:#
                 logger.debug("Episode entry is not a plain integer: %s", raw)
-                try:
-                    parsed_s, parsed_e, parsed_g = self.sub_manager.extract_season_episode_global(raw)
-                except Exception:#
-                    logger.debug("Episode/season parser rejected entry: %s", raw, exc_info=True)
-                    parsed_s, parsed_e, parsed_g = None, None, None
-                if parsed_s is not None and parsed_e is not None:
-                    season_hint = int(parsed_s)
-                    raw_int = int(parsed_e)
-                    parsed_global = int(parsed_g) if parsed_g is not None else None
-                elif parsed_g is not None:
-                    raw_int = int(parsed_g)
+                if raw_int is None:
+                    try:
+                        parsed_s, parsed_e, parsed_g = self.sub_manager.extract_season_episode_global(raw)
+                    except Exception:#
+                        logger.debug("Episode/season parser rejected entry: %s", raw, exc_info=True)
+                        parsed_s, parsed_e, parsed_g = None, None, None
+                    if parsed_s is not None and parsed_e is not None:
+                        season_hint = int(parsed_s)
+                        raw_int = int(parsed_e)
+                        parsed_global = int(parsed_g) if parsed_g is not None else None
+                    elif parsed_g is not None:
+                        raw_int = int(parsed_g)
 
             if raw_int is None or raw_int <= 0:
                 _restore_entry()
@@ -352,7 +375,7 @@ class EpisodeController(_ControllerProxy):
                 target_season, target_episode = self.sub_manager.change_episode("set", parsed_global, None)
 
             if target_episode is not None:
-                self.settings.episode_var.set(str(target_episode))
+                self.settings.episode_var.set(self._current_episode_label())
                 self._after_episode_change() #reset all with new srt data
             else: #change not allowed
                 _restore_entry()
@@ -365,10 +388,7 @@ class EpisodeController(_ControllerProxy):
                 logger.debug("Failed to record episode switch time: %s", e, exc_info=True)
 
     def _after_episode_change(self):
-            if self.sub_manager.current_episode is None:
-                self.settings.episode_var.set("Movie")
-            else: 
-                self.settings.episode_var.set(str(self.sub_manager.current_episode))
+            self.settings.episode_var.set(self._current_episode_label())
             self.update_episode_nav_controls()
 
             new_total = self.sub_manager.get_total_duration() ##maybe not needed anymore
@@ -402,9 +422,21 @@ class EpisodeController(_ControllerProxy):
             # Immediately re-render the subtitle at current_time (same logic as _update_subtitle_display)
             offset = self.settings._last_offset_value
             sub_t = self.current_time - offset
-            start_times = self._get_display_start_times()
-            idx = bisect.bisect_right(start_times, sub_t) - 1
-            if idx < 0:
+            finder = getattr(getattr(self.controller, "subtitle_navigation", None), "_display_index_at_time", None)
+            if callable(finder):
+                idx = finder(sub_t)
+            else:
+                start_times = self._get_display_start_times()
+                idx = bisect.bisect_right(start_times, sub_t) - 1
+                if idx >= 0:
+                    end_times = self._get_display_end_times()
+                    if idx < len(end_times):
+                        try:
+                            if float(sub_t) >= float(end_times[idx]) - 0.0005:
+                                idx = None
+                        except Exception:
+                            pass
+            if idx is None or idx < 0:
                 # nothing to draw
                 self.renderer.canvas.delete("all")
                 return
