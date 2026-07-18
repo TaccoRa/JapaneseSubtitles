@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-07-17T23:15:29+00:00",
+  "updated_at": "2026-07-18T18:03:26+00:00",
   "words": [
     {
       "surface": "(not tsu...)",
@@ -7654,6 +7654,35 @@
       }
     },
     {
+      "surface": "せめて",
+      "normalized": "せめて",
+      "base": "",
+      "reading": "せめて",
+      "meaning": "mindestens, höchstens, (sogar) gerade mal",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T17:15:03+00:00",
+      "updated_at": "2026-07-18T17:15:03+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784394903340,
+        "card_ids": "1784394903340,1784394903341",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "19:15 18-07-2026",
+        "sentence": "じゃ せめて\n誰か 呼んできてくれ",
+        "sentence_translated": "Na gut, dann hol wenigstens jemanden her.",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "せめて"
+      }
+    },
+    {
       "surface": "せん",
       "normalized": "せん",
       "base": "",
@@ -8660,6 +8689,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "ついたち"
+      }
+    },
+    {
+      "surface": "つながり",
+      "normalized": "つながり",
+      "base": "",
+      "reading": "つながり",
+      "meaning": "Verbindung, Verknüpfung, Beziehung",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T17:28:02+00:00",
+      "updated_at": "2026-07-18T17:28:02+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784395681660,
+        "card_ids": "1784395681660,1784395681661",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "19:28 18-07-2026",
+        "sentence": "ボスが 消息不明で\n王とは 直接のつながりないし",
+        "sentence_translated": "Der Boss ist verschwunden, und ich habe keinen direkten Kontakt zum König, und",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "つながり"
       }
     },
     {
@@ -9979,6 +10037,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "なる"
+      }
+    },
+    {
+      "surface": "なるほど",
+      "normalized": "なるほど",
+      "base": "",
+      "reading": "なるほど",
+      "meaning": "Ach so, das stimmt tatsächlich",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T17:44:23+00:00",
+      "updated_at": "2026-07-18T17:44:23+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784396663584,
+        "card_ids": "1784396663585,1784396663586",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "19:44 18-07-2026",
+        "sentence": "地下に 財宝が\nうなるほどあるんだ!",
+        "sentence_translated": "Im Keller gibt es Schätze in Hülle und Fülle!",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "なるほど"
       }
     },
     {
@@ -12759,6 +12846,35 @@
       }
     },
     {
+      "surface": "もらう",
+      "normalized": "もらう",
+      "base": "",
+      "reading": "もらう",
+      "meaning": "erhalten, nehmen, annehmen",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T16:54:40+00:00",
+      "updated_at": "2026-07-18T16:54:40+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784393679921,
+        "card_ids": "1784393679921,1784393679922",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "18:54 18-07-2026",
+        "sentence": "命をもらう!",
+        "sentence_translated": "Ich bekomme ein Leben geschenkt!",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "もらう"
+      }
+    },
+    {
       "surface": "もり",
       "normalized": "もり",
       "base": "",
@@ -14668,6 +14784,35 @@
       }
     },
     {
+      "surface": "サナギ",
+      "normalized": "サナギ",
+      "base": "",
+      "reading": "サナギ",
+      "meaning": "Kokon, Puppe",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T11:01:06+00:00",
+      "updated_at": "2026-07-18T11:01:06+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784372466192,
+        "card_ids": "1784372466193,1784372466194",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "13:01 18-07-2026",
+        "sentence": "あの 時点での\nサナギへの 攻撃は ベストの 選択",
+        "sentence_translated": "Ein Angriff auf die Puppe war zu diesem Zeitpunkt die beste Wahl.",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "サナギ"
+      }
+    },
+    {
       "surface": "サボる",
       "normalized": "サボる",
       "base": "",
@@ -14693,6 +14838,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "サボる"
+      }
+    },
+    {
+      "surface": "サポートする",
+      "normalized": "サポートする",
+      "base": "",
+      "reading": "サポートする",
+      "meaning": "Unterstützen",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T11:09:01+00:00",
+      "updated_at": "2026-07-18T11:09:01+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784372940975,
+        "card_ids": "1784372940975,1784372940976",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "13:09 18-07-2026",
+        "sentence": "これで ナックルを\n全力でサポートする!",
+        "sentence_translated": "Damit werde ich Knuckle mit ganzer Kraft unterstützen!",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "サポートする"
       }
     },
     {
@@ -17082,6 +17256,35 @@
       }
     },
     {
+      "surface": "メチャクチャ",
+      "normalized": "メチャクチャ",
+      "base": "",
+      "reading": "メチャクチャ",
+      "meaning": "absurd, unvernünftig, unsinnig",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T17:28:23+00:00",
+      "updated_at": "2026-07-18T17:28:23+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784395703218,
+        "card_ids": "1784395703218,1784395703219",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "19:28 18-07-2026",
+        "sentence": "宮殿はメチャクチャ",
+        "sentence_translated": "Der Palast ist ein einziges Chaos",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "メチャクチャ"
+      }
+    },
+    {
       "surface": "メンタル",
       "normalized": "メンタル",
       "base": "",
@@ -18041,6 +18244,35 @@
       }
     },
     {
+      "surface": "一生",
+      "normalized": "一生",
+      "base": "",
+      "reading": "一生",
+      "meaning": "das ganze Leben, ein ganzes Leben lang, das ganze Leben über",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T18:00:19+00:00",
+      "updated_at": "2026-07-18T18:00:19+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784397619116,
+        "card_ids": "1784397619116,1784397619117",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "20:00 18-07-2026",
+        "sentence": "一生 拘束か 口封じの 死",
+        "sentence_translated": "Ein Leben lang in Gefangenschaft oder ein Tod, der den Mund verschließt",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "一生"
+      }
+    },
+    {
       "surface": "一 生 懸 命",
       "normalized": "一生懸命",
       "base": "",
@@ -18150,6 +18382,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "一 緒"
+      }
+    },
+    {
+      "surface": "一致する",
+      "normalized": "一致する",
+      "base": "",
+      "reading": "一致する",
+      "meaning": "Übereinstimmen",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T11:07:08+00:00",
+      "updated_at": "2026-07-18T11:07:08+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784372827662,
+        "card_ids": "1784372827662,1784372827663",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "13:07 18-07-2026",
+        "sentence": "全て 俺の 利害と 一致する",
+        "sentence_translated": "Das alles deckt sich mit meinen Interessen.",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "一致する"
       }
     },
     {
@@ -20199,6 +20460,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "予 定"
+      }
+    },
+    {
+      "surface": "予想する",
+      "normalized": "予想する",
+      "base": "",
+      "reading": "予想する",
+      "meaning": "vorhersagen",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T11:03:41+00:00",
+      "updated_at": "2026-07-18T11:03:41+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784372620743,
+        "card_ids": "1784372620743,1784372620744",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "13:03 18-07-2026",
+        "sentence": "分散したヤツの\n目的を 予想し 阻止する",
+        "sentence_translated": "Die Absichten der verstreuten Gegner vorhersehen und vereiteln",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "予想する"
       }
     },
     {
@@ -23064,6 +23354,35 @@
       }
     },
     {
+      "surface": "体調",
+      "normalized": "体調",
+      "base": "",
+      "reading": "体調",
+      "meaning": "körperliche Verfassung, Gesundheitszustand, Form",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T11:08:35+00:00",
+      "updated_at": "2026-07-18T11:08:35+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784372915112,
+        "card_ids": "1784372915112,1784372915113",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "13:08 18-07-2026",
+        "sentence": "今の 体調で 出せたマックス",
+        "sentence_translated": "Das Maximum, das ich bei meiner derzeitigen körperlichen Verfassung herausholen konnte",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "体調"
+      }
+    },
+    {
       "surface": "何",
       "normalized": "何",
       "base": "",
@@ -24692,6 +25011,35 @@
       }
     },
     {
+      "surface": "全力",
+      "normalized": "全力",
+      "base": "",
+      "reading": "全力",
+      "meaning": "mit aller Kraft (Stärke, Energie, Anstrengung), mit ganzer Kraft",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T11:09:01+00:00",
+      "updated_at": "2026-07-18T11:09:01+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784372940880,
+        "card_ids": "1784372940880,1784372940881",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "13:09 18-07-2026",
+        "sentence": "これで ナックルを\n全力でサポートする!",
+        "sentence_translated": "Damit werde ich Knuckle mit ganzer Kraft unterstützen!",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "全力"
+      }
+    },
+    {
       "surface": "全寮 合同",
       "normalized": "全寮合同",
       "base": "",
@@ -25390,6 +25738,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "冊"
+      }
+    },
+    {
+      "surface": "再会",
+      "normalized": "再会",
+      "base": "",
+      "reading": "再会",
+      "meaning": "Wiedersehen, Treffen",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T11:06:32+00:00",
+      "updated_at": "2026-07-18T11:06:32+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784372792464,
+        "card_ids": "1784372792464,1784372792465",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "13:06 18-07-2026",
+        "sentence": "そして 王との 再会",
+        "sentence_translated": "Und das Wiedersehen mit dem König",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "再会"
       }
     },
     {
@@ -26181,6 +26558,35 @@
       }
     },
     {
+      "surface": "分散する",
+      "normalized": "分散する",
+      "base": "",
+      "reading": "分散する",
+      "meaning": "sich verteilen",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T11:03:37+00:00",
+      "updated_at": "2026-07-18T11:03:37+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784372616714,
+        "card_ids": "1784372616714,1784372616715",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "13:03 18-07-2026",
+        "sentence": "分散したヤツの\n目的を 予想し 阻止する",
+        "sentence_translated": "Die Absichten der verstreuten Gegner vorhersehen und vereiteln",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "分散する"
+      }
+    },
+    {
       "surface": "分断",
       "normalized": "分断",
       "base": "",
@@ -26657,6 +27063,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "利く"
+      }
+    },
+    {
+      "surface": "利害",
+      "normalized": "利害",
+      "base": "",
+      "reading": "利害",
+      "meaning": "Vor- und Nachteile, Interessen (der Beteiligten)",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T11:07:07+00:00",
+      "updated_at": "2026-07-18T11:07:07+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784372826852,
+        "card_ids": "1784372826852,1784372826853",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "13:07 18-07-2026",
+        "sentence": "全て 俺の 利害と 一致する",
+        "sentence_translated": "Das alles deckt sich mit meinen Interessen.",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "利害"
       }
     },
     {
@@ -29271,6 +29706,35 @@
       }
     },
     {
+      "surface": "口封じ",
+      "normalized": "口封じ",
+      "base": "",
+      "reading": "口封じ",
+      "meaning": "(jemanden) mundtot machen, (jemanden) zum Schweigen bringen, (jemanden) zwingen, (über etwas) zu schweigen",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T18:01:22+00:00",
+      "updated_at": "2026-07-18T18:01:22+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784397682390,
+        "card_ids": "1784397682390,1784397682391",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "20:01 18-07-2026",
+        "sentence": "一生 拘束か 口封じの 死",
+        "sentence_translated": "Ein Leben lang in Gefangenschaft oder ein Tod, der den Mund verschließt",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "口封じ"
+      }
+    },
+    {
       "surface": "古",
       "normalized": "古",
       "base": "",
@@ -30534,6 +30998,35 @@
       }
     },
     {
+      "surface": "命",
+      "normalized": "命",
+      "base": "",
+      "reading": "命",
+      "meaning": "Leben, Lebenskraft, Lebenszeit",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T16:54:31+00:00",
+      "updated_at": "2026-07-18T16:54:31+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784393670777,
+        "card_ids": "1784393670777,1784393670778",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "18:54 18-07-2026",
+        "sentence": "命をもらう!",
+        "sentence_translated": "Ich bekomme ein Leben geschenkt!",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "命"
+      }
+    },
+    {
       "surface": "命中する",
       "normalized": "命中する",
       "base": "",
@@ -31599,6 +32092,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "地上"
+      }
+    },
+    {
+      "surface": "地下",
+      "normalized": "地下",
+      "base": "",
+      "reading": "地下",
+      "meaning": "Untergrund, unter der Erde, Welt der Toten",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T17:44:07+00:00",
+      "updated_at": "2026-07-18T17:44:07+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784396647509,
+        "card_ids": "1784396647509,1784396647510",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "19:44 18-07-2026",
+        "sentence": "地下に 財宝が\nうなるほどあるんだ!",
+        "sentence_translated": "Im Keller gibt es Schätze in Hülle und Fülle!",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "地下"
       }
     },
     {
@@ -35080,6 +35602,35 @@
       }
     },
     {
+      "surface": "宝",
+      "normalized": "宝",
+      "base": "",
+      "reading": "宝",
+      "meaning": "Schatz",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T17:46:34+00:00",
+      "updated_at": "2026-07-18T17:46:34+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784396794417,
+        "card_ids": "1784396794417,1784396794418",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "19:46 18-07-2026",
+        "sentence": "♪お 宝お 宝お~ 宝",
+        "sentence_translated": "♪ Schatz, Schatz, Schatz~ Schatz",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "宝"
+      }
+    },
+    {
       "surface": "実",
       "normalized": "実",
       "base": "",
@@ -35359,6 +35910,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "客"
+      }
+    },
+    {
+      "surface": "宮殿",
+      "normalized": "宮殿",
+      "base": "",
+      "reading": "宮殿",
+      "meaning": "Palast",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T17:28:21+00:00",
+      "updated_at": "2026-07-18T17:28:21+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784395701514,
+        "card_ids": "1784395701514,1784395701515",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "19:28 18-07-2026",
+        "sentence": "宮殿はメチャクチャ",
+        "sentence_translated": "Der Palast ist ein einziges Chaos",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "宮殿"
       }
     },
     {
@@ -38281,6 +38861,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "引っ 越す"
+      }
+    },
+    {
+      "surface": "引っ 込む",
+      "normalized": "引っ込む",
+      "base": "",
+      "reading": "引っ込む",
+      "meaning": "sich zurückziehen, absinken, einstürzen",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T17:12:33+00:00",
+      "updated_at": "2026-07-18T17:12:33+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784394752690,
+        "card_ids": "1784394752690,1784394752691",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "19:12 18-07-2026",
+        "sentence": "おなか 引っ 込んじゃったってことは",
+        "sentence_translated": "Wenn der Bauch schon eingezogen ist, bedeutet das, dass...",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "引っ 込む"
       }
     },
     {
@@ -42616,6 +43225,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "拍手"
+      }
+    },
+    {
+      "surface": "拘束",
+      "normalized": "拘束",
+      "base": "",
+      "reading": "拘束",
+      "meaning": "Einschränkung, Zurückhaltung, Bindung",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T18:00:09+00:00",
+      "updated_at": "2026-07-18T18:00:09+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784397609249,
+        "card_ids": "1784397609249,1784397609250",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "20:00 18-07-2026",
+        "sentence": "一生 拘束か 口封じの 死",
+        "sentence_translated": "Ein Leben lang in Gefangenschaft oder ein Tod, der den Mund verschließt",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "拘束"
       }
     },
     {
@@ -49557,6 +50195,35 @@
       }
     },
     {
+      "surface": "殲滅",
+      "normalized": "殲滅",
+      "base": "",
+      "reading": "殲滅",
+      "meaning": "Vernichtung, Ausrottung, (vollständige) Zerstörung",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T11:06:21+00:00",
+      "updated_at": "2026-07-18T11:06:21+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784372780839,
+        "card_ids": "1784372780839,1784372780840",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "13:06 18-07-2026",
+        "sentence": "俺以外の 敵を 発見 殲滅",
+        "sentence_translated": "Feinde außer mir entdeckt und vernichtet",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "殲滅"
+      }
+    },
+    {
       "surface": "殴られて",
       "normalized": "殴られて",
       "base": "",
@@ -51773,6 +52440,35 @@
       }
     },
     {
+      "surface": "消息不明",
+      "normalized": "消息不明",
+      "base": "",
+      "reading": "消息不明",
+      "meaning": "unauffindbar, seit langem verschollen, dessen Aufenthaltsort unbekannt ist",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T17:27:49+00:00",
+      "updated_at": "2026-07-18T17:27:49+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784395668915,
+        "card_ids": "1784395668915,1784395668916",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "19:27 18-07-2026",
+        "sentence": "ボスが 消息不明で\n王とは 直接のつながりないし",
+        "sentence_translated": "Der Boss ist verschwunden, und ich habe keinen direkten Kontakt zum König, und",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "消息不明"
+      }
+    },
+    {
       "surface": "消費する",
       "normalized": "消費する",
       "base": "",
@@ -53266,6 +53962,35 @@
       }
     },
     {
+      "surface": "煙使い",
+      "normalized": "煙使い",
+      "base": "",
+      "reading": "煙使い",
+      "meaning": "Raucher",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T18:02:55+00:00",
+      "updated_at": "2026-07-18T18:02:56+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784397775682,
+        "card_ids": "1784397775682,1784397775683",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "20:02 18-07-2026",
+        "sentence": "これで 煙使いは 脱落",
+        "sentence_translated": "Damit scheidet der „Rauchmeister“ aus.",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "煙使い"
+      }
+    },
+    {
       "surface": "煙管",
       "normalized": "煙管",
       "base": "",
@@ -54280,6 +55005,35 @@
       }
     },
     {
+      "surface": "狙い",
+      "normalized": "狙い",
+      "base": "",
+      "reading": "狙い",
+      "meaning": "Ziel (einer Waffe, eines Bogens usw.), Ziel, Gegenstand",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T16:59:48+00:00",
+      "updated_at": "2026-07-18T16:59:48+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784393987694,
+        "card_ids": "1784393987694,1784393987695",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "18:59 18-07-2026",
+        "sentence": "狙いは 分かった",
+        "sentence_translated": "Ich habe verstanden, worum es geht.",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "狙い"
+      }
+    },
+    {
       "surface": "狙う",
       "normalized": "狙う",
       "base": "",
@@ -54530,6 +55284,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "玉ねぎ"
+      }
+    },
+    {
+      "surface": "王",
+      "normalized": "王",
+      "base": "",
+      "reading": "王",
+      "meaning": "Kaiser, Prinz, Prinzessin",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T11:06:44+00:00",
+      "updated_at": "2026-07-18T11:06:44+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784372803897,
+        "card_ids": "1784372803897,1784372803898",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "13:06 18-07-2026",
+        "sentence": "そして 王との 再会",
+        "sentence_translated": "Und das Wiedersehen mit dem König",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "王"
       }
     },
     {
@@ -55177,6 +55960,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "生物"
+      }
+    },
+    {
+      "surface": "生物兵器",
+      "normalized": "生物兵器",
+      "base": "",
+      "reading": "生物兵器",
+      "meaning": "biologische Waffe, biologische Kriegsführung",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T17:49:30+00:00",
+      "updated_at": "2026-07-18T17:49:30+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784396970116,
+        "card_ids": "1784396970116,1784396970117",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "19:49 18-07-2026",
+        "sentence": "恐らく 蟻が 生物兵器という\n絶好の 口実になったんだ",
+        "sentence_translated": "Wahrscheinlich boten die Ameisen einen hervorragenden Vorwand dafür, sie als biologische Waffen zu bezeichnen.",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "生物兵器"
       }
     },
     {
@@ -56135,6 +56947,35 @@
       }
     },
     {
+      "surface": "発見",
+      "normalized": "発見",
+      "base": "",
+      "reading": "発見",
+      "meaning": "Entdeckung, Erkennung, Auffinden",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T11:06:17+00:00",
+      "updated_at": "2026-07-18T11:06:17+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784372776963,
+        "card_ids": "1784372776963,1784372776964",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "13:06 18-07-2026",
+        "sentence": "俺以外の 敵を 発見 殲滅",
+        "sentence_translated": "Feinde außer mir entdeckt und vernichtet",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "発見"
+      }
+    },
+    {
       "surface": "発 音",
       "normalized": "発音",
       "base": "",
@@ -56529,6 +57370,35 @@
       }
     },
     {
+      "surface": "目指し",
+      "normalized": "目指し",
+      "base": "",
+      "reading": "目指し",
+      "meaning": "Ziel, Zweck, Absicht",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T17:13:49+00:00",
+      "updated_at": "2026-07-18T17:13:49+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784394829546,
+        "card_ids": "1784394829546,1784394829547",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "19:13 18-07-2026",
+        "sentence": "私も 女王 目指して\n旅しちゃおうっと!",
+        "sentence_translated": "Ich werde mich auch auf die Reise machen, um Königin zu werden!",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "目指し"
+      }
+    },
+    {
       "surface": "目撃地",
       "normalized": "目撃地",
       "base": "",
@@ -56754,6 +57624,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "直る"
+      }
+    },
+    {
+      "surface": "直接",
+      "normalized": "直接",
+      "base": "",
+      "reading": "直接",
+      "meaning": "direkt, unmittelbar, persönlich",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T17:28:07+00:00",
+      "updated_at": "2026-07-18T17:28:07+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784395687515,
+        "card_ids": "1784395687515,1784395687516",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "19:28 18-07-2026",
+        "sentence": "ボスが 消息不明で\n王とは 直接のつながりないし",
+        "sentence_translated": "Der Boss ist verschwunden, und ich habe keinen direkten Kontakt zum König, und",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "直接"
       }
     },
     {
@@ -59151,6 +60050,35 @@
       }
     },
     {
+      "surface": "空爆",
+      "normalized": "空爆",
+      "base": "",
+      "reading": "空爆",
+      "meaning": "Luftangriff",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T17:47:39+00:00",
+      "updated_at": "2026-07-18T17:47:39+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784396859082,
+        "card_ids": "1784396859082,1784396859083",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "19:47 18-07-2026",
+        "sentence": "空爆が 始まったのがいい 証拠",
+        "sentence_translated": "Ein guter Beweis dafür, dass die Luftangriffe begonnen haben",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "空爆"
+      }
+    },
+    {
       "surface": "突き 刺さる",
       "normalized": "突き刺さる",
       "base": "",
@@ -59681,6 +60609,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "算出"
+      }
+    },
+    {
+      "surface": "管理する",
+      "normalized": "管理する",
+      "base": "",
+      "reading": "管理する",
+      "meaning": "Verwalten",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T17:45:24+00:00",
+      "updated_at": "2026-07-18T17:45:24+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784396723699,
+        "card_ids": "1784396723699,1784396723700",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "19:45 18-07-2026",
+        "sentence": "そこの 財宝を 私が 管理してるんだ",
+        "sentence_translated": "Ich verwalte den Schatz dort.",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "管理する"
       }
     },
     {
@@ -60946,6 +61903,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "絶えることなく"
+      }
+    },
+    {
+      "surface": "絶好",
+      "normalized": "絶好",
+      "base": "",
+      "reading": "絶好",
+      "meaning": "am besten, ideal, perfekt",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T17:49:36+00:00",
+      "updated_at": "2026-07-18T17:49:36+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784396976563,
+        "card_ids": "1784396976563,1784396976564",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "19:49 18-07-2026",
+        "sentence": "恐らく 蟻が 生物兵器という\n絶好の 口実になったんだ",
+        "sentence_translated": "Wahrscheinlich boten die Ameisen einen hervorragenden Vorwand dafür, sie als biologische Waffen zu bezeichnen.",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "絶好"
       }
     },
     {
@@ -62239,6 +63225,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "脱ぐ"
+      }
+    },
+    {
+      "surface": "脱落",
+      "normalized": "脱落",
+      "base": "",
+      "reading": "脱落",
+      "meaning": "abbrechen, den Anschluss verlieren, auf der Strecke bleiben",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T18:03:26+00:00",
+      "updated_at": "2026-07-18T18:03:26+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784397806351,
+        "card_ids": "1784397806351,1784397806352",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "20:03 18-07-2026",
+        "sentence": "これで 煙使いは 脱落",
+        "sentence_translated": "Damit scheidet der „Rauchmeister“ aus.",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "脱落"
       }
     },
     {
@@ -63816,6 +64831,35 @@
       }
     },
     {
+      "surface": "蟻",
+      "normalized": "蟻",
+      "base": "",
+      "reading": "蟻",
+      "meaning": "Ameisenbär",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T17:49:24+00:00",
+      "updated_at": "2026-07-18T17:49:24+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784396963945,
+        "card_ids": "1784396963945,1784396963946",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "19:49 18-07-2026",
+        "sentence": "恐らく 蟻が 生物兵器という\n絶好の 口実になったんだ",
+        "sentence_translated": "Wahrscheinlich boten die Ameisen einen hervorragenden Vorwand dafür, sie als biologische Waffen zu bezeichnen.",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "蟻"
+      }
+    },
+    {
       "surface": "血",
       "normalized": "血",
       "base": "",
@@ -64122,6 +65166,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "行方"
+      }
+    },
+    {
+      "surface": "術中",
+      "normalized": "術中",
+      "base": "",
+      "reading": "術中",
+      "meaning": "Trick, Falle, List",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T11:03:15+00:00",
+      "updated_at": "2026-07-18T11:03:15+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784372595453,
+        "card_ids": "1784372595453,1784372595454",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "13:03 18-07-2026",
+        "sentence": "いや 終わったことを\n考えてる 時点で ヤツの 術中!",
+        "sentence_translated": "Nein, schon allein dadurch, dass ich über Vergangenes nachdenke, tappe ich ihm in die Falle!",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "術中"
       }
     },
     {
@@ -64460,6 +65533,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "褒める"
+      }
+    },
+    {
+      "surface": "褒美",
+      "normalized": "褒美",
+      "base": "",
+      "reading": "褒美",
+      "meaning": "Belohnung, Preis",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T17:43:19+00:00",
+      "updated_at": "2026-07-18T17:43:19+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784396599324,
+        "card_ids": "1784396599324,1784396599325",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "19:43 18-07-2026",
+        "sentence": "褒美なら\nいくらでも 出す!",
+        "sentence_translated": "Wenn es um Belohnungen geht, bin ich bereit, so viel auszugeben, wie nötig!",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "褒美"
       }
     },
     {
@@ -65953,6 +67055,35 @@
       }
     },
     {
+      "surface": "証拠",
+      "normalized": "証拠",
+      "base": "",
+      "reading": "証拠",
+      "meaning": "Beweismittel, Beweis, Beweis (Recht)",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T17:47:40+00:00",
+      "updated_at": "2026-07-18T17:47:40+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784396860590,
+        "card_ids": "1784396860590,1784396860591",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "19:47 18-07-2026",
+        "sentence": "空爆が 始まったのがいい 証拠",
+        "sentence_translated": "Ein guter Beweis dafür, dass die Luftangriffe begonnen haben",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "証拠"
+      }
+    },
+    {
       "surface": "証言",
       "normalized": "証言",
       "base": "",
@@ -67184,6 +68315,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "負荷"
+      }
+    },
+    {
+      "surface": "財宝",
+      "normalized": "財宝",
+      "base": "",
+      "reading": "財宝",
+      "meaning": "Schatz",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T17:44:12+00:00",
+      "updated_at": "2026-07-18T17:44:12+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784396652567,
+        "card_ids": "1784396652568,1784396652569",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "19:44 18-07-2026",
+        "sentence": "地下に 財宝が\nうなるほどあるんだ!",
+        "sentence_translated": "Im Keller gibt es Schätze in Hülle und Fülle!",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "財宝"
       }
     },
     {
@@ -72298,6 +73458,35 @@
       }
     },
     {
+      "surface": "阻止する",
+      "normalized": "阻止する",
+      "base": "",
+      "reading": "阻止する",
+      "meaning": "verhindern",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T11:03:44+00:00",
+      "updated_at": "2026-07-18T11:03:44+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784372623995,
+        "card_ids": "1784372623995,1784372623996",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "13:03 18-07-2026",
+        "sentence": "分散したヤツの\n目的を 予想し 阻止する",
+        "sentence_translated": "Die Absichten der verstreuten Gegner vorhersehen und vereiteln",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "阻止する"
+      }
+    },
+    {
       "surface": "降りる",
       "normalized": "降りる",
       "base": "",
@@ -73587,6 +74776,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "音 楽"
+      }
+    },
+    {
+      "surface": "音沙汰",
+      "normalized": "音沙汰",
+      "base": "",
+      "reading": "音沙汰",
+      "meaning": "Nachricht (von jemandem), Nachricht, Brief",
+      "anime": "HUNTER×HUNTER (2011)",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-07-18T17:13:14+00:00",
+      "updated_at": "2026-07-18T17:13:14+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1784394794603,
+        "card_ids": "1784394794603,1784394794604",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "19:13 18-07-2026",
+        "sentence": "フラッタも 全然 音沙汰なしだし\nもういいよね",
+        "sentence_translated": "Von Flatta hört man auch überhaupt nichts mehr, also ist es jetzt wohl gut, oder?",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "音沙汰"
       }
     },
     {

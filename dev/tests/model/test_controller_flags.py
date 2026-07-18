@@ -943,6 +943,51 @@ def test_only_explicit_shortcuts_disabled_setting_blocks_hotkeys():
     assert hotkeys._hotkeys_disabled() is True
 
 
+def test_voice_listening_toggle_remains_available_in_mode_3():
+    hotkeys, _controller = _hotkey_runtime(
+        {
+            "SHORTCUTS_DISABLED": True,
+            "SHORTCUT_TOGGLE_VOICE": "shift+l",
+        }
+    )
+    hotkeys.shift_pressed = True
+
+    candidates = hotkeys._matching_shortcut_candidates(_CharKey("l"))
+
+    assert [(item["action"], item["binding"]) for item in candidates] == [
+        ("toggle_voice_listening", "shift+l")
+    ]
+
+
+def test_combined_voice_command_waits_for_seek_before_toggling_playback():
+    calls = []
+    statuses = []
+    controller = SimpleNamespace(
+        config=_DictConfig({}),
+        shift_pressed=False,
+        alt_pressed=False,
+        ctrl_pressed=False,
+        settings=SimpleNamespace(root=SimpleNamespace(after=lambda _delay, callback: callback())),
+        SHORTCUT_DEFAULTS=SubtitleController.SHORTCUT_DEFAULTS,
+        HOTKEY_DISABLE_KEYS=SubtitleController.HOTKEY_DISABLE_KEYS,
+        handle_voice_seek_action=lambda direction, repeat_count=1, on_complete=None: (
+            calls.append(("seek", direction, repeat_count)),
+            on_complete(True),
+        ),
+        handle_voice_playback_action=lambda desired, on_complete=None: (
+            calls.append(("playback", desired)),
+            on_complete(True),
+        ),
+        _report_voice_status=lambda state, message: statuses.append((state, message)),
+    )
+    hotkeys = HotkeyController(controller)
+
+    hotkeys._start_voice_sequence([("voice_go_back", 5), ("voice_play", 1)])
+
+    assert calls == [("seek", "back", 5), ("playback", None)]
+    assert statuses[-1] == ("listening", "Combined voice command completed.")
+
+
 def test_empty_shortcut_value_stays_disabled():
     hotkeys = _hotkeys({"SHORTCUT_POPUP_ADD_ANKI": "", "SHORTCUT_POPUP_ADD_ANKI_CAPTURE": ""})
 

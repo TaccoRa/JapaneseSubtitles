@@ -9,3 +9,5 @@ regex==2024.11.6
 requests==2.32.5
 srt==3.5.3
 unidic-lite==1.0.8
+vosk==0.3.45
+sounddevice==0.5.5

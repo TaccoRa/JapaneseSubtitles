@@ -567,6 +567,14 @@ class SubtitleNavigationController(_ControllerProxy):
         self.subtitle_deleted = True
         return "break"
 
+    def set_subtitle_visibility(self, visible: bool) -> bool:
+        """Set user subtitle visibility without turning duplicate commands into toggles."""
+        currently_visible = not bool(getattr(self, "subtitles_user_hidden", False))
+        if currently_visible == bool(visible):
+            return False
+        self.toggle_subtitle_visibility()
+        return True
+
     def _hide_subtitles_temporarily(self):
         if not self.playing:
             self.subtitle_timeout_job = None

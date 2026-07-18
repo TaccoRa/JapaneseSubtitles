@@ -177,6 +177,14 @@ class PlaybackController:
         self.controller.update_time_and_subtitle_displays()
         self.controller._schedule_hide_controls()
 
+    def set_playing(self, playing: bool, event_time: float | None = None) -> bool:
+        """Set playback idempotently and return whether the state changed."""
+        desired = bool(playing)
+        if bool(self.controller.playing) == desired:
+            return False
+        self.toggle_play(event_time=event_time)
+        return True
+
     def _set_play_button_state(self) -> None:
         try:
             fast_speed = getattr(self.controller, "fast_forward_speed", None)

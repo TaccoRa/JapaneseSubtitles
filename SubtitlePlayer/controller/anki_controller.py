@@ -8,6 +8,7 @@ from typing import Any
 from utils import (
     dispatch_to_tk,
     focus_window_by_title,
+    get_foreground_root_hwnd,
     get_monitor_rects,
     make_nonactivating_tool_window,
     send_global_hotkey,
@@ -129,6 +130,7 @@ class AnkiController(_ControllerProxy):
                         selection_text=selected,
                         subtitle_text=subtitle_text,
                         anime_name=anime_name,
+                        copy_existing_media=not bool(post_add_capture),
                     )
                     dispatch_to_tk(
                         self.settings.root,
@@ -185,6 +187,7 @@ class AnkiController(_ControllerProxy):
                             selection_text=selected,
                             subtitle_text=subtitle_text,
                             anime_name=anime_name,
+                            copy_existing_media=not bool(post_add_capture),
                         )
                     else:
                         result = self.anki.commit_prepared_note(prepared)
@@ -258,6 +261,7 @@ class AnkiController(_ControllerProxy):
                 note["fields"] = fields
 
             win = tk.Toplevel(self.settings.root)
+            self.controller._anki_preview_window = win
             win.title("Preview Anki Note")
             win.resizable(True, True)
             try:
@@ -404,6 +408,14 @@ class AnkiController(_ControllerProxy):
             except Exception:
                 pass
 
+            def _clear_preview_reference(event=None) -> None:
+                if event is not None and getattr(event, "widget", None) is not win:
+                    return
+                if getattr(self.controller, "_anki_preview_window", None) is win:
+                    self.controller._anki_preview_window = None
+
+            win.bind("<Destroy>", _clear_preview_reference, add="+")
+
     def _post_add_capture_delay_ms(self) -> int | None:
             raw = self.config.get("POST_ADD_CAPTURE_DELAY_MS")
             if raw is None or str(raw).strip() == "":
@@ -456,9 +468,19 @@ class AnkiController(_ControllerProxy):
                     target_title,
                 )
                 return False
+            try:
+                self._latest_post_add_capture_window_hwnd = int(get_foreground_root_hwnd() or 0)
+            except Exception:
+                self._latest_post_add_capture_window_hwnd = 0
+            suppress = getattr(self.controller, "_suppress_external_hotkey_events", None)
+            if callable(suppress):
+                suppress(external_hotkey, 1)
             if not send_global_hotkey(external_hotkey):
                 logger.warning("Post-add capture failed to send hotkey %s for %s", external_hotkey, note_label)
                 return False
+            jump_to_end = getattr(getattr(self.controller, "playback", None), "on_jump_sub_end", None)
+            if callable(jump_to_end):
+                jump_to_end()
             logger.info("Post-add capture hotkey %s sent for %s", external_hotkey, note_label)
             if note_id is not None:
                 try:
@@ -469,7 +491,16 @@ class AnkiController(_ControllerProxy):
                     self._schedule_post_add_capture_media_copy(note_id_int)
             return True
 
+    def trigger_external_capture_only(self) -> bool:
+            """Run the configured external capture without creating an Anki note."""
+            return bool(self._run_post_add_external_capture(None))
+
     def _schedule_post_add_capture_media_copy(self, note_id: int) -> None:
+            try:
+                note_id = int(note_id)
+            except Exception:
+                return
+            self._latest_post_add_capture_note_id = note_id
             delay_ms = self._post_add_capture_media_copy_delay_ms()
             logger.info(
                 "Anki media copy-back scheduled for source note %s; first check in %d ms",
@@ -500,6 +531,7 @@ class AnkiController(_ControllerProxy):
                 started = time.monotonic()
                 attempt = 0
                 last_available_fields: tuple[str, ...] = ()
+                resume_requested = False
                 logger.debug(
                     "Anki media copy-back polling started for source note %s; interval=%d ms timeout=%.0f s",
                     note_id,
@@ -507,7 +539,7 @@ class AnkiController(_ControllerProxy):
                     timeout_sec,
                 )
                 while True:
-                    if self._shutting_down:
+                    if bool(getattr(self.controller, "_shutting_down", False)):
                         return
                     attempt += 1
                     try:
@@ -557,10 +589,20 @@ class AnkiController(_ControllerProxy):
                             f"; still waiting for {missing_fields}" if missing_fields else "",
                         )
 
-                    partial_result = bool(missing_fields) and reason in {
-                        "copied",
-                        "target_already_has_media",
-                    }
+                    if (
+                        not resume_requested
+                        and available_fields
+                        and not missing_fields
+                        and bool(self.config.get("POST_ADD_CAPTURE_RESUME_PLAYBACK") or False)
+                    ):
+                        resume_requested = True
+                        dispatch_to_tk(
+                            self.settings.root,
+                            self.controller.resume_video_and_subtitles_after_capture,
+                            note_id,
+                        )
+
+                    partial_result = bool(available_fields) and bool(missing_fields)
                     if reason not in retry_reasons and not partial_result:
                         break
                     if elapsed >= timeout_sec:
@@ -586,6 +628,11 @@ class AnkiController(_ControllerProxy):
                         "Anki media copy-back finished for source note %s; all %d matching previous note(s) already contain the available media",
                         note_id,
                         len(target_note_ids),
+                    )
+                elif reason == "previous_same_sentence_missing":
+                    logger.debug(
+                        "Anki media copy-back finished for source note %s; no previous same-sentence note needs updating",
+                        note_id,
                     )
                 elif reason != "copied":
                     logger.warning("Anki media copy-back stopped for source note %s: %s", note_id, reason or "unknown")
@@ -927,6 +974,9 @@ class AnkiController(_ControllerProxy):
             return ", ".join(parts)
 
     def _set_busy_cursor(self, busy: bool) -> None:
+            self.controller._anki_add_busy = bool(busy)
+            if not busy:
+                self.controller._voice_anki_action_queued = False
             cursor = self.anki_busy_cursor if busy else ""
             windows = [
                 getattr(self.settings, "root", None),

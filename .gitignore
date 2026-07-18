@@ -10,6 +10,7 @@ venv/
 
 
 cache_github/
+voice_models/
 
 # Editor/IDE settings
 .vscode/

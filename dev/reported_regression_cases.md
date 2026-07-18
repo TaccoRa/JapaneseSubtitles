@@ -880,3 +880,12 @@ rendering could remain on cached content until another playback or seek update.
 force the subtitle overlay to resolve and render from the completed offset change.
 This applies to the main Offset entry, Advanced Settings, profiles, and restored
 anime-specific offsets.
+
+### RUBY-017 - Number plus 発 counter
+
+**Input:** `１発はくれてやる`.
+
+**Was wrong:** `１` and `発` were not recognized as one counter expression, so the
+combined reading was missing or attached only to part of the word.
+
+**Should be:** Treat `１発` as one ruby span and render `１発[いっぱつ]`.

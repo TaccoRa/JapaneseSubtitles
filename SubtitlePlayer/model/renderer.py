@@ -2236,6 +2236,29 @@ class SubtitleRenderer:
             return ""
         return str(region.get("base") or "").strip()
 
+    def subtitle_words_for_anki(self) -> List[str]:
+        """Return visible base tokens in sentence order, excluding overlapping compounds."""
+        words: List[str] = []
+        seen = set()
+        for region in self._word_regions:
+            if not isinstance(region, dict) or bool(region.get("compound")):
+                continue
+            surface = str(region.get("base") or "").strip()
+            if not surface:
+                continue
+            marker = (
+                str(region.get("line_position") or ""),
+                str(region.get("sentence_lookup") or ""),
+                int(region.get("char_start") or 0),
+                int(region.get("char_end") or 0),
+                surface,
+            )
+            if marker in seen:
+                continue
+            seen.add(marker)
+            words.append(surface)
+        return words
+
     @classmethod
     def _measure_hover_line(
         cls,

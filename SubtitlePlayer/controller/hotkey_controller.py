@@ -8,6 +8,7 @@ import queue
 from pynput.mouse import Button
 from typing import Any
 from pynput.keyboard import Key
+from model.voice_commands import decode_voice_sequence
 from utils import (
     get_window_root_hwnd,
     get_window_screen_rect,
@@ -49,6 +50,8 @@ class HotkeyController(_ControllerProxy):
         controller._cached_popup_open = False
         controller._cached_app_window_rects = []
         controller._cached_subtitle_window_rect = None
+        controller._voice_sequence_steps = []
+        controller._voice_sequence_running = False
 
     def _focus_owner_windows(self) -> list[Any]:
             return [
@@ -132,6 +135,28 @@ class HotkeyController(_ControllerProxy):
                 return
             timestamp = time.perf_counter() if event_time is None else float(event_time)
             self._input_actions.put_nowait((action, timestamp))
+
+    def enqueue_action(
+        self,
+        action: str,
+        event_time: float | None = None,
+        *,
+        source: str = "external",
+        repeat_count: int = 1,
+    ) -> None:
+            """Thread-safe public entry point for semantic input actions."""
+            del source
+            try:
+                count = max(1, min(20, int(repeat_count)))
+            except Exception:
+                count = 1
+            if count == 1:
+                self._enqueue_input_action(str(action), event_time=event_time)
+                return
+            if self._shutting_down:
+                return
+            timestamp = time.perf_counter() if event_time is None else float(event_time)
+            self._input_actions.put_nowait((str(action), timestamp, count))
 
     def _drop_pending_input_actions(self, actions_to_remove: set[str]) -> None:
             if not actions_to_remove:
@@ -316,11 +341,14 @@ class HotkeyController(_ControllerProxy):
                         item = self._input_actions.get_nowait()
                     except queue.Empty:#
                         break
-                    if isinstance(item, tuple):
+                    repeat_count = 1
+                    if isinstance(item, tuple) and len(item) >= 3:
+                        action, event_time, repeat_count = item[:3]
+                    elif isinstance(item, tuple):
                         action, event_time = item
                     else:
                         action, event_time = item, None
-                    self._dispatch_input_action(action, event_time=event_time)
+                    self._dispatch_input_action(action, event_time=event_time, repeat_count=repeat_count)
             finally:
                 try:
                     self._input_pump_job = self.settings.root.after(15, self._process_input_queue)
@@ -328,22 +356,71 @@ class HotkeyController(_ControllerProxy):
                     logger.debug("Failed to schedule input queue pump: %s", e, exc_info=True)
                     self._input_pump_job = None
 
-    def _dispatch_input_action(self, action: str, event_time: float | None = None) -> None:
+    def _dispatch_input_action(
+        self,
+        action: str,
+        event_time: float | None = None,
+        repeat_count: int = 1,
+    ) -> None:
+            try:
+                repeat_count = max(1, min(20, int(repeat_count)))
+            except Exception:
+                repeat_count = 1
             if action in {"toggle_subtitles", "clear_subtitle"} and self._hotkey_action_disabled(action):
                 return
             if action == "toggle_play":
                 self.playback.toggle_play(event_time=event_time)
+            elif action == "voice_play":
+                self.controller.handle_voice_playback_action(None)
+            elif action == "voice_pause":
+                self.controller.handle_voice_playback_action(False)
+            elif action == "voice_stop_listening":
+                self.controller.set_voice_enabled(False)
+            elif action == "voice_cycle_mode":
+                self.controller.handle_voice_input_mode(None)
+            elif action == "voice_mode_1":
+                self.controller.handle_voice_input_mode(1)
+            elif action == "voice_mode_2":
+                self.controller.handle_voice_input_mode(2)
+            elif action == "voice_mode_3":
+                self.controller.handle_voice_input_mode(3)
+            elif action == "voice_go_back":
+                self.controller.handle_voice_seek_action("back", repeat_count=repeat_count)
+            elif action == "voice_go_forward":
+                self.controller.handle_voice_seek_action("forward", repeat_count=repeat_count)
+            elif str(action).startswith("voice_sequence:"):
+                self._start_voice_sequence(decode_voice_sequence(action))
+            elif str(action).startswith("voice_go_to_time:"):
+                try:
+                    target_seconds = float(str(action).split(":", 1)[1])
+                except Exception:
+                    return
+                self.controller.handle_voice_time_jump(target_seconds)
             elif action == "toggle_subtitles":
                 self.subtitle_navigation.toggle_subtitle_visibility()
+                self._sync_control_window_for_subtitle_visibility()
+            elif action == "voice_show_subtitles":
+                self.subtitle_navigation.set_subtitle_visibility(True)
+                self._sync_control_window_for_subtitle_visibility()
+            elif action == "voice_hide_subtitles":
+                self.subtitle_navigation.set_subtitle_visibility(False)
                 self._sync_control_window_for_subtitle_visibility()
             elif action == "go_back":
                 self.playback.go_back(event_time=event_time)
             elif action == "go_forward":
                 self.playback.go_forward(event_time=event_time)
             elif action == "subtitle_back":
-                self.playback.jump_subtitle_segment("prev", event_time=event_time)
+                for index in range(repeat_count):
+                    self.playback.jump_subtitle_segment(
+                        "prev",
+                        event_time=event_time if index == 0 else None,
+                    )
             elif action == "subtitle_forward":
-                self.playback.jump_subtitle_segment("next", event_time=event_time)
+                for index in range(repeat_count):
+                    self.playback.jump_subtitle_segment(
+                        "next",
+                        event_time=event_time if index == 0 else None,
+                    )
             elif action == "jump_sub_end":
                 self.playback.on_jump_sub_end(event_time=event_time)
             elif action == "alt_x":
@@ -359,10 +436,14 @@ class HotkeyController(_ControllerProxy):
                 self._toggle_m3_mode()
             elif action == "toggle_debugging":
                 self.toggle_debugging()
+            elif action == "toggle_voice_listening":
+                self.controller.toggle_voice_enabled()
             elif action == "fast_forward_speed_up":
-                self.playback.change_fast_forward_speed(0.1)
+                for _ in range(repeat_count):
+                    self.playback.change_fast_forward_speed(0.1)
             elif action == "fast_forward_speed_down":
-                self.playback.change_fast_forward_speed(-0.1)
+                for _ in range(repeat_count):
+                    self.playback.change_fast_forward_speed(-0.1)
             elif action == "popup_add_anki":
                 try:
                     self._add_current_anki_hotkey_target(post_add_capture=False)
@@ -375,6 +456,69 @@ class HotkeyController(_ControllerProxy):
                         move_pointer_to_monitor_bottom(getattr(self.settings, "root", None))
                 except Exception as e:
                     logger.exception("Failed to add current selection or hovered subtitle word with capture: %s", e)
+            elif action == "voice_add_anki":
+                if self._voice_anki_action_in_flight():
+                    self.controller._report_voice_status(
+                        "listening",
+                        "Ignored the voice command because an Anki add is already running.",
+                    )
+                    return
+                self.controller._voice_anki_action_queued = True
+                try:
+                    accepted = self._add_current_anki_hotkey_target(post_add_capture=False)
+                    if not accepted:
+                        self.controller._report_voice_status(
+                            "listening",
+                            "No popup selection or hovered subtitle word is available to add.",
+                        )
+                except Exception as exc:
+                    logger.exception("Voice Anki add failed")
+                    self.controller._report_voice_status("error", f"Voice Anki add failed: {exc}")
+                finally:
+                    if not bool(getattr(self.controller, "_anki_add_busy", False)):
+                        self.controller._voice_anki_action_queued = False
+            elif action == "voice_add_anki_capture":
+                if self._voice_anki_action_in_flight():
+                    self.controller._report_voice_status(
+                        "listening",
+                        "Ignored the voice command because an Anki add is already running.",
+                    )
+                    return
+                self.controller._voice_anki_action_queued = True
+                try:
+                    accepted = self._add_current_anki_hotkey_target(post_add_capture=True)
+                    if accepted and bool(self.config.get("POST_ADD_CAPTURE_MOVE_MOUSE_TO_BOTTOM") or False):
+                        move_pointer_to_monitor_bottom(getattr(self.settings, "root", None))
+                    if not accepted:
+                        self.controller._report_voice_status(
+                            "listening",
+                            "No popup selection or hovered subtitle word is available to add with capture.",
+                        )
+                except Exception as exc:
+                    logger.exception("Voice Anki add with capture failed")
+                    self.controller._report_voice_status("error", f"Voice Anki add with capture failed: {exc}")
+                finally:
+                    if not bool(getattr(self.controller, "_anki_add_busy", False)):
+                        self.controller._voice_anki_action_queued = False
+            elif str(action).startswith("voice_add_anki_capture_index:"):
+                try:
+                    position = int(str(action).split(":", 1)[1])
+                except Exception:
+                    return
+                self._add_indexed_subtitle_word_with_capture(position)
+            elif action == "voice_capture_only":
+                capture = getattr(self.controller.anki_controller, "trigger_external_capture_only", None)
+                captured = bool(capture()) if callable(capture) else False
+                if captured:
+                    self.controller._report_voice_status(
+                        "listening",
+                        "Capture hotkey sent without creating an Anki card.",
+                    )
+                else:
+                    self.controller._report_voice_status(
+                        "error",
+                        "Capture-only failed because the configured capture window or hotkey was unavailable.",
+                    )
             elif action == "subtitle_hover_add_anki":
                 try:
                     self._add_current_anki_hotkey_target(post_add_capture=False, subtitle_only=True)
@@ -401,6 +545,20 @@ class HotkeyController(_ControllerProxy):
                         copy_selection()
                 except Exception:
                     logger.debug("Failed to copy hover or popup selection from global shortcut", exc_info=True)
+            elif action == "voice_copy_selection":
+                renderer = getattr(self, "renderer", None)
+                copy_hover = getattr(renderer, "copy_hover_selection_to_clipboard_if_pointer_inside", None)
+                copy_selection = getattr(self.popup, "copy_selection_to_clipboard_if_pointer_inside", None)
+                copied = False
+                try:
+                    if callable(copy_hover):
+                        copied = bool(copy_hover())
+                    if not copied and callable(copy_selection):
+                        copied = bool(copy_selection())
+                except Exception:
+                    logger.debug("Failed to copy from voice command", exc_info=True)
+                if not copied:
+                    self.controller._report_voice_status("listening", "No selectable popup or hover text is available to copy.")
             elif action == "_refresh_popup_translation":
                 self._refresh_popup_translation_display()
             elif action == "_seek_step_back":
@@ -411,6 +569,141 @@ class HotkeyController(_ControllerProxy):
                 self._apply_pending_seek(event_time=event_time)
             elif action == "clear_pending_seek":
                 self._clear_pending_seek_preview()
+
+    def _voice_anki_action_in_flight(self) -> bool:
+            if bool(getattr(self.controller, "_anki_add_busy", False)) or bool(
+                getattr(self.controller, "_voice_anki_action_queued", False)
+            ):
+                return True
+            for attr in ("_anki_wait_window", "_anki_preview_window"):
+                if self._window_exists(getattr(self.controller, attr, None)):
+                    return True
+            return False
+
+    def _start_voice_sequence(self, steps: list[tuple[str, int]]) -> None:
+            steps = [
+                (str(action), max(1, min(20, int(repeat_count))))
+                for action, repeat_count in steps
+                if str(action or "").strip()
+            ]
+            if len(steps) < 2:
+                self.controller._report_voice_status("error", "The combined voice command was invalid.")
+                return
+            if bool(getattr(self.controller, "_voice_sequence_running", False)):
+                self.controller._report_voice_status(
+                    "listening",
+                    "Ignored the combined command because another combined command is still running.",
+                )
+                return
+            self.controller._voice_sequence_steps = list(steps)
+            self.controller._voice_sequence_running = True
+            self._continue_voice_sequence(True)
+
+    def _continue_voice_sequence(self, previous_succeeded: bool) -> None:
+            if not bool(getattr(self.controller, "_voice_sequence_running", False)):
+                return
+            if not previous_succeeded:
+                self.controller._voice_sequence_steps = []
+                self.controller._voice_sequence_running = False
+                self.controller._report_voice_status("error", "Combined voice command stopped after a failed step.")
+                return
+            steps = list(getattr(self.controller, "_voice_sequence_steps", []) or [])
+            if not steps:
+                self.controller._voice_sequence_running = False
+                self.controller._report_voice_status("listening", "Combined voice command completed.")
+                return
+            action, repeat_count = steps.pop(0)
+            self.controller._voice_sequence_steps = steps
+
+            def _complete(succeeded: bool = True) -> None:
+                try:
+                    self.settings.root.after(0, lambda: self._continue_voice_sequence(bool(succeeded)))
+                except Exception:
+                    self._continue_voice_sequence(bool(succeeded))
+
+            if action == "voice_go_back":
+                self.controller.handle_voice_seek_action(
+                    "back",
+                    repeat_count=repeat_count,
+                    on_complete=_complete,
+                )
+                return
+            if action == "voice_go_forward":
+                self.controller.handle_voice_seek_action(
+                    "forward",
+                    repeat_count=repeat_count,
+                    on_complete=_complete,
+                )
+                return
+            if action == "voice_play":
+                self.controller.handle_voice_playback_action(None, on_complete=_complete)
+                return
+            if action == "voice_pause":
+                self.controller.handle_voice_playback_action(False, on_complete=_complete)
+                return
+            self._dispatch_input_action(action, repeat_count=repeat_count)
+            _complete(True)
+
+    def _add_indexed_subtitle_word_with_capture(self, position: int) -> bool:
+            if self._voice_anki_action_in_flight():
+                self.controller._report_voice_status(
+                    "listening",
+                    "Ignored indexed capture because an Anki add is already running.",
+                )
+                return False
+            getter = getattr(self.renderer, "subtitle_words_for_anki", None)
+            words = list(getter() or []) if callable(getter) else []
+            word_count = len(words)
+            index = int(position) - 1 if int(position) > 0 else word_count + int(position)
+            if word_count <= 0:
+                self.controller._report_voice_status(
+                    "listening",
+                    "Indexed capture failed because the current subtitle has no selectable words.",
+                )
+                return False
+            if index < 0 or index >= word_count:
+                requested = (
+                    str(position)
+                    if position > 0
+                    else ("last" if position == -1 else f"last {abs(position)}")
+                )
+                self.controller._report_voice_status(
+                    "listening",
+                    f"Capture word {requested} is unavailable; the current subtitle has {word_count} selectable words.",
+                )
+                return False
+
+            selected = str(words[index] or "").strip()
+            subtitle_getter = getattr(self.subtitle_navigation, "copy_text_for_current_subtitle", None)
+            subtitle_text = str(subtitle_getter() or "") if callable(subtitle_getter) else ""
+            if not selected or not subtitle_text:
+                self.controller._report_voice_status(
+                    "listening",
+                    "Indexed capture failed because the current subtitle is no longer available.",
+                )
+                return False
+
+            self.controller._voice_anki_action_queued = True
+            try:
+                self.controller._add_selection_to_anki(
+                    selected_text=selected,
+                    subtitle_text=subtitle_text,
+                    post_add_capture=True,
+                )
+                if bool(self.config.get("POST_ADD_CAPTURE_MOVE_MOUSE_TO_BOTTOM") or False):
+                    move_pointer_to_monitor_bottom(getattr(self.settings, "root", None))
+                self.controller._report_voice_status(
+                    "working",
+                    f"Capturing subtitle word {index + 1} of {word_count}: {selected}",
+                )
+                return True
+            except Exception as exc:
+                logger.exception("Indexed voice capture failed")
+                self.controller._report_voice_status("error", f"Indexed capture failed: {exc}")
+                return False
+            finally:
+                if not bool(getattr(self.controller, "_anki_add_busy", False)):
+                    self.controller._voice_anki_action_queued = False
 
     def _add_current_anki_hotkey_target(
         self,
@@ -701,14 +994,28 @@ class HotkeyController(_ControllerProxy):
                     changed = True
             return changed
 
-    def _is_suppressed_synthetic_space(self, key) -> bool:
+    def _is_suppressed_synthetic_key(self, key) -> bool:
+            now = time.perf_counter()
+            key_tokens = self._key_tokens(key)
+            deadlines = getattr(self.controller, "_suppress_synthetic_tokens_until", None)
+            if isinstance(deadlines, dict):
+                for token, deadline in list(deadlines.items()):
+                    try:
+                        deadline = float(deadline or 0.0)
+                    except Exception:
+                        deadline = 0.0
+                    if deadline < now:
+                        deadlines.pop(token, None)
+                        continue
+                    if self._normalize_shortcut_token(token) in key_tokens:
+                        return True
             try:
                 until = float(getattr(self.controller, "_suppress_synthetic_space_until", 0.0) or 0.0)
             except Exception:
                 until = 0.0
-            if until <= 0.0 or time.perf_counter() > until:
+            if until <= 0.0 or now > until:
                 return False
-            return "space" in self._key_tokens(key)
+            return "space" in key_tokens
 
     def _shortcut_matches(self, binding: str, key) -> bool:
             mods, key_token = self._split_shortcut(binding)
@@ -1016,6 +1323,12 @@ class HotkeyController(_ControllerProxy):
                     bindings.append((action, binding))
             return bindings
 
+    def _always_available_single_fire_bindings(self):
+            bindings = []
+            for binding in self._shortcut_bindings_for_key("SHORTCUT_TOGGLE_VOICE"):
+                bindings.append(("toggle_voice_listening", binding))
+            return bindings
+
     def _popup_translation_bindings(self):
             bindings = []
             for action, config_key, provider in (
@@ -1139,6 +1452,16 @@ class HotkeyController(_ControllerProxy):
 
     def _matching_shortcut_candidates(self, key) -> list[dict]:
             candidates = []
+            for action, binding in self._always_available_single_fire_bindings():
+                if self._shortcut_matches(binding, key):
+                    candidates.append(
+                        {
+                            "kind": "single",
+                            "action": action,
+                            "binding": binding,
+                            "single_fire": True,
+                        }
+                    )
             popup_open = self._is_popup_open()
             if popup_open or not self._hotkeys_disabled():
                 for action, binding in self._popup_add_anki_bindings():
@@ -1220,7 +1543,7 @@ class HotkeyController(_ControllerProxy):
             self._reset_hotkey_state(reset_shift=False)
 
     def _on_key_press(self, key):
-            if self._is_suppressed_synthetic_space(key):
+            if self._is_suppressed_synthetic_key(key):
                 return
             text_input_focused = self._is_text_input_focused()
 
@@ -1343,7 +1666,7 @@ class HotkeyController(_ControllerProxy):
                 return
 
     def _on_key_release(self, key):
-            if self._is_suppressed_synthetic_space(key):
+            if self._is_suppressed_synthetic_key(key):
                 return
             if self._is_text_input_focused():
                 self._set_hover_hold_key_state(key, False)
@@ -1392,7 +1715,9 @@ class HotkeyController(_ControllerProxy):
                     self._refresh_hover_displays_if_mode_changed(old_hover_mode)
 
             released_tokens = self._key_tokens(key)
-            for action, binding in self._single_fire_bindings():
+            for action, binding in (
+                self._always_available_single_fire_bindings() + self._single_fire_bindings()
+            ):
                 _, key_token = self._split_shortcut(binding)
                 if key_token and key_token in released_tokens:
                     self._single_fire_actions.discard(action)

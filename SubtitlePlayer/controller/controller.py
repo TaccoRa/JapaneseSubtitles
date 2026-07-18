@@ -13,7 +13,10 @@ import re
 import threading
 import time
 import os
+import tkinter as tk
+import unicodedata
 from datetime import date
+from tkinter import ttk
 from typing import Any
 import logging
 
@@ -27,6 +30,7 @@ from model.annotation_provider import AnnotationProvider
 from model.config_manager import ConfigManager
 from model.renderer import SubtitleRenderer
 from model.subtitle_manager import SubtitleManager
+from model.voice_service import VoiceCommandService
 from model.wanikani_client import WaniKaniClient
 from model.word_database import WordDatabase, WordEntry, normalize_word
 from view.popup import CopyPopup
@@ -41,7 +45,15 @@ from controller.overlay_controller import OverlayController
 from controller.playback_controller import PlaybackController
 from controller.subtitle_navigation import SubtitleNavigationController
 from logging_setup import set_debug_logging
-from utils import dispatch_to_tk, get_window_screen_rect
+from utils import (
+    dispatch_to_tk,
+    dispatch_to_tk_sync,
+    format_time,
+    get_monitor_rects,
+    get_window_screen_rect,
+    list_visible_windows,
+    send_hotkey_to_window,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +81,7 @@ class SubtitleController:
         "SHORTCUT_FAST_FORWARD_SPEED_UP": "shift+.",
         "SHORTCUT_FAST_FORWARD_SPEED_DOWN": "shift+comma",
         "SHORTCUT_TOGGLE_DEBUGGING": "ctrl+shift+d",
+        "SHORTCUT_TOGGLE_VOICE": "shift+l",
         "HOVER_DICTIONARY_HOTKEY": "shift",
         "HOVER_STATUS_HOTKEY": "ctrl",
         "HOVER_TRANSLATION_HOTKEY": "alt",
@@ -112,6 +125,7 @@ class SubtitleController:
         self._publish_anki_add_counts()
         self._apply_saved_offset_for_current_anime()
         self._start_input_listeners()
+        self.voice.start()
 
         self.episode_controller.restore_startup_time_and_mode()
 
@@ -151,6 +165,7 @@ class SubtitleController:
         self._hover_video_pause_active = False
         self._hover_timer_pause_active = False
         self._suppress_synthetic_space_until = 0.0
+        self._suppress_synthetic_tokens_until: dict[str, float] = {}
 
         self.playing = False
         self.entry_editing = False
@@ -218,6 +233,18 @@ class SubtitleController:
         self._pending_anki_payload = None
         self._anki_success_popup = None
         self._anki_success_popup_job = None
+        self._anki_preview_window = None
+        self._anki_add_busy = False
+        self._voice_anki_action_queued = False
+        self._voice_playback_pending = False
+        self._voice_target_window = None
+        self._voice_last_status = {"state": "disabled", "message": "Voice commands disabled."}
+        self._voice_mic_test_thread = None
+        self._voice_mic_test_stop = None
+        self._voice_mic_test_monitor_enabled = True
+        self._voice_mic_test_restart_recognition = False
+        self._latest_post_add_capture_note_id = 0
+        self._latest_post_add_capture_window_hwnd = 0
 
         self.subtitle_timeout_job = None
         self._last_time_overlay_text = None
@@ -248,6 +275,11 @@ class SubtitleController:
         if self._annotation_is_enabled():
             self._ensure_annotation_services()
         self.anki = AnkiClient(self.config)
+        self.voice = VoiceCommandService(
+            self.config,
+            action_callback=self._on_voice_recognized,
+            status_callback=self._on_voice_status_from_worker,
+        )
 
     def _annotation_database_path(self) -> str:
         configured = str(self.config.get("ANNOTATION_LOCAL_DB_PATH") or "").strip()
@@ -297,6 +329,18 @@ class SubtitleController:
         self.settings.bind_performance_snapshot     (self.get_performance_snapshot)
         self.settings.bind_performance_reset        (self.reset_performance_stats)
         self.settings.bind_settings_open            (self._hide_subtitle_handle_for_settings)
+        self.settings.bind_voice_callbacks          (
+            toggle_enabled=self.toggle_voice_enabled,
+            list_devices=self.voice_list_input_devices,
+            model_status=self.voice_model_status,
+            download_model=self.voice_download_model,
+            cancel_download=self.voice_cancel_model_download,
+            remove_model=self.voice_remove_model,
+            test_microphone=self.voice_test_microphone,
+            stop_microphone_test=self.voice_stop_microphone_test,
+            set_microphone_monitor=self.voice_set_microphone_monitor,
+            list_windows=self.voice_list_windows,
+        )
         self.settings.bind_annotation_callbacks     (
             list_words=self.annotation_list_words,
             add_word=self.annotation_add_word,
@@ -1563,6 +1607,18 @@ class SubtitleController:
         self._apply_hotkey_settings(values)
         self._apply_anki_settings(values)
         self._apply_annotation_settings(values)
+        self._apply_voice_settings(values)
+
+    def _apply_voice_settings(self, values: dict) -> None:
+        if not any(str(key).startswith("VOICE_") for key in values):
+            return
+        if self._voice_microphone_test_running():
+            self.voice_stop_microphone_test(restart_recognition=True)
+            return
+        try:
+            self.voice.reconfigure()
+        except Exception:
+            logger.exception("Failed to apply voice command settings")
 
     def _apply_popup_style_settings(self, values: dict) -> None:
         if "POPUP_FONT" in values:
@@ -1849,6 +1905,703 @@ class SubtitleController:
         return self.ocr_controller.show_ocr_boxes(override)
 
     # ---------------------------------------------------------------------
+    # Offline voice commands
+    # ---------------------------------------------------------------------
+    def _on_voice_status_from_worker(self, status: dict) -> None:
+        try:
+            dispatch_to_tk(self.settings.root, self._publish_voice_status, dict(status or {}))
+        except Exception:
+            logger.debug("Failed to dispatch voice status", exc_info=True)
+
+    def _publish_voice_status(self, status: dict) -> None:
+        if self._shutting_down:
+            return
+        normalized = dict(status or {})
+        normalized.setdefault("state", "disabled")
+        normalized.setdefault("message", "")
+        self._voice_last_status = normalized
+        try:
+            self.settings.set_voice_status(normalized)
+        except Exception:
+            logger.debug("Failed to publish voice status to settings", exc_info=True)
+
+    def _report_voice_status(self, state: str, message: str, **extra) -> None:
+        status = {"state": str(state), "message": str(message), **extra}
+        try:
+            dispatch_to_tk(self.settings.root, self._publish_voice_status, status)
+        except Exception:
+            logger.debug("Failed to report voice status", exc_info=True)
+
+    def _on_voice_recognized(self, action: str, phrase: str, repeat_count: int = 1) -> None:
+        del phrase
+        if self._shutting_down:
+            return
+        self.hotkey_controller.enqueue_action(
+            action,
+            source="voice",
+            repeat_count=repeat_count,
+        )
+
+    def toggle_voice_enabled(self) -> bool:
+        return self.set_voice_enabled(not bool(self.config.get("VOICE_ENABLED") or False))
+
+    def set_voice_enabled(self, enabled: bool) -> bool:
+        enabled = bool(enabled)
+        self.config.set("VOICE_ENABLED", enabled)
+        try:
+            self.settings.set_voice_enabled_value(enabled)
+        except Exception:
+            pass
+        if self._voice_microphone_test_running():
+            self._voice_mic_test_restart_recognition = bool(enabled)
+        else:
+            self.voice.reconfigure()
+        return enabled
+
+    def handle_voice_input_mode(self, mode: int | None = None) -> bool:
+        try:
+            current = int(getattr(self.settings, "input_mode", 1) or 1)
+        except Exception:
+            current = 1
+        target = (1 if current == 3 else current + 1) if mode is None else mode
+        setter = getattr(self.settings, "set_input_mode", None)
+        if not callable(setter) or not setter(target):
+            self._report_voice_status("error", f"Could not switch to input mode {target}.")
+            return False
+        self.hotkey_controller._reset_hotkey_state(reset_shift=False)
+        self._report_voice_status("listening", f"Input mode M{int(target)} is active.")
+        return True
+
+    def voice_list_input_devices(self) -> list[dict]:
+        return VoiceCommandService.list_input_devices()
+
+    def voice_model_status(self, language: str) -> dict:
+        return self.voice.model_status(language)
+
+    def voice_download_model(self, language: str) -> bool:
+        if self._voice_microphone_test_running():
+            self.voice_stop_microphone_test(restart_recognition=False)
+        return self.voice.download_model(language)
+
+    def voice_cancel_model_download(self) -> bool:
+        return self.voice.cancel_download()
+
+    def voice_remove_model(self, language: str) -> bool:
+        return self.voice.remove_model(language)
+
+    def _voice_microphone_test_running(self) -> bool:
+        thread = getattr(self, "_voice_mic_test_thread", None)
+        return bool(thread is not None and thread.is_alive())
+
+    def voice_set_microphone_monitor(self, enabled: bool) -> None:
+        self._voice_mic_test_monitor_enabled = bool(enabled)
+
+    def voice_test_microphone(
+        self,
+        requested: dict | None = None,
+        monitor: bool = True,
+    ) -> bool:
+        if self._voice_microphone_test_running():
+            self.voice_stop_microphone_test(restart_recognition=True)
+            return False
+        if str((self.voice.status or {}).get("state") or "") == "downloading":
+            self._report_voice_status("error", "Finish or cancel the model download before testing the microphone.")
+            return False
+
+        requested = requested if isinstance(requested, dict) else self.config.get("VOICE_INPUT_DEVICE")
+        self._voice_mic_test_monitor_enabled = bool(monitor)
+        self._voice_mic_test_restart_recognition = bool(self.config.get("VOICE_ENABLED") or False)
+        stop_event = threading.Event()
+        self._voice_mic_test_stop = stop_event
+        self.voice.stop(emit=False)
+        self._publish_voice_status({"state": "testing", "message": "Opening microphone test..."})
+        try:
+            self.settings.set_voice_microphone_test_state(True, monitor_available=True)
+            self.settings.set_voice_microphone_level(0.0, 0.0)
+        except Exception:
+            pass
+
+        def _event_callback(event: dict) -> None:
+            dispatch_to_tk(
+                self.settings.root,
+                self._publish_voice_microphone_test_event,
+                stop_event,
+                dict(event or {}),
+            )
+
+        def _worker() -> None:
+            error = None
+            try:
+                VoiceCommandService.run_input_device_test(
+                    requested or {},
+                    stop_event,
+                    monitor_getter=lambda: bool(self._voice_mic_test_monitor_enabled),
+                    event_callback=_event_callback,
+                )
+            except Exception as exc:
+                error = exc
+                logger.exception("Voice microphone test failed")
+            finally:
+                dispatch_to_tk(
+                    self.settings.root,
+                    self._finish_voice_microphone_test,
+                    stop_event,
+                    error,
+                )
+
+        thread = threading.Thread(target=_worker, daemon=True, name="voice-microphone-test")
+        self._voice_mic_test_thread = thread
+        thread.start()
+        return True
+
+    def _publish_voice_microphone_test_event(self, stop_event: threading.Event, event: dict) -> None:
+        if self._shutting_down or stop_event is not self._voice_mic_test_stop:
+            return
+        event_type = str(event.get("type") or "")
+        if event_type == "level":
+            try:
+                self.settings.set_voice_microphone_level(
+                    float(event.get("level") or 0.0),
+                    float(event.get("peak") or 0.0),
+                )
+            except Exception:
+                pass
+            return
+        if event_type != "started":
+            return
+        input_name = str((event.get("input_device") or {}).get("name") or "microphone").strip()
+        output_name = str((event.get("output_device") or {}).get("name") or "").strip()
+        monitor_available = bool(event.get("monitor_available"))
+        message = f"Microphone test running on {input_name}."
+        if output_name:
+            message += f" Monitor output: {output_name}."
+        else:
+            message += " Audio monitoring is unavailable; the level meter is still active."
+        self._publish_voice_status({"state": "testing", "message": message})
+        try:
+            self.settings.set_voice_microphone_test_state(True, monitor_available=monitor_available)
+        except Exception:
+            pass
+
+    def _finish_voice_microphone_test(
+        self,
+        stop_event: threading.Event,
+        error: Exception | None = None,
+    ) -> None:
+        if stop_event is not self._voice_mic_test_stop:
+            return
+        self._voice_mic_test_stop = None
+        self._voice_mic_test_thread = None
+        restart = bool(self._voice_mic_test_restart_recognition)
+        self._voice_mic_test_restart_recognition = False
+        try:
+            self.settings.set_voice_microphone_level(0.0, 0.0)
+            self.settings.set_voice_microphone_test_state(False, monitor_available=True)
+        except Exception:
+            pass
+        if self._shutting_down:
+            return
+        voice_state = str((self.voice.status or {}).get("state") or "")
+        if error is not None:
+            self._publish_voice_status({"state": "error", "message": f"Microphone test failed: {error}"})
+        elif voice_state != "downloading":
+            self._publish_voice_status({"state": "ready", "message": "Microphone test stopped."})
+        if restart and bool(self.config.get("VOICE_ENABLED") or False):
+            self.voice.start()
+
+    def voice_stop_microphone_test(
+        self,
+        *,
+        restart_recognition: bool = True,
+        wait: bool = False,
+    ) -> bool:
+        stop_event = getattr(self, "_voice_mic_test_stop", None)
+        thread = getattr(self, "_voice_mic_test_thread", None)
+        if stop_event is None:
+            return False
+        self._voice_mic_test_restart_recognition = bool(restart_recognition)
+        stop_event.set()
+        try:
+            self.settings.set_voice_microphone_test_stopping()
+        except Exception:
+            pass
+        if wait and thread is not None and thread is not threading.current_thread():
+            thread.join(timeout=2.0)
+        return True
+
+    def voice_list_windows(self) -> list[dict]:
+        excluded = set(getattr(self, "_app_window_hwnds", set()) or set())
+        windows = [dict(item) for item in list_visible_windows(exclude_hwnds=excluded)]
+        anime_candidates = self._voice_anime_title_candidates()
+        for window in windows:
+            title = self._normalize_voice_window_text(window.get("title"))
+            window["anime_match"] = any(candidate and candidate in title for candidate in anime_candidates)
+        windows.sort(
+            key=lambda item: (
+                0 if item.get("anime_match") else 1,
+                str(item.get("process") or "").casefold(),
+                str(item.get("title") or "").casefold(),
+            )
+        )
+        return windows
+
+    @staticmethod
+    def _normalize_voice_window_text(value) -> str:
+        text = unicodedata.normalize("NFKC", str(value or "")).casefold()
+        text = re.sub(r"[^\w]+", " ", text, flags=re.UNICODE)
+        return re.sub(r"\s+", " ", text).strip()
+
+    def _voice_anime_title_candidates(self) -> list[str]:
+        values = []
+        manager = getattr(self, "sub_manager", None)
+        for getter_name in ("get_display_anime_name", "get_anime_name"):
+            getter = getattr(manager, getter_name, None)
+            if callable(getter):
+                try:
+                    values.append(getter())
+                except Exception:
+                    pass
+        for key in ("LAST_DISPLAY_ANIME_NAME", "LAST_ANIME_NAME", "LAST_REMOTE_SEARCH_QUERY"):
+            values.append(self.config.get(key))
+        result = []
+        for value in values:
+            normalized = self._normalize_voice_window_text(value)
+            if normalized and normalized not in result:
+                result.append(normalized)
+        return result
+
+    def _resolve_voice_video_target(self) -> dict | None:
+        windows = self.voice_list_windows()
+        if not windows:
+            return None
+        saved = self.config.get("VOICE_PLAYBACK_TARGET")
+        saved = saved if isinstance(saved, dict) else {}
+        saved_title = self._normalize_voice_window_text(
+            saved.get("title_filter") or saved.get("title")
+        )
+        saved_process = str(saved.get("process") or "").strip().casefold()
+
+        def process_matches(window: dict) -> bool:
+            return not saved_process or str(window.get("process") or "").casefold() == saved_process
+
+        def saved_title_matches(window: dict) -> bool:
+            return not saved_title or saved_title in self._normalize_voice_window_text(window.get("title"))
+
+        for matcher in (
+            lambda window: bool(window.get("anime_match")) and process_matches(window),
+            lambda window: bool(saved_title) and saved_title_matches(window) and process_matches(window),
+            lambda window: bool(window.get("anime_match")),
+            lambda window: bool(saved_title) and saved_title_matches(window),
+        ):
+            match = next((window for window in windows if matcher(window)), None)
+            if match is not None:
+                return match
+
+        capture_titles = [
+            self._normalize_voice_window_text(value)
+            for value in re.split(r"[,;]", str(self.config.get("POST_ADD_CAPTURE_TARGET_TITLE") or ""))
+            if self._normalize_voice_window_text(value)
+        ]
+        match = next(
+            (
+                window
+                for window in windows
+                if process_matches(window)
+                and any(
+                    title_filter in self._normalize_voice_window_text(window.get("title"))
+                    for title_filter in capture_titles
+                )
+            ),
+            None,
+        )
+        if match is not None:
+            return match
+        process_windows = [window for window in windows if process_matches(window)] if saved_process else []
+        return process_windows[0] if len(process_windows) == 1 else None
+
+    @staticmethod
+    def _complete_voice_video_request(request: dict, succeeded: bool) -> None:
+        callback = request.get("on_complete") if isinstance(request, dict) else None
+        if callable(callback):
+            try:
+                callback(bool(succeeded))
+            except Exception:
+                logger.debug("Voice video completion callback failed", exc_info=True)
+
+    def handle_voice_playback_action(self, desired: bool | None, *, on_complete=None) -> None:
+        if self._shutting_down:
+            self._complete_voice_video_request({"on_complete": on_complete}, False)
+            return
+        if desired is None:
+            desired = not bool(self.playing)
+        else:
+            desired = bool(desired)
+            if bool(self.playing) == desired:
+                state = "playing" if desired else "paused"
+                self._report_voice_status("listening", f"Playback is already {state}.")
+                self._complete_voice_video_request({"on_complete": on_complete}, True)
+                return
+        self._handle_voice_video_action(
+            {
+                "kind": "playback",
+                "desired": bool(desired),
+                "repeat_count": 1,
+                "on_complete": on_complete,
+            }
+        )
+
+    def handle_voice_seek_action(self, direction: str, *, repeat_count: int = 1, on_complete=None) -> None:
+        direction = "back" if str(direction or "").strip().lower() == "back" else "forward"
+        try:
+            repeat_count = max(1, min(20, int(repeat_count)))
+        except Exception:
+            repeat_count = 1
+        self._handle_voice_video_action(
+            {
+                "kind": "seek",
+                "direction": direction,
+                "repeat_count": repeat_count,
+                "on_complete": on_complete,
+            }
+        )
+
+    def handle_voice_time_jump(self, seconds: float) -> None:
+        try:
+            seconds = max(0.0, float(seconds))
+        except Exception:
+            return
+        self.playback.set_current_time(seconds)
+        self._report_voice_status("listening", f"Jumped subtitles to {format_time(seconds)}.")
+
+    def resume_video_and_subtitles_after_capture(self, note_id: int) -> None:
+        if not bool(self.config.get("POST_ADD_CAPTURE_RESUME_PLAYBACK") or False):
+            return
+        try:
+            note_id = int(note_id)
+        except Exception:
+            return
+        if note_id != int(getattr(self, "_latest_post_add_capture_note_id", 0) or 0):
+            logger.debug("Skipping playback resume for superseded capture note %s", note_id)
+            return
+        if self._voice_playback_pending:
+            try:
+                self.settings.root.after(
+                    100,
+                    lambda: self.resume_video_and_subtitles_after_capture(note_id),
+                )
+            except Exception:
+                pass
+            return
+        self._handle_voice_video_action(
+            {
+                "kind": "playback",
+                "desired": True,
+                "repeat_count": 1,
+                "source": "capture",
+                "target": {
+                    "hwnd": int(getattr(self, "_latest_post_add_capture_window_hwnd", 0) or 0),
+                },
+            }
+        )
+
+    def _handle_voice_video_action(self, request: dict) -> None:
+        if self._shutting_down:
+            self._complete_voice_video_request(request, False)
+            return
+        if self._voice_playback_pending:
+            self._report_voice_status("listening", "A voice video command is already running.")
+            self._complete_voice_video_request(request, False)
+            return
+        picker = getattr(self, "_voice_target_window", None)
+        try:
+            if picker is not None and picker.winfo_exists():
+                picker.deiconify()
+                picker.lift()
+                self._report_voice_status(
+                    "listening",
+                    "Choose the pending video target before sending another video command.",
+                )
+                self._complete_voice_video_request(request, False)
+                return
+        except Exception:
+            pass
+        requested_target = request.get("target")
+        target = (
+            dict(requested_target)
+            if isinstance(requested_target, dict) and int(requested_target.get("hwnd") or 0) > 0
+            else self._resolve_voice_video_target()
+        )
+        if target is None:
+            self._show_voice_target_picker(dict(request))
+            return
+        self._run_voice_video_delivery(dict(request), target, allow_prompt=True)
+
+    @staticmethod
+    def _voice_video_hotkey_config(request: dict) -> tuple[str, str]:
+        if str(request.get("kind") or "") == "playback":
+            return "VOICE_PLAYBACK_HOTKEY", "play / pause"
+        if str(request.get("direction") or "") == "back":
+            return "VOICE_PLAYBACK_BACK_HOTKEY", "back"
+        return "VOICE_PLAYBACK_FORWARD_HOTKEY", "forward"
+
+    def _suppress_external_hotkey_events(
+        self,
+        hotkey: str,
+        repeat_count: int,
+        repeat_interval_ms: int = 120,
+    ) -> None:
+        aliases = {
+            "arrowleft": "left",
+            "arrowright": "right",
+            "spacebar": "space",
+            "control": "ctrl",
+            "ctl": "ctrl",
+            "rightalt": "altgr",
+            "altgraph": "altgr",
+        }
+        tokens = []
+        for raw_token in re.split(r"\s*\+\s*", str(hotkey or "").strip().casefold()):
+            token = aliases.get(raw_token.strip().replace(" ", ""), raw_token.strip().replace(" ", ""))
+            if token == "altgr":
+                tokens.extend(("ctrl", "alt"))
+            elif token:
+                tokens.append(token)
+        repeat_duration = max(0, int(repeat_count) - 1) * max(0, int(repeat_interval_ms)) / 1000.0
+        deadline = time.perf_counter() + max(0.6, repeat_duration + 0.45)
+        for token in tokens:
+            self._suppress_synthetic_tokens_until[token] = deadline
+        if "space" in tokens:
+            self._suppress_synthetic_space_until = deadline
+
+    def _run_voice_video_delivery(self, request: dict, target: dict, *, allow_prompt: bool) -> None:
+        if self._voice_playback_pending:
+            self._complete_voice_video_request(request, False)
+            return
+        config_key, action_label = self._voice_video_hotkey_config(request)
+        default_hotkey = {"VOICE_PLAYBACK_HOTKEY": "space", "VOICE_PLAYBACK_BACK_HOTKEY": "left"}.get(
+            config_key,
+            "right",
+        )
+        hotkey = str(self.config.get(config_key) or default_hotkey).strip()
+        if not hotkey:
+            self._report_voice_status("error", f"Voice {action_label} hotkey is empty.")
+            self._complete_voice_video_request(request, False)
+            return
+        try:
+            repeat_count = max(1, min(20, int(request.get("repeat_count") or 1)))
+        except Exception:
+            repeat_count = 1
+        try:
+            repeat_interval_ms = max(
+                40,
+                min(1000, int(self.config.get("VOICE_REPEAT_HOTKEY_INTERVAL_MS") or 120)),
+            )
+        except Exception:
+            repeat_interval_ms = 120
+        previous_playing = bool(self.playing)
+        local_state = {"applied": False}
+        self._voice_playback_pending = True
+        excluded = set(getattr(self, "_app_window_hwnds", set()) or set())
+        self._report_voice_status("working", f"Sending {action_label} command to the video window...")
+
+        def _worker() -> None:
+            def _sync_local_playback_before_send(_window: dict) -> None:
+                if str(request.get("kind") or "") != "playback":
+                    return
+                def _apply() -> None:
+                    if not self._shutting_down:
+                        self.playback.set_playing(bool(request.get("desired")))
+                        local_state["applied"] = True
+
+                dispatch_to_tk_sync(self.settings.root, _apply)
+
+            self._suppress_external_hotkey_events(hotkey, repeat_count, repeat_interval_ms)
+            result = send_hotkey_to_window(
+                target,
+                hotkey,
+                exclude_hwnds=excluded,
+                restore_foreground=True,
+                repeat_count=repeat_count,
+                repeat_interval_ms=repeat_interval_ms,
+                before_send=(
+                    _sync_local_playback_before_send
+                    if str(request.get("kind") or "") == "playback"
+                    else None
+                ),
+            )
+
+            def _finish() -> None:
+                self._voice_playback_pending = False
+                if self._shutting_down:
+                    return
+                if result.get("ok"):
+                    if str(request.get("kind") or "") == "playback":
+                        desired = bool(request.get("desired"))
+                        self.playback.set_playing(desired)
+                        state = "playing" if desired else "paused"
+                        self._report_voice_status("listening", f"Video and subtitles are now {state}.")
+                    else:
+                        direction = "back" if str(request.get("direction") or "") == "back" else "forward"
+                        callback = self.playback.go_back if direction == "back" else self.playback.go_forward
+                        for _ in range(repeat_count):
+                            callback()
+                        repetitions = f" {repeat_count} times" if repeat_count > 1 else ""
+                        self._report_voice_status(
+                            "listening",
+                            f"Moved video and subtitles {direction}{repetitions}.",
+                        )
+                    self._complete_voice_video_request(request, True)
+                    return
+                if allow_prompt:
+                    if local_state.get("applied"):
+                        self.playback.set_playing(previous_playing)
+                    self._show_voice_target_picker(dict(request))
+                    return
+                if local_state.get("applied"):
+                    self.playback.set_playing(previous_playing)
+                reason = str(result.get("reason") or "unknown error").replace("_", " ")
+                self._report_voice_status(
+                    "error",
+                    f"Video {action_label} command failed ({reason}); subtitles were not changed.",
+                )
+                self._complete_voice_video_request(request, False)
+
+            dispatch_to_tk(self.settings.root, _finish)
+
+        threading.Thread(target=_worker, daemon=True, name="voice-video-target").start()
+
+    def _show_voice_target_picker(self, request: dict) -> None:
+        existing = getattr(self, "_voice_target_window", None)
+        try:
+            if existing is not None and existing.winfo_exists():
+                existing.deiconify()
+                existing.lift()
+                return
+        except Exception:
+            pass
+
+        windows = self.voice_list_windows()
+        if not windows:
+            self._report_voice_status(
+                "error",
+                "No external video window is available; the command was not applied.",
+            )
+            self._complete_voice_video_request(request, False)
+            return
+
+        win = tk.Toplevel(self.settings.root)
+        self._voice_target_window = win
+        win.title("Select Video Window")
+        win.attributes("-topmost", True)
+        win.resizable(True, False)
+        outer = tk.Frame(win, padx=12, pady=12)
+        outer.pack(fill="both", expand=True)
+        tk.Label(
+            outer,
+            text="The saved video window was not found. Select the window that should receive the video hotkey.",
+            justify="left",
+            anchor="w",
+            wraplength=620,
+        ).pack(fill="x", pady=(0, 8))
+        selected = tk.StringVar(value="")
+        combo = ttk.Combobox(outer, textvariable=selected, state="readonly", width=78)
+        combo.pack(fill="x")
+        mapping: dict[str, dict] = {}
+
+        def _refresh() -> None:
+            mapping.clear()
+            for item in self.voice_list_windows():
+                label = f"{item.get('title', '')} - {item.get('process', '')}".strip(" -")
+                unique = label
+                suffix = 2
+                while unique in mapping:
+                    unique = f"{label} ({suffix})"
+                    suffix += 1
+                mapping[unique] = item
+            combo.configure(values=list(mapping))
+            if mapping:
+                selected.set(next(iter(mapping)))
+
+        def _close(message: str | None = None) -> None:
+            try:
+                win.grab_release()
+            except Exception:
+                pass
+            try:
+                win.destroy()
+            except Exception:
+                pass
+            self._voice_target_window = None
+            if message:
+                self._report_voice_status("error", message)
+
+        def _use_selected() -> None:
+            item = mapping.get(selected.get())
+            if not item:
+                self.settings.root.bell()
+                return
+            target = {
+                "title_filter": str(item.get("title") or ""),
+                "process": str(item.get("process") or ""),
+            }
+            self.config.set("VOICE_PLAYBACK_TARGET", target)
+            try:
+                self.settings.set_voice_playback_target(target)
+            except Exception:
+                pass
+            _close()
+            self._run_voice_video_delivery(dict(request), target, allow_prompt=False)
+
+        def _cancel() -> None:
+            _close("Video target selection cancelled; the command was not applied.")
+            self._complete_voice_video_request(request, False)
+
+        buttons = tk.Frame(outer)
+        buttons.pack(fill="x", pady=(10, 0))
+        tk.Button(buttons, text="Refresh", width=10, command=_refresh).pack(side="left")
+        tk.Button(buttons, text="Use Selected", width=14, command=_use_selected).pack(side="right")
+        tk.Button(
+            buttons,
+            text="Cancel",
+            width=10,
+            command=_cancel,
+        ).pack(side="right", padx=(0, 6))
+        _refresh()
+        win.protocol(
+            "WM_DELETE_WINDOW",
+            _cancel,
+        )
+        win.bind("<Return>", lambda _event: _use_selected())
+        win.bind(
+            "<Escape>",
+            lambda _event: _cancel(),
+        )
+        win.update_idletasks()
+        width = max(560, int(win.winfo_reqwidth()))
+        height = max(150, int(win.winfo_reqheight()))
+        try:
+            px, py = self.settings.root.winfo_pointerxy()
+            monitor = next(
+                (
+                    rect
+                    for rect in get_monitor_rects(self.settings.root)
+                    if rect[0] <= px < rect[0] + rect[2] and rect[1] <= py < rect[1] + rect[3]
+                ),
+                (0, 0, self.settings.root.winfo_screenwidth(), self.settings.root.winfo_screenheight()),
+            )
+            mx, my, mw, mh = monitor
+            x = mx + max(0, (mw - width) // 2)
+            y = my + max(0, (mh - height) // 2)
+            win.geometry(f"{width}x{height}+{x}+{y}")
+        except Exception:
+            pass
+        try:
+            win.grab_set()
+            win.focus_force()
+        except Exception:
+            pass
+
+    # ---------------------------------------------------------------------
     # Shutdown
     # ---------------------------------------------------------------------
     def _on_app_close(self):
@@ -1975,7 +2728,7 @@ class SubtitleController:
             except Exception:
                 pass
 
-        for attr in ("_anki_wait_window", "_anki_success_popup"):
+        for attr in ("_anki_wait_window", "_anki_preview_window", "_anki_success_popup", "_voice_target_window"):
             win = getattr(self, attr, None)
             if win is None:
                 continue
@@ -2001,6 +2754,14 @@ class SubtitleController:
                 pass
 
     def _shutdown_background_services(self) -> None:
+        try:
+            self.voice_stop_microphone_test(restart_recognition=False, wait=True)
+        except Exception:
+            pass
+        try:
+            self.voice.shutdown()
+        except Exception:
+            pass
         try:
             self._ocr_generation += 1
             self._ocr_sync_generation += 1

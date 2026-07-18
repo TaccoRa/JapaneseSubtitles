@@ -825,6 +825,17 @@ def test_add_from_selection_copies_media_before_creating_note(monkeypatch):
         client.image_field: '<img src="asbp_existing.png">',
     }
 
+    notes.clear()
+    capture_result = client.add_from_selection(
+        "\u65b0\u898f",
+        subtitle_text="\u540c\u3058\u5b57\u5e55",
+        copy_existing_media=False,
+    )
+    capture_fields = notes[0]["fields"]
+    assert capture_fields[client.sound_field] == ""
+    assert capture_fields[client.image_field] == ""
+    assert capture_result["copied_media_fields"] == {}
+
 
 def test_copy_captured_sentence_media_to_all_previous_same_sentence_notes(monkeypatch):
     client = AnkiClient(ConfigManager("config.json"))

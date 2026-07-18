@@ -50,7 +50,9 @@ def test_post_add_external_capture_focuses_target_and_sends_hotkey(monkeypatch):
                 "POST_ADD_CAPTURE_TARGET_TITLE": "Chrome",
                 "POST_ADD_CAPTURE_EXTERNAL_HOTKEY": "ctrl+shift+y",
             }.get(key)
-        )
+        ),
+        playback=SimpleNamespace(on_jump_sub_end=lambda: calls.append(("jump", "subtitle_end"))),
+        _suppress_external_hotkey_events=lambda hotkey, count: calls.append(("suppress", hotkey, count)),
     )
     anki_controller = AnkiController(controller)
 
@@ -66,4 +68,9 @@ def test_post_add_external_capture_focuses_target_and_sends_hotkey(monkeypatch):
     )
 
     assert anki_controller._run_post_add_external_capture(123) is True
-    assert calls == [("focus", "Chrome"), ("hotkey", "ctrl+shift+y")]
+    assert calls == [
+        ("focus", "Chrome"),
+        ("suppress", "ctrl+shift+y", 1),
+        ("hotkey", "ctrl+shift+y"),
+        ("jump", "subtitle_end"),
+    ]

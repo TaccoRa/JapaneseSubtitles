@@ -69,6 +69,11 @@ class SettingsUI:
         self.mode_toggle_btn = None
         self.advanced_settings_btn = None
         self.fast_forward_btn = None
+        self.voice_indicator = None
+        self._voice_indicator_tooltip = None
+        self._voice_status = {"state": "disabled", "message": "Voice commands disabled."}
+        self._voice_indicator_animation_job = None
+        self._voice_indicator_animation_frame = 0
         self._phone_mode_toggle_btn = None
         self.play_pause_btn = None
         self.slider = None
@@ -181,6 +186,10 @@ class SettingsUI:
                      "offset_change",
                      "ocr_read_now", "ocr_sync_now", "ocr_show_boxes",
                      "anki_check", "performance_snapshot", "performance_reset",
+                     "voice_toggle_enabled", "voice_list_devices", "voice_model_status",
+                     "voice_download_model", "voice_cancel_download", "voice_remove_model",
+                     "voice_test_microphone", "voice_stop_microphone_test",
+                     "voice_set_microphone_monitor", "voice_list_windows",
                      "settings_open",
                      "annotation_list_words", "annotation_add_word", "annotation_delete_word",
                      "annotation_import_words", "annotation_export_words", "annotation_refresh_words",
@@ -395,6 +404,22 @@ class SettingsUI:
             bg="#303030",
             fg="white",
         )
+        self.voice_indicator = tk.Button(
+            self.control_window,
+            text="\N{STUDIO MICROPHONE}",
+            font=("Segoe UI Symbol", 7),
+            relief="flat",
+            bd=0,
+            padx=0,
+            pady=0,
+            bg="#666666",
+            fg="white",
+            activebackground="#777777",
+            activeforeground="white",
+            command=self._on_voice_indicator_click,
+        )
+        self.voice_indicator.bind("<Enter>", self._show_voice_indicator_tooltip, add="+")
+        self.voice_indicator.bind("<Leave>", self._hide_voice_indicator_tooltip, add="+")
 
         self.back_button.grid(row=0, column=0, rowspan=2, sticky="nsew")
         self.play_pause_btn.grid(row=1, column=1,pady=0, sticky="nsew")
@@ -439,6 +464,7 @@ class SettingsUI:
             self.fast_forward_display_enabled,
             self._config_float("FAST_FORWARD_SPEED", 1.5),
         )
+        self.set_voice_status(self._voice_status)
 
     def show(self) -> None:
         """Show the floating control window (used after startup splash)."""
@@ -654,6 +680,23 @@ class SettingsUI:
     def bind_anki_check(self, cb):           self._on_anki_check = cb
     def bind_performance_snapshot(self, cb): self._on_performance_snapshot = cb
     def bind_performance_reset(self, cb):    self._on_performance_reset = cb
+    def bind_voice_callbacks(self, **callbacks):
+        mapping = {
+            "toggle_enabled": "voice_toggle_enabled",
+            "list_devices": "voice_list_devices",
+            "model_status": "voice_model_status",
+            "download_model": "voice_download_model",
+            "cancel_download": "voice_cancel_download",
+            "remove_model": "voice_remove_model",
+            "test_microphone": "voice_test_microphone",
+            "stop_microphone_test": "voice_stop_microphone_test",
+            "set_microphone_monitor": "voice_set_microphone_monitor",
+            "list_windows": "voice_list_windows",
+        }
+        for source, target in mapping.items():
+            callback = callbacks.get(source)
+            if callable(callback):
+                setattr(self, f"_on_{target}", callback)
     def bind_settings_open(self, cb):        self._on_settings_open = cb
     def bind_annotation_callbacks(self, **callbacks):
         mapping = {
@@ -817,17 +860,23 @@ class SettingsUI:
             )
 
     def _toggle_input_mode(self):
-        if self.input_mode == 1:
-            self.input_mode = 2
-        elif self.input_mode == 2:
-            self.input_mode = 3
-        else:
-            self.input_mode = 1
+        next_mode = 1 if self.input_mode == 3 else int(self.input_mode) + 1
+        self.set_input_mode(next_mode)
+
+    def set_input_mode(self, mode: int) -> bool:
+        try:
+            mode = int(mode)
+        except Exception:
+            return False
+        if mode not in (1, 2, 3):
+            return False
+        self.input_mode = mode
         if self.input_mode in (1, 2):
             self._last_active_input_mode = self.input_mode
         self._sync_input_mode_runtime_flags()
         self._persist_input_mode_state()
         self._refresh_input_mode_button()
+        return True
 
     def set_hotkeys_disabled(self, disabled: bool):
         disabled = bool(disabled)
@@ -917,6 +966,7 @@ class SettingsUI:
             self.settings_btn.place_configure(x=40, y=0, width=40, height=40)
             self.refresh_btn .place_configure(x= 80, y=0, width=40, height=40)
             self._place_fast_forward_display(phone_mode=True)
+            self._place_voice_indicator(phone_mode=True)
             h = 160
         else:
             self.handle_settings_frame.configure(width=30, height=10)
@@ -926,6 +976,7 @@ class SettingsUI:
             self.settings_btn.place_configure(x=10, y=0, width=10, height=10)
             self.refresh_btn .place_configure(x= 20, y=0, width=10, height=10)
             self._place_fast_forward_display(phone_mode=False)
+            self._place_voice_indicator(phone_mode=False)
             h = 40
 
         self.time_entry.config(font=f_large)
@@ -1000,6 +1051,7 @@ class SettingsUI:
                 btn.place_forget()
             except Exception:
                 pass
+            self._place_voice_indicator(bool(self.default_phone_mode))
             return
         try:
             speed = float(speed)
@@ -1014,6 +1066,7 @@ class SettingsUI:
                 relief=tk.FLAT,
             )
             self._place_fast_forward_display(bool(self.default_phone_mode))
+            self._place_voice_indicator(bool(self.default_phone_mode))
         except Exception:
             pass
 
@@ -1033,6 +1086,182 @@ class SettingsUI:
         else:
             btn.place_configure(relx=1.0, x=-48, y=0, width=48, height=18)
             btn.configure(font=("Arial", 7, "bold"))
+
+    def _place_voice_indicator(self, phone_mode: bool) -> None:
+        indicator = getattr(self, "voice_indicator", None)
+        if indicator is None:
+            return
+        speed_visible = bool(getattr(self, "fast_forward_display_enabled", True))
+        if phone_mode:
+            offset = 98 if speed_visible else 40
+            indicator.place_configure(relx=1.0, x=-offset, y=0, width=40, height=40)
+            indicator.configure(font=("Segoe UI Symbol", 15))
+        else:
+            offset = 64 if speed_visible else 16
+            indicator.place_configure(relx=1.0, x=-offset, y=0, width=16, height=18)
+            indicator.configure(font=("Segoe UI Symbol", 7))
+
+    def _on_voice_indicator_click(self):
+        self._hide_voice_indicator_tooltip()
+        try:
+            self._on_voice_toggle_enabled()
+        except Exception as e:
+            logger.debug("Failed to toggle voice commands", exc_info=True)
+            self.set_voice_status({"state": "error", "message": f"Voice toggle failed: {e}"})
+        return "break"
+
+    def set_voice_status(self, status: dict) -> None:
+        normalized = dict(status or {})
+        state = str(normalized.get("state") or "disabled").lower()
+        normalized["state"] = state
+        normalized.setdefault("message", "")
+        self._voice_status = normalized
+        colors = {
+            "listening": "#2f8f4e",
+            "recognized": "#2f8f4e",
+            "awaiting_command": "#b07a18",
+            "loading": "#b07a18",
+            "working": "#b07a18",
+            "testing": "#b07a18",
+            "downloading": "#b07a18",
+            "error": "#b33939",
+            "disabled": "#666666",
+            "ready": "#666666",
+        }
+        indicator = getattr(self, "voice_indicator", None)
+        if indicator is not None:
+            color = colors.get(state, "#666666")
+            try:
+                indicator.configure(bg=color, activebackground=color)
+            except Exception:
+                pass
+        if state == "awaiting_command":
+            self._start_voice_indicator_animation()
+        else:
+            self._stop_voice_indicator_animation()
+        voice_tab = getattr(self, "_voice_tab_ui", None)
+        if voice_tab is not None:
+            try:
+                voice_tab.set_status(normalized)
+            except Exception:
+                logger.debug("Failed to refresh Voice tab status", exc_info=True)
+
+    def _start_voice_indicator_animation(self) -> None:
+        if self._voice_indicator_animation_job is not None:
+            return
+        self._voice_indicator_animation_frame = 0
+        frames = (
+            "\N{BULLET OPERATOR}..",
+            ".\N{BULLET OPERATOR}.",
+            "..\N{BULLET OPERATOR}",
+            ".\N{BULLET OPERATOR}.",
+        )
+
+        def _tick() -> None:
+            self._voice_indicator_animation_job = None
+            if str(self._voice_status.get("state") or "") != "awaiting_command":
+                self._stop_voice_indicator_animation()
+                return
+            indicator = getattr(self, "voice_indicator", None)
+            if indicator is None:
+                return
+            try:
+                index = self._voice_indicator_animation_frame % len(frames)
+                indicator.configure(text=frames[index])
+                self._voice_indicator_animation_frame += 1
+                self._voice_indicator_animation_job = self.control_window.after(160, _tick)
+            except Exception:
+                self._voice_indicator_animation_job = None
+
+        _tick()
+
+    def _stop_voice_indicator_animation(self) -> None:
+        job, self._voice_indicator_animation_job = self._voice_indicator_animation_job, None
+        if job is not None:
+            try:
+                self.control_window.after_cancel(job)
+            except Exception:
+                pass
+        indicator = getattr(self, "voice_indicator", None)
+        if indicator is not None:
+            try:
+                indicator.configure(text="\N{STUDIO MICROPHONE}")
+            except Exception:
+                pass
+
+    def set_voice_enabled_value(self, enabled: bool) -> None:
+        voice_tab = getattr(self, "_voice_tab_ui", None)
+        if voice_tab is not None:
+            try:
+                voice_tab.set_enabled(bool(enabled))
+            except Exception:
+                pass
+
+    def set_voice_playback_target(self, target: dict) -> None:
+        voice_tab = getattr(self, "_voice_tab_ui", None)
+        if voice_tab is not None:
+            try:
+                voice_tab.set_playback_target(target)
+            except Exception:
+                pass
+
+    def set_voice_microphone_level(self, level: float, peak: float = 0.0) -> None:
+        voice_tab = getattr(self, "_voice_tab_ui", None)
+        if voice_tab is not None:
+            try:
+                voice_tab.set_microphone_level(level, peak)
+            except Exception:
+                pass
+
+    def set_voice_microphone_test_state(self, active: bool, *, monitor_available: bool = True) -> None:
+        voice_tab = getattr(self, "_voice_tab_ui", None)
+        if voice_tab is not None:
+            try:
+                voice_tab.set_microphone_test_state(active, monitor_available=monitor_available)
+            except Exception:
+                pass
+
+    def set_voice_microphone_test_stopping(self) -> None:
+        voice_tab = getattr(self, "_voice_tab_ui", None)
+        if voice_tab is not None:
+            try:
+                voice_tab.set_microphone_test_stopping()
+            except Exception:
+                pass
+
+    def _show_voice_indicator_tooltip(self, _event=None) -> None:
+        if self._voice_indicator_tooltip is not None or self.voice_indicator is None:
+            return
+        try:
+            win = tk.Toplevel(self.control_window)
+            win.overrideredirect(True)
+            win.attributes("-topmost", True)
+            message = str(self._voice_status.get("message") or "Voice commands")
+            tk.Label(
+                win,
+                text=message,
+                justify="left",
+                background="#ffffe0",
+                relief="solid",
+                borderwidth=1,
+                padx=6,
+                pady=3,
+                wraplength=360,
+            ).pack()
+            x = int(self.voice_indicator.winfo_rootx())
+            y = int(self.voice_indicator.winfo_rooty() + self.voice_indicator.winfo_height() + 4)
+            win.geometry(f"+{x}+{y}")
+            self._voice_indicator_tooltip = win
+        except Exception:
+            self._voice_indicator_tooltip = None
+
+    def _hide_voice_indicator_tooltip(self, _event=None) -> None:
+        win, self._voice_indicator_tooltip = self._voice_indicator_tooltip, None
+        if win is not None:
+            try:
+                win.destroy()
+            except Exception:
+                pass
 
     #HELPERS
     def _on_settings(self, event):#button to lift the root window

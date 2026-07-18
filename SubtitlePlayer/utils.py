@@ -10,6 +10,7 @@ import queue
 import re
 import sys
 import threading
+import time
 import tkinter as tk
 
 logger = logging.getLogger(__name__)
@@ -259,13 +260,106 @@ def find_window_by_title(title_filters: str) -> int | None:
     return None
 
 
+def list_visible_windows(exclude_hwnds=None) -> list[dict]:
+    """Return visible Windows top-level windows with stable matching metadata."""
+    try:
+        import ctypes
+        import os
+        from ctypes import wintypes
+
+        if not sys.platform.startswith("win"):
+            return []
+
+        excluded = {int(hwnd) for hwnd in (exclude_hwnds or ()) if hwnd}
+        current_pid = int(os.getpid())
+        user32 = ctypes.windll.user32
+        kernel32 = ctypes.windll.kernel32
+        process_query_limited_information = 0x1000
+        enum_proc_type = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+        kernel32.OpenProcess.restype = wintypes.HANDLE
+        kernel32.QueryFullProcessImageNameW.restype = wintypes.BOOL
+        windows: list[dict] = []
+
+        def _process_name(hwnd: int) -> str:
+            pid = wintypes.DWORD()
+            user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+            if not pid.value:
+                return ""
+            handle = kernel32.OpenProcess(process_query_limited_information, False, pid.value)
+            if not handle:
+                return ""
+            try:
+                size = wintypes.DWORD(32768)
+                buffer = ctypes.create_unicode_buffer(size.value)
+                if kernel32.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)):
+                    return os.path.basename(str(buffer.value or ""))
+            finally:
+                kernel32.CloseHandle(handle)
+            return ""
+
+        def _callback(hwnd, _lparam):
+            try:
+                hwnd = int(hwnd)
+                if hwnd in excluded or not user32.IsWindowVisible(hwnd):
+                    return True
+                window_pid = wintypes.DWORD()
+                user32.GetWindowThreadProcessId(hwnd, ctypes.byref(window_pid))
+                if int(window_pid.value or 0) == current_pid:
+                    return True
+                length = int(user32.GetWindowTextLengthW(hwnd))
+                if length <= 0:
+                    return True
+                title_buffer = ctypes.create_unicode_buffer(length + 1)
+                user32.GetWindowTextW(hwnd, title_buffer, length + 1)
+                title = str(title_buffer.value or "").strip()
+                if not title:
+                    return True
+                class_buffer = ctypes.create_unicode_buffer(256)
+                user32.GetClassNameW(hwnd, class_buffer, len(class_buffer))
+                windows.append(
+                    {
+                        "hwnd": hwnd,
+                        "title": title,
+                        "process": _process_name(hwnd),
+                        "class_name": str(class_buffer.value or ""),
+                    }
+                )
+            except Exception:
+                logger.debug("Failed to inspect a visible window", exc_info=True)
+            return True
+
+        user32.EnumWindows(enum_proc_type(_callback), 0)
+        windows.sort(key=lambda item: (str(item.get("process") or "").casefold(), str(item.get("title") or "").casefold()))
+        return windows
+    except Exception:
+        logger.debug("Failed to enumerate visible windows", exc_info=True)
+        return []
+
+
+def find_window_target(target, exclude_hwnds=None) -> dict | None:
+    """Resolve a saved voice-playback target against currently visible windows."""
+    if not isinstance(target, dict):
+        return None
+    title_text = str(target.get("title_filter") or target.get("title") or "").strip().casefold()
+    title_filters = [title_text] if title_text else []
+    process = str(target.get("process") or "").strip().casefold()
+    for window in list_visible_windows(exclude_hwnds=exclude_hwnds):
+        if process and str(window.get("process") or "").casefold() != process:
+            continue
+        if title_filters:
+            title = str(window.get("title") or "").casefold()
+            if not any(part in title for part in title_filters):
+                continue
+        if title_filters or process:
+            return window
+    return None
+
+
 def focus_windows_hwnd(hwnd: int) -> bool:
     """Try to bring a Windows hwnd to foreground so an external hotkey reaches it."""
     try:
         import ctypes
         import sys
-        import time
-
         if not sys.platform.startswith("win") or not hwnd:
             return False
 
@@ -274,17 +368,22 @@ def focus_windows_hwnd(hwnd: int) -> bool:
         sw_restore = 9
         user32.ShowWindow(hwnd, sw_restore)
         user32.SetForegroundWindow(hwnd)
-        time.sleep(0.05)
-        foreground = int(user32.GetForegroundWindow())
-        try:
-            foreground = int(user32.GetAncestor(foreground, 2)) or foreground
-        except Exception:
-            pass
         try:
             root_hwnd = int(user32.GetAncestor(hwnd, 2)) or hwnd
         except Exception:
             root_hwnd = hwnd
-        return int(foreground) == int(root_hwnd)
+        deadline = time.perf_counter() + 0.06
+        while True:
+            foreground = int(user32.GetForegroundWindow())
+            try:
+                foreground = int(user32.GetAncestor(foreground, 2)) or foreground
+            except Exception:
+                pass
+            if int(foreground) == int(root_hwnd):
+                return True
+            if time.perf_counter() >= deadline:
+                return False
+            time.sleep(0.005)
     except Exception:
         logger.debug("Failed to focus hwnd %s", hwnd, exc_info=True)
         return False
@@ -317,6 +416,9 @@ def send_global_hotkey(hotkey: str) -> bool:
         "comma": ",",
         "return": "enter",
         "esc": "escape",
+        "arrowleft": "left",
+        "arrowright": "right",
+        "spacebar": "space",
     }
     keys = [aliases.get(key, key) for key in keys]
     try:
@@ -332,6 +434,75 @@ def send_global_hotkey(hotkey: str) -> bool:
     except Exception:
         logger.debug("Failed to send global hotkey %s", hotkey, exc_info=True)
         return False
+
+
+def send_hotkey_to_window(
+    target,
+    hotkey: str,
+    *,
+    exclude_hwnds=None,
+    restore_foreground: bool = True,
+    repeat_count: int = 1,
+    repeat_interval_ms: int = 40,
+    before_send=None,
+) -> dict:
+    """Focus a matched window, send one or more hotkeys, then restore foreground focus."""
+    window = None
+    if isinstance(target, dict):
+        try:
+            if int(target.get("hwnd") or 0) > 0:
+                window = dict(target)
+        except Exception:
+            window = None
+    if window is None:
+        window = find_window_target(target, exclude_hwnds=exclude_hwnds)
+    if not window:
+        return {"ok": False, "reason": "target_not_found"}
+    hwnd = int(window.get("hwnd") or 0)
+    previous = get_foreground_root_hwnd()
+    if not hwnd or not focus_windows_hwnd(hwnd):
+        return {"ok": False, "reason": "target_focus_failed", "window": window}
+    try:
+        repeat_count = max(1, min(20, int(repeat_count)))
+    except Exception:
+        repeat_count = 1
+    try:
+        repeat_interval_ms = max(0, min(2000, int(repeat_interval_ms)))
+    except Exception:
+        repeat_interval_ms = 40
+    sent_count = 0
+    try:
+        if callable(before_send):
+            try:
+                before_send(dict(window))
+            except Exception:
+                logger.debug("External hotkey pre-send callback failed", exc_info=True)
+                return {
+                    "ok": False,
+                    "reason": "before_send_failed",
+                    "window": window,
+                    "sent_count": 0,
+                }
+        for index in range(repeat_count):
+            if not send_global_hotkey(hotkey):
+                break
+            sent_count += 1
+            if index + 1 < repeat_count:
+                time.sleep(repeat_interval_ms / 1000.0)
+    finally:
+        if restore_foreground and previous and int(previous) != hwnd:
+            try:
+                focus_windows_hwnd(int(previous))
+            except Exception:
+                logger.debug("Failed to restore the previous foreground window", exc_info=True)
+    if sent_count != repeat_count:
+        return {
+            "ok": False,
+            "reason": "hotkey_send_failed",
+            "window": window,
+            "sent_count": sent_count,
+        }
+    return {"ok": True, "reason": "sent", "window": window, "sent_count": sent_count}
 
 
 def get_window_screen_rect(win: tk.Misc):

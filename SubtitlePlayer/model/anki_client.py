@@ -329,8 +329,14 @@ class AnkiClient:
         selection_text: str,
         subtitle_text: str = "",
         anime_name: str = "",
+        copy_existing_media: bool = True,
     ) -> Dict:
-        prepared = self.prepare_note_from_selection(selection_text, subtitle_text, anime_name=anime_name)
+        prepared = self.prepare_note_from_selection(
+            selection_text,
+            subtitle_text,
+            anime_name=anime_name,
+            copy_existing_media=copy_existing_media,
+        )
         return self.commit_prepared_note(prepared)
 
     def prepare_note_from_selection(
@@ -338,6 +344,7 @@ class AnkiClient:
         selection_text: str,
         subtitle_text: str = "",
         anime_name: str = "",
+        copy_existing_media: bool = True,
     ) -> Dict:
         selected = (selection_text or "").strip()
         if not selected:
@@ -381,7 +388,11 @@ class AnkiClient:
             sentence_translation=sentence_translation,
             subtitle_with_rubies=subtitle_with_rubies,
         )
-        copied_media_fields = self._copy_existing_sentence_media_fields(fields)
+        copied_media_fields = (
+            self._copy_existing_sentence_media_fields(fields)
+            if bool(copy_existing_media)
+            else {}
+        )
 
         note = {
             "deckName": self.deck_name,
@@ -758,7 +769,7 @@ class AnkiClient:
             rendered_sentence=rendered_sentence,
         )
         if not targets:
-            logger.warning(
+            logger.debug(
                 "Anki media copy-back found no previous same-sentence note for source %s: AddRubiesToSentenceJA=%r SentenceJA=%r",
                 source_note_id,
                 raw_sentence,

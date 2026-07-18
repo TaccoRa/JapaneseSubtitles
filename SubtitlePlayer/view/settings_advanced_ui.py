@@ -13,6 +13,7 @@ from typing import Any
 
 from model.anki_activity import RANGE_OPTIONS, build_activity_series, migrate_daily_history
 from view.annotation_tab import AnnotationTab
+from view.voice_tab import VoiceTab
 from utils import dispatch_to_tk, get_monitor_rects, show_normal_window_no_activate
 
 logger = logging.getLogger(__name__)
@@ -328,11 +329,13 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         anki_tab = tk.Frame(notebook)
         annotation_tab = tk.Frame(notebook)
         shortcuts_tab = tk.Frame(notebook)
+        voice_tab = tk.Frame(notebook)
         ocr_tab = tk.Frame(notebook)
         notebook.add(general_tab, text="General")
         notebook.add(anki_tab, text="Anki")
         notebook.add(annotation_tab, text="Annotation")
         notebook.add(shortcuts_tab, text="Shortcuts")
+        notebook.add(voice_tab, text="Voice")
         notebook.add(ocr_tab, text="OCR")
         self._performance_tab = None
         if bool(self.config.get("DEBUGGING") or False):
@@ -345,6 +348,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         self._build_advanced_tab(anki_tab, self._advanced_anki_columns())
         self._annotation_tab_ui = AnnotationTab(self.settings_ui, annotation_tab, str(annotation_tab))
         self._build_advanced_tab(shortcuts_tab, self._advanced_shortcut_columns())
+        self._voice_tab_id = str(voice_tab)
+        self._voice_tab_ui = VoiceTab(self.settings_ui, voice_tab, self._voice_tab_id)
         ocr_content = self._build_advanced_tab(ocr_tab, self._advanced_ocr_columns())
 
         self._build_general_actions(general_content)
@@ -427,6 +432,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             self._performance_tab = None
             self._performance_text = None
             self._annotation_tab_ui = None
+            self._voice_tab_ui = None
+            self._voice_tab_id = None
             self._advanced_label_align_groups = {}
             self._ocr_region_count_trace_var = None
             self._advanced_hidden_by_minimize = False
@@ -2123,6 +2130,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                     {"key": "SHORTCUT_FAST_FORWARD_SPEED_UP", "label": "Fast-forward speed up", "type": "str", "default": "shift+.", "allow_empty": True},
                     {"key": "SHORTCUT_FAST_FORWARD_SPEED_DOWN", "label": "Fast-forward speed down", "type": "str", "default": "shift+comma", "allow_empty": True},
                     {"key": "SHORTCUT_TOGGLE_DEBUGGING", "label": "Toggle debugging", "type": "str", "default": "ctrl+shift+d", "allow_empty": True},
+                    {"key": "SHORTCUT_TOGGLE_VOICE", "label": "Start/stop voice listening", "type": "str", "default": "shift+l", "allow_empty": True},
                 ],
             ),
             (
@@ -2229,6 +2237,13 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                         "tooltip": "Leave blank to capture after the Anki add finishes. Use a negative value such as -500 to start capture 500 ms earlier.",
                     },
                     {"key": "POST_ADD_CAPTURE_MEDIA_COPY_DELAY_MS", "label": "Media copy check interval (ms)", "type": "int", "default": 1500, "min": 250, "max": 60000, "width": 16},
+                    {
+                        "key": "POST_ADD_CAPTURE_RESUME_PLAYBACK",
+                        "label": "Resume playback when captured media arrives",
+                        "type": "bool",
+                        "default": False,
+                        "tooltip": "After fresh Sound and Image values appear in the captured Anki note, resume the external video and SubtitlePlayer together.",
+                    },
                     {
                         "key": "POST_ADD_CAPTURE_MOVE_MOUSE_TO_BOTTOM",
                         "label": "Move mouse to screen bottom",
@@ -2840,6 +2855,12 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 annotation_tab.refresh_sync_status_labels()
             except Exception:
                 logger.debug("Failed to refresh annotation tab after config load", exc_info=True)
+        voice_tab = getattr(self, "_voice_tab_ui", None)
+        if voice_tab is not None:
+            try:
+                voice_tab.load_values()
+            except Exception:
+                logger.debug("Failed to refresh Voice tab after config load", exc_info=True)
 
     def _collect_advanced_values(self):
         if not hasattr(self, "_advanced_vars") or not hasattr(self, "_advanced_meta"):
@@ -2898,6 +2919,15 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 values[key] = float(num)
                 var.set(self._format_number(num))
                 continue
+        voice_tab = getattr(self, "_voice_tab_ui", None)
+        if voice_tab is not None:
+            try:
+                voice_result = voice_tab.collect_values()
+                values.update(dict(voice_result.get("values") or {}))
+                errors.extend(str(error) for error in (voice_result.get("errors") or []) if str(error))
+            except Exception as exc:
+                logger.exception("Failed to collect Voice tab settings")
+                errors.append(f"Voice settings ({exc})")
         if errors:
             return {"errors": errors}
         return {"values": values}
@@ -2917,6 +2947,18 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         return list(keys or [])
 
     def _reset_selected_advanced_tab_to_defaults(self):
+        notebook = getattr(self, "_advanced_notebook", None)
+        try:
+            selected_tab = str(notebook.select() or "") if notebook is not None else ""
+        except Exception:
+            selected_tab = ""
+        voice_tab = getattr(self, "_voice_tab_ui", None)
+        if voice_tab is not None and selected_tab == str(getattr(self, "_voice_tab_id", "") or ""):
+            voice_tab.reset_defaults()
+            self._apply_advanced_settings(persist=True)
+            if hasattr(self, "_advanced_status_var"):
+                self._advanced_status_var.set("Reset Voice tab to defaults and saved.")
+            return
         keys = self._get_selected_advanced_tab_keys()
         if not keys:
             if hasattr(self, "_advanced_status_var"):
