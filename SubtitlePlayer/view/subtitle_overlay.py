@@ -31,6 +31,9 @@ class SubtitleOverlayUI:
         self.sub_window: tk.Toplevel = None 
         self.subtitle_canvas: tk.Canvas = None
         self.subtitle_handle = None
+        self._handle_enabled = bool(self.config.get("PHONEMODE_DEFAULT") or False) and (
+            self.config.get("PHONEMODE_SUBTITLE_HANDLE_ENABLED") is not False
+        )
         self._handle_width = 80
         self.max_w, self.max_h = overlay_geometry
         self.center_x = self.config.get("LAST_SUB_CENTER_X")
@@ -82,7 +85,7 @@ class SubtitleOverlayUI:
             height=self.max_h
         )
         self.subtitle_canvas.pack(fill="both", expand=True)
-        if self.config.get("PHONEMODE_DEFAULT"):
+        if self._handle_enabled:
             self.show_handle()
         else:
             self.hide_handle()
@@ -160,6 +163,9 @@ class SubtitleOverlayUI:
         )
 
     def show_handle(self):
+        if not self._handle_enabled:
+            self.hide_handle()
+            return
         if self.subtitle_handle:
             try:
                 if self.subtitle_handle.winfo_exists():
@@ -201,6 +207,13 @@ class SubtitleOverlayUI:
                 logger.debug("Failed to hide subtitle handle: %s", e, exc_info=True)
                 self.subtitle_handle.attributes("-alpha", 0.0)
         self._bind_subtitle_drag()
+
+    def set_handle_enabled(self, enabled: bool) -> None:
+        self._handle_enabled = bool(enabled)
+        if self._handle_enabled:
+            self.show_handle()
+        else:
+            self.hide_handle()
 
     def _save_center_position(self, x, y, w, h):
         center_x = x + w / 2
@@ -268,5 +281,7 @@ class SubtitleOverlayUI:
         self.sub_window.deiconify()
         self.sub_window.lift()
         self.sub_window.attributes("-topmost", True)
-        if self.config.get("PHONEMODE_DEFAULT"):
+        if self._handle_enabled:
             self.show_handle()
+        else:
+            self.hide_handle()

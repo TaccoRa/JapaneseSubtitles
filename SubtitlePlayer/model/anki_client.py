@@ -16,6 +16,9 @@ from typing import Dict, List, Optional
 
 import requests
 
+from model.word_database import godan_base_from_potential_form
+from model.anki_word_sync import format_anime_tag
+
 logger = logging.getLogger(__name__)
 
 
@@ -23,15 +26,20 @@ class AnkiConnectRequestError(RuntimeError):
     """Raised when AnkiConnect drops or rejects a request."""
 
 try:
-    from SubtitlePlayer.furigana_splitter import iter_number_counter_matches, split_furigana, split_moras
+    from SubtitlePlayer.furigana_splitter import (
+        iter_number_counter_matches,
+        iter_ordinal_number_matches,
+        split_furigana,
+        split_moras,
+    )
 except ImportError:
     try:
-        from furigana_splitter import iter_number_counter_matches, split_furigana, split_moras
+        from furigana_splitter import iter_number_counter_matches, iter_ordinal_number_matches, split_furigana, split_moras
     except ImportError:
         _package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
         if _package_dir not in sys.path:
             sys.path.insert(0, _package_dir)
-        from furigana_splitter import iter_number_counter_matches, split_furigana, split_moras
+        from furigana_splitter import iter_number_counter_matches, iter_ordinal_number_matches, split_furigana, split_moras
 
 try:
     from fugashi import Tagger
@@ -51,6 +59,34 @@ class AnkiClient:
     RUBY_READING_OVERRIDES = {
         "十分": "じゅうぶん",
     }
+    SPACE_TRANSLATION = str.maketrans(
+        {
+            "\u00a0": " ",
+            "\u1680": " ",
+            "\u180e": " ",
+            "\u2000": " ",
+            "\u2001": " ",
+            "\u2002": " ",
+            "\u2003": " ",
+            "\u2004": " ",
+            "\u2005": " ",
+            "\u2006": " ",
+            "\u2007": " ",
+            "\u2008": " ",
+            "\u2009": " ",
+            "\u200a": " ",
+            "\u200b": " ",
+            "\u202f": " ",
+            "\u205f": " ",
+            "\u3000": " ",
+            "\ufeff": " ",
+        }
+    )
+    INLINE_FURIGANA_RE = re.compile(
+        r"(?<=[0-9\uff10-\uff19\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff"
+        r"\U00020000-\U0002ceaf])"
+        r"\[([\u3040-\u30ff\u31f0-\u31ff\u30fc\u30fb\uff65]+)\]"
+    )
     TEXT_CACHE_LIMIT = 512
 
     def __init__(self, config) -> None:
@@ -292,20 +328,29 @@ class AnkiClient:
         self,
         selection_text: str,
         subtitle_text: str = "",
+        anime_name: str = "",
     ) -> Dict:
-        prepared = self.prepare_note_from_selection(selection_text, subtitle_text)
+        prepared = self.prepare_note_from_selection(selection_text, subtitle_text, anime_name=anime_name)
         return self.commit_prepared_note(prepared)
 
     def prepare_note_from_selection(
         self,
         selection_text: str,
         subtitle_text: str = "",
+        anime_name: str = "",
     ) -> Dict:
         selected = (selection_text or "").strip()
         if not selected:
             raise ValueError("No selected text.")
 
-        subtitle = (subtitle_text or "").strip()
+        subtitle, subtitle_with_rubies = self._split_preformatted_sentence(subtitle_text)
+        anime = str(
+            anime_name
+            or self.config.get("LAST_DISPLAY_ANIME_NAME")
+            or self.config.get("LAST_ANIME_NAME")
+            or ""
+        ).strip()
+        anime_tag = self._anki_anime_tag(anime)
         card_word = self._card_headword_for_anki(selected, subtitle)
         marker_tags = self._anki_marker_tags_for_selection(selected, card_word, subtitle)
         word_translation = self._translate_word(card_word)
@@ -334,6 +379,7 @@ class AnkiClient:
             subtitle=subtitle,
             word_translation=word_translation,
             sentence_translation=sentence_translation,
+            subtitle_with_rubies=subtitle_with_rubies,
         )
         copied_media_fields = self._copy_existing_sentence_media_fields(fields)
 
@@ -341,7 +387,7 @@ class AnkiClient:
             "deckName": self.deck_name,
             "modelName": self.model_name,
             "fields": fields,
-            "tags": self._merge_anki_tags(self.tags, marker_tags),
+            "tags": self._merge_anki_tags(self.tags, marker_tags, [anime_tag] if anime_tag else []),
             "options": {"allowDuplicate": True},
         }
 
@@ -355,6 +401,8 @@ class AnkiClient:
             "selection_surface_text": selected,
             "selection_lookup_text": card_word,
             "anki_marker_tags": marker_tags,
+            "anime_name": anime,
+            "anime_tag": anime_tag,
             "copied_media_fields": copied_media_fields,
             "translation_candidates": translation_candidates,
             "translation_provider_used": {
@@ -376,6 +424,7 @@ class AnkiClient:
         if not isinstance(fields, dict):
             raise ValueError("Prepared Anki note is missing fields.")
         note["fields"] = fields
+        self._encode_sentence_line_breaks_for_anki(fields)
         tags = note.get("tags")
         if isinstance(tags, str):
             note["tags"] = self._merge_anki_tags(tags.replace(";", ",").split(","))
@@ -410,6 +459,19 @@ class AnkiClient:
             "stroke_svg_sync_fields": fields,
         })
         return result
+
+    @staticmethod
+    def _to_anki_html_line_breaks(value: str) -> str:
+        text = re.sub(r"\r\n?", "\n", str(value or ""))
+        return text.replace("\n", "<br>")
+
+    def _encode_sentence_line_breaks_for_anki(self, fields: Dict[str, str]) -> None:
+        for field_name in (
+            self.sentence_ja_field,
+            self.add_rubies_to_sentence_ja_field,
+        ):
+            if field_name in fields:
+                fields[field_name] = self._to_anki_html_line_breaks(fields[field_name])
 
 
     def _add_note_without_duplicate_retry(self, note: Dict, fields: Dict[str, str]) -> int:
@@ -520,6 +582,7 @@ class AnkiClient:
         subtitle: str,
         word_translation: str,
         sentence_translation: str,
+        subtitle_with_rubies: str = "",
     ) -> Dict[str, str]:
         model_fields = self._get_model_field_names()
         fields: Dict[str, str] = {}
@@ -542,17 +605,24 @@ class AnkiClient:
             )
 
         selected_raw = (selected or "").strip()
-        subtitle_raw = (subtitle or "").strip()
+        subtitle_raw, detected_subtitle_with_rubies = self._split_preformatted_sentence(subtitle)
+        prepared_subtitle_with_rubies = (
+            self._normalize_inline_spacing(subtitle_with_rubies).strip()
+            or detected_subtitle_with_rubies
+        )
         selected_with_rubies = self._to_furigana_brackets(
             selected_raw,
             collapse_inline_reading=False,
             sentence_spacing=False,
         )
-        sentence_with_rubies = self._to_furigana_brackets(
-            subtitle_raw,
-            collapse_inline_reading=True,
-            sentence_spacing=True,
-        )
+        if prepared_subtitle_with_rubies:
+            sentence_with_rubies = escape(prepared_subtitle_with_rubies)
+        else:
+            sentence_with_rubies = self._to_furigana_brackets(
+                subtitle_raw,
+                collapse_inline_reading=True,
+                sentence_spacing=True,
+            )
 
         back_value = self._dedupe_translation_entries(word_translation)
         sentence_de = (sentence_translation).strip()
@@ -574,6 +644,13 @@ class AnkiClient:
 
         return fields
 
+    @classmethod
+    def _split_preformatted_sentence(cls, text: str) -> tuple[str, str]:
+        value = cls._normalize_inline_spacing(text).strip()
+        if not value or not cls.INLINE_FURIGANA_RE.search(value):
+            return value, ""
+        return cls.INLINE_FURIGANA_RE.sub("", value), value
+
     def _copy_existing_sentence_media_fields(self, fields: Dict[str, str]) -> Dict[str, str]:
         media_fields = [
             name
@@ -592,6 +669,272 @@ class AnkiClient:
                 copied[name] = value
         return copied
 
+    def copy_captured_sentence_media_to_previous_note(
+        self,
+        source_note_id: int,
+        *,
+        allow_partial_source_media: bool = True,
+    ) -> Dict:
+        """Copy captured media to every earlier same-sentence note with empty media fields."""
+        try:
+            source_note_id = int(source_note_id)
+        except Exception:
+            source_note_id = 0
+        if source_note_id <= 0:
+            return {"source_note_id": source_note_id, "target_note_id": None, "copied": {}, "reason": "missing_source_note_id"}
+
+        media_fields = [name for name in (self.sound_field, self.image_field) if str(name or "").strip()]
+        if not media_fields:
+            return {
+                "source_note_id": source_note_id,
+                "target_note_id": None,
+                "copied": {},
+                "available_media_fields": [],
+                "missing_media_fields": [],
+                "reason": "missing_media_fields",
+            }
+
+        try:
+            notes = self._invoke("notesInfo", {"notes": [source_note_id]}) or []
+        except Exception:
+            logger.exception("Failed to read source note %s for post-capture media copy", source_note_id)
+            return {
+                "source_note_id": source_note_id,
+                "target_note_id": None,
+                "copied": {},
+                "available_media_fields": [],
+                "missing_media_fields": list(media_fields),
+                "reason": "source_notes_info_failed",
+            }
+        if not notes:
+            return {
+                "source_note_id": source_note_id,
+                "target_note_id": None,
+                "copied": {},
+                "available_media_fields": [],
+                "missing_media_fields": list(media_fields),
+                "reason": "source_note_missing",
+            }
+
+        source_note = notes[0]
+        source_media = {
+            name: self._note_field_value(source_note, name).strip()
+            for name in media_fields
+            if self._note_field_value(source_note, name).strip()
+        }
+        available_source_media = sorted(source_media.keys())
+        missing_source_media = [name for name in media_fields if name not in source_media]
+        logger.debug(
+            "Anki media copy-back inspected source note %s: available=%s missing=%s values=%s",
+            source_note_id,
+            available_source_media or "none",
+            missing_source_media or "none",
+            {name: value[:200] for name, value in source_media.items()},
+        )
+        if not source_media:
+            return {
+                "source_note_id": source_note_id,
+                "target_note_id": None,
+                "copied": {},
+                "available_media_fields": available_source_media,
+                "missing_media_fields": missing_source_media,
+                "reason": "source_media_missing",
+            }
+        if missing_source_media and not allow_partial_source_media:
+            return {
+                "source_note_id": source_note_id,
+                "target_note_id": None,
+                "copied": {},
+                "available_media_fields": available_source_media,
+                "missing_media_fields": missing_source_media,
+                "reason": "source_media_partial",
+            }
+
+        raw_sentence = self._note_field_value(source_note, self.add_rubies_to_sentence_ja_field)
+        rendered_sentence = self._note_field_value(source_note, self.sentence_ja_field)
+        targets = self._find_previous_same_sentence_notes_for_media_copy(
+            source_note_id=source_note_id,
+            raw_sentence=raw_sentence,
+            rendered_sentence=rendered_sentence,
+        )
+        if not targets:
+            logger.warning(
+                "Anki media copy-back found no previous same-sentence note for source %s: AddRubiesToSentenceJA=%r SentenceJA=%r",
+                source_note_id,
+                raw_sentence,
+                rendered_sentence,
+            )
+            return {
+                "source_note_id": source_note_id,
+                "target_note_id": None,
+                "copied": {},
+                "available_media_fields": available_source_media,
+                "missing_media_fields": missing_source_media,
+                "raw_sentence": raw_sentence,
+                "rendered_sentence": rendered_sentence,
+                "reason": "previous_same_sentence_missing",
+            }
+
+        target_ids: List[int] = []
+        copied_by_note: Dict[int, Dict[str, str]] = {}
+        already_complete_note_ids: List[int] = []
+        failed_note_ids: List[int] = []
+        copied_field_names: set[str] = set()
+        for target in targets:
+            target_id = int(target.get("noteId") or 0)
+            if target_id <= 0:
+                continue
+            target_ids.append(target_id)
+            update_fields = {
+                name: value
+                for name, value in source_media.items()
+                if not self._note_field_value(target, name).strip()
+            }
+            if not update_fields:
+                already_complete_note_ids.append(target_id)
+                continue
+            try:
+                self._invoke("updateNoteFields", {"note": {"id": target_id, "fields": update_fields}})
+            except Exception:
+                failed_note_ids.append(target_id)
+                logger.exception("Failed to copy captured media from note %s to note %s", source_note_id, target_id)
+                continue
+            copied_by_note[target_id] = update_fields
+            copied_field_names.update(update_fields.keys())
+
+        copied = {name: source_media[name] for name in source_media if name in copied_field_names}
+        if copied_by_note:
+            logger.debug(
+                "Anki media copy-back copied %s from note %s to %d previous same-sentence note(s): %s",
+                sorted(copied.keys()),
+                source_note_id,
+                len(copied_by_note),
+                sorted(copied_by_note.keys()),
+            )
+        if failed_note_ids:
+            reason = "update_failed"
+        elif copied_by_note:
+            reason = "copied"
+        else:
+            reason = "target_already_has_media"
+        return {
+            "source_note_id": source_note_id,
+            "target_note_id": target_ids[0] if target_ids else None,
+            "target_note_ids": target_ids,
+            "copied": copied,
+            "copied_by_note": copied_by_note,
+            "copied_note_ids": sorted(copied_by_note.keys()),
+            "already_complete_note_ids": already_complete_note_ids,
+            "failed_note_ids": failed_note_ids,
+            "available_media_fields": available_source_media,
+            "missing_media_fields": missing_source_media,
+            "reason": reason,
+        }
+
+    def _find_previous_same_sentence_notes_for_media_copy(
+        self,
+        *,
+        source_note_id: int,
+        raw_sentence: str,
+        rendered_sentence: str,
+    ) -> List[Dict]:
+        queries = self._media_copy_search_queries(raw_sentence, rendered_sentence)
+        if not queries:
+            return []
+
+        logger.debug(
+            "Anki media copy-back searching previous sentence for source note %s with queries=%s",
+            source_note_id,
+            queries,
+        )
+
+        note_ids: set[int] = set()
+        for query in queries:
+            try:
+                found = self._invoke("findNotes", {"query": query}) or []
+            except Exception:
+                logger.exception("Anki post-capture media-copy findNotes failed for query: %s", query)
+                continue
+            for note_id in found:
+                try:
+                    note_id = int(note_id)
+                except Exception:
+                    continue
+                if note_id < int(source_note_id):
+                    note_ids.add(note_id)
+
+        if not note_ids:
+            fallback_query = f'deck:{self._quote_anki_search_text(self.deck_name)} added:30'
+            logger.debug(
+                "Anki media copy-back exact search returned no earlier note IDs for source %s; trying %s",
+                source_note_id,
+                fallback_query,
+            )
+            try:
+                fallback_ids = self._invoke("findNotes", {"query": fallback_query}) or []
+            except Exception:
+                logger.exception("Anki post-capture media-copy fallback search failed: %s", fallback_query)
+                fallback_ids = []
+            for note_id in fallback_ids:
+                try:
+                    note_id = int(note_id)
+                except Exception:
+                    continue
+                if note_id < int(source_note_id):
+                    note_ids.add(note_id)
+
+        if not note_ids:
+            logger.debug("Anki media copy-back sentence search returned no earlier note IDs for source %s", source_note_id)
+            return []
+
+        try:
+            notes = self._invoke("notesInfo", {"notes": sorted(note_ids, reverse=True)[:200]}) or []
+        except Exception:
+            logger.exception("Anki post-capture media-copy notesInfo failed")
+            return []
+
+        target_raw = self._normalize_media_sentence_value(raw_sentence)
+        target_rendered = self._normalize_media_sentence_value(rendered_sentence)
+        ordered = sorted(notes, key=lambda item: int(item.get("noteId") or 0), reverse=True)
+
+        exact_matches = [
+            note
+            for note in ordered
+            if int(note.get("noteId") or 0) < int(source_note_id)
+            and self._note_matches_media_sentence(note, target_raw, target_rendered, exact_add_rubies_only=True)
+        ]
+        if exact_matches:
+            logger.debug(
+                "Anki media copy-back exact sentence matches: source=%s targets=%s candidates=%d",
+                source_note_id,
+                [note.get("noteId") for note in exact_matches],
+                len(notes),
+            )
+            return exact_matches
+
+        rendered_matches = [
+            note
+            for note in ordered
+            if int(note.get("noteId") or 0) < int(source_note_id)
+            and self._note_matches_media_sentence(note, target_raw, target_rendered)
+        ]
+        if rendered_matches:
+            logger.debug(
+                "Anki media copy-back rendered sentence matches: source=%s targets=%s candidates=%d",
+                source_note_id,
+                [note.get("noteId") for note in rendered_matches],
+                len(notes),
+            )
+            return rendered_matches
+        logger.debug(
+            "Anki media copy-back candidates did not exactly match source=%s candidates=%d raw=%r rendered=%r",
+            source_note_id,
+            len(notes),
+            target_raw,
+            target_rendered,
+        )
+        return []
+
     def _find_existing_sentence_media(self, fields: Dict[str, str], media_fields: List[str]) -> Dict[str, str]:
         raw_sentence = str(fields.get(self.add_rubies_to_sentence_ja_field, "") or "")
         rendered_sentence = str(fields.get(self.sentence_ja_field, "") or "")
@@ -602,22 +945,29 @@ class AnkiClient:
         if not queries:
             return {}
 
-        note_ids: set[int] = set()
-        for query in queries:
-            try:
-                found = self._invoke("findNotes", {"query": query}) or []
-            except Exception:
-                logger.exception("Anki media-copy findNotes failed for query: %s", query)
-                continue
-
-            for note_id in found:
+        def _collect_note_ids(query_list: List[str]) -> set[int]:
+            note_ids: set[int] = set()
+            for query in query_list:
                 try:
-                    note_ids.add(int(note_id))
+                    found = self._invoke("findNotes", {"query": query}) or []
                 except Exception:
+                    logger.exception("Anki media-copy findNotes failed for query: %s", query)
                     continue
 
+                for note_id in found:
+                    try:
+                        note_ids.add(int(note_id))
+                    except Exception:
+                        continue
+            return note_ids
+
+        note_ids = _collect_note_ids(queries)
         if not note_ids:
-            logger.info(
+            deck_query = f'deck:{self._quote_anki_search_text(self.deck_name)}'
+            note_ids = _collect_note_ids([deck_query])
+
+        if not note_ids:
+            logger.debug(
                 "No existing Anki notes found for media copy. raw=%r rendered=%r queries=%r",
                 raw_sentence,
                 rendered_sentence,
@@ -626,7 +976,7 @@ class AnkiClient:
             return {}
 
         try:
-            notes = self._invoke("notesInfo", {"notes": sorted(note_ids, reverse=True)[:100]}) or []
+            notes = self._invoke("notesInfo", {"notes": sorted(note_ids, reverse=True)[:200]}) or []
         except Exception:
             logger.exception("Anki media-copy notesInfo failed")
             return {}
@@ -650,7 +1000,7 @@ class AnkiClient:
                 logger.info("Copied existing Anki media fields: %s", sorted(best.keys()))
                 return best
 
-        logger.info(
+        logger.debug(
             "No previous exact AddRubiesToSentenceJA note had copyable media; checking rendered-sentence fallback."
         )
 
@@ -669,7 +1019,7 @@ class AnkiClient:
                 logger.info("Copied existing Anki media fields from fallback match: %s", sorted(best.keys()))
                 return best
 
-        logger.info(
+        logger.debug(
             "Existing notes matched sentence but had no copyable media. note_count=%s media_fields=%s",
             len(notes),
             media_fields,
@@ -754,6 +1104,7 @@ class AnkiClient:
         value = str(text or "").strip()
         if not value:
             return ""
+        value = re.sub(r"<br\s*/?>", "\n", value, flags=re.IGNORECASE)
         value = value.replace("\u3000", " ")
         value = re.sub(r"\s+", " ", value)
         return value.strip()
@@ -764,7 +1115,7 @@ class AnkiClient:
         collapse_inline_reading: bool,
         sentence_spacing: bool,
     ) -> str:
-        text = (text or "").strip()
+        text = self._normalize_inline_spacing(text).strip()
         if not text:
             return ""
 
@@ -786,6 +1137,10 @@ class AnkiClient:
         self._cache_put(self._furigana_cache, cache_key, result)
         return result
 
+    @classmethod
+    def _normalize_inline_spacing(cls, text: str) -> str:
+        return str(text or "").translate(cls.SPACE_TRANSLATION)
+
     def _segments_to_bracket_text(
         self,
         segments: List[tuple[str, Optional[str]]],
@@ -797,12 +1152,23 @@ class AnkiClient:
                 continue
             if base in self.RUBY_READING_OVERRIDES:
                 ruby = self.RUBY_READING_OVERRIDES[base]
+            starts_boundary_ruby = self._starts_with_kanji(base) or self._starts_with_number(base)
+            if (
+                sentence_spacing
+                and ruby
+                and self._starts_with_katakana(base)
+                and not self._previous_ruby_segment_starts_with_katakana(segments, i)
+            ):
+                starts_boundary_ruby = True
             if (
                 ruby
-                and self._starts_with_kanji(base)
+                and starts_boundary_ruby
                 and out
                 and not out[-1].endswith((" ", "\n", "\t"))
-                and not out[-1].endswith(("[", "(", "\uff08", "{", "\uff5b", "<", "\uff1c", "\u300c", "\u300e", "\u3010"))
+                and not out[-1].endswith((
+                    "[", "(", "\uff08", "{", "\uff5b", "<", "\uff1c",
+                    "\u300c", "\u300e", "\u3010", "\u30fb", "\uff65",
+                ))
             ):
                 out.append(" ")
             if ruby:
@@ -810,6 +1176,22 @@ class AnkiClient:
             else:
                 out.append(escape(base))
         return "".join(out)
+
+    def _previous_ruby_segment_starts_with_katakana(
+        self,
+        segments: List[tuple[str, Optional[str]]],
+        idx: int,
+    ) -> bool:
+        for prev_idx in range(idx - 1, -1, -1):
+            prev_base, prev_ruby = segments[prev_idx]
+            if not prev_base:
+                continue
+            if str(prev_base).isspace():
+                return False
+            if str(prev_base) in {"\u30fb", "\uff65"}:
+                continue
+            return bool(prev_ruby and self._starts_with_katakana(prev_base))
+        return False
 
     def _has_okurigana_continuation(
         self,
@@ -828,6 +1210,9 @@ class AnkiClient:
         text: str,
         collapse_inline_reading: bool,
     ) -> List[tuple[str, Optional[str]]]:
+        ordinal_segments = self._tokenize_ordinal_number_segments(text, collapse_inline_reading)
+        if ordinal_segments is not None:
+            return ordinal_segments
         counter_segments = self._tokenize_number_counter_segments(text, collapse_inline_reading)
         if counter_segments is not None:
             return counter_segments
@@ -835,6 +1220,37 @@ class AnkiClient:
             text=text,
             collapse_inline_reading=collapse_inline_reading,
         )
+
+    def _tokenize_ordinal_number_segments(
+        self,
+        text: str,
+        collapse_inline_reading: bool,
+    ) -> List[tuple[str, Optional[str]]] | None:
+        matches = list(iter_ordinal_number_matches(text or ""))
+        if not matches:
+            return None
+
+        segments: List[tuple[str, Optional[str]]] = []
+        cursor = 0
+        for match, reading in matches:
+            if match.start() > cursor:
+                segments.extend(
+                    self._tokenize_with_reading(
+                        text=text[cursor:match.start()],
+                        collapse_inline_reading=collapse_inline_reading,
+                    )
+                )
+            surface = match.group(0)
+            segments.append((surface, self.RUBY_READING_OVERRIDES.get(surface, reading)))
+            cursor = match.end()
+        if cursor < len(text):
+            segments.extend(
+                self._tokenize_with_reading(
+                    text=text[cursor:],
+                    collapse_inline_reading=collapse_inline_reading,
+                )
+            )
+        return segments
 
     def _tokenize_number_counter_segments(
         self,
@@ -967,6 +1383,8 @@ class AnkiClient:
             i = consumed_until + 1
 
         segments = self._merge_katakana_ruby_segments(segments)
+        if not self._split_kanji_moras_enabled():
+            segments = self._merge_adjacent_kanji_ruby_segments(segments)
         return segments or [(text, None)]
 
     def _merge_katakana_ruby_segments(
@@ -984,12 +1402,43 @@ class AnkiClient:
                 j = i + 1
                 while j < len(segments):
                     next_base, next_ruby = segments[j]
-                    if next_ruby is not None or not self._is_katakana_fragment(next_base):
+                    if next_ruby is not None and not self._is_katakana_ruby_base(next_base):
+                        break
+                    if not self._is_katakana_fragment(next_base):
                         break
                     merged_base += next_base
                     j += 1
                 if j > i + 1:
                     out.append((merged_base, self._katakana_to_hiragana(merged_base)))
+                    i = j
+                    continue
+            out.append((base, ruby))
+            i += 1
+        return out
+
+    def _merge_adjacent_kanji_ruby_segments(
+        self,
+        segments: List[tuple[str, Optional[str]]],
+    ) -> List[tuple[str, Optional[str]]]:
+        if not segments:
+            return segments
+        out: List[tuple[str, Optional[str]]] = []
+        i = 0
+        while i < len(segments):
+            base, ruby = segments[i]
+            if ruby and self._is_all_kanji(base):
+                merged_base = base
+                merged_ruby = ruby
+                j = i + 1
+                while j < len(segments):
+                    next_base, next_ruby = segments[j]
+                    if not (next_ruby and self._is_all_kanji(next_base)):
+                        break
+                    merged_base += next_base
+                    merged_ruby += next_ruby
+                    j += 1
+                if j > i + 1:
+                    out.append((merged_base, merged_ruby))
                     i = j
                     continue
             out.append((base, ruby))
@@ -1051,12 +1500,13 @@ class AnkiClient:
         if not selected:
             return ""
 
+        normalized_selection = re.sub(r"\s+", "", selected)
         tagger = self._get_tagger()
         if tagger is None:
             return selected
 
         try:
-            tokens = list(tagger(selected))
+            tokens = list(tagger(normalized_selection or selected))
         except Exception:
             return selected
         if not tokens:
@@ -1083,7 +1533,7 @@ class AnkiClient:
                     return lemma
                 return selected
 
-            lemma = self._token_lookup_text(token, surface)
+            lemma = self._verb_headword_text(token, surface)
             if lemma and lemma != surface and self._contains_japanese(lemma):
                 return lemma
             return selected
@@ -1337,6 +1787,10 @@ class AnkiClient:
                 seen.add(tag)
                 merged.append(tag)
         return merged
+
+    @staticmethod
+    def _anki_anime_tag(anime_name: str) -> str:
+        return format_anime_tag(anime_name)
 
     def _meaningful_morph_tokens(self, tokens) -> List[object]:
         meaningful: List[object] = []
@@ -1703,6 +2157,12 @@ class AnkiClient:
         code = ord(text[0])
         return (0x3040 <= code <= 0x309F) or (0x30A0 <= code <= 0x30FF)
 
+    def _starts_with_katakana(self, text: str) -> bool:
+        if not text:
+            return False
+        code = ord(text[0])
+        return 0x30A0 <= code <= 0x30FF
+
     def _ends_with_kana(self, text: str) -> bool:
         if not text:
             return False
@@ -1714,6 +2174,13 @@ class AnkiClient:
         number_chars = set("0123456789" + full_width_digits)
         cleaned = "".join(ch for ch in text if ch.strip())
         return bool(cleaned) and all(ch in number_chars for ch in cleaned)
+
+    def _starts_with_number(self, text: str) -> bool:
+        text = str(text or "").lstrip()
+        if not text:
+            return False
+        first = text[0]
+        return first.isdigit() or "\uff10" <= first <= "\uff19"
 
     def _translate_word(self, text: str) -> str:
         self._last_jisho_full_definition = ""
@@ -1754,6 +2221,23 @@ class AnkiClient:
             return ""
         self._last_jisho_full_definition = self._dedupe_translation_entries(", ".join(definitions))
         summary_en = self._dedupe_translation_entries(", ".join(definitions[:3]))
+        if self._jisho_query_is_suru_verb(text, entries):
+            translated_verb = self._translate_deepl(
+                text,
+                source_lang="ja",
+                target_lang=self.word_target_lang,
+            )
+            if not translated_verb:
+                translated_verb = self._translate_google(
+                    text,
+                    source_lang="ja",
+                    target_lang=self.word_target_lang,
+                )
+            translated_verb = self._dedupe_translation_entries(translated_verb)
+            if translated_verb:
+                self._cache_put(self._jisho_word_translation_cache, text, translated_verb)
+                self._cache_put(self._jisho_word_definition_cache, text, self._last_jisho_full_definition)
+                return translated_verb
         if self.word_target_lang.lower() == "en":
             self._cache_put(self._jisho_word_translation_cache, text, summary_en)
             self._cache_put(self._jisho_word_definition_cache, text, self._last_jisho_full_definition)
@@ -1774,6 +2258,28 @@ class AnkiClient:
         self._cache_put(self._jisho_word_translation_cache, text, result)
         self._cache_put(self._jisho_word_definition_cache, text, self._last_jisho_full_definition)
         return result
+
+    @staticmethod
+    def _jisho_query_is_suru_verb(query: str, entries: List[Dict]) -> bool:
+        compact = re.sub(r"\s+", "", str(query or "").strip())
+        if not compact.endswith("する") or len(compact) <= 2:
+            return False
+
+        query_forms = {compact, compact[:-2]}
+        for entry in entries or []:
+            japanese = entry.get("japanese") or []
+            if not any(
+                str(item.get("word") or "").strip() in query_forms
+                or str(item.get("reading") or "").strip() in query_forms
+                for item in japanese
+                if isinstance(item, dict)
+            ):
+                continue
+            for sense in entry.get("senses") or []:
+                parts_of_speech = sense.get("parts_of_speech") or []
+                if any("suru verb" in str(pos or "").casefold() for pos in parts_of_speech):
+                    return True
+        return False
 
     def _fetch_jisho_entries(self, text: str) -> List[Dict]:
         text = (text or "").strip()
@@ -1965,15 +2471,19 @@ class AnkiClient:
                 reading = self._katakana_to_hiragana(self._token_reading(token))
                 lookup = self._token_lookup_text(token, surface)
                 feature = getattr(token, "feature", None)
+                orth_base = str(getattr(feature, "orthBase", "") or "").strip()
                 spans.append(
                     {
                         "surface": surface,
                         "lookup": lookup or surface,
+                        "orth_base": "" if orth_base == "*" else orth_base,
                         "reading": reading,
                         "start": start,
                         "end": end,
                         "pos1": str(getattr(feature, "pos1", "") or ""),
                         "pos2": str(getattr(feature, "pos2", "") or ""),
+                        "c_type": str(getattr(feature, "cType", "") or ""),
+                        "c_form": str(getattr(feature, "cForm", "") or ""),
                     }
                 )
             if spans:
@@ -2083,6 +2593,27 @@ class AnkiClient:
                     if text:
                         return text
         return surface
+
+    def _verb_headword_text(self, token, surface: str) -> str:
+        feature = getattr(token, "feature", None)
+        if feature is None:
+            return self._token_lookup_text(token, surface)
+
+        lemma = str(getattr(feature, "lemma", "") or "").strip()
+        orth_base = str(getattr(feature, "orthBase", "") or "").strip()
+        c_type = str(getattr(feature, "cType", "") or "")
+        if orth_base and orth_base != "*":
+            if (
+                lemma
+                and orth_base != lemma
+                and (not c_type or "下一段" in c_type)
+            ):
+                potential_base = godan_base_from_potential_form(orth_base)
+                if potential_base and self._contains_japanese(potential_base):
+                    return potential_base
+            if self._contains_japanese(orth_base):
+                return orth_base
+        return self._token_lookup_text(token, surface)
 
     def _is_lookup_candidate(self, text: str) -> bool:
         for ch in text or "":

@@ -126,6 +126,19 @@ def test_anki_counter_reading_spans_number_and_counter():
     )
 
 
+def test_anki_counter_ruby_adds_boundary_space_after_plain_prefix():
+    client = AnkiClient(ConfigManager("config.json"))
+
+    assert (
+        client._to_furigana_brackets(
+            "\u305f\u3063\u305f\uff11\u4eba",
+            collapse_inline_reading=False,
+            sentence_spacing=False,
+        )
+        == "\u305f\u3063\u305f \uff11\u4eba[\u3072\u3068\u308a]"
+    )
+
+
 def test_katakana_word_gets_hiragana_ruby():
     client = AnkiClient(ConfigManager("config.json"))
 
@@ -670,6 +683,8 @@ def test_copy_existing_sentence_media_fields_from_same_subtitle(monkeypatch):
                     "noteId": 101,
                     "modelName": client.model_name,
                     "fields": {
+                        client.add_rubies_to_front_field: {"value": "別の単語"},
+                        client.front_field: {"value": "ruby:別の単語"},
                         client.add_rubies_to_sentence_ja_field: {"value": "\u5225\u306e\u5b57\u5e55"},
                         client.sound_field: {"value": "[sound:wrong.mp3]"},
                         client.image_field: {"value": '<img src="wrong.png">'},
@@ -679,6 +694,8 @@ def test_copy_existing_sentence_media_fields_from_same_subtitle(monkeypatch):
                     "noteId": 202,
                     "modelName": client.model_name,
                     "fields": {
+                        client.add_rubies_to_front_field: {"value": "別の単語"},
+                        client.front_field: {"value": "ruby:別の単語"},
                         client.add_rubies_to_sentence_ja_field: {"value": "\u540c\u3058\u5b57\u5e55"},
                         client.sound_field: {"value": "[sound:asbp_clip.mp3]"},
                         client.image_field: {"value": '<img src="asbp_clip.png">'},
@@ -698,6 +715,60 @@ def test_copy_existing_sentence_media_fields_from_same_subtitle(monkeypatch):
     assert fields[client.sound_field] == "[sound:asbp_clip.mp3]"
     assert fields[client.image_field] == '<img src="asbp_clip.png">'
     assert calls[0] == ("findNotes", {"query": '"\u540c\u3058\u5b57\u5e55"'})
+
+
+def test_copy_existing_sentence_media_fields_falls_back_to_deck_when_sentence_query_misses(monkeypatch):
+    client = AnkiClient(ConfigManager("config.json"))
+    monkeypatch.setattr(client, "_get_model_field_names", lambda: {
+        client.add_rubies_to_front_field,
+        client.front_field,
+        client.back_field,
+        client.sentence_ja_field,
+        client.sentence_de_field,
+        client.add_rubies_to_sentence_ja_field,
+        client.sound_field,
+        client.image_field,
+    })
+    monkeypatch.setattr(client, "_to_furigana_brackets", lambda text, **_kwargs: f"ruby:{text}")
+
+    fields = client._build_note_fields(
+        selected="新規",
+        subtitle="同じ字幕",
+        word_translation="new",
+        sentence_translation="",
+    )
+
+    def fake_invoke(action, params=None):
+        if action == "findNotes":
+            if params and params.get("query") == f'deck:{client._quote_anki_search_text(client.deck_name)}':
+                return [777]
+            return []
+        if action == "notesInfo":
+            return [
+                {
+                    "noteId": 777,
+                    "modelName": client.model_name,
+                    "fields": {
+                        client.add_rubies_to_front_field: {"value": "新規"},
+                        client.front_field: {"value": "ruby:新規"},
+                        client.add_rubies_to_sentence_ja_field: {"value": "同じ字幕"},
+                        client.sound_field: {"value": "[sound:fallback.mp3]"},
+                        client.image_field: {"value": '<img src="fallback.png">'},
+                    },
+                }
+            ]
+        return None
+
+    monkeypatch.setattr(client, "_invoke", fake_invoke)
+
+    copied = client._copy_existing_sentence_media_fields(fields)
+
+    assert copied == {
+        client.sound_field: "[sound:fallback.mp3]",
+        client.image_field: '<img src="fallback.png">',
+    }
+    assert fields[client.sound_field] == "[sound:fallback.mp3]"
+    assert fields[client.image_field] == '<img src="fallback.png">'
 
 
 def test_add_from_selection_copies_media_before_creating_note(monkeypatch):
@@ -753,6 +824,88 @@ def test_add_from_selection_copies_media_before_creating_note(monkeypatch):
         client.sound_field: "[sound:asbp_existing.mp3]",
         client.image_field: '<img src="asbp_existing.png">',
     }
+
+
+def test_copy_captured_sentence_media_to_all_previous_same_sentence_notes(monkeypatch):
+    client = AnkiClient(ConfigManager("config.json"))
+    update_calls = []
+
+    def fake_invoke(action, params=None):
+        if action == "notesInfo" and params == {"notes": [300]}:
+            return [
+                {
+                    "noteId": 300,
+                    "modelName": client.model_name,
+                    "fields": {
+                        client.add_rubies_to_sentence_ja_field: {"value": "\u540c\u3058\u5b57\u5e55"},
+                        client.sentence_ja_field: {"value": "ruby:\u540c\u3058\u5b57\u5e55"},
+                        client.sound_field: {"value": "[sound:new_capture.mp3]"},
+                        client.image_field: {"value": '<img src="new_capture.png">'},
+                    },
+                }
+            ]
+        if action == "findNotes":
+            return [101, 202, 300]
+        if action == "notesInfo":
+            return [
+                {
+                    "noteId": 202,
+                    "modelName": client.model_name,
+                    "fields": {
+                        client.add_rubies_to_sentence_ja_field: {"value": "\u540c\u3058\u5b57\u5e55"},
+                        client.sentence_ja_field: {"value": "ruby:\u540c\u3058\u5b57\u5e55"},
+                        client.sound_field: {"value": ""},
+                        client.image_field: {"value": ""},
+                    },
+                },
+                {
+                    "noteId": 101,
+                    "modelName": client.model_name,
+                    "fields": {
+                        client.add_rubies_to_sentence_ja_field: {"value": "\u540c\u3058\u5b57\u5e55"},
+                        client.sentence_ja_field: {"value": "ruby:\u540c\u3058\u5b57\u5e55"},
+                        client.sound_field: {"value": ""},
+                        client.image_field: {"value": ""},
+                    },
+                },
+            ]
+        if action == "updateNoteFields":
+            update_calls.append(params)
+            return None
+        return None
+
+    monkeypatch.setattr(client, "_invoke", fake_invoke)
+
+    result = client.copy_captured_sentence_media_to_previous_note(300)
+
+    assert result["target_note_id"] == 202
+    assert result["target_note_ids"] == [202, 101]
+    assert result["copied_note_ids"] == [101, 202]
+    assert result["reason"] == "copied"
+    assert result["copied"] == {
+        client.sound_field: "[sound:new_capture.mp3]",
+        client.image_field: '<img src="new_capture.png">',
+    }
+    assert update_calls == [
+        {
+            "note": {
+                "id": 202,
+                "fields": {
+                    client.sound_field: "[sound:new_capture.mp3]",
+                    client.image_field: '<img src="new_capture.png">',
+                },
+            }
+        },
+        {
+            "note": {
+                "id": 101,
+                "fields": {
+                    client.sound_field: "[sound:new_capture.mp3]",
+                    client.image_field: '<img src="new_capture.png">',
+                },
+            }
+        },
+    ]
 
 
 def test_prepare_note_does_not_add_until_commit(monkeypatch):
@@ -838,6 +991,86 @@ def test_anki_ruby_adds_katakana_ruby_and_common_reading_overrides():
         "\u30d1\u30e9\u30b5\u30a4\u30c8[\u3071\u3089\u3055\u3044\u3068]\u3067 "
         "\u5341\u5206[\u3058\u3085\u3046\u3076\u3093]\u3060"
     )
+
+
+def test_sentence_ruby_merges_adjacent_katakana_ruby_tokens():
+    client = AnkiClient(ConfigManager("config.json"))
+
+    rendered = client._to_furigana_brackets(
+        "\u30df\u30ae\u30fc\u306e \u7d30\u80de\u304c",
+        collapse_inline_reading=True,
+        sentence_spacing=True,
+    )
+
+    assert rendered == "\u30df\u30ae\u30fc[\u307f\u304e\u30fc]\u306e \u7d30\u80de[\u3055\u3044\u307c\u3046]\u304c"
+
+
+def test_sentence_ruby_merges_adjacent_kanji_ruby_tokens_when_split_is_off():
+    config = ConfigManager("config.json")
+    config.config["ANKI_SPLIT_KANJI_MORAS"] = False
+    client = AnkiClient(config)
+
+    assert client._merge_adjacent_kanji_ruby_segments(
+        [
+            ("\u773e", "\u307e"),
+            ("\u767d", "\u3057\u308d"),
+            ("\u3061\u3083\u3093", None),
+        ]
+    ) == [
+        ("\u773e\u767d", "\u307e\u3057\u308d"),
+        ("\u3061\u3083\u3093", None),
+    ]
+    assert client._to_furigana_brackets(
+        "\u5df1\u306e \u7121\u4fa1\u5024\u3055\u3092",
+        collapse_inline_reading=True,
+        sentence_spacing=True,
+    ) == "\u5df1[\u304a\u306e\u308c]\u306e \u7121\u4fa1\u5024[\u3080\u304b\u3061]\u3055\u3092"
+
+
+def test_sentence_ruby_does_not_merge_kanji_tokens_across_source_space():
+    config = ConfigManager("config.json")
+    config.config["ANKI_SPLIT_KANJI_MORAS"] = False
+    client = AnkiClient(config)
+
+    rendered = client._to_furigana_brackets(
+        "\u4ea4\u901a \u60c5\u5831\u3067\u3059",
+        collapse_inline_reading=True,
+        sentence_spacing=True,
+    )
+
+    assert rendered == "\u4ea4\u901a[\u3053\u3046\u3064\u3046] \u60c5\u5831[\u3058\u3087\u3046\u307b\u3046]\u3067\u3059"
+
+
+def test_sentence_ruby_adds_boundary_before_katakana_ruby_word():
+    client = AnkiClient(ConfigManager("config.json"))
+
+    rendered = client._to_furigana_brackets(
+        "\u3053\u3053\u306f\u30de\u30c3\u30b7\u30e5\u3084 "
+        "\u30d5\u30a3\u30f3\u304c \u6240\u5c5e\u3059\u308b\u30a2\u30c9\u30e9 \u5bee",
+        collapse_inline_reading=True,
+        sentence_spacing=True,
+    )
+
+    assert rendered == (
+        "\u3053\u3053\u306f \u30de\u30c3\u30b7\u30e5[\u307e\u3063\u3057\u3085]\u3084 "
+        "\u30d5\u30a3\u30f3[\u3075\u3043\u3093]\u304c "
+        "\u6240\u5c5e[\u3057\u3087\u305e\u304f]\u3059\u308b "
+        "\u30a2\u30c9\u30e9[\u3042\u3069\u3089] "
+        "\u5bee[\u308a\u3087\u3046]"
+    )
+
+
+def test_sentence_ruby_does_not_add_space_inside_middle_dot_katakana_name():
+    client = AnkiClient(ConfigManager("config.json"))
+
+    rendered = client._to_furigana_brackets(
+        "\u305d\u308c\u3067\u306f\u30de\u30c3\u30b7\u30e5\u30fb\u30d0\u30fc\u30f3\u30c7\u30c3\u30c9",
+        collapse_inline_reading=True,
+        sentence_spacing=True,
+    )
+
+    assert rendered.startswith("\u305d\u308c\u3067\u306f ")
+    assert "\u30fb " not in rendered
 
 
 def test_split_all_kanji_chars_keeps_iteration_mark_with_word():

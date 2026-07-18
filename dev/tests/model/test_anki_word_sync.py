@@ -157,7 +157,7 @@ def test_sync_counts_due_reviews_per_note():
     )
 
     assert result.collected == 1
-    assert result.entries[0].extra["due_date"] == "Due " + time.strftime("%d-%m-%Y", time.localtime())
+    assert result.entries[0].extra["due_date"] == time.strftime("%d.%m.%Y", time.localtime())
     assert result.entries[0].extra["reviews"] == 7
     assert result.entries[0].extra["note_modified"] == "10:11 02-07-2026"
     assert result.entries[0].extra["sentence"] == "This is a cat."
@@ -187,9 +187,13 @@ def test_sync_formats_future_review_due_date_when_scheduler_today_is_known():
     result = AnkiWordSync(invoke).sync(
         AnkiSyncSettings(decks=["Japanese"], word_fields=["Word"], meaning_fields=["Meaning"])
     )
-    expected = time.strftime("%d-%m-%Y", time.localtime(time.time() + (5 * 86400)))
+    expected = time.strftime("%d.%m.%Y", time.localtime(time.time() + (5 * 86400)))
 
-    assert result.entries[0].extra["due_date"] == f"Due {expected}"
+    assert result.entries[0].extra["due_date"] == expected
+
+
+def test_best_due_text_normalizes_legacy_due_date_format():
+    assert AnkiWordSync._best_due_text(["Due 02-07-2026"]) == "02.07.2026"
 
 
 def test_sync_connection_failure_returns_error():

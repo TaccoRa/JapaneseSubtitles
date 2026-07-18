@@ -5,6 +5,8 @@ import pytest
 from SubtitlePlayer.controller.episode_controller import EpisodeController
 from SubtitlePlayer.controller.controller import SubtitleController
 from SubtitlePlayer.controller.subtitle_navigation import SubtitleNavigationController
+from SubtitlePlayer.model.annotation_provider import AnnotationProvider
+from SubtitlePlayer.model.word_database import WordDatabase, WordEntry
 from SubtitlePlayer.view.popup import CopyPopup
 
 
@@ -45,6 +47,14 @@ class FakeRoot:
 
     def destroy(self):
         self.destroyed = True
+
+
+class _Config:
+    def __init__(self, values):
+        self.values = dict(values)
+
+    def get(self, key):
+        return self.values.get(key)
 
 
 class FakeCanvas:
@@ -158,6 +168,25 @@ def test_slider_drag_preview_skips_auto_ruby_and_uses_preview_rendering():
     assert controller.current_time == pytest.approx(10.0)
     assert renderer.calls
     assert renderer.calls[-1]["preview"] is True
+
+
+def test_slider_drag_does_not_queue_preview_for_already_rendered_cue():
+    controller, navigation, renderer = make_slider_controller()
+    controller.current_time = 0.1
+    navigation._update_subtitle_display(force=True, allow_auto_ruby=False)
+    rendered_calls = len(renderer.calls)
+
+    navigation.on_slider_press(None)
+    navigation.on_slider_change("0.5")
+
+    assert controller._slider_render_job is None
+    assert controller._slider_pending_value is None
+    assert len(renderer.calls) == rendered_calls
+
+    navigation.on_slider_change("10.1")
+
+    assert controller._slider_render_job is not None
+    assert controller._slider_pending_value == pytest.approx(10.1)
 
 
 def test_subtitle_render_grows_overlay_when_lazy_ruby_line_is_wider():
@@ -288,6 +317,27 @@ def test_copy_text_uses_visible_rendered_subtitle_index():
 
     assert navigation.copy_text_for_current_subtitle() == "second[second-ruby]"
     assert controller.last_subtitle_raw == "second[second-ruby]"
+
+
+def test_right_click_popup_does_not_redraw_subtitle_before_opening():
+    sync_kwargs = []
+    opened = []
+
+    controller = SimpleNamespace(
+        renderer=SimpleNamespace(_clear_hover_ruby=lambda: None),
+        playback=SimpleNamespace(
+            _sync_playing_time_to_event=lambda **kwargs: sync_kwargs.append(kwargs)
+        ),
+        subtitle_navigation=SimpleNamespace(copy_text_for_current_subtitle=lambda: "visible subtitle"),
+        popup=SimpleNamespace(open_copy_popup=lambda text: opened.append(text)),
+        last_subtitle_raw="visible subtitle",
+    )
+
+    result = SubtitleController._on_copy_popup(controller)
+
+    assert result == "break"
+    assert sync_kwargs == [{"update_display": False, "update_slider": False}]
+    assert opened == ["visible subtitle"]
 
 
 def test_episode_switch_resets_time_and_schedules_preload():
@@ -510,7 +560,7 @@ def test_popup_add_selection_callback_flow():
     assert calls == [{"selected_text": "選択", "subtitle_text": "字幕"}]
 
 
-def test_popup_hotkey_add_requires_pointer_inside_and_selection():
+def test_popup_hotkey_add_uses_popup_selection_without_window_focus():
     calls = []
 
     class Root:
@@ -528,13 +578,101 @@ def test_popup_hotkey_add_requires_pointer_inside_and_selection():
     assert calls == [{"selected_text": "\u9078\u629e", "subtitle_text": "\u5b57\u5e55"}]
 
     popup._pointer_inside_window = lambda _window: False
-    assert popup.add_selected_to_anki_if_pointer_inside() is False
-    assert len(calls) == 1
+    assert popup.add_selected_to_anki_if_pointer_inside() is True
+    assert len(calls) == 2
 
     popup._pointer_inside_window = lambda _window: True
     popup._get_selected_text = lambda: ""
+    popup._last_selected_text = "\u524d\u306e\u9078\u629e"
     assert popup.add_selected_to_anki_if_pointer_inside() is False
-    assert len(calls) == 1
+    assert len(calls) == 2
+
+
+def test_popup_hotkey_add_capture_forwards_capture_flag():
+    calls = []
+
+    class Root:
+        def after(self, _delay, callback):
+            callback()
+
+    popup = object.__new__(CopyPopup)
+    popup._popup = SimpleNamespace(winfo_exists=lambda: True, after=Root().after)
+    popup._line_segments = [[("\u5b57\u5e55", None)]]
+    popup._get_selected_text = lambda: "\u9078\u629e"
+    popup._on_add_anki = lambda **kwargs: calls.append(kwargs)
+
+    assert popup.add_selected_to_anki_if_pointer_inside(post_add_capture=True) is True
+
+    assert calls == [
+        {
+            "selected_text": "\u9078\u629e",
+            "subtitle_text": "\u5b57\u5e55",
+            "post_add_capture": True,
+        }
+    ]
+
+
+def test_popup_global_copy_uses_selection_even_when_pointer_outside():
+    copied = []
+
+    popup = object.__new__(CopyPopup)
+    popup._popup = SimpleNamespace(winfo_exists=lambda: True)
+    popup._hover_ruby_window = None
+    popup._pointer_inside_window = lambda _window: False
+    popup._get_selected_text = lambda: ""
+    popup._last_selected_text = "\u9078\u629e"
+    popup._copy_to_clipboard = lambda _owner, text: copied.append(text)
+
+    assert popup.copy_selection_to_clipboard_if_pointer_inside() is True
+    assert copied == ["\u9078\u629e"]
+
+
+def test_popup_annotation_uses_full_phrase_over_partial_known_word(tmp_path):
+    cfg = _Config(
+        {
+            "ANNOTATION_ENABLED": True,
+            "ANNOTATION_COLORIZE_ANKI": True,
+            "ANNOTATION_MARK_LOCAL": True,
+            "ANNOTATION_COLORIZE_WANIKANI": True,
+            "ANNOTATION_MIN_TOKEN_LENGTH": 1,
+            "ANNOTATION_INCLUDE_PARTICLES": False,
+        }
+    )
+    db = WordDatabase(str(tmp_path / "words.json"))
+    db.upsert(WordEntry(surface="\u5206\u304b\u308a", source="anki", status="anki_mature"), save=False)
+    db.upsert(WordEntry(surface="\u5206\u304b\u308a \u5408\u3048\u308b", source="anki", status="anki_unknown"), save=False)
+    db.save()
+    provider = AnnotationProvider(cfg, db)
+
+    class Entry:
+        def __init__(self):
+            self.tags = []
+
+        def tag_configure(self, *_args, **_kwargs):
+            pass
+
+        def tag_add(self, tag, start, end):
+            self.tags.append((tag, start, end))
+
+    entry = Entry()
+    popup = object.__new__(CopyPopup)
+    popup.config = cfg
+    popup._annotation_provider = provider
+    popup._entry_widget = entry
+    popup._word_tokenizer = None
+    popup._line_segments = [[("\u5206\u304b\u308a \u5408\u3048\u308b", None)]]
+
+    popup._apply_annotation_tags("\u5206\u304b\u308a \u5408\u3048\u308b")
+
+    assert entry.tags == [("annotation_anki_unknown", "1.0", "1.7")]
+
+
+def test_popup_inline_ruby_parser_normalizes_invisible_space_before_ruby_base():
+    popup = object.__new__(CopyPopup)
+
+    assert popup._parse_inline_ruby("\u3092\u200b\u5207[\u304d]\u308a") == [
+        [("\u3092 ", None), ("\u5207", "\u304d"), ("\u308a", None)]
+    ]
 
 
 def test_popup_inline_ruby_parser_uses_trailing_kanji_or_katakana_base():
@@ -634,6 +772,29 @@ def test_hover_ruby_clear_is_delayed_until_timeout():
     root.scheduled[0][2]()
 
     assert calls == ["clear", "restart"]
+
+
+def test_hover_ruby_clear_uses_configured_popup_delay():
+    calls = []
+    root = FakeRoot()
+    popup = object.__new__(CopyPopup)
+    popup.root = root
+    popup.hover_clear_delay = 1250
+    popup._hover_clear_job = None
+    popup._pinned = False
+    popup._menu_open = False
+    popup._dragging = False
+    popup._popup = object()
+    popup._hover_ruby_window = object()
+    popup._pointer_inside_window = lambda _target: False
+    popup._clear_hover_ruby = lambda: calls.append("clear")
+    popup._restart_close = lambda: calls.append("restart")
+
+    popup._schedule_hover_clear()
+
+    assert calls == []
+    assert len(root.scheduled) == 1
+    assert root.scheduled[0][1] == 1250
 
 
 def test_hover_ruby_clear_is_cancelled_when_pointer_enters_hover_window():

@@ -7,7 +7,7 @@ import tkinter as tk
 import re
 import time
 from typing import Any
-from utils import format_time, parse_time_value
+from utils import dispatch_to_tk, format_time, parse_time_value
 
 logger = logging.getLogger(__name__)
 
@@ -133,11 +133,22 @@ class SubtitleNavigationController(_ControllerProxy):
         return text
 
     def _publish_time_display(self, text: str) -> None:
+        position_scheduled = False
         if text != getattr(self, "_last_time_overlay_text", None):
-            self.settings.time_overlay.itemconfig(self.settings.time_overlay_text, text=text)
+            setter = getattr(self.settings, "set_time_overlay_text", None)
+            if callable(setter):
+                setter(text)
+                position_scheduled = True
+            else:
+                self.settings.time_overlay.itemconfig(self.settings.time_overlay_text, text=text)
             self._last_time_overlay_text = text
-        self.settings.update_time_overlay_position()
-        if not self.entry_editing:
+        if not position_scheduled:
+            schedule_position = getattr(self.settings, "_schedule_time_overlay_position_update", None)
+            if callable(schedule_position):
+                schedule_position()
+            else:
+                self.settings.update_time_overlay_position()
+        if not self.entry_editing and not self.slider_dragging:
             try:
                 current_text = self.settings.control_time_str.get()
             except Exception:
@@ -151,6 +162,10 @@ class SubtitleNavigationController(_ControllerProxy):
     def update_time_and_subtitle_displays(self):#updates settings time overlay and control window entry
         self.update_time_display()
         self._update_subtitle_display()
+
+    def refresh_after_offset_change(self) -> None:
+        self.update_time_display()
+        self._update_subtitle_display(force=True)
 
     def _display_start_times(self):
         getter = getattr(self.controller, "_get_display_start_times", None)
@@ -220,6 +235,53 @@ class SubtitleNavigationController(_ControllerProxy):
             self.last_subtitle_raw = text
             return text
         return ""
+
+    def line_segments_for_current_subtitle(self):
+        idx = None
+        if not bool(getattr(self, "subtitle_deleted", False)):
+            try:
+                idx = int(getattr(self, "last_rendered_index"))
+            except Exception:
+                idx = None
+        if idx is None:
+            try:
+                sub_t = float(self.current_time) - float(self.settings._last_offset_value)
+            except Exception:
+                sub_t = 0.0
+            idx = self._display_index_at_time(sub_t)
+        if idx is None:
+            return []
+        try:
+            _clean, _start, top, bottom = self.sub_manager.display_data[int(idx)]
+        except Exception:
+            return []
+        return [list(segments) for segments in (top, bottom) if segments]
+
+    def _slider_preview_needs_render(self, value: float) -> bool:
+        try:
+            sub_t = float(value) - float(self.settings._last_offset_value)
+        except Exception:
+            return True
+        try:
+            if sub_t < 0 or sub_t > float(self.total_duration):
+                idx = None
+            else:
+                idx = self._display_index_at_time(sub_t)
+        except Exception:
+            return True
+
+        if idx is None:
+            return not (
+                self.last_rendered_index is None
+                and bool(getattr(self, "subtitle_deleted", False))
+                and not self.last_subtitle_text
+            )
+
+        if bool(getattr(self, "subtitle_deleted", False)):
+            return True
+        if idx != getattr(self, "last_rendered_index", None):
+            return True
+        return False
 
     def _update_subtitle_display(
         self,
@@ -300,11 +362,12 @@ class SubtitleNavigationController(_ControllerProxy):
         elif schedule_auto_ruby and self._subtitle_needs_auto_ruby(idx):
             self._schedule_auto_ruby_refresh(idx)
 
-        if self.subtitle_timeout_job:
+        if self.subtitle_timeout_job and not preview:
             self.overlay.root.after_cancel(self.subtitle_timeout_job)
             self.subtitle_timeout_job = None
 
-        self._ensure_overlay_width_for_display_lines(top, bottom)
+        if not preview:
+            self._ensure_overlay_width_for_display_lines(top, bottom)
         self.renderer.update_canvas(self.overlay.subtitle_canvas)
 
         self.last_subtitle_text = copy_text
@@ -317,10 +380,11 @@ class SubtitleNavigationController(_ControllerProxy):
         except Exception:
             pass
 
-        self.subtitle_timeout_job = self.overlay.root.after(
-            self.hide_subtitles_ms,
-            self._hide_subtitles_temporarily
-        )
+        if not preview:
+            self.subtitle_timeout_job = self.overlay.root.after(
+                self.hide_subtitles_ms,
+                self._hide_subtitles_temporarily
+            )
 
     def _ensure_overlay_width_for_display_lines(self, top, bottom) -> None:
         """Grow the overlay when lazy ruby makes the current cue wider than the cached size."""
@@ -466,7 +530,7 @@ class SubtitleNavigationController(_ControllerProxy):
                 self._update_subtitle_display(force=True, allow_auto_ruby=False)
 
             try:
-                self.settings.root.after(0, _refresh_if_current)
+                dispatch_to_tk(self.settings.root, _refresh_if_current)
             except Exception:
                 pass
 
@@ -527,6 +591,17 @@ class SubtitleNavigationController(_ControllerProxy):
 
     def on_slider_press(self, event):
         self.slider_dragging = True
+        self._last_slider_drag_value = None
+        self._last_slider_drag_seen_at = 0.0
+        self._slider_pending_time_display = None
+        self._slider_time_display_job = None
+        self._slider_last_preview_ms = 0.0
+        if self.subtitle_timeout_job:
+            try:
+                self.overlay.root.after_cancel(self.subtitle_timeout_job)
+            except Exception:
+                pass
+            self.subtitle_timeout_job = None
 
     def _cancel_slider_render_job(self) -> None:
         job = getattr(self, "_slider_render_job", None)
@@ -548,20 +623,56 @@ class SubtitleNavigationController(_ControllerProxy):
         if value is not None:
             self.current_time = float(value)
         self._update_subtitle_display(allow_auto_ruby=False, preview=True)
+        elapsed_ms = (time.perf_counter() - start) * 1000.0
+        self._slider_last_preview_ms = elapsed_ms
         try:
-            self._record_perf_sample("slider_preview", (time.perf_counter() - start) * 1000.0)
+            self._record_perf_sample("slider_preview", elapsed_ms)
         except Exception:
             pass
+
+    def _slider_preview_delay_ms(self) -> int:
+        try:
+            last_ms = float(getattr(self, "_slider_last_preview_ms", 0.0) or 0.0)
+        except Exception:
+            last_ms = 0.0
+        if last_ms <= 0.0:
+            return 16
+        return max(16, min(50, int(round(last_ms * 1.5))))
 
     def _schedule_slider_preview_render(self, value: float) -> None:
         self._slider_pending_value = float(value)
         if getattr(self, "_slider_render_job", None) is not None:
             return
         try:
-            self._slider_render_job = self.settings.root.after(16, self._render_slider_preview)
+            self._slider_render_job = self.settings.root.after(
+                self._slider_preview_delay_ms(),
+                self._render_slider_preview,
+            )
         except Exception:
             self._slider_render_job = None
             self._render_slider_preview()
+
+    def _flush_slider_time_display(self) -> None:
+        self._slider_time_display_job = None
+        pending = getattr(self, "_slider_pending_time_display", None)
+        if pending is None or self._shutting_down:
+            return
+        value, text = pending
+        self.current_time = float(value)
+        self._publish_time_display(str(text))
+
+    def _schedule_slider_time_display(self, value: float) -> None:
+        self._slider_pending_time_display = (
+            float(value),
+            self._time_display_text(float(value), include_pending=False),
+        )
+        if getattr(self, "_slider_time_display_job", None) is not None:
+            return
+        try:
+            self._slider_time_display_job = self.settings.root.after(16, self._flush_slider_time_display)
+        except Exception:
+            self._slider_time_display_job = None
+            self._flush_slider_time_display()
 
     def on_slider_change(self, value):
         if self._shutting_down:
@@ -569,9 +680,20 @@ class SubtitleNavigationController(_ControllerProxy):
         start = time.perf_counter()
         if self.slider_dragging:
             slider_value = float(value)
-            self._publish_time_display(self._time_display_text(slider_value, include_pending=False))
+            last_value = getattr(self, "_last_slider_drag_value", None)
+            last_time = float(getattr(self, "_last_slider_drag_seen_at", 0.0) or 0.0)
+            now = time.perf_counter()
+            if last_value is not None and abs(float(last_value) - slider_value) < 0.0005 and (now - last_time) < 0.05:
+                return
+            self._last_slider_drag_value = slider_value
+            self._last_slider_drag_seen_at = now
             self.current_time = slider_value
-            self._schedule_slider_preview_render(slider_value)
+            self._schedule_slider_time_display(slider_value)
+            if self._slider_preview_needs_render(slider_value):
+                self._schedule_slider_preview_render(slider_value)
+            else:
+                self._cancel_slider_render_job()
+                self._slider_pending_value = None
         try:
             self._record_perf_sample("slider_change", (time.perf_counter() - start) * 1000.0)
         except Exception:
@@ -580,7 +702,17 @@ class SubtitleNavigationController(_ControllerProxy):
     def on_slider_release(self, event):
         start = time.perf_counter()
         self._cancel_slider_render_job()
+        time_job = getattr(self, "_slider_time_display_job", None)
+        if time_job is not None:
+            try:
+                self.settings.root.after_cancel(time_job)
+            except Exception:
+                pass
+            self._slider_time_display_job = None
+        self._slider_pending_time_display = None
         self._slider_pending_value = None
+        self._last_slider_drag_value = None
+        self._last_slider_drag_seen_at = 0.0
         self.slider_dragging = False
         self._defer_auto_ruby_once = True
         self.last_subtitle_text = ""

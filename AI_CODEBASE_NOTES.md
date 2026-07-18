@@ -2,6 +2,13 @@
 
 These notes are for future AI/code work. They summarize the repository shape, runtime flow, and the main performance/readability/logic observations from a full codebase pass.
 
+## Reported Regression Case Ledger
+
+When the user reports a concrete wrong input/output or behavior case, append it to
+`dev/reported_regression_cases.md` with the observed result and expected result.
+Keep fixed cases in the ledger as regression examples. Preserve Japanese text,
+line breaks, spacing, and punctuation exactly when available.
+
 ## Entry Points
 
 - `SubtitlePlayer/main.py` is the normal app entry point.

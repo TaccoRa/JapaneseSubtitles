@@ -6,6 +6,7 @@ This module currently provides LoadingOverlay: a small runtime "please wait" ove
 import tkinter as tk
 from tkinter import ttk
 from typing import Optional
+from utils import dispatch_to_tk
 
 class LoadingOverlay:
     """
@@ -198,12 +199,9 @@ def hide_startup_overlay() -> None:
         return
     _STARTUP_HIDE_COUNT += 1
     try:
-        ov.root.after(0, ov.hide)
+        dispatch_to_tk(ov.root, ov.hide)
     except Exception:
-        try:
-            ov.hide()
-        except Exception:
-            pass
+        pass
 
 
 def show_startup_overlay() -> None:
@@ -217,9 +215,6 @@ def show_startup_overlay() -> None:
     if _STARTUP_HIDE_COUNT != 0:
         return
     try:
-        ov.root.after(0, ov.show)
+        dispatch_to_tk(ov.root, ov.show)
     except Exception:
-        try:
-            ov.show()
-        except Exception:
-            pass
+        pass

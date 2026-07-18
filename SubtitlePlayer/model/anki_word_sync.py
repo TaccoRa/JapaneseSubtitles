@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import time
+import unicodedata
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from html import unescape
@@ -24,6 +25,19 @@ ANKI_STATUS_PRIORITY = {
     "ignored": 5,
 }
 
+ANKI_ANIME_TAG_PREFIX = "Anime::"
+
+
+def format_anime_tag(anime_name: str) -> str:
+    """Return an Anki-safe tag containing only the anime name."""
+    name = unicodedata.normalize("NFKC", str(anime_name or "")).strip()
+    if not name:
+        return ""
+    name = re.sub(r"\s+", "_", name)
+    name = name.replace("::", "_").replace(":", "_")
+    name = re.sub(r"[\x00-\x1f,;]+", "_", name)
+    return re.sub(r"_+", "_", name).strip("_")
+
 
 @dataclass
 class AnkiSyncSettings:
@@ -38,6 +52,7 @@ class AnkiSyncSettings:
     mature_interval_days: int = 21
     suspended_as: str = "normal"
     tokenizer: Callable[[str], list[dict[str, Any]]] | None = None
+    anime_names: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -91,7 +106,13 @@ class AnkiWordSync:
             return
         self._invoke("updateNoteFields", {"note": {"id": int(note_id), "fields": clean_fields}})
 
-    def entries_for_note(self, note_id: int, settings: AnkiSyncSettings) -> list[WordEntry]:
+    def entries_for_note(
+        self,
+        note_id: int,
+        settings: AnkiSyncSettings,
+        *,
+        anime_name: str = "",
+    ) -> list[WordEntry]:
         try:
             note_id = int(note_id)
         except Exception:
@@ -113,14 +134,20 @@ class AnkiWordSync:
 
         fields = note.get("fields") or {}
         summary = self._card_summary_by_note({note_id}, settings).get(note_id, {})
+        resolved_anime_name = str(anime_name or "").strip() or self._anime_from_tags(
+            note.get("tags"),
+            settings.anime_names,
+        )
         return self._entries_from_note(
             fields,
             str(summary.get("status") or "anki_unknown"),
             settings,
             note_id=note_id,
+            anime_name=resolved_anime_name,
             due_date=str(summary.get("due_date") or ""),
             reviews=int(summary.get("reviews") or 0),
             card_ids=str(summary.get("card_ids") or ""),
+            suspended=bool(summary.get("suspended")),
             note_modified=self._note_modified_text(note),
         )
 
@@ -153,9 +180,11 @@ class AnkiWordSync:
                         status,
                         settings,
                         note_id=note_id,
+                        anime_name=self._anime_from_tags(note.get("tags"), settings.anime_names),
                         due_date=due_date,
                         reviews=reviews,
                         card_ids=str(summary.get("card_ids") or ""),
+                        suspended=bool(summary.get("suspended")),
                         note_modified=note_modified,
                     )
                     if not extracted:
@@ -218,7 +247,7 @@ class AnkiWordSync:
                     continue
         return note_ids
 
-    def _card_summary_by_note(self, note_ids: set[int], settings: AnkiSyncSettings) -> dict[int, dict[str, int | str]]:
+    def _card_summary_by_note(self, note_ids: set[int], settings: AnkiSyncSettings) -> dict[int, dict[str, int | str | bool]]:
         if not note_ids:
             return {}
         cards = []
@@ -237,7 +266,16 @@ class AnkiWordSync:
                     continue
         scheduler_today = self._scheduler_today()
         if not cards:
-            return {int(note_id): {"status": "anki_unknown", "due_date": "", "reviews": 0, "card_ids": ""} for note_id in note_ids}
+            return {
+                int(note_id): {
+                    "status": "anki_unknown",
+                    "due_date": "",
+                    "reviews": 0,
+                    "card_ids": "",
+                    "suspended": False,
+                }
+                for note_id in note_ids
+            }
         infos = []
         for i in range(0, len(cards), 500):
             infos.extend(self._invoke("cardsInfo", {"cards": cards[i:i + 500]}) or [])
@@ -245,6 +283,7 @@ class AnkiWordSync:
         due_by_note: dict[int, list[str]] = {}
         reviews_by_note: dict[int, int] = {}
         card_ids_by_note: dict[int, list[int]] = {}
+        suspended_by_note: dict[int, bool] = {}
         for info in infos:
             try:
                 note_id = int(info.get("note") or info.get("noteId") or 0)
@@ -267,12 +306,18 @@ class AnkiWordSync:
             if due_text:
                 due_by_note.setdefault(note_id, []).append(due_text)
             reviews_by_note[note_id] = reviews_by_note.get(note_id, 0) + self._card_review_count(info)
+            try:
+                if int(info.get("queue")) == -1:
+                    suspended_by_note[note_id] = True
+            except Exception:
+                pass
         return {
             note_id: {
                 "status": self._best_status(statuses),
                 "due_date": self._best_due_text(due_by_note.get(note_id, [])),
                 "reviews": int(reviews_by_note.get(note_id, 0)),
                 "card_ids": ",".join(str(card_id) for card_id in sorted(set(card_ids_by_note.get(note_id, [])))),
+                "suspended": bool(suspended_by_note.get(note_id, False)),
             }
             for note_id, statuses in by_note.items()
         }
@@ -340,7 +385,7 @@ class AnkiWordSync:
                 return AnkiWordSync._format_due_date(time.localtime(due_i))
             if scheduler_today is not None and due_i > 0:
                 target = datetime.now().date() + timedelta(days=int(due_i) - int(scheduler_today))
-                return "Due " + target.strftime("%d-%m-%Y")
+                return target.strftime("%d.%m.%Y")
             if due_now:
                 return AnkiWordSync._format_due_date(time.localtime())
             return ""
@@ -350,20 +395,37 @@ class AnkiWordSync:
 
     @staticmethod
     def _best_due_text(values: list[str]) -> str:
-        cleaned = [str(value or "").strip() for value in values if str(value or "").strip()]
+        cleaned = [
+            AnkiWordSync._normalize_due_text(str(value or "").strip())
+            for value in values
+            if str(value or "").strip()
+        ]
+        cleaned = [value for value in cleaned if value]
         if not cleaned:
             return ""
         today = AnkiWordSync._format_due_date(time.localtime())
         if today in cleaned:
             return today
-        dated = sorted(value for value in cleaned if re.match(r"^Due \d{2}-\d{2}-\d{4}$", value))
+        dated = [value for value in cleaned if re.match(r"^\d{2}\.\d{2}\.\d{4}$", value)]
         if dated:
-            return dated[0]
+            return min(dated, key=lambda value: datetime.strptime(value, "%d.%m.%Y"))
         return cleaned[0]
 
     @staticmethod
     def _format_due_date(date_tuple) -> str:
-        return "Due " + time.strftime("%d-%m-%Y", date_tuple)
+        return time.strftime("%d.%m.%Y", date_tuple)
+
+    @staticmethod
+    def _normalize_due_text(value: str) -> str:
+        text = re.sub(r"^Due\s+", "", str(value or "").strip(), flags=re.IGNORECASE)
+        if not text:
+            return ""
+        for fmt in ("%d.%m.%Y", "%d-%m-%Y", "%Y-%m-%d"):
+            try:
+                return datetime.strptime(text, fmt).strftime("%d.%m.%Y")
+            except Exception:
+                continue
+        return text
 
     @staticmethod
     def _best_status(statuses: list[str]) -> str:
@@ -377,9 +439,11 @@ class AnkiWordSync:
         status: str,
         settings: AnkiSyncSettings,
         note_id: int = 0,
+        anime_name: str = "",
         due_date: str = "",
         reviews: int = 0,
         card_ids: str = "",
+        suspended: bool = False,
         note_modified: str = "",
     ) -> list[WordEntry]:
         word_fields = settings.word_fields or ["Front"]
@@ -392,6 +456,7 @@ class AnkiWordSync:
             "card_ids": str(card_ids or ""),
             "due_date": str(due_date or ""),
             "reviews": int(reviews or 0),
+            "suspended": bool(suspended),
             "note_modified": str(note_modified or ""),
             "sentence": sentence,
             "sentence_translated": sentence_translated,
@@ -411,6 +476,7 @@ class AnkiWordSync:
                         surface=word,
                         reading=reading,
                         meaning=meaning,
+                        anime=anime_name,
                         source="anki",
                         status=status,
                         extra={**common_extra, "field": field_name, "field_value": text},
@@ -431,12 +497,37 @@ class AnkiWordSync:
                             surface=surface,
                             reading=str(token.get("reading") or ""),
                             meaning=meaning,
+                            anime=anime_name,
                             source="anki",
                             status=status,
                             extra={**common_extra, "field": field_name, "sentence": sentence, "from_sentence": True},
                         )
                     )
         return entries
+
+    @staticmethod
+    def _anime_from_tags(tags, known_anime_names: Iterable[str] | None = None) -> str:
+        if isinstance(tags, str):
+            values = tags.split()
+        elif isinstance(tags, (list, tuple, set)):
+            values = [str(tag or "").strip() for tag in tags]
+        else:
+            values = []
+        prefix_folded = ANKI_ANIME_TAG_PREFIX.casefold()
+        for tag in values:
+            value = str(tag or "").strip()
+            if not value.casefold().startswith(prefix_folded):
+                continue
+            anime = value[len(ANKI_ANIME_TAG_PREFIX):].replace("_", " ").strip()
+            if anime:
+                return anime
+        folded_tags = {str(tag or "").strip().casefold() for tag in values if str(tag or "").strip()}
+        for anime_name in known_anime_names or ():
+            display_name = unicodedata.normalize("NFKC", str(anime_name or "")).strip()
+            plain_tag = format_anime_tag(display_name)
+            if plain_tag and plain_tag.casefold() in folded_tags:
+                return display_name
+        return ""
 
     @staticmethod
     def _note_modified_text(note: dict) -> str:

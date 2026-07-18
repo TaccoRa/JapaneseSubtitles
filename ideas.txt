@@ -14,9 +14,42 @@ AI Ideas:
 Subtitle difficulty heatmap, Review queue from episode (unknown words)
 
 To Do:
+when i go into tooltip and then fast back into the word the hover overlay is then behind the subtitle window and not visivle anymore. 
+
+
+words like ２つ should also have a ruby futatsu
+
+at one point apparently the lines showing in the subtitle window changed. It should be like this: ruby1
+Line1
+Line2
+Ruby2
+ if there is only one line in the subtitles it should be at line2 if there are two it should be line1 and line2. The ruby1 should alway be the rubies of line1 and same for 2. 
+add name recognition with san and kun and so on. 
+普通 is in the category ignored why?
+when selecting kanji is the whitespace cleaned, when the user for example misselected whitespace before or after the kanji?
+add a setting option so that when inisde subtitle window with the pointer the control window does not appear only when using the hotkeys to make it appear.
+Counter of how many words i added this session or this day. 
+option to remove the subtitle handle in phone mode
+In Annotation tab: show counts for unknown, learning, young, mature, due today, suspended.
+between m1 and m2 there can never be a conflict in shortcuts.
+（ジャックの 雄たけびが 続く）was not hidden. Also （ヘリコプターの プロペラ 音が 続く）
+持ってるな is correctly annotated in popup but not in the subttiel window why?持つ is in the word database 
+when show controls when subtitle is hovered is turned off then the hotkey to show the subtitle window and the control window should work like this. IF none is shown show both, if only one of them is shown show the other one as well. if both are shown hide only the control window. 
+
+Check if sound and image copy is valid.
+when adding a card and then clicking outside the app and then wanting to add another card the hotkey to add does not work until i focus inside the app so clicking subtitle window or settings window.
+Suddenly when adding new cards it is not automatically annotated even tough it is in the word database?
+Only for certain words it worked: for example in this sentence: その 少年を 殺さず
+監視 観察してほしい i added: 少年, 殺さず, 監視 and 観察 and only 観察 was marked right away after adding. 
+我々 is not marked even tough it is in the word database?
+Also when i have the popup open and select a word and to the ctrl+c hotkey then go to vscode and paste it there then go back to the popup and select the next word and want to copy it it doesnt work because it loses focus i guess?
+in this sentence: いや
+全てが 一瞬のことだったからな
+全て and 一瞬 is in the word list but not marked? 
+to click the hotkey to add another card again i need to click on the focus of the subtitle window when i clicked outside the app after adding the first word. Why? The hotkey shoudl still work because i select a text in the popup and then the hotkey does nothing until i clicked inside the app again.
 still issues with annotations the popup is again right and different then the subtitle in this sentence たった１人 同じ 思いを
 分かり 合える 人だったのに. 合える is not maked. Or 分かり 合える is wrongly marked in the popup? Are the new rules also for the popup?
-In Annotation tab: show counts for unknown, learning, young, mature, due today, suspended.
+
 - make an option to before adding, open a small anki style window, which shows the exact Front, Back, sentence, audio, image, tags. Useful for catching bad ruby or wrong dictionary form.
 - make Better hover layers
 Separate hover modes:
@@ -47,6 +80,7 @@ Dont do:
 - Change subtitle width to fit current subtitle. Maybe flashes.
 
 Added:
+The subtitle dragging window should only be visible when phone mode is on. Currently it is also visible when not in phone mode. 
 - Add optional toggles for automatic grammar marker tags (`する-Verb`, `い-Adj`, `な-Adj`) in case a deck does not want them.
 - Add a word database which can be imported and exported to show the words you already know. Make a new tab with Annotation and one area is my word database where you can brows your wrods then beneath you can import or export words. These words will then be marked with (tbdl) if option is ticked on ("Mark words?"). Then next to it is the anki word database where you can configure target word and/or sentence fields to collect your known words from anki. Then another area with wanikani word database where an api token is needed (with button, open popup to insert the token). Then again for the anki area there is an option to Colorize subtitles based on known words, then there should be an option for specific level of words from anki for example >21 days (which can be modified) to not show the rubies for these words. Make an option to only show annotations on hover and highlight words on hover. Make the user choose the Anki decks and word and sentence fields. Also ask the user how to treat suspended Anki cards as dropdown(Normal, Mature, Young, Graduated, Learning Unknown). Also the styling should be optional so background underline overline outline thickness and so on choose color for mature young graduated learning unknown uncollected and the alpha and so on.
 - Add an option to auto pause/trigger the spacebar to pause the background video as well, when hovering over the subtitle window with the mouse.
@@ -95,6 +129,13 @@ Added:
 - Phone mode default can be configured.
 
 Fixed:
+- Unhandled Tk callback/background-thread errors now show a message box with the log path instead of only printing or failing silently.
+- Annotation matcher handles purpose forms like `俺を 殺しに` from `殺す` without re-enabling broad derived-noun matching like `動き` from `動く`.
+- Exact annotation phrases can bridge subtitle spaces, so a database entry like `分かり合える` can win over a partial `分かる` match in `分かり 合える`.
+- Spaced verb tails no longer make the whole spaced phrase known from the first verb alone.
+- Kana/non-kanji exact phrases such as `だから` are covered by phrase annotation even when the tokenizer splits them.
+- Popup Ctrl+C and popup add hotkeys are more robust after focus changes or a missed key-release event.
+- Database-level checks confirm current entries for `普通`, `我々`, `全て`, `一瞬`, `少年`, `殺さず`, `監視`, and `観察して` match the active annotation provider.
 - Pressing pause/play does not sync perfectly with the video. The app timer seems faster or starts earlier.
 - Still double click to get entry focus. When i am outside of the advanced window in a different window then my app and then want to write inside the adv window it doesnt let me and the focus is still ont the extern window. 
 - Selecting only a suru-capable stem now checks the subtitle sentence, e.g. selected `勉強` in `私は勉強した` becomes `勉強する` with `する-Verb`.

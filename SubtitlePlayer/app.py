@@ -1,7 +1,12 @@
 # app.py
+import faulthandler
 import tkinter as tk
 import logging
+import os
+import sys
 import threading
+import time
+from tkinter import messagebox
 
 from view.settings_ui import SettingsUI
 from view.subtitle_overlay import SubtitleOverlayUI
@@ -14,6 +19,7 @@ from model.renderer import SubtitleRenderer
 
 from controller.controller import SubtitleController
 from logging_setup import setup_logging
+from utils import TkMainThreadDispatcher, dispatch_to_tk
 
 # from video_sync_server import start_server, get_video_time
 
@@ -24,11 +30,18 @@ class SubtitlePlayerApp:
     def __init__(self):
         self.root = None
         self.config = None
+        self.log_path = ""
 
         self._startup_done = threading.Event()
         self._startup_error = self._startup_result = self._startup_thread = self._startup_overlay = None
+        self._startup_error_info = None
         self._closing = False
         self._startup_check_job = None
+        self._last_error_popup_at = 0.0
+        self._fault_log_handle = None
+        self._crash_marker_path = ""
+        self._previous_run_unclean = False
+        self._tk_dispatcher = None
 
         self.sub_manager = None
         self.renderer = None
@@ -40,21 +53,28 @@ class SubtitlePlayerApp:
 
     def run(self):
         self._load_config()
-        logger.info("Starting SubtitlePlayerApp")
-        self._build_root()
-        self._show_startup_overlay()
-        self._start_startup_worker()
-
-        self._startup_check_job = self.root.after(50, self._check_startup_worker)
         try:
+            logger.info("Starting SubtitlePlayerApp")
+            self._build_root()
+            self._show_startup_overlay()
+            self._start_startup_worker()
+            self._startup_check_job = self.root.after(50, self._check_startup_worker)
             self.root.mainloop()
+            logger.info("SubtitlePlayer main loop exited normally (closing=%s)", self._closing)
+        except Exception as exc:
+            logger.critical("SubtitlePlayer terminated because of an unhandled error", exc_info=True)
+            self._show_error_message_once("SubtitlePlayer stopped", f"{type(exc).__name__}: {exc}")
+            raise
         finally:
             self._closing = True
+            self._close_crash_diagnostics()
 
     def _load_config(self):
         try:
             self.config = ConfigManager("config.json")
             log_path = setup_logging(self.config)
+            self.log_path = str(log_path or "")
+            self._enable_crash_diagnostics()
             logger.debug("Logging to %s", log_path)
         except Exception:
             logger.exception("Failed to load config.json")
@@ -65,8 +85,99 @@ class SubtitlePlayerApp:
         self.root.withdraw()
         self.root.title("SubtitlePlayer")
         self.root.geometry("280x115")
+        self.root.report_callback_exception = self._report_tk_callback_exception
+        threading.excepthook = self._report_thread_exception
+        sys.excepthook = self._report_main_exception
+        self._tk_dispatcher = TkMainThreadDispatcher(self.root)
         self._restore_window_position()
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+
+    def _enable_crash_diagnostics(self) -> None:
+        log_dir = os.path.dirname(os.path.abspath(self.log_path or os.path.join("logs", "subtitleplayer.log")))
+        os.makedirs(log_dir, exist_ok=True)
+        self._crash_marker_path = os.path.join(log_dir, "subtitleplayer.running")
+        self._previous_run_unclean = os.path.exists(self._crash_marker_path)
+        try:
+            with open(self._crash_marker_path, "w", encoding="ascii") as marker:
+                marker.write(f"pid={os.getpid()} started={time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        except Exception:
+            logger.debug("Failed to create crash marker", exc_info=True)
+
+        try:
+            crash_path = os.path.join(log_dir, "native_crash.log")
+            self._fault_log_handle = open(crash_path, "a", encoding="utf-8", buffering=1)
+            self._fault_log_handle.write(
+                f"\n--- SubtitlePlayer run {time.strftime('%Y-%m-%d %H:%M:%S')} pid={os.getpid()} ---\n"
+            )
+            faulthandler.enable(file=self._fault_log_handle, all_threads=True)
+        except Exception:
+            self._fault_log_handle = None
+            logger.debug("Failed to enable native crash diagnostics", exc_info=True)
+
+    def _close_crash_diagnostics(self) -> None:
+        marker_path = str(getattr(self, "_crash_marker_path", "") or "")
+        if marker_path:
+            try:
+                os.remove(marker_path)
+            except FileNotFoundError:
+                pass
+            except Exception:
+                logger.debug("Failed to remove crash marker", exc_info=True)
+        try:
+            if faulthandler.is_enabled():
+                faulthandler.disable()
+        except Exception:
+            pass
+        handle = getattr(self, "_fault_log_handle", None)
+        self._fault_log_handle = None
+        if handle is not None:
+            try:
+                handle.close()
+            except Exception:
+                pass
+
+    def _report_main_exception(self, exc_type, exc, tb) -> None:
+        if exc_type is KeyboardInterrupt:
+            return
+        logger.critical("Unhandled main-thread exception", exc_info=(exc_type, exc, tb))
+        self._show_error_message_once("Unexpected app error", f"{exc_type.__name__}: {exc}")
+
+    def _report_tk_callback_exception(self, exc_type, exc, tb) -> None:
+        logger.exception("Unhandled Tkinter callback exception", exc_info=(exc_type, exc, tb))
+        self._show_error_message_once("Unexpected app error", f"{exc_type.__name__}: {exc}")
+
+    def _report_thread_exception(self, args) -> None:
+        if getattr(args, "exc_type", None) is SystemExit:
+            return
+        logger.exception(
+            "Unhandled background thread exception",
+            exc_info=(getattr(args, "exc_type", None), getattr(args, "exc_value", None), getattr(args, "exc_traceback", None)),
+        )
+        root = getattr(self, "root", None)
+        if root is None or self._closing:
+            return
+        try:
+            dispatch_to_tk(
+                root,
+                self._show_error_message_once,
+                "Unexpected background error",
+                f"{getattr(args, 'exc_type', Exception).__name__}: {getattr(args, 'exc_value', '')}",
+            )
+        except Exception:
+            pass
+
+    def _show_error_message_once(self, title: str, detail: str) -> None:
+        now = time.monotonic()
+        if now - float(getattr(self, "_last_error_popup_at", 0.0) or 0.0) < 2.0:
+            return
+        self._last_error_popup_at = now
+        message = str(detail or "An unexpected error occurred.").strip()
+        if self.log_path:
+            message = f"{message}\n\nDetails were written to:\n{self.log_path}"
+        try:
+            messagebox.showerror(title, message, parent=self.root)
+        except Exception:
+            logger.debug("Failed to show error message", exc_info=True)
     def _show_startup_overlay(self):
         self._startup_overlay = LoadingOverlay(self.root,text="Starting SubtitlePlayer...",modal=False)
         set_startup_overlay(self._startup_overlay)
@@ -88,8 +199,11 @@ class SubtitlePlayerApp:
                     pass
                 return
             self._startup_result = (sub_manager, total_duration)
+            logger.info("Startup data preparation completed")
         except Exception as exc:
             self._startup_error = exc
+            self._startup_error_info = sys.exc_info()
+            logger.error("Startup data preparation failed: %s", exc, exc_info=self._startup_error_info)
         finally:
             self._startup_done.set()
 
@@ -107,7 +221,15 @@ class SubtitlePlayerApp:
             return
         if self._startup_error or not self._startup_result:
             self._close_startup_overlay()
-            logger.exception("Startup failed", exc_info=self._startup_error)
+            error = self._startup_error or RuntimeError("Startup did not return a result.")
+            logger.error("Startup failed: %s", error, exc_info=self._startup_error_info)
+            try:
+                self.root.deiconify()
+                self.root.lift()
+            except Exception:
+                pass
+            self._show_error_message_once("SubtitlePlayer startup failed", f"{type(error).__name__}: {error}")
+            self._startup_error_info = None
             self._destroy_root()
             return
 
@@ -126,6 +248,14 @@ class SubtitlePlayerApp:
         self._close_startup_overlay()
         self.sub_overlay_ui.show()
         self.controller.schedule_update()
+        if self._previous_run_unclean:
+            self.root.after(
+                250,
+                lambda: self._show_error_message_once(
+                    "Previous run ended unexpectedly",
+                    "The previous SubtitlePlayer run did not shut down normally. Native crash details, if available, were written to logs/native_crash.log.",
+                ),
+            )
 
     def _close_startup_overlay(self):
         if self._startup_overlay:
@@ -232,6 +362,7 @@ class SubtitlePlayerApp:
         if self._closing:
             return
         self._closing = True
+        logger.info("SubtitlePlayer shutdown requested")
         if self._startup_check_job is not None:
             try:
                 self.root.after_cancel(self._startup_check_job)
@@ -271,6 +402,13 @@ class SubtitlePlayerApp:
         self._destroy_root()
 
     def _destroy_root(self):
+        dispatcher = getattr(self, "_tk_dispatcher", None)
+        self._tk_dispatcher = None
+        if dispatcher is not None:
+            try:
+                dispatcher.close()
+            except Exception:
+                pass
         try:
             self.root.update_idletasks()
         except Exception:

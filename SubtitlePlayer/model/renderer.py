@@ -14,14 +14,22 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 import time
 import tkinter as tk
+from collections import OrderedDict
 from tkinter import font as tkFont
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from model.config_manager import ConfigManager
+from model.hover_layers import (
+    choose_hover_region,
+    clean_hover_translation,
+    combine_hover_text,
+    hover_layers,
+)
 from view.subtitle_overlay import SubtitleOverlayUI
-from utils import get_monitor_rects, make_nonactivating_tool_window, show_window_no_activate
+from utils import dispatch_to_tk, get_monitor_rects, make_nonactivating_tool_window, show_window_no_activate
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +39,11 @@ WrappedLines = Tuple[Tuple[Segment, ...], ...]
 
 
 class SubtitleRenderer:
+    _HOVER_TEXT_MAX_WIDTH_PX = 1000
+    _HOVER_TEXT_PAD_X = 12
+    _HOVER_TEXT_PAD_Y = 8
+    _HOVER_TEXT_HEADINGS = ("Dictionary:", "Status:", "Translation:")
+
     def __init__(self, canvas: tk.Canvas, config: ConfigManager) -> None:
         self.config = config
         self.canvas = canvas
@@ -39,9 +52,18 @@ class SubtitleRenderer:
         self._word_regions: List[dict] = []
         self._hover_active_region = None
         self._hover_active_mode: str | None = None
+        self._hover_active_translation_key: tuple[str, str] | None = None
+        self._translation_hover_cache: dict[tuple[str, str], str] = {}
+        self._translation_hover_pending: set[tuple[str, str]] = set()
+        self._hover_layer_job = None
+        self._hover_clear_job = None
+        self._hover_status_highlights: set[tuple[float, float, float, float]] = set()
+        self._status_selected_regions: list[dict] = []
+        self._hover_click_bind_id = None
         self._hover_text_window: tk.Toplevel | None = None
-        self._hover_text_label: tk.Label | None = None
+        self._hover_text_label: tk.Text | None = None
         self._hover_text_current: str = ""
+        self._hover_text_size: tuple[int, int] = (1, 1)
         self._dictionary_lookup: Callable[[str], str] | None = None
         self._translation_lookup: Callable[..., str] | None = None
         self._translation_provider_callback: Callable[[], str] | None = None
@@ -70,11 +92,22 @@ class SubtitleRenderer:
             WrappedLines,
         ] = {}
         self._layout_cache: Dict[Tuple, Dict[str, WrappedLines]] = {}
+        self._annotation_segment_cache: OrderedDict[Tuple, object] = OrderedDict()
+        self._annotation_segment_cache_limit = 2048
+        self._preview_render_cache: OrderedDict[Tuple, str] = OrderedDict()
+        self._preview_render_cache_limit = 6
+        self._preview_render_tag_counter = 0
+        self._active_preview_render_tag: str | None = None
+        self._current_render_tags: Tuple[str, ...] = ()
         self._last_overlay_width: Optional[int] = None
         self._layout_cache_hits = 0
         self._layout_cache_misses = 0
+        self._annotation_segment_cache_hits = 0
+        self._annotation_segment_cache_misses = 0
+        self._preview_render_cache_hits = 0
+        self._preview_render_cache_misses = 0
 
-        self._timing_enabled = False
+        self._timing_enabled = bool(config.get("DEBUGGING") or False)
         self._timing_data = {
             "render_subtitle_time": 0.0,
             "font_creation_time": 0.0,
@@ -82,6 +115,10 @@ class SubtitleRenderer:
             "split_text_to_fit_time": 0.0,
             "font_measure_time": 0.0,
             "draw_outlined_text_time": 0.0,
+            "canvas_delete_time": 0.0,
+            "draw_outlined_text_count": 0,
+            "canvas_text_item_count": 0,
+            "preview_cache_show_time": 0.0,
             "render_count": 0,
         }
 
@@ -142,7 +179,13 @@ class SubtitleRenderer:
             lines = wrapped_top + wrapped_bottom
 
             if not lines:
-                self.canvas.delete("all")
+                if preview:
+                    self._hide_active_preview_render()
+                    if not self._preview_render_cache:
+                        self._delete_all_canvas_items()
+                else:
+                    self._delete_all_canvas_items()
+                    self._clear_preview_render_cache(delete_items=False)
                 self._finish_hover_bindings(preview=preview)
                 return
 
@@ -168,8 +211,24 @@ class SubtitleRenderer:
                 if int(overlay.max_h) != int(target_h):
                     overlay.update_geometry(int(overlay.max_w), int(target_h))
 
-            self.canvas.delete("all")
-            self._render_subtitle_lines(lines, y_ruby_top, y_base1, overlay, preview=preview)
+            preview_cache_key = None
+            preview_tag = None
+            if preview:
+                preview_cache_key = (layout_cache_key, int(overlay.max_h))
+                if self._show_cached_preview_render(preview_cache_key):
+                    self._finish_hover_bindings(preview=True)
+                    return
+                preview_tag = self._begin_preview_render(preview_cache_key)
+            else:
+                self._delete_all_canvas_items()
+                self._clear_preview_render_cache(delete_items=False)
+
+            try:
+                self._render_subtitle_lines(lines, y_ruby_top, y_base1, overlay, preview=preview)
+            finally:
+                self._current_render_tags = ()
+            if preview and preview_cache_key is not None and preview_tag:
+                self._store_preview_render(preview_cache_key, preview_tag)
             self._finish_hover_bindings(preview=preview)
 
         finally:
@@ -218,10 +277,125 @@ class SubtitleRenderer:
         if not enabled:
             return segments
         try:
-            return provider.annotate_segments(segments, self._word_tokenizer)
+            version = int(getattr(provider, "version", 0) or 0)
+        except Exception:
+            version = 0
+        try:
+            cache_key = (version, self._freeze_segments(segments))
+        except Exception:
+            cache_key = None
+        if cache_key is not None:
+            cached = self._annotation_segment_cache.get(cache_key)
+            if cached is not None:
+                self._annotation_segment_cache_hits += 1
+                self._annotation_segment_cache.move_to_end(cache_key)
+                return cached
+            self._annotation_segment_cache_misses += 1
+        try:
+            annotated = provider.annotate_segments(segments, self._word_tokenizer)
+            if cache_key is not None:
+                self._annotation_segment_cache[cache_key] = annotated
+                self._annotation_segment_cache.move_to_end(cache_key)
+                while len(self._annotation_segment_cache) > self._annotation_segment_cache_limit:
+                    self._annotation_segment_cache.popitem(last=False)
+            return annotated
         except Exception:
             logger.debug("Failed to prepare annotation segments", exc_info=True)
             return segments
+
+    def _delete_all_canvas_items(self) -> None:
+        if not self._timing_enabled:
+            self.canvas.delete("all")
+            return
+        start = time.perf_counter()
+        try:
+            self.canvas.delete("all")
+        finally:
+            self._timing_data["canvas_delete_time"] += time.perf_counter() - start
+
+    def _merge_render_tags(self, tags=()) -> Tuple[str, ...]:
+        current = tuple(getattr(self, "_current_render_tags", ()) or ())
+        if not current:
+            return tuple(tags or ())
+        merged = list(current)
+        for tag in tuple(tags or ()):
+            if tag not in merged:
+                merged.append(tag)
+        return tuple(merged)
+
+    def _hide_active_preview_render(self) -> None:
+        tag = getattr(self, "_active_preview_render_tag", None)
+        if not tag:
+            return
+        try:
+            self.canvas.itemconfigure(tag, state="hidden")
+        except Exception:
+            pass
+        self._active_preview_render_tag = None
+
+    def _clear_preview_render_cache(self, *, delete_items: bool = True) -> None:
+        if delete_items:
+            for tag in list(self._preview_render_cache.values()):
+                try:
+                    self.canvas.delete(tag)
+                except Exception:
+                    pass
+        self._preview_render_cache.clear()
+        self._active_preview_render_tag = None
+        self._current_render_tags = ()
+
+    def _show_cached_preview_render(self, cache_key: Tuple) -> bool:
+        tag = self._preview_render_cache.get(cache_key)
+        if not tag:
+            self._preview_render_cache_misses += 1
+            return False
+
+        start = time.perf_counter() if self._timing_enabled else 0.0
+        try:
+            active = getattr(self, "_active_preview_render_tag", None)
+            if active and active != tag:
+                self.canvas.itemconfigure(active, state="hidden")
+            self.canvas.itemconfigure(tag, state="normal")
+            self._active_preview_render_tag = tag
+            self._preview_render_cache.move_to_end(cache_key)
+            self._preview_render_cache_hits += 1
+            return True
+        except Exception:
+            try:
+                self.canvas.delete(tag)
+            except Exception:
+                pass
+            self._preview_render_cache.pop(cache_key, None)
+            self._active_preview_render_tag = None
+            return False
+        finally:
+            if self._timing_enabled:
+                self._timing_data["preview_cache_show_time"] += time.perf_counter() - start
+
+    def _begin_preview_render(self, cache_key: Tuple) -> str:
+        if not self._preview_render_cache:
+            self._delete_all_canvas_items()
+        else:
+            self._hide_active_preview_render()
+        self._preview_render_tag_counter += 1
+        tag = f"preview_subtitle_{self._preview_render_tag_counter}"
+        self._current_render_tags = (tag,)
+        self._active_preview_render_tag = tag
+        return tag
+
+    def _store_preview_render(self, cache_key: Tuple, tag: str) -> None:
+        self._preview_render_cache[cache_key] = tag
+        self._preview_render_cache.move_to_end(cache_key)
+        while len(self._preview_render_cache) > self._preview_render_cache_limit:
+            _old_key, old_tag = self._preview_render_cache.popitem(last=False)
+            if old_tag == self._active_preview_render_tag:
+                self._preview_render_cache[_old_key] = old_tag
+                self._preview_render_cache.move_to_end(_old_key)
+                break
+            try:
+                self.canvas.delete(old_tag)
+            except Exception:
+                pass
 
     @staticmethod
     def _segment_base(segment) -> str:
@@ -273,20 +447,20 @@ class SubtitleRenderer:
         return wrap_limit_px
 
     def _render_subtitle_lines(self, lines, y_ruby_top, y_base1, overlay: SubtitleOverlayUI, preview: bool = False) -> None:
+        block_h = self.line_height + self.ruby_height
+        base2_start = block_h
+        y_base2 = base2_start + self.line_height // 2
+        y_ruby_bot = base2_start + self.line_height + self.ruby_height // 2
+
         if len(lines) == 1:
-            self._render_line(lines[0], y_ruby_top, y_base1, overlay.max_w, preview=preview)
+            self._render_line(lines[0], y_ruby_bot, y_base2, overlay.max_w, preview=preview, line_position="second")
             return
 
         if len(lines) == 2:
-            block_h = self.line_height + self.ruby_height
-            base2_start = block_h
-            y_base2 = base2_start + self.line_height // 2
-            y_ruby_bot = base2_start + self.line_height + self.ruby_height // 2
-            self._render_line(lines[0], y_ruby_top, y_base1, overlay.max_w, preview=preview)
-            self._render_line(lines[1], y_ruby_bot, y_base2, overlay.max_w, preview=preview)
+            self._render_line(lines[0], y_ruby_top, y_base1, overlay.max_w, preview=preview, line_position="first")
+            self._render_line(lines[1], y_ruby_bot, y_base2, overlay.max_w, preview=preview, line_position="second")
             return
 
-        block_h = self.line_height + self.ruby_height
         avail_h = int(overlay.max_h)
         total_h = min(int(block_h * len(lines)), avail_h)
         top_offset = max(0, int((avail_h - total_h) / 2))
@@ -299,9 +473,10 @@ class SubtitleRenderer:
             else:
                 ruby_y = block_y + self.ruby_height // 2
                 base_y = block_y + self.ruby_height + self.line_height // 2
-            self._render_line(segs, ruby_y, base_y, overlay.max_w, preview=preview)
+            position = "first" if i < max(1, len(lines) // 2) else "second"
+            self._render_line(segs, ruby_y, base_y, overlay.max_w, preview=preview, line_position=position)
 
-    def _render_line(self, segments, ruby_y, base_y, max_width, preview: bool = False):
+    def _render_line(self, segments, ruby_y, base_y, max_width, preview: bool = False, line_position: str = "second"):
         if not segments:
             return
 
@@ -311,6 +486,7 @@ class SubtitleRenderer:
         line_text = "".join(self._segment_base(segment) for segment in segments) if collect_word_regions else ""
         line_region_meta = []
         line_col = 0
+        segment_col = 0
 
         for segment in segments:
             base = self._segment_base(segment)
@@ -327,7 +503,7 @@ class SubtitleRenderer:
             else:
                 ruby_w = 0
                 seg_w = base_w
-            hover_ruby_w = self._measure_text(self.ruby_font, hover_ruby) if hover_ruby else 0
+            hover_ruby_w = self._measure_text(self.ruby_font, hover_ruby) if hover_ruby and not preview else 0
             seg_meta.append(
                 {
                     "base": base,
@@ -340,10 +516,13 @@ class SubtitleRenderer:
                     "hover_ruby_w": hover_ruby_w,
                     "ruby_group_id": ruby_group_id,
                     "ruby_group_ruby": ruby_group_ruby,
+                    "text_start": segment_col,
+                    "text_end": segment_col + len(base),
                     "pre_pad": 0.0,
                     "post_pad": 0.0,
                 }
             )
+            segment_col += len(base)
             total_w += seg_w
 
         idx = 0
@@ -371,11 +550,15 @@ class SubtitleRenderer:
                 total_w += extra_w
             group_items[0]["ruby_group_draw"] = True
             group_slot_w = group_base_w + extra_w
+            group_text_start = int(group_items[0].get("text_start") or 0)
+            group_text_end = int(group_items[-1].get("text_end") or group_text_start)
             for group_item in group_items:
                 group_item["ruby_group_base"] = group_base
                 group_item["ruby_group_base_w"] = group_base_w
                 group_item["ruby_group_ruby_w"] = group_ruby_w
                 group_item["ruby_group_slot_w"] = group_slot_w
+                group_item["ruby_group_text_start"] = group_text_start
+                group_item["ruby_group_text_end"] = group_text_end
 
         cur_x = (max_width - total_w) / 2
         pending_group_hover_regions = []
@@ -388,6 +571,8 @@ class SubtitleRenderer:
             ruby_w = int(item.get("ruby_w") or 0)
             seg_w = int(item.get("seg_w") or 0)
             meta = item.get("meta") if isinstance(item.get("meta"), dict) else {}
+            text_start = int(item.get("text_start") or 0)
+            text_end = int(item.get("text_end") or text_start)
             hover_ruby = str(item.get("hover_ruby") or "")
             hover_ruby_w = int(item.get("hover_ruby_w") or 0)
             slot_left = cur_x
@@ -425,9 +610,8 @@ class SubtitleRenderer:
                 }
                 if group_ruby and not self.hover_ruby_enabled:
                     self._draw_ruby_text(group_ruby, group_base_w, group_ruby_w, group_cx, ruby_y)
-                elif (
+                if (
                     group_ruby
-                    and self.hover_ruby_enabled
                     and not preview
                     and self._has_hoverable_ruby_base(group_base)
                 ):
@@ -446,6 +630,9 @@ class SubtitleRenderer:
                             "ruby_y": ruby_y,
                             "base": group_base,
                             "lookup": group_base,
+                            "char_start": int(item.get("ruby_group_text_start") or text_start),
+                            "char_end": int(item.get("ruby_group_text_end") or text_end),
+                            "line_position": line_position,
                         }
                     )
 
@@ -481,6 +668,9 @@ class SubtitleRenderer:
                         "ruby_y": ruby_y,
                         "base": base,
                         "lookup": str(meta.get("lookup") or base),
+                        "char_start": text_start,
+                        "char_end": text_end,
+                        "line_position": line_position,
                         "annotation": True,
                         "annotation_text": str(meta.get("annotation_text") or ""),
                         "hover_highlight": bool(meta.get("hover_highlight", True)),
@@ -493,9 +683,8 @@ class SubtitleRenderer:
 
             if ruby and not self.hover_ruby_enabled:
                 self._draw_ruby_text(ruby, base_w, ruby_w, cx, ruby_y)
-            elif (
+            if (
                 ruby
-                and self.hover_ruby_enabled
                 and not preview
                 and self._has_hoverable_ruby_base(base)
                 and not annotation_region_added
@@ -515,6 +704,9 @@ class SubtitleRenderer:
                         "ruby_y": ruby_y,
                         "base": base,
                         "lookup": base,
+                        "char_start": text_start,
+                        "char_end": text_end,
+                        "line_position": line_position,
                     }
                 )
 
@@ -535,7 +727,7 @@ class SubtitleRenderer:
         self._hover_regions.extend(pending_group_hover_regions)
 
         if collect_word_regions:
-            self._add_word_regions_for_line(line_text, line_region_meta, base_y, ruby_y)
+            self._add_word_regions_for_line(line_text, line_region_meta, base_y, ruby_y, line_position=line_position)
 
     def _annotation_style_visible(self, meta: dict) -> bool:
         if not meta or not meta.get("annotation"):
@@ -577,7 +769,7 @@ class SubtitleRenderer:
                 base_y + (self.line_height / 2) - pad_y,
                 fill=color,
                 outline="",
-                tags=("annotation_bg",),
+                tags=self._merge_render_tags(("annotation_bg",)),
             )
         except Exception:
             logger.debug("Failed to draw annotation background", exc_info=True)
@@ -591,19 +783,35 @@ class SubtitleRenderer:
                 width = max(1, int(float(style.get("underline_thickness") or 1)))
                 color = str(style.get("underline_color") or style.get("text_color") or self.color)
                 y = base_y + (self.line_height * 0.40)
-                self.canvas.create_line(x1, y, x2, y, fill=color, width=width, tags=("annotation_underline",))
+                self.canvas.create_line(
+                    x1,
+                    y,
+                    x2,
+                    y,
+                    fill=color,
+                    width=width,
+                    tags=self._merge_render_tags(("annotation_underline",)),
+                )
             if bool(style.get("overline")):
                 width = max(1, int(float(style.get("overline_thickness") or 1)))
                 color = str(style.get("overline_color") or style.get("text_color") or self.color)
                 y = base_y - (self.line_height * 0.44)
-                self.canvas.create_line(x1, y, x2, y, fill=color, width=width, tags=("annotation_overline",))
+                self.canvas.create_line(
+                    x1,
+                    y,
+                    x2,
+                    y,
+                    fill=color,
+                    width=width,
+                    tags=self._merge_render_tags(("annotation_overline",)),
+                )
         except Exception:
             logger.debug("Failed to draw annotation line", exc_info=True)
 
     def _refresh_fonts_if_needed(self) -> None:
         font_family = self.config.get("SUBTITLE_FONT")
         font_size = int(self.config.get("SUBTITLE_FONT_SIZE") or 12)
-        hover_ruby_enabled = self.config.get("SUBTITLE_HOVER_RUBY")
+        hover_ruby_enabled = bool(self.config.get("HOVER_DEFAULT_RUBY"))
         color = self.config.get("SUBTITLE_COLOR")
         glow_color = str(self.config.get("GLOW_COLOR") or "black")
 
@@ -647,6 +855,8 @@ class SubtitleRenderer:
         self._split_cache.clear()
         self._wrap_cache.clear()
         self._layout_cache.clear()
+        self._annotation_segment_cache.clear()
+        self._clear_preview_render_cache(delete_items=True)
         self._last_overlay_width = None
 
     def _wrap_segments(
@@ -867,26 +1077,38 @@ class SubtitleRenderer:
     ) -> None:
         thickness = max(0, int(thickness))
         text = text or ""
+        tags = self._merge_render_tags(tags)
+        timing = bool(self._timing_enabled)
+        start = time.perf_counter() if timing else 0.0
+        item_count = 0
 
-        if thickness == 0:
-            canvas.create_text(x, y, text=text, fill=fill, font=font, anchor=anchor, tags=tags)
-            return
+        try:
+            if thickness == 0:
+                canvas.create_text(x, y, text=text, fill=fill, font=font, anchor=anchor, tags=tags)
+                item_count = 1
+                return
 
-        create_text = canvas.create_text
-        offsets = self._get_outline_offsets(thickness)
+            create_text = canvas.create_text
+            offsets = self._get_outline_offsets(thickness)
 
-        for dx, dy in offsets:
-            create_text(
-                x + dx,
-                y + dy,
-                text=text,
-                fill=outline,
-                font=font,
-                anchor=anchor,
-                tags=tags,
-            )
+            for dx, dy in offsets:
+                create_text(
+                    x + dx,
+                    y + dy,
+                    text=text,
+                    fill=outline,
+                    font=font,
+                    anchor=anchor,
+                    tags=tags,
+                )
 
-        create_text(x, y, text=text, fill=fill, font=font, anchor=anchor, tags=tags)
+            create_text(x, y, text=text, fill=fill, font=font, anchor=anchor, tags=tags)
+            item_count = len(offsets) + 1
+        finally:
+            if timing:
+                self._timing_data["draw_outlined_text_time"] += time.perf_counter() - start
+                self._timing_data["draw_outlined_text_count"] += 1
+                self._timing_data["canvas_text_item_count"] += item_count
 
     def _get_approximate_outline_offsets(self, thickness: int) -> List[Tuple[int, int]]:
         thickness = max(0, int(thickness))
@@ -988,7 +1210,15 @@ class SubtitleRenderer:
             tags=tags,
         )
 
-    def _add_word_regions_for_line(self, line_text: str, segment_meta: list[dict[str, Any]], base_y: float, ruby_y: float) -> None:
+    def _add_word_regions_for_line(
+        self,
+        line_text: str,
+        segment_meta: list[dict[str, Any]],
+        base_y: float,
+        ruby_y: float,
+        *,
+        line_position: str = "second",
+    ) -> None:
         if not line_text:
             return
         tokens = self._tokenize_words(line_text)
@@ -1037,10 +1267,19 @@ class SubtitleRenderer:
                     ),
                     "base": surface,
                     "lookup": str(token.get("lookup") or surface).strip(),
+                    "char_start": start,
+                    "char_end": end,
+                    "compound": bool(token.get("compound")),
+                    "orth_base": str(token.get("orth_base") or "").strip(),
                     "sentence_lookup": line_text,
                     "ruby": str(token.get("reading") or "").strip(),
+                    "pos1": str(token.get("pos1") or ""),
+                    "pos2": str(token.get("pos2") or ""),
+                    "c_type": str(token.get("c_type") or ""),
+                    "c_form": str(token.get("c_form") or ""),
                     "cx": (x1 + x2) / 2,
                     "ruby_y": ruby_y,
+                    "line_position": line_position,
                 }
             )
 
@@ -1063,7 +1302,8 @@ class SubtitleRenderer:
                 surface = str(span.get("surface") or text[start:end]).strip()
                 if not surface:
                     continue
-                out.append(
+                item = dict(span)
+                item.update(
                     {
                         "surface": surface,
                         "lookup": str(span.get("lookup") or surface).strip(),
@@ -1072,6 +1312,7 @@ class SubtitleRenderer:
                         "end": end,
                     }
                 )
+                out.append(item)
             if out:
                 return out
 
@@ -1133,23 +1374,35 @@ class SubtitleRenderer:
 
     def _finish_hover_bindings(self, preview: bool = False) -> None:
         if preview:
-            self._clear_hover_ruby()
-            try:
-                self.canvas.unbind("<Motion>")
-                self.canvas.unbind("<Leave>")
-            except Exception:
-                pass
+            if not getattr(self, "_preview_hover_bindings_cleared", False):
+                self._clear_hover_ruby()
+                try:
+                    self.canvas.unbind("<Motion>")
+                    self.canvas.unbind("<Leave>")
+                except Exception:
+                    pass
+                self._preview_hover_bindings_cleared = True
             return
-        has_ruby_hover = self.hover_ruby_enabled and self._hover_regions
+        self._preview_hover_bindings_cleared = False
+        normal_layers = hover_layers(self.config, "ruby")
+        has_ruby_hover = "ruby" in normal_layers and self.hover_ruby_enabled and self._hover_regions
         has_dictionary_hover = self._shift_hover_dictionary_enabled() and bool(self._word_regions)
         has_layer_hover = bool(self._word_regions and (
+            any(layer != "ruby" for layer in normal_layers)
+            or
             has_dictionary_hover
             or callable(getattr(self, "_translation_lookup", None))
             or getattr(self, "_annotation_provider", None) is not None
         ))
         if has_ruby_hover or has_layer_hover:
             self.canvas.bind("<Motion>", self._on_hover_motion)
-            self.canvas.bind("<Leave>", self._clear_hover_ruby)
+            self.canvas.bind("<Leave>", self._schedule_hover_clear)
+            if self._hover_click_bind_id is None:
+                self._hover_click_bind_id = self.canvas.bind(
+                    "<Control-Button-1>",
+                    self._on_status_word_click,
+                    add="+",
+                )
         else:
             self._clear_hover_ruby()
             try:
@@ -1159,51 +1412,289 @@ class SubtitleRenderer:
                 pass
 
     def _on_hover_motion(self, event) -> None:
-        mode = self._hover_mode(event)
+        try:
+            ctrl_held = bool(int(getattr(event, "state", 0) or 0) & 0x0004)
+        except Exception:
+            ctrl_held = False
         x = float(getattr(event, "x", 0))
         y = float(getattr(event, "y", 0))
-
         ruby_hit = self._region_at_point(self._hover_regions, x, y)
+        pointer_word = self._region_at_point(self._word_regions, x, y, anchor=ruby_hit)
+        if len(self._status_selected_regions) > 1 and self._selected_status_region(pointer_word):
+            self._cancel_hover_clear()
+            selection_key = self._status_selection_key()
+            if self._hover_active_region != selection_key or self._hover_active_mode != "multi_selection":
+                self._cancel_hover_layer_job()
+                self.canvas.delete("hover_ruby")
+                self.canvas.delete("hover_word_highlight")
+                self._hide_hover_text_window()
+                self._hover_active_region = selection_key
+                self._hover_active_mode = "multi_selection"
+                self._hover_active_translation_key = None
+                self._show_selected_status_regions(pointer_word)
+            return
+        if ctrl_held and self._status_selected_regions:
+            self._cancel_hover_clear()
+            return
+        mode = self._hover_mode(event)
+        layers = hover_layers(self.config, mode)
+
         layer_hit = (
-            self._region_at_point(self._word_regions, x, y)
-            if mode in {"dictionary", "status", "translation"}
+            pointer_word
+            if any(layer != "ruby" for layer in layers)
             else None
         )
         active_key = (id(ruby_hit) if ruby_hit is not None else 0, id(layer_hit) if layer_hit is not None else 0)
 
+        if ruby_hit is None and layer_hit is None:
+            self._cancel_hover_layer_job()
+            if self._hover_clear_job is None:
+                self._schedule_hover_clear()
+            return
+
+        self._cancel_hover_clear()
         if active_key == self._hover_active_region and mode == self._hover_active_mode:
             return
 
-        self._clear_hover_ruby()
+        previous_mode = self._hover_active_mode
+        self._cancel_hover_layer_job()
+        try:
+            self.canvas.delete("hover_ruby")
+            self.canvas.delete("hover_word_highlight")
+            if previous_mode == "status" and mode != "status":
+                self.canvas.delete("hover_status_highlight")
+                self._hover_status_highlights.clear()
+                self._status_selected_regions.clear()
+        except Exception:
+            pass
+        self._hover_active_translation_key = None
         self._hover_active_region = active_key
         self._hover_active_mode = mode
 
-        if ruby_hit is None and layer_hit is None:
-            return
-
-        if ruby_hit is not None:
+        if ruby_hit is not None and "ruby" in layers:
             self._show_hover_ruby_region(ruby_hit, allow_annotation_highlight=(mode == "ruby"))
 
         if layer_hit is None:
             return
-        self._draw_word_highlight(layer_hit)
-        if mode == "translation":
-            self._show_hover_translation(layer_hit)
-        elif mode == "status":
-            self._show_hover_status(layer_hit)
-        elif mode == "dictionary":
-            self._show_hover_dictionary(layer_hit)
+        self._schedule_hover_layers(layer_hit, layers, active_key, mode)
+
+    def _hover_layer_delay_ms(self) -> int:
+        try:
+            value = self.config.get("HOVER_LAYER_DELAY_MS")
+            if value is None or str(value).strip() == "":
+                value = 500
+            return max(0, min(10000, int(float(value))))
+        except Exception:
+            return 500
+
+    def _cancel_hover_layer_job(self) -> None:
+        job, self._hover_layer_job = self._hover_layer_job, None
+        if job is not None:
+            try:
+                self.canvas.after_cancel(job)
+            except Exception:
+                pass
+
+    def _cancel_hover_clear(self) -> None:
+        job, self._hover_clear_job = self._hover_clear_job, None
+        if job is not None:
+            try:
+                self.canvas.after_cancel(job)
+            except Exception:
+                pass
+
+    def _pointer_inside_hover_target(self) -> bool:
+        try:
+            px = int(self.canvas.winfo_pointerx())
+            py = int(self.canvas.winfo_pointery())
+        except Exception:
+            return False
+
+        hover_window = self._hover_text_window
+        if hover_window is not None:
+            try:
+                hover_visible = bool(hover_window.winfo_exists()) and str(hover_window.state()) != "withdrawn"
+            except Exception:
+                hover_visible = False
+            if hover_visible:
+                try:
+                    x = int(hover_window.winfo_rootx())
+                    y = int(hover_window.winfo_rooty())
+                    width = int(hover_window.winfo_width() or hover_window.winfo_reqwidth())
+                    height = int(hover_window.winfo_height() or hover_window.winfo_reqheight())
+                    if x <= px < x + width and y <= py < y + height:
+                        return True
+                except Exception:
+                    pass
+
+        try:
+            x = float(px - int(self.canvas.winfo_rootx()))
+            y = float(py - int(self.canvas.winfo_rooty()))
+            if x < 0 or y < 0 or x >= int(self.canvas.winfo_width()) or y >= int(self.canvas.winfo_height()):
+                return False
+        except Exception:
+            return False
+
+        ruby_hit = self._region_at_point(self._hover_regions, x, y)
+        word_hit = self._region_at_point(self._word_regions, x, y, anchor=ruby_hit)
+        if self._hover_active_mode == "multi_selection":
+            return self._selected_status_region(word_hit) is not None
+
+        layers = hover_layers(self.config, self._hover_active_mode or "ruby")
+        layer_hit = word_hit if any(layer != "ruby" for layer in layers) else None
+        active_key = (
+            id(ruby_hit) if ruby_hit is not None else 0,
+            id(layer_hit) if layer_hit is not None else 0,
+        )
+        return active_key != (0, 0) and active_key == self._hover_active_region
+
+    def _schedule_hover_clear(self, _event=None, delay_ms: int | None = None) -> None:
+        self._cancel_hover_clear()
+        if delay_ms is None:
+            try:
+                value = self.config.get("SUBTITLE_HOVER_CLEAR_DELAY_MS")
+                if value is None or str(value).strip() == "":
+                    value = 700
+                delay_ms = int(float(value))
+            except Exception:
+                delay_ms = 700
+
+        def clear_if_outside() -> None:
+            self._hover_clear_job = None
+            if self._pointer_inside_hover_target():
+                return
+            self._clear_hover_ruby()
+
+        self._hover_clear_job = self.canvas.after(max(0, int(delay_ms)), clear_if_outside)
+
+    def _schedule_hover_layers(self, region: dict, layers: tuple[str, ...], active_key, mode: str) -> None:
+        non_ruby_layers = tuple(layer for layer in layers if layer != "ruby")
+        if not non_ruby_layers:
+            return
+
+        def show() -> None:
+            self._hover_layer_job = None
+            if self._hover_active_region != active_key or self._hover_active_mode != mode:
+                return
+            logger.debug(
+                "Subtitle hover layers mode=%s layers=%s lookup=%r",
+                mode,
+                ",".join(layers),
+                str(region.get("lookup") or region.get("base") or ""),
+            )
+            self._draw_word_highlight(region)
+            self._show_hover_layers(region, layers)
+
+        delay = self._hover_layer_delay_ms()
+        if delay <= 0:
+            show()
+        else:
+            self._hover_layer_job = self.canvas.after(delay, show)
+
+    def _on_status_word_click(self, event):
+        try:
+            ctrl_held = bool(int(getattr(event, "state", 0) or 0) & 0x0004)
+        except Exception:
+            ctrl_held = False
+        if not ctrl_held and self._hover_mode(event) != "status":
+            return None
+        region = self._region_at_point(
+            self._word_regions,
+            float(getattr(event, "x", 0)),
+            float(getattr(event, "y", 0)),
+            anchor=self._region_at_point(
+                self._hover_regions,
+                float(getattr(event, "x", 0)),
+                float(getattr(event, "y", 0)),
+            ),
+        )
+        if region is None:
+            self.canvas.delete("hover_status_highlight")
+            self._hover_status_highlights.clear()
+            self._status_selected_regions.clear()
+            self._hide_hover_text_window()
+            return "break"
+
+        bbox = tuple(float(value) for value in region.get("bbox", (0, 0, 0, 0)))
+        existing = next(
+            (item for item in self._status_selected_regions if tuple(float(v) for v in item.get("bbox", ())) == bbox),
+            None,
+        )
+        if existing is not None:
+            self._status_selected_regions.remove(existing)
+        else:
+            self._status_selected_regions.append(region)
+
+        self.canvas.delete("hover_status_highlight")
+        self._hover_status_highlights.clear()
+        ordered = sorted(
+            self._status_selected_regions,
+            key=lambda item: (float(item["bbox"][1]), float(item["bbox"][0])),
+        )
+        for item in ordered:
+            self._draw_word_highlight(item, accumulated=True)
+        if not ordered:
+            self._hide_hover_text_window()
+            return "break"
+        self._hover_active_region = self._status_selection_key()
+        self._hover_active_mode = "multi_selection"
+        self._hover_active_translation_key = None
+        self._show_selected_status_regions(region)
+        return "break"
 
     @staticmethod
-    def _region_at_point(regions: list[dict], x: float, y: float) -> dict | None:
+    def _same_word_region(left: dict | None, right: dict | None) -> bool:
+        if not left or not right:
+            return False
+        return tuple(left.get("bbox") or ()) == tuple(right.get("bbox") or ())
+
+    def _selected_status_region(self, region: dict | None) -> dict | None:
+        for selected in self._status_selected_regions:
+            if self._same_word_region(selected, region):
+                return selected
+        return None
+
+    def _status_selection_key(self):
+        boxes = sorted(tuple(float(value) for value in item.get("bbox", ())) for item in self._status_selected_regions)
+        return ("multi_selection", tuple(boxes))
+
+    def _show_selected_status_regions(self, anchor_region: dict) -> None:
+        ordered = sorted(
+            self._status_selected_regions,
+            key=lambda item: (float(item["bbox"][1]), float(item["bbox"][0])),
+        )
+        phrase = " ".join(str(item.get("base") or "").strip() for item in ordered).strip()
+        if not phrase:
+            return
+        anchor = dict(anchor_region)
+        anchor["base"] = phrase
+        anchor["lookup"] = phrase
+        status_parts = []
+        for item in ordered:
+            status = self._hover_status_text(item)
+            if status:
+                status_parts.append(f"{str(item.get('base') or '').strip()}: {status}")
+        anchor["multi_status_text"] = " | ".join(status_parts)
+        logger.debug("Subtitle Ctrl-click hover selection words=%d query=%r", len(ordered), phrase)
+        self._show_hover_layers(anchor, ("translation", "status"))
+
+    @staticmethod
+    def _region_at_point(
+        regions: list[dict],
+        x: float,
+        y: float,
+        *,
+        anchor: dict | None = None,
+    ) -> dict | None:
+        candidates = []
         for region in regions or []:
             try:
                 x1, y1, x2, y2 = region["bbox"]
             except Exception:
                 continue
             if x1 <= x <= x2 and y1 <= y <= y2:
-                return region
-        return None
+                candidates.append(region)
+        return choose_hover_region(candidates, anchor)
 
     def _show_hover_ruby_region(self, region: dict, *, allow_annotation_highlight: bool) -> None:
         if bool(region.get("annotation")):
@@ -1230,11 +1721,15 @@ class SubtitleRenderer:
             tags=("hover_ruby",),
         )
 
-    def _draw_word_highlight(self, region: dict) -> None:
+    def _draw_word_highlight(self, region: dict, *, accumulated: bool = False) -> None:
         try:
             x1, y1, x2, y2 = region["bbox"]
+            bbox_key = (float(x1), float(y1), float(x2), float(y2))
+            if accumulated and bbox_key in self._hover_status_highlights:
+                return
             pad_x = 4
             pad_y = 2
+            tag = "hover_status_highlight" if accumulated else "hover_word_highlight"
             self.canvas.create_rectangle(
                 x1 - pad_x,
                 y1 + pad_y,
@@ -1243,21 +1738,28 @@ class SubtitleRenderer:
                 fill="#303030",
                 outline="#8a8a8a",
                 width=1,
-                tags=("hover_word_highlight",),
+                tags=(tag,),
             )
-            self.canvas.tag_lower("hover_word_highlight")
+            self.canvas.tag_lower(tag)
+            if accumulated:
+                self._hover_status_highlights.add(bbox_key)
         except Exception:
             pass
 
     def _clear_hover_ruby(self, _event=None) -> None:
+        self._cancel_hover_clear()
+        self._cancel_hover_layer_job()
         try:
             self.canvas.delete("hover_ruby")
             self.canvas.delete("hover_word_highlight")
+            self.canvas.delete("hover_status_highlight")
+            self._hover_status_highlights.clear()
         except Exception:
             pass
         self._hide_hover_text_window()
         self._hover_active_region = None
         self._hover_active_mode = None
+        self._hover_active_translation_key = None
 
     def _shift_hover_dictionary_enabled(self) -> bool:
         try:
@@ -1307,19 +1809,22 @@ class SubtitleRenderer:
         return "dictionary" if self._shift_hover_dictionary_enabled() and self._is_shift_held() else "ruby"
 
     def _show_hover_dictionary(self, region: dict) -> None:
+        text = self._hover_dictionary_text(region)
+        if text:
+            self._show_hover_text(region, text)
+
+    def _hover_dictionary_text(self, region: dict) -> str:
         lookup = getattr(self, "_dictionary_lookup", None)
         if not callable(lookup):
-            return
+            return ""
         query = str(region.get("lookup") or region.get("base") or region.get("sentence_lookup") or "").strip()
         if not query:
-            return
+            return ""
         try:
             text = str(lookup(query) or "").strip()
         except Exception:
             text = ""
-        if not text:
-            return
-        self._show_hover_text(region, text)
+        return text
 
     def _translation_provider(self) -> str:
         callback = getattr(self, "_translation_provider_callback", None)
@@ -1336,7 +1841,7 @@ class SubtitleRenderer:
         lookup = getattr(self, "_translation_lookup", None)
         if not callable(lookup):
             return
-        query = str(region.get("lookup") or region.get("base") or "").strip()
+        query = str(region.get("base") or region.get("lookup") or "").strip()
         if not query:
             return
         try:
@@ -1352,6 +1857,14 @@ class SubtitleRenderer:
             self._show_hover_text(region, text)
 
     def _show_hover_status(self, region: dict) -> None:
+        text = self._hover_status_text(region)
+        if text:
+            self._show_hover_text(region, text)
+
+    def _hover_status_text(self, region: dict) -> str:
+        multi_status = str(region.get("multi_status_text") or "").strip()
+        if multi_status:
+            return multi_status
         provider = getattr(self, "_annotation_provider", None)
         parts = []
         if bool(region.get("annotation")):
@@ -1385,8 +1898,82 @@ class SubtitleRenderer:
                 except Exception:
                     pass
         text = "\n".join(part for part in parts if part)
+        return text
+
+    def _show_hover_layers(self, region: dict, layers: tuple[str, ...]) -> None:
+        parts: list[tuple[str, str]] = []
+        if "dictionary" in layers:
+            parts.append(("dictionary", self._hover_dictionary_text(region) or "No dictionary entry"))
+        if "translation" in layers:
+            query = str(region.get("base") or region.get("lookup") or "").strip()
+            provider = self._translation_provider()
+            cache_key = (provider, query)
+            if not hasattr(self, "_translation_hover_cache"):
+                self._translation_hover_cache = {}
+                self._translation_hover_pending = set()
+            self._hover_active_translation_key = cache_key
+            cached = self._translation_hover_cache.get(cache_key)
+            if cached is not None:
+                logger.debug(
+                    "Subtitle hover translation cache hit provider=%s query=%r result_chars=%d",
+                    provider,
+                    query,
+                    len(cached),
+                )
+            parts.append(("translation", "Translating..." if cached is None else (cached or "No translation")))
+            if query and cached is None and cache_key not in self._translation_hover_pending:
+                self._start_layer_translation(region, layers, cache_key, query, provider)
+        if "status" in layers:
+            parts.append(("status", self._hover_status_text(region) or "Not in database"))
+        text = combine_hover_text(parts)
         if text:
             self._show_hover_text(region, text)
+
+    def _start_layer_translation(self, region, layers, cache_key, query, provider) -> None:
+        lookup = getattr(self, "_translation_lookup", None)
+        if not callable(lookup):
+            logger.debug("Subtitle hover translation skipped: no lookup callback")
+            return
+        self._translation_hover_pending.add(cache_key)
+        active_key = self._hover_active_region
+        logger.debug("Subtitle hover translation requested provider=%s query=%r", provider, query)
+
+        def worker() -> None:
+            try:
+                value = clean_hover_translation(query, str(lookup(query, provider=provider) or ""))
+            except TypeError:
+                try:
+                    value = clean_hover_translation(query, str(lookup(query) or ""))
+                except Exception:
+                    value = ""
+            except Exception:
+                value = ""
+            logger.debug(
+                "Subtitle hover translation completed provider=%s query=%r result_chars=%d",
+                provider,
+                query,
+                len(value),
+            )
+
+            def apply_result() -> None:
+                self._translation_hover_pending.discard(cache_key)
+                self._translation_hover_cache[cache_key] = value
+                if not value:
+                    self.canvas.after(
+                        10000,
+                        lambda key=cache_key: self._translation_hover_cache.pop(key, None)
+                        if self._translation_hover_cache.get(key) == ""
+                        else None,
+                    )
+                if len(self._translation_hover_cache) > 256:
+                    self._translation_hover_cache.pop(next(iter(self._translation_hover_cache)), None)
+                if self._hover_active_region != active_key or self._hover_active_translation_key != cache_key:
+                    return
+                self._show_hover_layers(region, layers)
+
+            dispatch_to_tk(self.canvas, apply_result)
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def _show_hover_text(self, region: dict, text: str) -> None:
         label_text = str(text or "").strip()
@@ -1405,34 +1992,90 @@ class SubtitleRenderer:
             win.attributes("-topmost", True)
             make_nonactivating_tool_window(win)
             win.configure(bg="black")
-            label = tk.Label(
+            label = tk.Text(
                 win,
-                text="",
                 bg="black",
                 fg=self.color,
                 bd=0,
                 padx=6,
                 pady=3,
-                justify="left",
-                anchor="w",
-                wraplength=520,
+                relief="flat",
+                highlightthickness=0,
+                insertwidth=0,
+                takefocus=True,
+                cursor="xterm",
+                wrap="none",
+                width=1,
+                height=1,
             )
-            label.pack()
+            label.pack(fill="both", expand=True)
+            win.bind("<Enter>", self._keep_hover_text_visible, add="+")
+            win.bind("<Leave>", self._schedule_hover_clear, add="+")
+            label.bind("<Enter>", self._keep_hover_text_visible, add="+")
+            label.bind("<Leave>", self._schedule_hover_clear, add="+")
+            label.bind("<ButtonPress-1>", self._focus_hover_text, add="+")
+            label.bind("<ButtonRelease-1>", self._keep_hover_text_visible, add="+")
+            label.bind("<Control-a>", self._select_all_hover_text)
+            label.bind("<Control-A>", self._select_all_hover_text)
+            label.bind("<Control-c>", self._copy_hover_text_selection)
+            label.bind("<Control-C>", self._copy_hover_text_selection)
+            label.bind("<Button-3>", self._show_hover_text_context_menu)
             self._hover_text_window = win
             self._hover_text_label = label
 
         try:
             font_size = max(8, int(float(self.config.get("SUBTITLE_FONT_SIZE") or 12) * 0.38))
             if label_text != self._hover_text_current:
-                self._hover_text_label.configure(
-                    text=label_text,
-                    fg=self.color,
-                    font=(self.font.actual("family") if self.font else "Arial", font_size, "bold"),
+                family = self.font.actual("family") if self.font else "Arial"
+                body_font = tkFont.Font(family=family, size=font_size, weight="normal")
+                heading_font = tkFont.Font(family=family, size=font_size, weight="bold")
+                content_width = self._HOVER_TEXT_MAX_WIDTH_PX - self._HOVER_TEXT_PAD_X
+                lines = self._wrap_hover_text_lines(
+                    label_text,
+                    body_font,
+                    heading_font,
+                    content_width,
                 )
+                display_text = "\n".join(lines)
+                measured_line_width = max(
+                    self._measure_hover_line(line or " ", body_font, heading_font)
+                    for line in lines
+                )
+                width_px = min(
+                    self._HOVER_TEXT_MAX_WIDTH_PX,
+                    measured_line_width + self._HOVER_TEXT_PAD_X,
+                )
+                line_height = max(
+                    1,
+                    int(body_font.metrics("linespace") or font_size + 3),
+                    int(heading_font.metrics("linespace") or font_size + 3),
+                )
+                height_px = (line_height * max(1, len(lines))) + self._HOVER_TEXT_PAD_Y
+                self._hover_text_size = (max(24, int(width_px)), max(line_height + 6, int(height_px)))
+                self._hover_text_label.configure(
+                    state="normal",
+                    fg=self.color,
+                    font=body_font,
+                    width=1,
+                    height=1,
+                    wrap="none",
+                )
+                self._hover_text_label.delete("1.0", "end")
+                self._hover_text_label.insert("1.0", display_text)
+                self._hover_text_label.tag_configure("heading", font=heading_font)
+                for line_no, line in enumerate(lines, start=1):
+                    for heading in self._HOVER_TEXT_HEADINGS:
+                        if line.startswith(heading):
+                            self._hover_text_label.tag_add("heading", f"{line_no}.0", f"{line_no}.{len(heading)}")
+                            break
+                self._hover_text_label.configure(state="disabled")
                 self._hover_text_current = label_text
         except Exception:
             try:
-                self._hover_text_label.configure(text=label_text)
+                self._hover_text_label.configure(state="normal")
+                self._hover_text_label.delete("1.0", "end")
+                self._hover_text_label.insert("1.0", label_text)
+                self._hover_text_label.configure(state="disabled")
                 self._hover_text_current = label_text
             except Exception:
                 pass
@@ -1444,12 +2087,16 @@ class SubtitleRenderer:
 
         try:
             x1, y1, x2, y2 = region["bbox"]
-            hover_w = int(self._hover_text_window.winfo_reqwidth() or 1)
-            hover_h = int(self._hover_text_window.winfo_reqheight() or 1)
+            measured_w, measured_h = self._hover_text_size
+            hover_w = max(1, int(measured_w or 1))
+            hover_h = max(1, int(measured_h or 1))
             canvas_x = int(self.canvas.winfo_rootx())
             canvas_y = int(self.canvas.winfo_rooty())
             desired_x = int(canvas_x + ((x1 + x2) / 2) - (hover_w / 2))
-            desired_y = int(canvas_y + y2 + 8)
+            if str(region.get("line_position") or "second") == "first":
+                desired_y = int(canvas_y + y2 + 8)
+            else:
+                desired_y = int(canvas_y + y1 - hover_h - 8)
         except Exception:
             return
 
@@ -1459,6 +2106,189 @@ class SubtitleRenderer:
             show_window_no_activate(self._hover_text_window)
         except Exception:
             pass
+
+    def _keep_hover_text_visible(self, _event=None) -> None:
+        self._cancel_hover_clear()
+        self._cancel_hover_layer_job()
+
+    def ensure_hover_text_on_top(self) -> None:
+        """Restore a visible hover window after the subtitle window is raised."""
+        win = self._hover_text_window
+        if win is None:
+            return
+        try:
+            if not win.winfo_exists() or str(win.state()) == "withdrawn":
+                return
+            show_window_no_activate(win)
+        except Exception:
+            pass
+
+    def _focus_hover_text(self, event=None) -> None:
+        self._keep_hover_text_visible()
+        widget = getattr(event, "widget", None) or self._hover_text_label
+        try:
+            widget.focus_set()
+        except Exception:
+            pass
+
+    def _hover_text_content(self) -> str:
+        label = self._hover_text_label
+        if label is None:
+            return ""
+        try:
+            return str(label.get("1.0", "end-1c") or "")
+        except Exception:
+            return ""
+
+    def _hover_text_selection(self) -> str:
+        label = self._hover_text_label
+        if label is None:
+            return ""
+        try:
+            return str(label.get("sel.first", "sel.last") or "")
+        except tk.TclError:
+            return ""
+        except Exception:
+            return ""
+
+    def _copy_hover_text(self, text: str) -> bool:
+        if not text:
+            return False
+        owner = self._hover_text_window or self.canvas
+        try:
+            owner.clipboard_clear()
+            owner.clipboard_append(text)
+            return True
+        except Exception:
+            logger.debug("Failed to copy subtitle hover text", exc_info=True)
+            return False
+
+    def _select_all_hover_text(self, _event=None):
+        label = self._hover_text_label
+        if label is None:
+            return "break"
+        self._keep_hover_text_visible()
+        try:
+            label.tag_remove("sel", "1.0", "end")
+            label.tag_add("sel", "1.0", "end-1c")
+            label.mark_set("insert", "end-1c")
+            label.see("insert")
+        except Exception:
+            pass
+        return "break"
+
+    def _copy_hover_text_selection(self, _event=None):
+        self._keep_hover_text_visible()
+        self._copy_hover_text(self._hover_text_selection())
+        return "break"
+
+    def _show_hover_text_context_menu(self, event):
+        self._keep_hover_text_visible()
+        owner = self._hover_text_window or self.canvas
+        menu = tk.Menu(owner, tearoff=0)
+        menu.add_command(label="Copy", command=lambda: self._copy_hover_text(self._hover_text_selection()))
+        menu.add_command(label="Copy All", command=lambda: self._copy_hover_text(self._hover_text_content()))
+        menu.add_command(label="Select All", command=self._select_all_hover_text)
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            try:
+                menu.grab_release()
+            except Exception:
+                pass
+        return "break"
+
+    def copy_hover_selection_to_clipboard_if_pointer_inside(self) -> bool:
+        win = self._hover_text_window
+        if win is None:
+            return False
+        try:
+            if not win.winfo_exists() or str(win.state()) == "withdrawn":
+                return False
+            px = int(win.winfo_pointerx())
+            py = int(win.winfo_pointery())
+            x = int(win.winfo_rootx())
+            y = int(win.winfo_rooty())
+            width = int(win.winfo_width() or win.winfo_reqwidth())
+            height = int(win.winfo_height() or win.winfo_reqheight())
+            if not (x <= px < x + width and y <= py < y + height):
+                return False
+        except Exception:
+            return False
+        return self._copy_hover_text(self._hover_text_selection())
+
+    def hovered_subtitle_word_for_anki(self) -> str:
+        """Return the exact visible subtitle token currently under the pointer."""
+        try:
+            x = int(self.canvas.winfo_pointerx() - self.canvas.winfo_rootx())
+            y = int(self.canvas.winfo_pointery() - self.canvas.winfo_rooty())
+            width = int(self.canvas.winfo_width())
+            height = int(self.canvas.winfo_height())
+        except Exception:
+            return ""
+        if x < 0 or y < 0 or x >= width or y >= height:
+            return ""
+
+        ruby_hit = self._region_at_point(self._hover_regions, x, y)
+        word_hit = self._region_at_point(self._word_regions, x, y, anchor=ruby_hit)
+        region = word_hit or ruby_hit
+        if not isinstance(region, dict):
+            return ""
+        return str(region.get("base") or "").strip()
+
+    @classmethod
+    def _measure_hover_line(
+        cls,
+        text: str,
+        body_font: tkFont.Font,
+        heading_font: tkFont.Font,
+    ) -> int:
+        line = str(text or "")
+        for heading in cls._HOVER_TEXT_HEADINGS:
+            if line.startswith(heading):
+                return int(heading_font.measure(heading) + body_font.measure(line[len(heading):]))
+        return int(body_font.measure(line))
+
+    @classmethod
+    def _wrap_hover_text_lines(
+        cls,
+        text: str,
+        body_font: tkFont.Font,
+        heading_font: tkFont.Font,
+        max_width_px: int,
+    ) -> list[str]:
+        wrapped: list[str] = []
+        for raw_line in str(text or "").splitlines() or [""]:
+            if not raw_line:
+                wrapped.append("")
+                continue
+            remaining = raw_line
+            while remaining:
+                if cls._measure_hover_line(remaining, body_font, heading_font) <= int(max_width_px):
+                    wrapped.append(remaining.rstrip())
+                    break
+
+                fit = 1
+                for end in range(2, len(remaining) + 1):
+                    candidate = remaining[:end]
+                    if cls._measure_hover_line(candidate, body_font, heading_font) > int(max_width_px):
+                        break
+                    fit = end
+
+                candidate = remaining[:fit]
+                split_at = max(candidate.rfind(" "), candidate.rfind("\t"))
+                if split_at > 0:
+                    line = candidate[:split_at].rstrip()
+                    consumed = split_at + 1
+                else:
+                    line = candidate.rstrip()
+                    consumed = fit
+                if not line:
+                    line = remaining[:fit]
+                    consumed = fit
+                wrapped.append(line)
+                remaining = remaining[consumed:].lstrip(" \t")
+        return wrapped or [""]
 
     def _clamp_hover_position(self, x: int, y: int, w: int, h: int) -> tuple[int, int]:
         try:
@@ -1551,6 +2381,8 @@ class SubtitleRenderer:
         self._annotation_provider = provider
         self._layout_cache.clear()
         self._wrap_cache.clear()
+        self._annotation_segment_cache.clear()
+        self._clear_preview_render_cache(delete_items=True)
 
     @staticmethod
     def _contains_kanji(text: str) -> bool:
@@ -1575,9 +2407,10 @@ class SubtitleRenderer:
     def update_canvas(self, canvas: tk.Canvas):
         """
         Switch the renderer to a different canvas (after overlay update).
-        No canvas-item pool is kept, so no cache reset is required here.
         """
         self.destroy_hover_windows()
+        if canvas is not self.canvas:
+            self._clear_preview_render_cache(delete_items=True)
         self.canvas = canvas
 
 

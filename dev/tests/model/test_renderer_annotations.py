@@ -41,6 +41,8 @@ class _Canvas:
         self.texts = []
         self.rectangles = []
         self.lines = []
+        self.deleted = []
+        self.itemconfigs = []
 
     def create_text(self, *args, **kwargs):
         self.texts.append((args, kwargs))
@@ -50,6 +52,12 @@ class _Canvas:
 
     def create_line(self, *args, **kwargs):
         self.lines.append((args, kwargs))
+
+    def delete(self, tag):
+        self.deleted.append(tag)
+
+    def itemconfigure(self, tag, **kwargs):
+        self.itemconfigs.append((tag, kwargs))
 
     def tag_lower(self, *args, **kwargs):
         pass
@@ -66,6 +74,31 @@ def _renderer(config=None):
     renderer.line_height = 20
     renderer.ruby_height = 12
     return renderer
+
+
+def test_renderer_preview_cache_switches_hidden_tag_groups():
+    renderer = _renderer()
+    first_key = ("first",)
+    second_key = ("second",)
+
+    first_tag = renderer._begin_preview_render(first_key)
+    renderer.canvas.create_text(10, 10, text="first", tags=renderer._merge_render_tags(()))
+    renderer._store_preview_render(first_key, first_tag)
+
+    second_tag = renderer._begin_preview_render(second_key)
+    renderer.canvas.create_text(10, 10, text="second", tags=renderer._merge_render_tags(()))
+    renderer._store_preview_render(second_key, second_tag)
+
+    assert renderer._show_cached_preview_render(first_key) is True
+    assert renderer._preview_render_cache_hits == 1
+    assert (second_tag, {"state": "hidden"}) in renderer.canvas.itemconfigs
+    assert (first_tag, {"state": "normal"}) in renderer.canvas.itemconfigs
+
+    renderer._clear_preview_render_cache(delete_items=True)
+
+    assert not renderer._preview_render_cache
+    assert first_tag in renderer.canvas.deleted
+    assert second_tag in renderer.canvas.deleted
 
 
 def test_renderer_applies_annotation_text_color_and_background():

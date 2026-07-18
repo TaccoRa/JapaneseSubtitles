@@ -1326,5 +1326,12 @@
     "S01E37": 37,
     "S02E01": 38,
     "S03E01": 39
-  }
+  },
+  "schema_version": 2,
+  "display_name": "Death Note",
+  "anime_query": "DEATH NOTE",
+  "aliases": [
+    "DEATH NOTE",
+    "DEATH_NOTE"
+  ]
 }

@@ -11,7 +11,7 @@ import tkinter as tk
 import pyautogui
 from PIL import ImageGrab, ImageOps, ImageStat, Image
 from typing import Any
-from utils import get_monitor_rects, show_window_no_activate, parse_time_value
+from utils import dispatch_to_tk, get_monitor_rects, show_window_no_activate, parse_time_value
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +43,10 @@ class OCRController(_ControllerProxy):
         if self._shutting_down:
             return None
         root = getattr(self.settings, "root", None)
-        if root is None or not root.winfo_exists():
+        if root is None:
             return None
         try:
-            return root.after(delay, callback)
+            return dispatch_to_tk(root, callback, delay_ms=delay)
         except Exception:
             return None
 

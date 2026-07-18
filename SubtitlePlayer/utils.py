@@ -6,9 +6,161 @@ Small shared helpers used across the UI/controller.
 """
 
 import logging
+import queue
+import re
+import sys
+import threading
 import tkinter as tk
 
 logger = logging.getLogger(__name__)
+
+
+class TkMainThreadDispatcher:
+    """Queue callbacks from workers and execute them only on Tk's owner thread."""
+
+    def __init__(self, root: tk.Misc, poll_ms: int = 10) -> None:
+        self.root = root
+        self.poll_ms = max(1, int(poll_ms or 10))
+        self.owner_thread_id = threading.get_ident()
+        self._queue: queue.Queue[tuple] = queue.Queue()
+        self._closed = False
+        self._job = None
+        setattr(root, "_tk_main_thread_dispatcher", self)
+        self._schedule_next()
+
+    def submit(self, callback, *args, delay_ms: int = 0, **kwargs):
+        if self._closed or not callable(callback):
+            return None
+        delay_ms = max(0, int(delay_ms or 0))
+        if threading.get_ident() == self.owner_thread_id:
+            if delay_ms:
+                return self.root.after(
+                    delay_ms,
+                    lambda: self._invoke(callback, args, kwargs),
+                )
+            self._invoke(callback, args, kwargs)
+            return None
+        self._queue.put((callback, args, kwargs, delay_ms))
+        return None
+
+    def call(self, callback, *args, **kwargs):
+        """Run a callback on Tk's owner thread and return its result to a worker."""
+        if self._closed or not callable(callback):
+            raise RuntimeError("Tk dispatcher is closed")
+        if threading.get_ident() == self.owner_thread_id:
+            return callback(*args, **kwargs)
+
+        completed = threading.Event()
+        outcome = {}
+
+        def _run() -> None:
+            try:
+                outcome["result"] = callback(*args, **kwargs)
+            except BaseException:
+                outcome["error"] = sys.exc_info()
+            finally:
+                completed.set()
+
+        self._queue.put((_run, (), {}, 0))
+        while not completed.wait(0.05):
+            if self._closed:
+                raise RuntimeError("Tk dispatcher closed before the callback ran")
+
+        error = outcome.get("error")
+        if error:
+            _exc_type, exc, tb = error
+            raise exc.with_traceback(tb)
+        return outcome.get("result")
+
+    def _invoke(self, callback, args, kwargs) -> None:
+        try:
+            callback(*args, **kwargs)
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except BaseException:
+            handler = getattr(self.root, "report_callback_exception", None)
+            if callable(handler):
+                handler(*sys.exc_info())
+            else:
+                logger.exception("Unhandled dispatched Tk callback exception")
+
+    def _drain(self) -> None:
+        self._job = None
+        if self._closed:
+            return
+        try:
+            for _ in range(200):
+                try:
+                    callback, args, kwargs, delay_ms = self._queue.get_nowait()
+                except queue.Empty:
+                    break
+                if delay_ms:
+                    self.root.after(
+                        delay_ms,
+                        lambda cb=callback, a=args, kw=kwargs: self._invoke(cb, a, kw),
+                    )
+                else:
+                    self._invoke(callback, args, kwargs)
+        finally:
+            self._schedule_next()
+
+    def _schedule_next(self) -> None:
+        if self._closed:
+            return
+        try:
+            self._job = self.root.after(self.poll_ms, self._drain)
+        except Exception:
+            self._job = None
+
+    def close(self) -> None:
+        self._closed = True
+        job = self._job
+        self._job = None
+        if job is not None:
+            try:
+                self.root.after_cancel(job)
+            except Exception:
+                pass
+        while True:
+            try:
+                self._queue.get_nowait()
+            except queue.Empty:
+                break
+
+
+def _tk_dispatcher_for(widget: tk.Misc):
+    dispatcher = getattr(widget, "_tk_main_thread_dispatcher", None)
+    if dispatcher is not None:
+        return dispatcher
+    try:
+        root = widget._root()
+    except Exception:
+        root = None
+    return getattr(root, "_tk_main_thread_dispatcher", None) if root is not None else None
+
+
+def dispatch_to_tk(root: tk.Misc, callback, *args, delay_ms: int = 0, **kwargs):
+    dispatcher = _tk_dispatcher_for(root)
+    if dispatcher is not None:
+        return dispatcher.submit(callback, *args, delay_ms=delay_ms, **kwargs)
+    if threading.current_thread() is threading.main_thread():
+        if int(delay_ms or 0) > 0:
+            return root.after(
+                int(delay_ms),
+                lambda: callback(*args, **kwargs),
+            )
+        return callback(*args, **kwargs)
+    logger.error("Dropped worker UI callback because no Tk dispatcher is installed")
+    return None
+
+
+def dispatch_to_tk_sync(root: tk.Misc, callback, *args, **kwargs):
+    dispatcher = _tk_dispatcher_for(root)
+    if dispatcher is not None:
+        return dispatcher.call(callback, *args, **kwargs)
+    if threading.current_thread() is threading.main_thread():
+        return callback(*args, **kwargs)
+    raise RuntimeError("Cannot synchronously call Tk from a worker without a dispatcher")
 
 
 def _get_windows_hwnd(win: tk.Misc):
@@ -51,6 +203,135 @@ def get_foreground_root_hwnd() -> int | None:
             return foreground
     except Exception:
         return None
+
+
+def _split_window_title_filters(value: str) -> list[str]:
+    text = str(value or "").strip()
+    if not text:
+        return []
+    return [part.strip().lower() for part in re.split(r"[,;|]", text) if part.strip()]
+
+
+def find_window_by_title(title_filters: str) -> int | None:
+    """Return the first visible top-level Windows hwnd whose title contains any filter."""
+    filters = _split_window_title_filters(title_filters)
+    if not filters:
+        return None
+    try:
+        import ctypes
+        import sys
+        from ctypes import wintypes
+
+        if not sys.platform.startswith("win"):
+            return None
+
+        user32 = ctypes.windll.user32
+        matches: list[tuple[int, str]] = []
+
+        enum_proc_type = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+
+        def _callback(hwnd, _lparam):
+            try:
+                hwnd = int(hwnd)
+                if not user32.IsWindowVisible(hwnd):
+                    return True
+                length = int(user32.GetWindowTextLengthW(hwnd))
+                if length <= 0:
+                    return True
+                buffer = ctypes.create_unicode_buffer(length + 1)
+                user32.GetWindowTextW(hwnd, buffer, length + 1)
+                title = str(buffer.value or "").strip()
+                if not title:
+                    return True
+                lowered = title.lower()
+                if any(part in lowered for part in filters):
+                    matches.append((hwnd, title))
+                    return False
+            except Exception:
+                return True
+            return True
+
+        user32.EnumWindows(enum_proc_type(_callback), 0)
+        if matches:
+            return int(matches[0][0])
+    except Exception:
+        logger.debug("Failed to find window by title filters: %s", title_filters, exc_info=True)
+    return None
+
+
+def focus_windows_hwnd(hwnd: int) -> bool:
+    """Try to bring a Windows hwnd to foreground so an external hotkey reaches it."""
+    try:
+        import ctypes
+        import sys
+        import time
+
+        if not sys.platform.startswith("win") or not hwnd:
+            return False
+
+        user32 = ctypes.windll.user32
+        hwnd = int(hwnd)
+        sw_restore = 9
+        user32.ShowWindow(hwnd, sw_restore)
+        user32.SetForegroundWindow(hwnd)
+        time.sleep(0.05)
+        foreground = int(user32.GetForegroundWindow())
+        try:
+            foreground = int(user32.GetAncestor(foreground, 2)) or foreground
+        except Exception:
+            pass
+        try:
+            root_hwnd = int(user32.GetAncestor(hwnd, 2)) or hwnd
+        except Exception:
+            root_hwnd = hwnd
+        return int(foreground) == int(root_hwnd)
+    except Exception:
+        logger.debug("Failed to focus hwnd %s", hwnd, exc_info=True)
+        return False
+
+
+def focus_window_by_title(title_filters: str) -> bool:
+    hwnd = find_window_by_title(title_filters)
+    if not hwnd:
+        logger.warning("No external capture target window matched title filters: %s", title_filters)
+        return False
+    return focus_windows_hwnd(hwnd)
+
+
+def send_global_hotkey(hotkey: str) -> bool:
+    """Send a hotkey to the current foreground window using pyautogui."""
+    text = str(hotkey or "").strip().lower()
+    if not text:
+        return False
+    keys = [part.strip() for part in re.split(r"\s*\+\s*", text) if part.strip()]
+    if not keys:
+        return False
+    aliases = {
+        "control": "ctrl",
+        "ctl": "ctrl",
+        "cmd": "win",
+        "command": "win",
+        "windows": "win",
+        "period": ".",
+        "dot": ".",
+        "comma": ",",
+        "return": "enter",
+        "esc": "escape",
+    }
+    keys = [aliases.get(key, key) for key in keys]
+    try:
+        import pyautogui
+
+        old_pause = getattr(pyautogui, "PAUSE", 0.0)
+        pyautogui.PAUSE = 0.0
+        try:
+            pyautogui.hotkey(*keys)
+        finally:
+            pyautogui.PAUSE = old_pause
+        return True
+    except Exception:
+        logger.debug("Failed to send global hotkey %s", hotkey, exc_info=True)
+        return False
 
 
 def get_window_screen_rect(win: tk.Misc):
@@ -466,7 +747,21 @@ def get_monitor_rects(root: tk.Tk | None = None):
 
     # Fallback: use primary screen size
     try:
-        if root is not None:
+        dispatcher = getattr(root, "_tk_main_thread_dispatcher", None) if root is not None else None
+        root_is_thread_safe = (
+            root is not None
+            and (
+                (
+                    dispatcher is not None
+                    and threading.get_ident() == getattr(dispatcher, "owner_thread_id", None)
+                )
+                or (
+                    dispatcher is None
+                    and threading.current_thread() is threading.main_thread()
+                )
+            )
+        )
+        if root_is_thread_safe:
             sw = int(root.winfo_vrootwidth() or root.winfo_screenwidth())
             sh = int(root.winfo_vrootheight() or root.winfo_screenheight())
         else:
@@ -475,35 +770,134 @@ def get_monitor_rects(root: tk.Tk | None = None):
         sw, sh = 1920, 1080
     return [(0, 0, int(sw), int(sh))]
 
+
+def move_pointer_to_monitor_bottom(root: tk.Tk | None = None) -> bool:
+    """Move the pointer to the bottom edge of its current monitor."""
+    pointer_x = pointer_y = None
+    try:
+        import ctypes
+        import sys
+        from ctypes import wintypes
+
+        if sys.platform.startswith("win"):
+            point = wintypes.POINT()
+            if ctypes.windll.user32.GetCursorPos(ctypes.byref(point)):
+                pointer_x, pointer_y = int(point.x), int(point.y)
+    except Exception:
+        pass
+
+    if pointer_x is None or pointer_y is None:
+        try:
+            pointer_x = int(root.winfo_pointerx()) if root is not None else 0
+            pointer_y = int(root.winfo_pointery()) if root is not None else 0
+        except Exception:
+            pointer_x = pointer_y = 0
+
+    monitors = get_monitor_rects(root)
+    monitor = next(
+        (
+            rect
+            for rect in monitors
+            if rect[0] <= pointer_x < rect[0] + rect[2]
+            and rect[1] <= pointer_y < rect[1] + rect[3]
+        ),
+        None,
+    )
+    if monitor is None:
+        monitor = min(
+            monitors,
+            key=lambda rect: (
+                max(rect[0] - pointer_x, 0, pointer_x - (rect[0] + rect[2] - 1)) ** 2
+                + max(rect[1] - pointer_y, 0, pointer_y - (rect[1] + rect[3] - 1)) ** 2
+            ),
+        )
+
+    left, top, width, height = monitor
+    target_x = max(left, min(pointer_x, left + max(1, width) - 1))
+    target_y = top + max(1, height) - 1
+    try:
+        import ctypes
+        import sys
+
+        if sys.platform.startswith("win"):
+            return bool(ctypes.windll.user32.SetCursorPos(int(target_x), int(target_y)))
+    except Exception:
+        pass
+
+    try:
+        import pyautogui
+
+        pyautogui.moveTo(int(target_x), int(target_y), duration=0)
+        return True
+    except Exception:
+        logger.debug("Failed to move pointer to monitor bottom", exc_info=True)
+        return False
+
 def make_draggable(drag_handle: tk.Widget,target: tk.Toplevel,sync_windows: list[tk.Toplevel] = None, on_release=None):
 
     drag_state = {}
 
+    def pointer_position(event):
+        try:
+            return int(drag_handle.winfo_pointerx()), int(drag_handle.winfo_pointery())
+        except (tk.TclError, ValueError, TypeError):
+            return int(event.x_root), int(event.y_root)
+
+    def position_window(win, x, y):
+        # Tk uses "-500" as an offset from the right/bottom edge. Prefixing the
+        # signed value ("+-500") addresses an absolute coordinate on a monitor
+        # positioned left of or above the primary monitor.
+        win.geometry(f"+{int(x)}+{int(y)}")
+
     def start_drag(event):
-        drag_state['start_x'] = event.x_root
-        drag_state['start_y'] = event.y_root
+        try:
+            if int(getattr(event, "state", 0) or 0) & 0x0004:
+                drag_state["active"] = False
+                return "break"
+        except Exception:
+            pass
+        drag_state["active"] = True
+        try:
+            target.update_idletasks()
+        except tk.TclError:
+            drag_state["active"] = False
+            return None
+        pointer_x, pointer_y = pointer_position(event)
+        drag_state["pointer_x"] = pointer_x
+        drag_state["pointer_y"] = pointer_y
+        drag_state["window_x"] = int(target.winfo_x())
+        drag_state["window_y"] = int(target.winfo_y())
 
     def do_drag(event):
-        dx = event.x_root - drag_state.get('start_x', event.x_root)
-        dy = event.y_root - drag_state.get('start_y', event.y_root)
-        new_x = target.winfo_x() + dx
-        new_y = target.winfo_y() + dy
+        if not drag_state.get("active"):
+            return None
         try:
-            target.geometry(f"+{new_x}+{new_y}")
+            if int(getattr(event, "state", 0) or 0) & 0x0004:
+                drag_state["active"] = False
+                return "break"
+        except Exception:
+            pass
+        pointer_x, pointer_y = pointer_position(event)
+        dx = pointer_x - drag_state.get("pointer_x", pointer_x)
+        dy = pointer_y - drag_state.get("pointer_y", pointer_y)
+        new_x = drag_state.get("window_x", int(target.winfo_x())) + dx
+        new_y = drag_state.get("window_y", int(target.winfo_y())) + dy
+        try:
+            position_window(target, new_x, new_y)
         except tk.TclError:
             return
         if sync_windows:
             for win in sync_windows:
                 if win.winfo_exists():
                     try:
-                        win.geometry(f"+{new_x}+{new_y}")
+                        position_window(win, new_x, new_y)
                     except tk.TclError:
                         pass
 
-        drag_state['start_x'] = event.x_root
-        drag_state['start_y'] = event.y_root
-
     def end_drag(event):
+        was_active = bool(drag_state.pop("active", False))
+        if not was_active:
+            return None
         if on_release:
             on_release(target.winfo_x(), target.winfo_y(),
                        target.winfo_width(), target.winfo_height())

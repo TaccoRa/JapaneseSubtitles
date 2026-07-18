@@ -327,6 +327,30 @@ NUMBER_COUNTER_RE = re.compile(
     r"(匹|本|杯|人|枚|個|回|階|円|歳|才|時|分)"
 )
 
+TSU_COUNTER_READINGS = {
+    1: "\u3072\u3068\u3064",
+    2: "\u3075\u305f\u3064",
+    3: "\u307f\u3063\u3064",
+    4: "\u3088\u3063\u3064",
+    5: "\u3044\u3064\u3064",
+    6: "\u3080\u3063\u3064",
+    7: "\u306a\u306a\u3064",
+    8: "\u3084\u3063\u3064",
+    9: "\u3053\u3053\u306e\u3064",
+    10: "\u3068\u304a",
+}
+TSU_COUNTER_RE = re.compile(
+    r"(?<![0-9\uff10-\uff19\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341])"
+    r"([0-9\uff10-\uff19]+|[\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341]+)"
+    r"([ \t\u3000]*)(\u3064)"
+)
+
+ORDINAL_NUMBER_RE = re.compile(
+    r"第([0-9\uff10-\uff19]+|[\u3007\u96f6\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341]+)"
+    r"(?![0-9\uff10-\uff19\u3007\u96f6\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341]"
+    r"|\u5339|\u672c|\u676f|\u4eba|\u679a|\u500b|\u56de|\u968e|\u5186|\u6b73|\u624d|\u6642|\u5206|\u3064)"
+)
+
 
 def parse_japanese_number(text: str) -> int | None:
     value = (text or "").strip().translate(FULLWIDTH_DIGITS)
@@ -358,9 +382,56 @@ def counter_reading(number_text: str, counter: str) -> str:
     return ""
 
 
+def _integer_reading(number: int) -> str:
+    if number < 0 or number > 9999:
+        return ""
+    if number in NUMBER_READINGS:
+        return NUMBER_READINGS[number]
+
+    parts: list[str] = []
+    thousands, remainder = divmod(number, 1000)
+    if thousands:
+        parts.append({1: "せん", 3: "さんぜん", 8: "はっせん"}.get(
+            thousands,
+            NUMBER_READINGS[thousands] + "せん",
+        ))
+    hundreds, remainder = divmod(remainder, 100)
+    if hundreds:
+        parts.append({1: "ひゃく", 3: "さんびゃく", 6: "ろっぴゃく", 8: "はっぴゃく"}.get(
+            hundreds,
+            NUMBER_READINGS[hundreds] + "ひゃく",
+        ))
+    tens, ones = divmod(remainder, 10)
+    if tens:
+        parts.append("じゅう" if tens == 1 else NUMBER_READINGS[tens] + "じゅう")
+    if ones:
+        parts.append(NUMBER_READINGS[ones])
+    return "".join(parts)
+
+
+def ordinal_reading(number_text: str) -> str:
+    number = parse_japanese_number(number_text)
+    if number is None:
+        return ""
+    number_reading = _integer_reading(number)
+    return "だい" + number_reading if number_reading else ""
+
+
 def iter_number_counter_matches(text: str):
     for match in NUMBER_COUNTER_RE.finditer(text or ""):
         reading = counter_reading(match.group(1), match.group(3))
+        if reading:
+            yield match, reading
+    for match in TSU_COUNTER_RE.finditer(text or ""):
+        number = parse_japanese_number(match.group(1))
+        reading = TSU_COUNTER_READINGS.get(number)
+        if reading:
+            yield match, reading
+
+
+def iter_ordinal_number_matches(text: str):
+    for match in ORDINAL_NUMBER_RE.finditer(text or ""):
+        reading = ordinal_reading(match.group(1))
         if reading:
             yield match, reading
 

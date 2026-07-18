@@ -13,12 +13,14 @@ import re
 import threading
 import time
 import os
+from datetime import date
 from typing import Any
 import logging
 
 from pynput.keyboard import Listener as KeyboardListener
 from pynput.mouse import Listener as MouseListener
 
+from model.anki_activity import increment_daily_history, migrate_daily_history
 from model.anki_client import AnkiClient, AnkiConnectRequestError
 from model.anki_word_sync import AnkiSyncSettings, AnkiWordSync, split_csv_values
 from model.annotation_provider import AnnotationProvider
@@ -26,7 +28,7 @@ from model.config_manager import ConfigManager
 from model.renderer import SubtitleRenderer
 from model.subtitle_manager import SubtitleManager
 from model.wanikani_client import WaniKaniClient
-from model.word_database import WordDatabase, WordEntry
+from model.word_database import WordDatabase, WordEntry, normalize_word
 from view.popup import CopyPopup
 from view.settings_ui import SettingsUI
 from view.subtitle_overlay import SubtitleOverlayUI
@@ -39,7 +41,7 @@ from controller.overlay_controller import OverlayController
 from controller.playback_controller import PlaybackController
 from controller.subtitle_navigation import SubtitleNavigationController
 from logging_setup import set_debug_logging
-from utils import get_window_screen_rect
+from utils import dispatch_to_tk, get_window_screen_rect
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +65,7 @@ class SubtitleController:
         "SHORTCUT_POPUP_DEEPL_TRANSLATE": "t",
         "SHORTCUT_POPUP_GOOGLE_TRANSLATE": "g",
         "SHORTCUT_POPUP_ADD_ANKI": "a",
+        "SHORTCUT_POPUP_ADD_ANKI_CAPTURE": "v",
         "SHORTCUT_FAST_FORWARD_SPEED_UP": "shift+.",
         "SHORTCUT_FAST_FORWARD_SPEED_DOWN": "shift+comma",
         "SHORTCUT_TOGGLE_DEBUGGING": "ctrl+shift+d",
@@ -81,6 +84,7 @@ class SubtitleController:
         "jump_sub_end": "DISABLE_HOTKEY_JUMP_SUB_END",
         "fast_forward_speed_up": "DISABLE_HOTKEY_FAST_FORWARD_SPEED_UP",
         "fast_forward_speed_down": "DISABLE_HOTKEY_FAST_FORWARD_SPEED_DOWN",
+        "popup_add_anki_capture": "DISABLE_HOTKEY_POPUP_ADD_ANKI_CAPTURE",
     }
     OCR_TIME_PATTERN = re.compile(r"(\d{1,2}:\d{2}(?::\d{2})?)[/\\|](\d{1,2}:\d{2}(?::\d{2})?)")
     
@@ -105,6 +109,8 @@ class SubtitleController:
         self._init_runtime_state()
         self._create_services_and_controllers()
         self._bind_ui_events()
+        self._publish_anki_add_counts()
+        self._apply_saved_offset_for_current_anime()
         self._start_input_listeners()
 
         self.episode_controller.restore_startup_time_and_mode()
@@ -127,9 +133,14 @@ class SubtitleController:
         self.audio_padding = self.config.get("AUDIO_PADDING")
         self.phone_windows_hide_control_ms = self.config.get("PHONEMODE_WINDOWS_HIDE_DELAY_MS")
         self.windows_hide_control_ms = self.config.get("WINDOWS_HIDE_DELAY_MS")
+        self.control_show_on_subtitle_hover = self.config.get("CONTROL_SHOW_ON_SUBTITLE_HOVER") is not False
+        self.phone_subtitle_handle_enabled = self.config.get("PHONEMODE_SUBTITLE_HANDLE_ENABLED") is not False
         self.hide_subtitles_ms = self.config.get("SUBTITLE_TIMEOUT_MS")
         self.update_interval_ms = self.config.get("UPDATE_INTERVAL_MS")
         self.anki_busy_cursor = self.config.get("ANKI_BUSY_CURSOR") or "wait"
+        self.anki_add_session_count = 0
+        self._anki_add_history = {}
+        self._load_anki_add_history_state(persist=True)
         self.video_click = bool(self.config.get("VIDEO_CLICK") or False)
         self.video_click_play = True if self.config.get("VIDEO_CLICK_PLAY") is None else bool(self.config.get("VIDEO_CLICK_PLAY"))
         self.video_click_window = False if self.config.get("VIDEO_CLICK_WINDOW") is None else bool(self.config.get("VIDEO_CLICK_WINDOW"))
@@ -265,6 +276,7 @@ class SubtitleController:
             on_dec    = lambda: self.change_episode('dec')
         )
         self.settings.bind_open_srt                 (self.episode_controller.on_open_srt)
+        self.settings.bind_refresh_episodes        (self.episode_controller.refresh_remote_episodes)
         self.settings.bind_set_to_return            (self.subtitle_navigation.on_set_to_return)
         self.settings.bind_time_entry_return        (self.subtitle_navigation.control_time_entry_return)
         self.settings.bind_time_entry_clear         (self.subtitle_navigation.control_clear_time_entry)
@@ -274,6 +286,7 @@ class SubtitleController:
         self.settings.bind_refresh_subtitles        (self.subtitle_navigation.on_refresh_subtitles)
         self.settings.bind_toggle_subtitles         (self.subtitle_navigation.toggle_subtitle_visibility)
         self.settings.bind_advanced_apply           (self.apply_advanced_settings)
+        self.settings.bind_offset_change            (self._on_runtime_offset_changed)
         self.settings.bind_fast_forward_controls    (
             speed_delta=self.playback.change_fast_forward_speed,
         )
@@ -329,6 +342,10 @@ class SubtitleController:
         self._settings_pointer_job = self.settings.root.after(150, self._poll_settings_pointer_for_handle)
 
     def _start_input_listeners(self) -> None:
+        try:
+            self.hotkey_controller._refresh_ui_state_cache()
+        except Exception:
+            logger.debug("Failed to initialize hotkey UI state", exc_info=True)
         self._mouse_listener = MouseListener(on_click=self.hotkey_controller._on_global_click)
         self._mouse_listener.start()
         self._keyboard_listener = KeyboardListener(on_press=self._on_key_press, on_release=self._on_key_release)
@@ -341,6 +358,117 @@ class SubtitleController:
     # ---------------------------------------------------------------------
     def get_offset_value(self) -> float:
         return self.subtitle_navigation.get_offset_value()
+
+    @staticmethod
+    def _normalize_anime_offset_key(value) -> str:
+        try:
+            return re.sub(r"\s+", " ", str(value or "").strip()).casefold()
+        except Exception:
+            logger.debug("Failed to normalize anime offset key", exc_info=True)
+            return ""
+
+    def _current_anime_offset_key(self) -> str:
+        try:
+            anime = self.sub_manager.get_anime_name()
+        except Exception:
+            anime = getattr(self.sub_manager, "anime_folder_name", "")
+        return self._normalize_anime_offset_key(anime)
+
+    def _anime_offsets(self) -> dict:
+        try:
+            raw = self.config.get("ANIME_OFFSETS")
+        except Exception:
+            raw = None
+        return dict(raw) if isinstance(raw, dict) else {}
+
+    def _remember_current_anime_offset(self, value: float | None = None) -> None:
+        key = self._current_anime_offset_key()
+        if not key:
+            return
+        try:
+            offset = float(self.settings._last_offset_value if value is None else value)
+        except Exception:
+            logger.debug("Failed to read current offset for anime-specific save", exc_info=True)
+            return
+        offsets = self._anime_offsets()
+        saved = offsets.get(key)
+        try:
+            if saved is not None and abs(float(saved) - offset) < 0.001:
+                return
+        except Exception:
+            pass
+        offsets[key] = round(offset, 3)
+        try:
+            self.config.set("ANIME_OFFSETS", offsets)
+        except Exception:
+            cfg = getattr(self.config, "config", None)
+            if isinstance(cfg, dict):
+                cfg["ANIME_OFFSETS"] = offsets
+            logger.debug("Failed to persist anime-specific offset", exc_info=True)
+
+    def _refresh_subtitle_after_offset_change(self) -> None:
+        navigation = getattr(self, "subtitle_navigation", None)
+        if navigation is None:
+            return
+        try:
+            navigation.refresh_after_offset_change()
+        except Exception:
+            logger.debug("Failed to refresh subtitle after offset change", exc_info=True)
+
+    def _on_runtime_offset_changed(self, value: float) -> None:
+        self._remember_current_anime_offset(value)
+        self._refresh_subtitle_after_offset_change()
+
+    def _saved_offset_for_current_anime(self) -> float | None:
+        key = self._current_anime_offset_key()
+        if not key:
+            return None
+        offsets = self._anime_offsets()
+        if key not in offsets:
+            return None
+        try:
+            return float(offsets[key])
+        except Exception:
+            logger.debug("Stored anime offset is invalid for %s", key, exc_info=True)
+            return None
+
+    def _set_runtime_offset(self, value: float, *, persist_global: bool = True, remember_anime: bool = False) -> None:
+        try:
+            offset = float(value)
+        except Exception:
+            return
+        old_offset = float(getattr(self.settings, "_last_offset_value", self.default_offset) or 0.0)
+        self.default_offset = offset
+        self.settings.default_offset = offset
+        self.settings._last_offset_value = offset
+        self.settings.offset_var.set(f"{self.settings._format_number(offset)} s")
+        try:
+            self.settings._apply_offset_change(
+                offset,
+                persist=False,
+                previous_value=old_offset,
+                adjust_current=False,
+            )
+        except TypeError:
+            self.settings._apply_offset_change(offset, persist=False, previous_value=old_offset)
+        if persist_global:
+            try:
+                self.config.set("EXTRA_OFFSET", offset)
+            except Exception:
+                logger.debug("Failed to persist global offset", exc_info=True)
+        if remember_anime:
+            self._remember_current_anime_offset(offset)
+        self._refresh_subtitle_after_offset_change()
+
+    def _apply_saved_offset_for_current_anime(self) -> bool:
+        offset = self._saved_offset_for_current_anime()
+        if offset is None:
+            return False
+        current = float(getattr(self.settings, "_last_offset_value", self.default_offset) or 0.0)
+        if abs(current - offset) < 0.001:
+            return False
+        self._set_runtime_offset(offset, persist_global=True, remember_anime=False)
+        return True
 
     def update_episode_nav_controls(self) -> None:
         return self.episode_controller.update_episode_nav_controls()
@@ -359,7 +487,7 @@ class SubtitleController:
         try:
             sync = getattr(self.playback, "_sync_playing_time_to_event", None)
             if callable(sync):
-                sync(update_display=True, update_slider=False)
+                sync(update_display=False, update_slider=False)
         except Exception:
             logger.debug("Failed to sync playback before opening subtitle popup", exc_info=True)
         text = str(getattr(self, "last_subtitle_raw", "") or "")
@@ -369,14 +497,95 @@ class SubtitleController:
                 text = getter()
         except Exception:
             logger.debug("Failed to resolve current subtitle text for popup", exc_info=True)
-        self.popup.open_copy_popup(text)
+        line_segments = None
+        try:
+            getter = getattr(self.subtitle_navigation, "line_segments_for_current_subtitle", None)
+            if callable(getter):
+                line_segments = getter()
+        except Exception:
+            logger.debug("Failed to resolve current subtitle segments for popup", exc_info=True)
+        self.popup.open_copy_popup(text, line_segments=line_segments)
         return "break"
 
     def _skip_buttons_use_subtitle_segments(self) -> bool:
         return self.hotkey_controller._skip_buttons_use_subtitle_segments()
 
-    def _add_selection_to_anki(self, selected_text: str, subtitle_text: str = "") -> None:
-        return self.anki_controller._add_selection_to_anki(selected_text, subtitle_text)
+    def _add_selection_to_anki(
+        self,
+        selected_text: str,
+        subtitle_text: str = "",
+        post_add_capture: bool = False,
+    ) -> None:
+        return self.anki_controller._add_selection_to_anki(
+            selected_text,
+            subtitle_text,
+            post_add_capture=bool(post_add_capture),
+        )
+
+    def _publish_anki_add_counts(self) -> None:
+        update = getattr(self.settings, "set_anki_add_counts", None)
+        if not callable(update):
+            return
+        try:
+            update(self.anki_add_session_count, self.anki_add_today_count)
+        except Exception:
+            logger.debug("Failed to publish Anki add counters", exc_info=True)
+
+    def _load_anki_add_history_state(self, *, persist: bool) -> None:
+        today = date.today().isoformat()
+        history = migrate_daily_history(
+            self.config.get("ANKI_ADD_HISTORY"),
+            self.config.get("ANKI_ADD_COUNT_DATE"),
+            self.config.get("ANKI_ADD_COUNT_TODAY"),
+        )
+        self._anki_add_history = history
+        self._anki_add_count_date = today
+        self.anki_add_today_count = max(0, int(history.get(today, 0) or 0))
+        if not persist:
+            return
+        try:
+            self.config.set_many(
+                {
+                    "ANKI_ADD_HISTORY": history,
+                    "ANKI_ADD_COUNT_DATE": today,
+                    "ANKI_ADD_COUNT_TODAY": self.anki_add_today_count,
+                }
+            )
+        except Exception:
+            logger.debug("Failed to persist Anki add history", exc_info=True)
+        persist_profile = getattr(self.settings, "persist_anki_add_history", None)
+        if callable(persist_profile):
+            try:
+                persist_profile(history, today, self.anki_add_today_count)
+            except Exception:
+                logger.debug("Failed to persist profile Anki add history", exc_info=True)
+
+    def _record_successful_anki_add(self) -> None:
+        today = date.today().isoformat()
+        self._anki_add_history = increment_daily_history(
+            getattr(self, "_anki_add_history", {}),
+            today,
+        )
+        self._anki_add_count_date = today
+        self.anki_add_session_count = max(0, int(getattr(self, "anki_add_session_count", 0) or 0)) + 1
+        self.anki_add_today_count = max(0, int(self._anki_add_history.get(today, 0) or 0))
+        try:
+            self.config.set_many(
+                {
+                    "ANKI_ADD_HISTORY": self._anki_add_history,
+                    "ANKI_ADD_COUNT_DATE": today,
+                    "ANKI_ADD_COUNT_TODAY": self.anki_add_today_count,
+                }
+            )
+        except Exception:
+            logger.debug("Failed to persist Anki add counters", exc_info=True)
+        persist_profile = getattr(self.settings, "persist_anki_add_history", None)
+        if callable(persist_profile):
+            try:
+                persist_profile(self._anki_add_history, today, self.anki_add_today_count)
+            except Exception:
+                logger.debug("Failed to persist profile Anki add history", exc_info=True)
+        self._publish_anki_add_counts()
 
     def _lookup_dictionary_entry(self, text: str, allow_translation_fallback: bool = False) -> str:
         try:
@@ -388,10 +597,71 @@ class SubtitleController:
             return ""
 
     def _translate_hover_selection(self, text: str, provider: str = "deepl") -> str:
+        database_translation = self._word_database_translation_for_lookup(text)
+        if database_translation:
+            return database_translation
         try:
             return self.anki.translate_hover_selection(text, provider=provider)
         except Exception:
             return ""
+
+    def _word_database_translation_for_lookup(self, text: str) -> str:
+        query = str(text or "").strip()
+        if not query:
+            return ""
+
+        exact_keys: list[str] = []
+        lookup_keys: list[str] = []
+
+        def _add_key(target: list[str], value: str) -> None:
+            key = normalize_word(value)
+            if key and key not in target:
+                target.append(key)
+
+        _add_key(exact_keys, query)
+
+        try:
+            spans = self._word_spans_for_lookup(query)
+        except Exception:
+            spans = []
+        if isinstance(spans, list) and len(spans) == 1:
+            span = spans[0] if isinstance(spans[0], dict) else {}
+            _add_key(exact_keys, str(span.get("surface") or ""))
+            _add_key(lookup_keys, str(span.get("lookup") or ""))
+
+        database = getattr(self, "word_database", None)
+        if database is None:
+            try:
+                database, _provider = self._ensure_annotation_services()
+            except Exception:
+                database = None
+        if database is None:
+            return ""
+
+        def _find_meaning(keys: list[str]) -> str:
+            if not keys:
+                return ""
+            try:
+                entries = database.list_entries()
+            except Exception:
+                return ""
+            for entry in entries:
+                entry_keys = {
+                    normalize_word(getattr(entry, "normalized", "")),
+                    normalize_word(getattr(entry, "surface", "")),
+                    normalize_word(getattr(entry, "base", "")),
+                }
+                if not any(key in entry_keys for key in keys):
+                    continue
+                meaning = str(getattr(entry, "meaning", "") or "").strip()
+                if meaning:
+                    return meaning
+            return ""
+
+        meaning = _find_meaning(exact_keys) or _find_meaning(lookup_keys)
+        if not meaning:
+            return ""
+        return f"{query} — {meaning}"
 
     def _hover_translation_provider(self) -> str:
         try:
@@ -403,17 +673,31 @@ class SubtitleController:
         return "deepl"
 
     def _hover_modifier_mode(self) -> str:
-        if self._hover_hold_active("HOVER_TRANSLATION_ENABLED", "HOVER_TRANSLATION_HOTKEY", "alt"):
-            return "translation"
-        if self._hover_hold_active("HOVER_STATUS_ENABLED", "HOVER_STATUS_HOTKEY", "ctrl"):
-            return "status"
-        if self._hover_hold_active(
-            "HOVER_DICTIONARY_ENABLED",
-            "HOVER_DICTIONARY_HOTKEY",
-            "shift",
-            legacy_enabled_key="SHIFT_HOVER_KANJI_DICTIONARY",
-        ):
-            return "dictionary"
+        candidates = [
+            (
+                "translation",
+                self._hover_hold_score("HOVER_TRANSLATION_ENABLED", "HOVER_TRANSLATION_HOTKEY", "alt"),
+                3,
+            ),
+            (
+                "status",
+                self._hover_hold_score("HOVER_STATUS_ENABLED", "HOVER_STATUS_HOTKEY", "ctrl"),
+                2,
+            ),
+            (
+                "dictionary",
+                self._hover_hold_score(
+                    "HOVER_DICTIONARY_ENABLED",
+                    "HOVER_DICTIONARY_HOTKEY",
+                    "shift",
+                    legacy_enabled_key="SHIFT_HOVER_KANJI_DICTIONARY",
+                ),
+                1,
+            ),
+        ]
+        active = [candidate for candidate in candidates if candidate[1] > 0]
+        if active:
+            return max(active, key=lambda item: (item[1], item[2]))[0]
         if bool(getattr(self, "translation_pressed", False)):
             return "translation"
         return "ruby"
@@ -441,6 +725,37 @@ class SubtitleController:
         except Exception:
             return False
 
+    def _hover_hold_score(
+        self,
+        enabled_key: str,
+        hotkey_key: str,
+        default_hotkey: str,
+        *,
+        legacy_enabled_key: str | None = None,
+    ) -> int:
+        helper = getattr(getattr(self, "hotkey_controller", None), "hover_hold_active_score", None)
+        if not callable(helper):
+            return int(
+                self._hover_hold_active(
+                    enabled_key,
+                    hotkey_key,
+                    default_hotkey,
+                    legacy_enabled_key=legacy_enabled_key,
+                )
+            )
+        try:
+            return int(
+                helper(
+                    enabled_key,
+                    hotkey_key,
+                    default_hotkey,
+                    legacy_enabled_key=legacy_enabled_key,
+                )
+                or 0
+            )
+        except Exception:
+            return 0
+
     def _popup_is_open(self) -> bool:
         try:
             return bool(self.popup.is_open())
@@ -448,6 +763,10 @@ class SubtitleController:
             return False
 
     def _plain_shift_hover_active(self) -> bool:
+        if bool(getattr(self, "ctrl_pressed", False)) or bool(getattr(self, "alt_pressed", False)):
+            return False
+        if bool(getattr(self, "translation_pressed", False)):
+            return False
         return self._hover_hold_active(
             "HOVER_DICTIONARY_ENABLED",
             "HOVER_DICTIONARY_HOTKEY",
@@ -538,6 +857,17 @@ class SubtitleController:
         return connected
 
     def _refresh_annotation_runtime(self, *, redraw: bool = True) -> None:
+        dispatcher = getattr(self.settings.root, "_tk_main_thread_dispatcher", None)
+        if (
+            dispatcher is not None
+            and threading.get_ident() != getattr(dispatcher, "owner_thread_id", threading.get_ident())
+        ):
+            dispatch_to_tk(
+                self.settings.root,
+                self._refresh_annotation_runtime,
+                redraw=bool(redraw),
+            )
+            return
         provider = None
         if self._annotation_is_enabled():
             try:
@@ -568,6 +898,37 @@ class SubtitleController:
 
     def _annotation_anki_sync_settings(self, settings: dict | None = None) -> AnkiSyncSettings:
         settings = settings or {}
+
+        anime_names: list[str] = []
+
+        def _add_anime_name(value) -> None:
+            name = str(value or "").strip()
+            if name and name not in anime_names:
+                anime_names.append(name)
+
+        configured_anime_names = settings.get("anime_names")
+        if isinstance(configured_anime_names, (list, tuple, set)):
+            for value in configured_anime_names:
+                _add_anime_name(value)
+        elif configured_anime_names:
+            _add_anime_name(configured_anime_names)
+        for config_key in ("LAST_DISPLAY_ANIME_NAME", "LAST_ANIME_NAME"):
+            _add_anime_name(self.config.get(config_key))
+        manager = getattr(self, "sub_manager", None)
+        for getter_name in ("get_display_anime_name", "get_anime_name"):
+            getter = getattr(manager, getter_name, None)
+            if callable(getter):
+                try:
+                    _add_anime_name(getter())
+                except Exception:
+                    pass
+        database = getattr(self, "word_database", None)
+        if database is not None:
+            try:
+                for entry in database.list_entries():
+                    _add_anime_name(getattr(entry, "anime", ""))
+            except Exception:
+                logger.debug("Failed to collect known anime names for Anki tag sync", exc_info=True)
 
         def _fields(settings_key: str, config_key: str, fallback_key: str | None = None) -> list[str]:
             values = split_csv_values(settings.get(settings_key) or self.config.get(config_key))
@@ -610,6 +971,7 @@ class SubtitleController:
             mature_interval_days=int(settings.get("mature_interval_days") or self.config.get("ANNOTATION_ANKI_MATURE_INTERVAL_DAYS") or 21),
             suspended_as=str(settings.get("suspended_as") or self.config.get("ANNOTATION_ANKI_SUSPENDED_AS") or "normal"),
             tokenizer=self._word_spans_for_lookup,
+            anime_names=anime_names,
         )
 
     def _annotation_entries_for_added_anki_note(self, result: dict) -> list[WordEntry]:
@@ -625,6 +987,7 @@ class SubtitleController:
             return AnkiWordSync.from_client(self.anki).entries_for_note(
                 note_id,
                 self._annotation_anki_sync_settings({}),
+                anime_name=str((result or {}).get("anime_name") or ""),
             )
         except Exception:
             logger.warning("Failed to prepare added Anki note for annotation database", exc_info=True)
@@ -640,6 +1003,12 @@ class SubtitleController:
             database, _provider = self._ensure_annotation_services()
             added = database.upsert_many(entries, preserve_existing=False, replace_source=None)
             self._refresh_annotation_runtime()
+            annotation_tab = getattr(self.settings, "_annotation_tab_ui", None)
+            if annotation_tab is not None:
+                try:
+                    annotation_tab.refresh_words()
+                except Exception:
+                    logger.debug("Failed to refresh Annotation tab after Anki add", exc_info=True)
             logger.info("Added %d freshly-created Anki word(s) to annotation database", added)
             return {"ok": True, "added": int(added)}
         except Exception as exc:
@@ -681,6 +1050,7 @@ class SubtitleController:
                     "base": base,
                     "reading": payload.get("reading") or "",
                     "meaning": payload.get("meaning") or "",
+                    "anime": payload.get("anime") or (existing.anime if existing is not None else ""),
                     "source": payload.get("source") or "local",
                     "status": payload.get("status") or "local_known",
                     "created_at": payload.get("created_at") or (existing.created_at if existing is not None else ""),
@@ -1014,9 +1384,19 @@ class SubtitleController:
                 f"Renderer layout cache: hits={getattr(renderer, '_layout_cache_hits', 0)} "
                 f"misses={getattr(renderer, '_layout_cache_misses', 0)} "
                 f"entries={len(getattr(renderer, '_layout_cache', {}) or {})}",
+                f"Renderer annotation cache: hits={getattr(renderer, '_annotation_segment_cache_hits', 0)} "
+                f"misses={getattr(renderer, '_annotation_segment_cache_misses', 0)} "
+                f"entries={len(getattr(renderer, '_annotation_segment_cache', {}) or {})}",
+                f"Renderer preview cache: hits={getattr(renderer, '_preview_render_cache_hits', 0)} "
+                f"misses={getattr(renderer, '_preview_render_cache_misses', 0)} "
+                f"entries={len(getattr(renderer, '_preview_render_cache', {}) or {})}",
                 f"Renderer timing: renders={int(timing.get('render_count', 0) or 0)} "
                 f"render_total={float(timing.get('render_subtitle_time', 0.0) or 0.0) * 1000:.2f} ms "
-                f"measure_total={float(timing.get('font_measure_time', 0.0) or 0.0) * 1000:.2f} ms",
+                f"measure_total={float(timing.get('font_measure_time', 0.0) or 0.0) * 1000:.2f} ms "
+                f"draw_total={float(timing.get('draw_outlined_text_time', 0.0) or 0.0) * 1000:.2f} ms "
+                f"delete_total={float(timing.get('canvas_delete_time', 0.0) or 0.0) * 1000:.2f} ms "
+                f"preview_show_total={float(timing.get('preview_cache_show_time', 0.0) or 0.0) * 1000:.2f} ms "
+                f"text_items={int(timing.get('canvas_text_item_count', 0) or 0)}",
                 f"Auto-ruby: hits={int(ruby_stats.get('cache_hits', 0) or 0)} "
                 f"misses={int(ruby_stats.get('cache_misses', 0) or 0)} "
                 f"generator_calls={int(ruby_stats.get('generator_calls', 0) or 0)} "
@@ -1033,6 +1413,10 @@ class SubtitleController:
         if renderer is not None:
             renderer._layout_cache_hits = 0
             renderer._layout_cache_misses = 0
+            renderer._annotation_segment_cache_hits = 0
+            renderer._annotation_segment_cache_misses = 0
+            renderer._preview_render_cache_hits = 0
+            renderer._preview_render_cache_misses = 0
             timing = getattr(renderer, "_timing_data", None)
             if isinstance(timing, dict):
                 for key in timing:
@@ -1053,6 +1437,12 @@ class SubtitleController:
         except Exception:
             logger.debug("Failed to persist DEBUGGING=%s", enabled, exc_info=True)
         set_debug_logging(enabled)
+        renderer = getattr(self, "renderer", None)
+        if renderer is not None:
+            try:
+                renderer._timing_enabled = enabled
+            except Exception:
+                pass
         logger.info("Debug logging %s", "enabled" if enabled else "disabled")
         refresh_debugging_visibility = getattr(self.settings, "refresh_debugging_visibility", None)
         if callable(refresh_debugging_visibility):
@@ -1092,6 +1482,17 @@ class SubtitleController:
         if isinstance(cfg, dict):
             cfg.update(values)
 
+        if {
+            "ACTIVE_SETTINGS_PROFILE",
+            "ANKI_ADD_HISTORY",
+            "ANKI_ADD_COUNT_DATE",
+            "ANKI_ADD_COUNT_TODAY",
+        } & set(values):
+            if "ACTIVE_SETTINGS_PROFILE" in values:
+                self.anki_add_session_count = 0
+            self._load_anki_add_history_state(persist=True)
+            self._publish_anki_add_counts()
+
         def _as_int(key: str, default: int) -> int:
             try:
                 return int(values.get(key, default))
@@ -1099,13 +1500,25 @@ class SubtitleController:
                 return int(default)
 
         self.update_interval_ms = max(15, _as_int("UPDATE_INTERVAL_MS", self.update_interval_ms))
-        self.hide_subtitles_ms = max(100, _as_int("SUBTITLE_TIMEOUT_MS", self.hide_subtitles_ms))
-        self.windows_hide_control_ms = max(100, _as_int("WINDOWS_HIDE_DELAY_MS", self.windows_hide_control_ms))
+        self.hide_subtitles_ms = max(0, _as_int("SUBTITLE_TIMEOUT_MS", self.hide_subtitles_ms))
+        self.windows_hide_control_ms = max(0, _as_int("WINDOWS_HIDE_DELAY_MS", self.windows_hide_control_ms))
         self.phone_windows_hide_control_ms = max(
-            100, _as_int("PHONEMODE_WINDOWS_HIDE_DELAY_MS", self.phone_windows_hide_control_ms)
+            0, _as_int("PHONEMODE_WINDOWS_HIDE_DELAY_MS", self.phone_windows_hide_control_ms)
         )
+        if "DEBUGGING" in values:
+            renderer = getattr(self, "renderer", None)
+            if renderer is not None:
+                try:
+                    renderer._timing_enabled = bool(values.get("DEBUGGING"))
+                except Exception:
+                    pass
         if "SUBTITLE_HOVER_PAUSE_VIDEO" in values:
             self.subtitle_hover_pause_video = bool(values.get("SUBTITLE_HOVER_PAUSE_VIDEO"))
+        if "CONTROL_SHOW_ON_SUBTITLE_HOVER" in values:
+            self.control_show_on_subtitle_hover = bool(values.get("CONTROL_SHOW_ON_SUBTITLE_HOVER"))
+        if "PHONEMODE_SUBTITLE_HANDLE_ENABLED" in values:
+            self.phone_subtitle_handle_enabled = bool(values.get("PHONEMODE_SUBTITLE_HANDLE_ENABLED"))
+            self.overlay_controller.show_subtitle_handle(bool(self.settings.default_phone_mode))
         if "FAST_FORWARD_DISABLED" in values or "FAST_FORWARD_SPEED" in values:
             if self.playing:
                 now = time.perf_counter()
@@ -1127,7 +1540,7 @@ class SubtitleController:
             self.audio_padding = float(values.get("AUDIO_PADDING"))
 
         if "POPUP_CLOSE_TIMER" in values:
-            self.popup.close_delay = max(100, int(values.get("POPUP_CLOSE_TIMER")))
+            self.popup.close_delay = max(0, int(values.get("POPUP_CLOSE_TIMER")))
             popup = getattr(self.popup, "_popup", None)
             if popup is not None and popup.winfo_exists():
                 if (
@@ -1136,6 +1549,12 @@ class SubtitleController:
                     and not getattr(self.popup, "_dragging", False)
                 ):
                     self.popup._restart_close()
+        if "POPUP_HOVER_CLEAR_DELAY_MS" in values:
+            coerce = getattr(self.popup, "_coerce_hover_clear_delay", None)
+            if callable(coerce):
+                self.popup.hover_clear_delay = coerce(values.get("POPUP_HOVER_CLEAR_DELAY_MS"))
+            else:
+                self.popup.hover_clear_delay = max(0, int(values.get("POPUP_HOVER_CLEAR_DELAY_MS")))
 
         self._apply_popup_style_settings(values)
         self._apply_subtitle_style_settings(values)
@@ -1172,7 +1591,16 @@ class SubtitleController:
             "SUBTITLE_FONT_SIZE",
             "SUBTITLE_COLOR",
             "SUBTITLE_WRAP_LIMIT_PX",
-            "SUBTITLE_HOVER_RUBY",
+            "HOVER_DEFAULT_RUBY",
+            "HOVER_DEFAULT_DICTIONARY",
+            "HOVER_DEFAULT_STATUS",
+            "HOVER_DEFAULT_TRANSLATION",
+            "HOVER_POPUP_DEFAULT_RUBY",
+            "HOVER_POPUP_DEFAULT_DICTIONARY",
+            "HOVER_POPUP_DEFAULT_STATUS",
+            "HOVER_POPUP_DEFAULT_TRANSLATION",
+            "HOVER_LAYER_DELAY_MS",
+            "SUBTITLE_HOVER_CLEAR_DELAY_MS",
             "SHIFT_HOVER_KANJI_DICTIONARY",
             "HOVER_DICTIONARY_ENABLED",
             "HOVER_DICTIONARY_HOTKEY",
@@ -1211,11 +1639,7 @@ class SubtitleController:
 
         if "EXTRA_OFFSET" in values:
             off = float(values.get("EXTRA_OFFSET"))
-            old_off = float(getattr(self.settings, "_last_offset_value", self.default_offset) or 0.0)
-            self.default_offset = off
-            self.settings._last_offset_value = off
-            self.settings.offset_var.set(f"{self.settings._format_number(off)} s")
-            self.settings._apply_offset_change(off, persist=False, previous_value=old_off)
+            self._set_runtime_offset(off, persist_global=False, remember_anime=True)
 
         if "DEFAULT_SKIP" in values:
             skip = float(values.get("DEFAULT_SKIP"))
@@ -1482,6 +1906,10 @@ class SubtitleController:
             self.episode_controller.save_current_episode_position()
         except Exception as e:
             logger.debug("Failed to save current episode resume position: %s", e, exc_info=True)
+        try:
+            self._remember_current_anime_offset()
+        except Exception as e:
+            logger.debug("Failed to save current anime offset: %s", e, exc_info=True)
         
         x, y, w, h = _read_settings_geometry()
 
@@ -1595,6 +2023,12 @@ class SubtitleController:
         try:
             root = getattr(self.settings, "root", None)
             if root is not None and root.winfo_exists():
+                dispatcher = getattr(root, "_tk_main_thread_dispatcher", None)
+                if dispatcher is not None:
+                    try:
+                        dispatcher.close()
+                    except Exception:
+                        pass
                 root.quit()
                 root.destroy()
         except Exception:

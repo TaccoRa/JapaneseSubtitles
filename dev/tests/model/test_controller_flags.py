@@ -9,6 +9,7 @@ from SubtitlePlayer.view.settings_ui import SettingsUI
 from SubtitlePlayer.view.subtitle_overlay import SubtitleOverlayUI
 from types import SimpleNamespace
 from pynput.keyboard import Key
+from pynput.mouse import Button
 import queue
 import threading
 
@@ -118,6 +119,16 @@ def _hotkey_runtime(values=None):
     return HotkeyController(controller), controller
 
 
+def _drain_input_actions(hotkeys, controller):
+    actions = []
+    while not controller._input_actions.empty():
+        item = controller._input_actions.get_nowait()
+        action = item[0] if isinstance(item, tuple) else item
+        actions.append(action)
+        hotkeys._dispatch_input_action(action)
+    return actions
+
+
 def test_shortcut_matching_requires_exact_modifiers():
     hotkeys = _hotkeys()
 
@@ -132,6 +143,48 @@ def test_shortcut_matching_requires_exact_modifiers():
     assert hotkeys._shortcut_matches("ctrl+shift+a", _CharKey("\x01")) is True
 
 
+def test_altgr_binding_is_treated_as_ctrl_alt():
+    hotkeys = _hotkeys()
+
+    assert hotkeys._split_shortcut("altgr+i") == ({"ctrl", "alt"}, "i")
+
+
+def test_physical_altgr_triggers_ctrl_alt_hover_combo():
+    hotkeys, controller = _hotkey_runtime({
+        "HOVER_DICTIONARY_ENABLED": True,
+        "HOVER_DICTIONARY_HOTKEY": "ctrl+alt+i",
+    })
+
+    hotkeys._on_key_press(Key.alt_gr)
+    hotkeys._on_key_press(_CharKey("i"))
+
+    assert controller.ctrl_pressed is True
+    assert controller.alt_pressed is True
+    assert hotkeys.hover_hold_active("HOVER_DICTIONARY_ENABLED", "HOVER_DICTIONARY_HOTKEY", "shift") is True
+
+    hotkeys._on_key_release(_CharKey("i"))
+    hotkeys._on_key_release(Key.alt_gr)
+
+    assert controller.ctrl_pressed is False
+    assert controller.alt_pressed is False
+
+
+def test_held_ctrl_can_switch_between_single_fire_hotkeys_without_repressing_ctrl():
+    hotkeys, controller = _hotkey_runtime({
+        "SHORTCUT_EPISODE_DEC": "ctrl+y",
+        "SHORTCUT_EPISODE_INC": "ctrl+x",
+    })
+
+    hotkeys._on_key_press(Key.ctrl_l)
+    hotkeys._on_key_press(_CharKey("\x19"))
+    hotkeys._on_key_release(_CharKey("\x19"))
+    hotkeys._on_key_press(_CharKey("\x18"))
+
+    actions = [controller._input_actions.get_nowait()[0] for _ in range(2)]
+    assert actions == ["episode_dec", "episode_inc"]
+    assert controller.ctrl_pressed is True
+
+
 def test_global_shortcut_is_blocked_when_text_input_is_focused(monkeypatch):
     import SubtitlePlayer.controller.hotkey_controller as hotkey_module
 
@@ -144,6 +197,76 @@ def test_global_shortcut_is_blocked_when_text_input_is_focused(monkeypatch):
     hotkeys._on_key_press(_CharKey("\x19"))
 
     assert controller._input_actions.empty()
+
+
+def test_hover_hold_combo_tracks_while_text_input_is_focused(monkeypatch):
+    import SubtitlePlayer.controller.hotkey_controller as hotkey_module
+
+    hotkeys, controller = _hotkey_runtime({
+        "HOVER_DICTIONARY_ENABLED": True,
+        "HOVER_DICTIONARY_HOTKEY": "ctrl+y",
+        "SHORTCUT_JUMP_SUB_END": "ctrl+y",
+    })
+    controller.settings.root = _FocusOwner(_TextWidget())
+    monkeypatch.setattr(hotkey_module, "is_any_window_foreground", lambda _windows: True)
+
+    hotkeys._on_key_press(Key.ctrl_l)
+    hotkeys._on_key_press(_CharKey("\x19"))
+
+    assert controller._input_actions.empty()
+    assert hotkeys.hover_hold_active("HOVER_DICTIONARY_ENABLED", "HOVER_DICTIONARY_HOTKEY", "shift") is True
+
+    hotkeys._on_key_release(_CharKey("\x19"))
+    assert hotkeys.hover_hold_active("HOVER_DICTIONARY_ENABLED", "HOVER_DICTIONARY_HOTKEY", "shift") is False
+
+    hotkeys._on_key_release(Key.ctrl_l)
+    assert controller.ctrl_pressed is False
+
+
+def test_hover_hold_can_switch_key_while_ctrl_remains_held_in_text_input(monkeypatch):
+    import SubtitlePlayer.controller.hotkey_controller as hotkey_module
+
+    hotkeys, controller = _hotkey_runtime({
+        "HOVER_DICTIONARY_ENABLED": True,
+        "HOVER_DICTIONARY_HOTKEY": "ctrl+y, ctrl+x",
+    })
+    controller.settings.root = _FocusOwner(_TextWidget())
+    monkeypatch.setattr(hotkey_module, "is_any_window_foreground", lambda _windows: True)
+
+    hotkeys._on_key_press(Key.ctrl_l)
+    hotkeys._on_key_press(_CharKey("\x19"))
+
+    assert hotkeys.hover_hold_active("HOVER_DICTIONARY_ENABLED", "HOVER_DICTIONARY_HOTKEY", "shift") is True
+
+    hotkeys._on_key_release(_CharKey("\x19"))
+    assert controller.ctrl_pressed is True
+    assert hotkeys.hover_hold_active("HOVER_DICTIONARY_ENABLED", "HOVER_DICTIONARY_HOTKEY", "shift") is False
+
+    hotkeys._on_key_press(_CharKey("\x18"))
+    assert hotkeys.hover_hold_active("HOVER_DICTIONARY_ENABLED", "HOVER_DICTIONARY_HOTKEY", "shift") is True
+
+
+def test_hover_hold_ctrl_alt_combo_tracks_while_text_input_is_focused(monkeypatch):
+    import SubtitlePlayer.controller.hotkey_controller as hotkey_module
+
+    hotkeys, controller = _hotkey_runtime({
+        "HOVER_DICTIONARY_ENABLED": True,
+        "HOVER_DICTIONARY_HOTKEY": "ctrl+alt+i",
+    })
+    controller.settings.root = _FocusOwner(_TextWidget())
+    monkeypatch.setattr(hotkey_module, "is_any_window_foreground", lambda _windows: True)
+
+    hotkeys._on_key_press(Key.ctrl_l)
+    hotkeys._on_key_press(Key.alt_l)
+    hotkeys._on_key_press(_CharKey("i"))
+
+    assert hotkeys.hover_hold_active("HOVER_DICTIONARY_ENABLED", "HOVER_DICTIONARY_HOTKEY", "shift") is True
+
+    hotkeys._on_key_release(_CharKey("i"))
+    hotkeys._on_key_release(Key.alt_l)
+    hotkeys._on_key_release(Key.ctrl_l)
+
+    assert hotkeys.hover_hold_active("HOVER_DICTIONARY_ENABLED", "HOVER_DICTIONARY_HOTKEY", "shift") is False
 
 
 def test_stale_text_focus_does_not_block_hotkeys_when_app_is_not_foreground(monkeypatch):
@@ -227,7 +350,9 @@ def test_settings_button_demotes_when_settings_window_is_visible_topmost():
     assert calls == ["demote"]
 
 
-def test_settings_button_hides_advanced_window_with_settings_window():
+def test_settings_button_hides_advanced_window_with_settings_window(monkeypatch):
+    import SubtitlePlayer.view.settings_ui as settings_ui_module
+
     ui = object.__new__(SettingsUI)
     ui._settings_window_from_control = True
 
@@ -255,9 +380,48 @@ def test_settings_button_hides_advanced_window_with_settings_window():
     ui.adv_settings = SimpleNamespace(_save_advanced_window_position=lambda _win: calls.append("save_advanced"))
     ui.demote_settings_window = lambda: calls.append("demote")
     ui.show_settings_window = lambda: calls.append("show")
+    monkeypatch.setattr(settings_ui_module, "is_any_window_foreground", lambda _windows: None)
 
     assert ui.toggle_settings_window_from_control() is False
     assert calls == ["save_advanced", "withdraw_advanced", "demote"]
+
+
+def test_settings_button_raises_advanced_window_when_external_window_is_foreground(monkeypatch):
+    import SubtitlePlayer.view.settings_ui as settings_ui_module
+
+    ui = object.__new__(SettingsUI)
+    ui._settings_window_from_control = True
+
+    calls = []
+
+    class _AdvancedWin:
+        def winfo_exists(self):
+            return True
+
+        def state(self):
+            return "normal"
+
+        def winfo_viewable(self):
+            return True
+
+        def attributes(self, *_args):
+            return True
+
+    win = _AdvancedWin()
+    ui.advanced_window = win
+    ui.control_window = object()
+    ui.root = SimpleNamespace(
+        state=lambda: "normal",
+        winfo_viewable=lambda: True,
+        attributes=lambda *args: True,
+    )
+    ui.adv_settings = SimpleNamespace(_show_advanced_window=lambda window: calls.append(("show_advanced", window is win)))
+    ui.show_settings_window = lambda: calls.append("show")
+    ui.demote_settings_window = lambda: calls.append("demote")
+    monkeypatch.setattr(settings_ui_module, "is_any_window_foreground", lambda _windows: False)
+
+    assert ui.toggle_settings_window_from_control() is True
+    assert calls == ["show", ("show_advanced", True)]
 
 
 def test_settings_button_shows_withdrawn_advanced_window_with_settings_window():
@@ -435,6 +599,66 @@ def test_subtitle_center_snap_is_horizontal_only(monkeypatch):
     assert geometries == ["+400+340"]
 
 
+def test_anime_specific_offset_is_saved_and_restored():
+    class _Config:
+        def __init__(self):
+            self.values = {
+                "ANIME_OFFSETS": {"anime a": 1.25},
+                "EXTRA_OFFSET": 0.0,
+            }
+
+        def get(self, key):
+            return self.values.get(key)
+
+        def set(self, key, value):
+            self.values[key] = value
+
+    apply_calls = []
+    offset_text = []
+    controller = object.__new__(SubtitleController)
+    controller.config = _Config()
+    controller.default_offset = 0.0
+    controller.sub_manager = SimpleNamespace(get_anime_name=lambda: "Anime A")
+    controller.settings = SimpleNamespace(
+        _last_offset_value=0.0,
+        default_offset=0.0,
+        offset_var=SimpleNamespace(set=lambda text: offset_text.append(text)),
+        _format_number=lambda value: f"{float(value):g}",
+        _apply_offset_change=lambda value, persist, previous_value=None, adjust_current=True: apply_calls.append(
+            (value, persist, previous_value, adjust_current)
+        ),
+    )
+
+    assert controller._apply_saved_offset_for_current_anime() is True
+    assert controller.default_offset == 1.25
+    assert controller.settings._last_offset_value == 1.25
+    assert controller.config.values["EXTRA_OFFSET"] == 1.25
+    assert apply_calls == [(1.25, False, 0.0, False)]
+    assert offset_text == ["1.25 s"]
+
+    controller._remember_current_anime_offset(2.5)
+    assert controller.config.values["ANIME_OFFSETS"]["anime a"] == 2.5
+
+
+def test_subtitle_handle_enablement_follows_phone_mode_only():
+    calls = []
+    controller = SimpleNamespace(
+        overlay=SimpleNamespace(
+            set_handle_enabled=lambda enabled: calls.append(("set", enabled)),
+            hide_handle=lambda: calls.append(("hide", None)),
+        ),
+        _pointer_inside_settings_windows=lambda: False,
+    )
+    overlay = OverlayController(controller)
+
+    overlay.show_subtitle_handle(False)
+    overlay.show_subtitle_handle(True)
+    controller._pointer_inside_settings_windows = lambda: True
+    overlay.show_subtitle_handle(True)
+
+    assert calls == [("set", False), ("set", True), ("hide", None)]
+
+
 def test_annotation_disabled_callbacks_do_not_create_services():
     controller = object.__new__(SubtitleController)
     controller.config = _DictConfig({"ANNOTATION_ENABLED": False})
@@ -609,6 +833,57 @@ def test_annotation_edit_anki_word_prompts_when_unavailable(tmp_path):
     assert calls == ["prompt"]
 
 
+def test_hover_translation_uses_word_database_meaning(tmp_path):
+    database = WordDatabase(str(tmp_path / "words.json"))
+    database.upsert(WordEntry(surface="\u732b", meaning="cat"), save=False)
+    controller = object.__new__(SubtitleController)
+    controller.word_database = database
+    controller.annotation_provider = None
+    controller.anki = SimpleNamespace(
+        translate_hover_selection=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("external translation should not be called")
+        )
+    )
+
+    assert SubtitleController._translate_hover_selection(controller, "\u732b", provider="google") == "\u732b \u2014 cat"
+
+
+def test_hover_translation_uses_single_token_lookup_from_word_database(tmp_path):
+    database = WordDatabase(str(tmp_path / "words.json"))
+    database.upsert(WordEntry(surface="\u98df\u3079\u308b", meaning="eat"), save=False)
+    controller = object.__new__(SubtitleController)
+    controller.word_database = database
+    controller.annotation_provider = None
+    controller.anki = SimpleNamespace(
+        word_spans=lambda _text: [
+            {
+                "surface": "\u98df\u3079\u305f",
+                "lookup": "\u98df\u3079\u308b",
+            }
+        ],
+        translate_hover_selection=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("external translation should not be called")
+        ),
+    )
+
+    assert SubtitleController._translate_hover_selection(controller, "\u98df\u3079\u305f") == "\u98df\u3079\u305f \u2014 eat"
+
+
+def test_hover_translation_falls_back_when_word_database_has_no_meaning(tmp_path):
+    database = WordDatabase(str(tmp_path / "words.json"))
+    database.upsert(WordEntry(surface="\u72ac"), save=False)
+    calls = []
+    controller = object.__new__(SubtitleController)
+    controller.word_database = database
+    controller.annotation_provider = None
+    controller.anki = SimpleNamespace(
+        translate_hover_selection=lambda text, provider="deepl": calls.append((text, provider)) or "\u72ac \u2014 dog"
+    )
+
+    assert SubtitleController._translate_hover_selection(controller, "\u72ac", provider="google") == "\u72ac \u2014 dog"
+    assert calls == [("\u72ac", "google")]
+
+
 def test_global_shortcut_is_blocked_when_advanced_entry_is_focused(monkeypatch):
     import SubtitlePlayer.controller.hotkey_controller as hotkey_module
 
@@ -621,21 +896,30 @@ def test_global_shortcut_is_blocked_when_advanced_entry_is_focused(monkeypatch):
     assert controller._input_actions.empty()
 
 
-def test_popup_shortcut_is_blocked_when_popup_entry_is_focused(monkeypatch):
+def test_popup_translation_shortcut_works_when_popup_entry_is_focused(monkeypatch):
     import SubtitlePlayer.controller.hotkey_controller as hotkey_module
 
+    refresh_calls = []
     hotkeys, controller = _hotkey_runtime({"SHORTCUT_POPUP_DEEPL_TRANSLATE": "t"})
     controller.popup = SimpleNamespace(
         _popup=_FocusOwner(_TextWidget()),
         is_open=lambda: True,
-        refresh_hover_display=lambda: None,
+        refresh_hover_display=lambda: refresh_calls.append("refresh"),
     )
     monkeypatch.setattr(hotkey_module, "is_any_window_foreground", lambda _windows: True)
 
     hotkeys._on_key_press(_CharKey("t"))
 
+    assert controller.translation_pressed is True
+    assert controller._active_translation_action == "popup_deepl_translate"
+    assert _drain_input_actions(hotkeys, controller) == ["_refresh_popup_translation"]
+    assert refresh_calls == ["refresh"]
+
+    hotkeys._on_key_release(_CharKey("t"))
+
     assert controller.translation_pressed is False
-    assert controller._input_actions.empty()
+    assert _drain_input_actions(hotkeys, controller) == ["_refresh_popup_translation"]
+    assert refresh_calls == ["refresh", "refresh"]
 
 
 def test_shift_shortcut_does_not_fire_while_ctrl_is_held():
@@ -660,7 +944,7 @@ def test_only_explicit_shortcuts_disabled_setting_blocks_hotkeys():
 
 
 def test_empty_shortcut_value_stays_disabled():
-    hotkeys = _hotkeys({"SHORTCUT_POPUP_ADD_ANKI": ""})
+    hotkeys = _hotkeys({"SHORTCUT_POPUP_ADD_ANKI": "", "SHORTCUT_POPUP_ADD_ANKI_CAPTURE": ""})
 
     assert hotkeys._get_shortcut_value("SHORTCUT_POPUP_ADD_ANKI") == ""
     assert hotkeys._popup_add_anki_bindings() == []
@@ -685,7 +969,7 @@ def test_popup_translation_release_checks_all_multi_bindings():
         }
     )
     controller.popup = SimpleNamespace(
-        _popup=None,
+        _popup=object(),
         is_open=lambda: True,
         refresh_hover_display=lambda: refresh_calls.append("refresh"),
     )
@@ -694,11 +978,97 @@ def test_popup_translation_release_checks_all_multi_bindings():
 
     assert controller.translation_pressed is True
     assert controller._active_translation_action == "popup_deepl_translate"
+    assert _drain_input_actions(hotkeys, controller) == ["_refresh_popup_translation"]
+    assert refresh_calls == ["refresh"]
 
     hotkeys._on_key_release(_CharKey("y"))
 
     assert controller.translation_pressed is False
     assert controller._active_translation_action is None
+    assert _drain_input_actions(hotkeys, controller) == ["_refresh_popup_translation"]
+    assert refresh_calls == ["refresh", "refresh"]
+
+
+def test_popup_translation_key_repeat_does_not_refire_while_held():
+    refresh_calls = []
+    hotkeys, controller = _hotkey_runtime({"SHORTCUT_POPUP_DEEPL_TRANSLATE": "t"})
+    controller.popup = SimpleNamespace(
+        _popup=object(),
+        refresh_hover_display=lambda: refresh_calls.append("refresh"),
+    )
+
+    hotkeys._on_key_press(_CharKey("t"))
+    hotkeys._on_key_press(_CharKey("t"))
+    hotkeys._on_key_press(_CharKey("t"))
+
+    assert controller.translation_pressed is True
+    assert _drain_input_actions(hotkeys, controller) == ["_refresh_popup_translation"]
+    assert refresh_calls == ["refresh"]
+
+
+def test_popup_add_key_repeat_does_not_refire_while_held():
+    hotkeys, controller = _hotkey_runtime({"SHORTCUT_POPUP_ADD_ANKI": "q"})
+    controller.popup = SimpleNamespace(_popup=object())
+
+    hotkeys._on_key_press(_CharKey("q"))
+    hotkeys._on_key_press(_CharKey("q"))
+
+    queued = [controller._input_actions.get_nowait()[0] for _ in range(controller._input_actions.qsize())]
+    assert queued == ["popup_add_anki"]
+
+    hotkeys._on_key_release(_CharKey("q"))
+    hotkeys._on_key_press(_CharKey("q"))
+
+    queued = [controller._input_actions.get_nowait()[0] for _ in range(controller._input_actions.qsize())]
+    assert queued == ["popup_add_anki"]
+
+
+def test_popup_add_capture_default_v_queues_capture_action():
+    hotkeys, controller = _hotkey_runtime({})
+    controller.popup = SimpleNamespace(_popup=object())
+
+    hotkeys._on_key_press(_CharKey("v"))
+
+    queued = [controller._input_actions.get_nowait()[0] for _ in range(controller._input_actions.qsize())]
+    assert queued == ["popup_add_anki_capture"]
+
+
+def test_external_click_clears_stale_popup_hotkey_state(monkeypatch):
+    import SubtitlePlayer.controller.hotkey_controller as hotkey_module
+
+    refresh_calls = []
+    hotkeys, controller = _hotkey_runtime(
+        {
+            "SHORTCUT_POPUP_DEEPL_TRANSLATE": "t",
+            "SHORTCUT_POPUP_ADD_ANKI": "q",
+        }
+    )
+    controller.ctrl_pressed = True
+    controller.translation_pressed = True
+    controller._active_translation_action = "popup_deepl_translate"
+    controller._active_translation_binding = "t"
+    controller._single_fire_actions.add("popup_add_anki")
+    controller.popup = SimpleNamespace(
+        _popup=object(),
+        _hover_ruby_window=None,
+        refresh_hover_display=lambda: refresh_calls.append("refresh"),
+    )
+    monkeypatch.setattr(hotkey_module, "is_any_window_foreground", lambda _windows: False)
+
+    hotkeys._on_global_click(5000, 5000, Button.left, True)
+
+    assert controller.ctrl_pressed is False
+    assert controller.translation_pressed is False
+    assert controller._single_fire_actions == set()
+
+    hotkeys._on_key_press(_CharKey("t"))
+
+    assert controller.translation_pressed is True
+    assert controller.translation_provider == "deepl"
+    assert _drain_input_actions(hotkeys, controller) == [
+        "_refresh_popup_translation",
+        "_refresh_popup_translation",
+    ]
     assert refresh_calls == ["refresh", "refresh"]
 
 
@@ -873,5 +1243,31 @@ def test_hover_hold_active_supports_configurable_modifier_and_key_combo():
     assert controller._pressed_key_tokens == {"d"}
     assert hotkeys.hover_hold_active("HOVER_DICTIONARY_ENABLED", "HOVER_DICTIONARY_HOTKEY", "shift") is True
 
+    hotkeys._on_key_press(Key.shift_l)
+    assert hotkeys.hover_hold_active("HOVER_DICTIONARY_ENABLED", "HOVER_DICTIONARY_HOTKEY", "shift") is False
+
+    hotkeys._on_key_release(Key.shift_l)
+    assert hotkeys.hover_hold_active("HOVER_DICTIONARY_ENABLED", "HOVER_DICTIONARY_HOTKEY", "shift") is True
+
     hotkeys._on_key_release(_CharKey("d"))
     assert hotkeys.hover_hold_active("HOVER_DICTIONARY_ENABLED", "HOVER_DICTIONARY_HOTKEY", "shift") is False
+
+
+def test_specific_hover_combo_wins_over_single_modifier_hover():
+    controller = object.__new__(SubtitleController)
+    controller.config = _DictConfig({
+        "HOVER_DICTIONARY_ENABLED": True,
+        "HOVER_DICTIONARY_HOTKEY": "ctrl+alt+i",
+        "HOVER_TRANSLATION_ENABLED": True,
+        "HOVER_TRANSLATION_HOTKEY": "alt",
+    })
+    controller.shift_pressed = False
+    controller.ctrl_pressed = True
+    controller.alt_pressed = True
+    controller.translation_pressed = False
+    controller._pressed_key_tokens = {"i"}
+    controller.SHORTCUT_DEFAULTS = SubtitleController.SHORTCUT_DEFAULTS
+    controller.HOTKEY_DISABLE_KEYS = SubtitleController.HOTKEY_DISABLE_KEYS
+    controller.hotkey_controller = HotkeyController(controller)
+
+    assert controller._hover_modifier_mode() == "dictionary"

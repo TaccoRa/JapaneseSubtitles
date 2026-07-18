@@ -15,6 +15,7 @@ from utils import (
     format_time,
     get_monitor_rects,
     make_nonactivating_window,
+    is_any_window_foreground,
     set_window_topmost_no_activate,
 )
 
@@ -80,6 +81,8 @@ class SettingsUI:
         self._settings_window_from_control = False
         self._ocr_region_count_trace_var = None
         self._ocr_region_count_refresh_job = None
+        self._anki_add_session_count = 0
+        self._anki_add_today_count = 0
         self.adv_settings = SettingsAdvancedUI(self)
         self._build_settings_frame()
         self._build_control_window()
@@ -166,7 +169,7 @@ class SettingsUI:
         pass
 
     def _init_callbacks(self):
-        for name in ("ep_change", "ep_inc", "ep_dec",
+        for name in ("ep_change", "ep_inc", "ep_dec", "refresh_episodes",
                      "slider_change", "slider_press", "slider_release",
                      "set_to", "open_srt", "show_handle",
                      #Control window:
@@ -175,6 +178,7 @@ class SettingsUI:
                      "time_entry_return", "time_entry_clear",
                      "fast_forward_toggle", "fast_forward_speed_delta",
                      "advanced_apply",
+                     "offset_change",
                      "ocr_read_now", "ocr_sync_now", "ocr_show_boxes",
                      "anki_check", "performance_snapshot", "performance_reset",
                      "settings_open",
@@ -256,7 +260,6 @@ class SettingsUI:
             command=lambda: self._on_ep_inc(),
         )
         self.episode_inc_btn.grid(row=0, column=2, sticky="e")
-
         mode_tools_frame = tk.Frame(top_row, bg="#f0f0f0")
         mode_tools_frame.grid(row=0, column=3, padx=(2, 5), pady=(5, 2), sticky="e")
 
@@ -330,6 +333,10 @@ class SettingsUI:
             text=self.control_time_str.get(),
             font=("Arial", 10)
         )
+        self._time_overlay_text_value = None
+        self._time_overlay_half_width = 0
+        self._time_overlay_position_job = None
+        self.root.after_idle(lambda: self.set_time_overlay_text(self.control_time_str.get()))
 
         # Slider
         self.slider  = tk.Scale(
@@ -339,14 +346,18 @@ class SettingsUI:
             resolution=00.1,
             showvalue=False,
             sliderlength=32,
-            command=lambda v: self._on_slider_change(v)
+            command=self._on_slider_command
         )
         self.slider.grid(row=1, column=0, sticky="ew", padx=0, pady=0)
         self.slider.set(float(self.default_start))
         self.slider.bind("<ButtonPress-1>", self._on_click_or_drag)
         self.slider.bind("<B1-Motion>",      self._on_click_or_drag)
         self.slider.bind("<ButtonRelease-1>", lambda e: self._on_slider_release(e))
-        self.update_time_overlay_position()
+        self.slider.bind("<Configure>", lambda _e: self._schedule_time_overlay_position_update(), add="+")
+        self.time_overlay.bind("<Configure>", lambda _e: self._schedule_time_overlay_position_update(), add="+")
+        self._schedule_time_overlay_position_update()
+        self.root.after(50, self.update_time_overlay_position)
+        self.root.after(250, self.update_time_overlay_position)
 
     # --------- CONTROL WINDOW ------------------------------------------------------------------------------------------------------------------
     def _build_control_window(self):
@@ -480,6 +491,25 @@ class SettingsUI:
     def _advanced_window_is_visible(self) -> bool:
         return self._window_is_visible(getattr(self, "advanced_window", None))
 
+    def _advanced_window_is_topmost(self) -> bool:
+        win = getattr(self, "advanced_window", None)
+        try:
+            return bool(win is not None and win.winfo_exists() and win.attributes("-topmost"))
+        except Exception:
+            return False
+
+    def _settings_group_is_foreground(self) -> bool | None:
+        try:
+            return is_any_window_foreground(
+                [
+                    getattr(self, "root", None),
+                    getattr(self, "advanced_window", None),
+                    getattr(self, "control_window", None),
+                ]
+            )
+        except Exception:
+            return None
+
     def show_settings_window(self) -> None:
         """Show the main settings window through the normal reliable Tk path."""
         shown = False
@@ -533,11 +563,18 @@ class SettingsUI:
             logger.debug("Failed to hide advanced settings window from control button", exc_info=True)
 
     def toggle_settings_window_from_control(self) -> bool:
+        advanced_visible = self._advanced_window_is_visible()
         group_visible = (
             self._settings_window_from_control
             and self._settings_window_is_visible()
             and self._settings_window_is_topmost()
-        ) or self._advanced_window_is_visible()
+        )
+        if advanced_visible:
+            foreground = self._settings_group_is_foreground()
+            if foreground is False:
+                group_visible = False
+            else:
+                group_visible = group_visible or self._advanced_window_is_topmost()
         if group_visible:
             self._hide_advanced_window_from_control()
             self.demote_settings_window()
@@ -586,6 +623,10 @@ class SettingsUI:
         self._on_slider_release  = on_rl
     def bind_set_to_return(self, cb):        self._on_set_to_return = cb
     def bind_open_srt(self, cb):             self._on_open_srt = cb
+    def bind_refresh_episodes(self, cb):     self._on_refresh_episodes = cb
+
+    def open_anki_activity_window(self) -> None:
+        self.adv_settings._open_anki_activity_window()
     def bind_show_subtitle_handle(self, cb): self._on_show_handle = cb
 
     # Control window
@@ -606,6 +647,7 @@ class SettingsUI:
 
     def bind_update_display(self, cb):       self.update_time_and_subtitle_displays = cb
     def bind_advanced_apply(self, cb):       self._on_advanced_apply = cb
+    def bind_offset_change(self, cb):        self._on_offset_change = cb
     def bind_ocr_read_now(self, cb):         self._on_ocr_read_now = cb
     def bind_ocr_sync_now(self, cb):         self._on_ocr_sync_now = cb
     def bind_ocr_show_boxes(self, cb):       self._on_ocr_show_boxes = cb
@@ -632,22 +674,105 @@ class SettingsUI:
             callback = callbacks.get(source)
             if callable(callback):
                 setattr(self, f"_on_{target}", callback)
+
+    def set_anki_add_counts(self, session_count: int, today_count: int) -> None:
+        try:
+            self._anki_add_session_count = max(0, int(session_count or 0))
+        except Exception:
+            self._anki_add_session_count = 0
+        try:
+            self._anki_add_today_count = max(0, int(today_count or 0))
+        except Exception:
+            self._anki_add_today_count = 0
+        annotation_tab = getattr(self, "_annotation_tab_ui", None)
+        if annotation_tab is not None:
+            try:
+                annotation_tab.set_add_counts(
+                    self._anki_add_session_count,
+                    self._anki_add_today_count,
+                )
+            except Exception:
+                logger.debug("Failed to update Anki add counters in Annotation tab", exc_info=True)
+
+    def persist_anki_add_history(self, history: dict, today: str, today_count: int) -> None:
+        self.adv_settings.persist_anki_add_history(history, today, today_count)
+
+    def refresh_anki_activity_chart(self) -> None:
+        self.adv_settings.refresh_anki_activity_chart()
+
     def refresh_debugging_visibility(self):  self.adv_settings._sync_performance_tab_visibility()
 
+    def set_time_overlay_text(self, text: str) -> None:
+        text = str(text or "")
+        if text != getattr(self, "_time_overlay_text_value", None):
+            self.time_overlay.itemconfig(self.time_overlay_text, text=text)
+            self._time_overlay_text_value = text
+            try:
+                bbox = self.time_overlay.bbox(self.time_overlay_text)
+                self._time_overlay_half_width = max(0, int((bbox[2] - bbox[0]) / 2)) if bbox else 0
+            except Exception:
+                self._time_overlay_half_width = 0
+        self._schedule_time_overlay_position_update()
+
+    def _schedule_time_overlay_position_update(self, delay_ms: int = 0) -> None:
+        if getattr(self, "_time_overlay_position_job", None) is not None:
+            return
+
+        def _run() -> None:
+            self._time_overlay_position_job = None
+            self.update_time_overlay_position()
+
+        try:
+            if int(delay_ms) > 0:
+                self._time_overlay_position_job = self.root.after(int(delay_ms), _run)
+            else:
+                self._time_overlay_position_job = self.root.after_idle(_run)
+        except Exception:
+            self._time_overlay_position_job = None
+
     def update_time_overlay_position(self):
-        root_width = self.root.winfo_width() or self.root.winfo_reqwidth()
-        diff = root_width - 320
-        min_x = 1+19
-        max_x = 268 + diff + 19
+        if self.slider is None or self.time_overlay is None:
+            return
+
+        value = float(self.slider.get())
+        slider_width = int(self.slider.winfo_width() or 0)
+        canvas_width = int(self.time_overlay.winfo_width() or 0)
+        if slider_width <= 1 or canvas_width <= 1:
+            self._schedule_time_overlay_position_update(delay_ms=30)
+            return
+
+        slider_length = int(self.slider["sliderlength"])
+        min_x = max(1, slider_length // 2)
+        max_x = max(min_x, slider_width - max(1, slider_length // 2))
         min_val = float(self.slider.cget('from'))
         max_val = float(self.slider.cget('to'))
-        value = float(self.slider.get())
         rel = (value - min_val) / (max_val - min_val) if max_val != min_val else 0.0
-        x = int(min_x + rel * (max_x - min_x))
-        self.time_overlay.coords(self.time_overlay_text, x, 9+3)
+        rel = max(0.0, min(1.0, rel))
+
+        try:
+            x, _y = self.slider.coords(value)
+            x = int(x)
+            if x <= 0 or x > slider_width:
+                raise ValueError("slider coordinate is not ready")
+        except Exception:
+            x = int(min_x + rel * (max_x - min_x))
+
+        if abs(canvas_width - slider_width) > 1:
+            x = int(round(x * (canvas_width / max(1, slider_width))))
+
+        half_text = int(getattr(self, "_time_overlay_half_width", 0) or 0)
+        if half_text:
+            x = max(half_text, min(max(half_text, canvas_width - half_text), x))
+        self.time_overlay.coords(self.time_overlay_text, x, 12)
+
+    def _on_slider_command(self, value):
+        self._slider_command_seen = True
+        self._on_slider_change(value)
 
     def _on_click_or_drag(self, event):
-        self._on_slider_press(event)
+        event_type = getattr(event, "type", None)
+        if event_type == tk.EventType.ButtonPress or str(event_type) == "4":
+            self._on_slider_press(event)
         slider_length = int(self.slider["sliderlength"])
         w = max(1, int(self.slider.winfo_width()) - slider_length)
         x_off = int(event.x) - (slider_length / 2)
@@ -655,8 +780,10 @@ class SettingsUI:
         start  = float(self.slider.cget("from"))
         end    = float(self.slider.cget("to"))
         new_val = start + frac * (end - start)
+        self._slider_command_seen = False
         self.slider.set(new_val)
-        self._on_slider_change(str(new_val))
+        if not getattr(self, "_slider_command_seen", False):
+            self._on_slider_change(str(new_val))
         return "break"
 
     # --------- PHONE MODE UI ADJUSTMENT ------------------------------------------------------------------------------------
@@ -1053,7 +1180,7 @@ class SettingsUI:
             elif entry is self.skip_entry:
                 self._apply_skip_change(value, persist=True)
 
-    def _apply_offset_change(self, value_seconds: float, persist: bool, previous_value=None):
+    def _apply_offset_change(self, value_seconds: float, persist: bool, previous_value=None, adjust_current: bool = True):
         try:
             previous = float(previous_value)
             delta = float(value_seconds) - previous
@@ -1061,12 +1188,17 @@ class SettingsUI:
             logger.debug("Invalid previous offset value: %s", e, exc_info=True)
             delta = 0.0
         self.slider.config(to=self.total_duration + value_seconds)
-        if abs(delta) >= 0.001:
+        if adjust_current and abs(delta) >= 0.001:
             self.slider.set(float(self.slider.get()) + delta)
+        self._schedule_time_overlay_position_update()
         self._on_slider_release(None)
         self._sync_advanced_startup_vars_from_runtime()
         if persist:
             self.config.set("EXTRA_OFFSET", value_seconds)
+            try:
+                self._on_offset_change(float(value_seconds))
+            except Exception:
+                logger.debug("Offset change callback failed", exc_info=True)
 
     def _apply_skip_change(self, value_seconds: float, persist: bool):
         """Update skip value and optionally persist to config."""
@@ -1077,3 +1209,4 @@ class SettingsUI:
     def set_total_duration(self, total_duration: float):
         self.total_duration = total_duration
         self.slider.config(to=total_duration + self._last_offset_value)
+        self._schedule_time_overlay_position_update()

@@ -8,12 +8,20 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 import tkinter as tk
 from dataclasses import dataclass
 from tkinter import font as tkFont
 from typing import Any
 
+from model.hover_layers import (
+    choose_hover_region,
+    clean_hover_translation,
+    combine_hover_text,
+    hover_layers,
+)
 from utils import (
+    dispatch_to_tk,
     get_monitor_rects,
     make_draggable,
     make_nonactivating_tool_window,
@@ -58,6 +66,29 @@ class CopyPopup:
     _HOVER_TEXT_MIN_WIDTH_PX = 24
     _HOVER_TEXT_PAD_X = 8
     _HOVER_TEXT_PAD_Y = 4
+    _SPACE_TRANSLATION = str.maketrans(
+        {
+            "\u00a0": " ",
+            "\u1680": " ",
+            "\u180e": " ",
+            "\u2000": " ",
+            "\u2001": " ",
+            "\u2002": " ",
+            "\u2003": " ",
+            "\u2004": " ",
+            "\u2005": " ",
+            "\u2006": " ",
+            "\u2007": " ",
+            "\u2008": " ",
+            "\u2009": " ",
+            "\u200a": " ",
+            "\u200b": " ",
+            "\u202f": " ",
+            "\u205f": " ",
+            "\u3000": " ",
+            "\ufeff": " ",
+        }
+    )
 
     def __init__(self, root: tk.Tk, config) -> None:
         self.root = root
@@ -79,15 +110,24 @@ class CopyPopup:
         self._translation_provider_callback = None
         self._anchor_window_callback = None
         self._dragging = False
+        self._manual_selection_active = False
 
         self._raw_subtitle_text: str = ""
         self._line_segments: list[list[TextSegment]] = []
         self._segment_hits: list[HitRegion] = []
         self._word_hits: list[HitRegion] = []
+        self._last_selected_text: str = ""
         self._hover_active_region: HitRegion | None = None
+        self._hover_active_ruby_region: HitRegion | None = None
         self._hover_active_mode: str | None = None
         self._hover_ruby_window: tk.Toplevel | None = None
         self._hover_ruby_label: tk.Text | None = None
+        self._hover_layer_window: tk.Toplevel | None = None
+        self._hover_layer_label: tk.Text | None = None
+        self._hover_active_translation_key: tuple[str, str] | None = None
+        self._translation_hover_cache: dict[tuple[str, str], str] = {}
+        self._translation_hover_pending: set[tuple[str, str]] = set()
+        self._hover_layer_job = None
         self._word_tokenizer = None
         self._annotation_provider = None
 
@@ -99,7 +139,10 @@ class CopyPopup:
         self.font_name = self.config.get("POPUP_FONT")
         self.font_color = self.config.get("POPUP_FONT_COLOR")
         self.font_size = self.config.get("POPUP_FONT_SIZE")
-        self.close_delay = int(self.config.get("POPUP_CLOSE_TIMER") or 1000)
+        close_delay = self.config.get("POPUP_CLOSE_TIMER")
+        if close_delay is None or str(close_delay).strip() == "":
+            close_delay = 1000
+        self.close_delay = max(0, int(float(close_delay)))
         self.hover_clear_delay = self._coerce_hover_clear_delay(self.config.get("POPUP_HOVER_CLEAR_DELAY_MS"))
 
     @staticmethod
@@ -154,12 +197,15 @@ class CopyPopup:
         self._pinned = False
         self._menu_open = False
         self._dragging = False
+        self._manual_selection_active = False
         self._entry_widget = None
         self._drag_grip = None
         self._segment_hits = []
         self._word_hits = []
         self._hover_active_region = None
+        self._hover_active_ruby_region = None
         self._hover_active_mode = None
+        self._hover_active_translation_key = None
         if clear_content:
             self._raw_subtitle_text = ""
             self._line_segments = []
@@ -185,6 +231,10 @@ class CopyPopup:
             return "", text
         return match.group(1), match.group(2)
 
+    @classmethod
+    def _normalize_inline_ruby_spacing(cls, text: str) -> str:
+        return str(text or "").translate(cls._SPACE_TRANSLATION)
+
     def _parse_inline_ruby(self, subtitle_text: str | None) -> list[list[TextSegment]]:
         """
         Parse a line like:
@@ -195,7 +245,7 @@ class CopyPopup:
         not to the whole preceding phrase.
         """
         lines: list[list[TextSegment]] = []
-        for raw_line in (subtitle_text or "").splitlines():
+        for raw_line in self._normalize_inline_ruby_spacing(subtitle_text or "").splitlines():
             segments: list[TextSegment] = []
             last = 0
 
@@ -237,18 +287,32 @@ class CopyPopup:
 
     def _clear_hover_ruby(self, _event=None) -> None:
         self._cancel_hover_clear()
+        self._cancel_hover_layer_job()
         self._hover_active_region = None
+        self._hover_active_ruby_region = None
         self._hover_active_mode = None
+        self._hover_active_translation_key = None
         self._clear_hover_highlight()
         self._safe_withdraw(self._hover_ruby_window)
+        self._safe_withdraw(self._hover_layer_window)
 
     def _destroy_hover_ruby_window(self) -> None:
         self._cancel_hover_clear()
+        self._cancel_hover_layer_job()
         win = self._hover_ruby_window
         self._hover_active_region = None
+        self._hover_active_ruby_region = None
         self._hover_active_mode = None
+        self._hover_active_translation_key = None
         self._hover_ruby_window = None
         self._hover_ruby_label = None
+        self._safe_destroy(win)
+        self._destroy_hover_layer_window()
+
+    def _destroy_hover_layer_window(self) -> None:
+        win = self._hover_layer_window
+        self._hover_layer_window = None
+        self._hover_layer_label = None
         self._safe_destroy(win)
 
     def _clear_hover_highlight(self) -> None:
@@ -265,8 +329,13 @@ class CopyPopup:
         if entry is None:
             return
         self._clear_hover_highlight()
-        if not region:
+        if not region or self._manual_selection_active:
             return
+        try:
+            if entry.tag_ranges("sel"):
+                return
+        except Exception:
+            pass
         try:
             entry.tag_add("hover_word", region["start"], region["end"])
         except Exception:
@@ -313,18 +382,61 @@ class CopyPopup:
             str(left.get("start") or "") == str(right.get("start") or "")
             and str(left.get("end") or "") == str(right.get("end") or "")
             and str(left.get("lookup") or left.get("base") or "") == str(right.get("lookup") or right.get("base") or "")
+            and left.get("ruby_char_start") == right.get("ruby_char_start")
+            and left.get("ruby_char_end") == right.get("ruby_char_end")
         )
+
+    @classmethod
+    def _clean_selected_text(cls, value: str | None) -> str:
+        text = str(value or "").translate(cls._SPACE_TRANSLATION)
+        return re.sub(r"\s+", " ", text).strip()
 
     def _get_selected_text(self) -> str:
         entry = getattr(self, "_entry_widget", None)
         if entry is None:
             return ""
         try:
-            return re.sub(r"\s+", " ", entry.get("sel.first", "sel.last") or "").strip()
+            selected = self._clean_selected_text(entry.get("sel.first", "sel.last"))
+            if selected:
+                self._last_selected_text = selected
+            return selected
         except tk.TclError:
             return ""
         except Exception:
             return ""
+
+    def _current_or_last_selected_text(self) -> str:
+        return self._get_selected_text() or self._clean_selected_text(getattr(self, "_last_selected_text", ""))
+
+    def _remember_popup_selection(self, _event=None):
+        if self._get_selected_text():
+            self._clear_hover_highlight()
+        return None
+
+    def _begin_popup_selection(self, _event=None):
+        self._manual_selection_active = True
+        self._focus_popup_for_hotkeys()
+        self._clear_hover_ruby()
+        return None
+
+    def _continue_popup_selection(self, _event=None):
+        self._clear_hover_highlight()
+        return None
+
+    def _end_popup_selection(self, _event=None):
+        self._manual_selection_active = False
+
+        def finish_selection() -> None:
+            self._remember_popup_selection()
+            self._hover_active_region = None
+            self._hover_active_mode = None
+            self.refresh_hover_display()
+
+        try:
+            self.root.after_idle(finish_selection)
+        except Exception:
+            finish_selection()
+        return None
 
     def _selected_text_region(self) -> HitRegion | None:
         entry = getattr(self, "_entry_widget", None)
@@ -339,16 +451,48 @@ class CopyPopup:
             line_no = int(str(start).split(".", 1)[0])
         except Exception:
             return None
+        context_region = self._word_region_for_selection(entry, start, end)
+        lookup = selected
+        reading = ""
+        sentence_lookup = selected
+        if context_region is not None:
+            lookup = str(context_region.get("lookup") or selected).strip()
+            reading = str(context_region.get("reading") or "").strip()
+            sentence_lookup = str(context_region.get("sentence_lookup") or selected).strip()
         return {
             "start": start,
             "end": end,
             "line": line_no,
             "base": selected,
-            "lookup": selected,
-            "sentence_lookup": selected,
-            "ruby": "",
+            "lookup": lookup,
+            "sentence_lookup": sentence_lookup,
+            "lookup_reading": reading,
             "is_selection": True,
         }
+
+    def _word_region_for_selection(
+        self,
+        entry: tk.Text,
+        start: str,
+        end: str,
+    ) -> HitRegion | None:
+        """Keep the tokenizer lemma when a manual selection is one whole token."""
+        matches: list[HitRegion] = []
+        for region in self._word_hits:
+            try:
+                if not entry.compare(region["start"], "==", start):
+                    continue
+                if not entry.compare(region["end"], "==", end):
+                    continue
+            except Exception:
+                continue
+            matches.append(region)
+        if not matches:
+            return None
+        return min(
+            matches,
+            key=lambda region: len(str(region.get("base") or "")),
+        )
 
     def _apply_popup_line_margins(
         self,
@@ -447,11 +591,21 @@ class CopyPopup:
             max(screen_y, min(int(y), max_y)),
         )
 
-    def _ensure_hover_window(self, popup: tk.Toplevel) -> bool:
-        if self._window_exists(self._hover_ruby_window) and self._hover_ruby_label is not None:
+    def _ensure_hover_window(self, popup: tk.Toplevel, *, layer: bool = False) -> bool:
+        window_attr = "_hover_layer_window" if layer else "_hover_ruby_window"
+        label_attr = "_hover_layer_label" if layer else "_hover_ruby_label"
+        current_window = getattr(self, window_attr, None)
+        current_label = getattr(self, label_attr, None)
+        if self._window_exists(current_window) and current_label is not None:
             return True
 
-        self._destroy_hover_ruby_window()
+        if layer:
+            self._destroy_hover_layer_window()
+        else:
+            win = self._hover_ruby_window
+            self._hover_ruby_window = None
+            self._hover_ruby_label = None
+            self._safe_destroy(win)
         try:
             hover = tk.Toplevel(popup)
             hover.withdraw()
@@ -491,12 +645,12 @@ class CopyPopup:
             label.bind("<Button-3>", lambda event, widget=label: self._show_hover_text_context_menu(event, hover, widget))
         except Exception:
             logger.debug("Failed to create hover popup", exc_info=True)
-            self._hover_ruby_window = None
-            self._hover_ruby_label = None
+            setattr(self, window_attr, None)
+            setattr(self, label_attr, None)
             return False
 
-        self._hover_ruby_window = hover
-        self._hover_ruby_label = label
+        setattr(self, window_attr, hover)
+        setattr(self, label_attr, label)
         return True
 
     @staticmethod
@@ -553,7 +707,16 @@ class CopyPopup:
             logger.debug("Failed to update hover text widget", exc_info=True)
         return int(width_px), int(height_px)
 
-    def _show_hover_text(self, region: HitRegion, text: str, *, font_scale: float = 0.60, bold: bool = True) -> None:
+    def _show_hover_text(
+        self,
+        region: HitRegion,
+        text: str,
+        *,
+        font_scale: float = 0.60,
+        bold: bool = True,
+        ruby_position: str = "",
+        layer_window: bool = False,
+    ) -> None:
         popup = getattr(self, "_popup", None)
         entry = getattr(self, "_entry_widget", None)
         if not self._window_exists(popup) or entry is None:
@@ -563,10 +726,10 @@ class CopyPopup:
         if not label_text:
             return
 
-        if not self._ensure_hover_window(popup):
+        if not self._ensure_hover_window(popup, layer=layer_window):
             return
-        hover = self._hover_ruby_window
-        label = self._hover_ruby_label
+        hover = self._hover_layer_window if layer_window else self._hover_ruby_window
+        label = self._hover_layer_label if layer_window else self._hover_ruby_label
         if hover is None or label is None:
             return
 
@@ -588,6 +751,26 @@ class CopyPopup:
             min(self._HOVER_TEXT_MAX_WIDTH_PX, int(screen_rect[2] * 0.75)),
         )
         measured_w, measured_h = self._set_hover_text_widget_text(label, label_text, max_width_px=max_hover_width)
+        try:
+            normal_font = tkFont.Font(family=self.font_name, size=font_size, weight="normal")
+            bold_font = tkFont.Font(family=self.font_name, size=font_size, weight="bold")
+            label.tag_configure("hover_heading", font=bold_font)
+            label.tag_configure("hover_ruby", font=bold_font)
+            lines = label_text.splitlines() or [""]
+            for line_no, line in enumerate(lines, start=1):
+                for heading in ("Dictionary:", "Status:", "Translation:"):
+                    if line.startswith(heading):
+                        label.tag_add("hover_heading", f"{line_no}.0", f"{line_no}.{len(heading)}")
+                        break
+            if ruby_position == "first":
+                label.tag_add("hover_ruby", "1.0", "1.end")
+            elif ruby_position == "last":
+                last = len(lines)
+                label.tag_add("hover_ruby", f"{last}.0", f"{last}.end")
+            if not bold:
+                label.configure(font=normal_font)
+        except Exception:
+            pass
 
         try:
             entry.update_idletasks()
@@ -616,12 +799,13 @@ class CopyPopup:
 
         center_x = int(popup_x + base_x + (base_w / 2) - (hover_w / 2))
 
-        line_no = int(region.get("line") or 1)
-        is_second_row = line_no == 2
-
         above_y = popup_y + base_y - hover_h - 3
         below_y = popup_y + base_y + base_h + 3
-        desired_y = below_y if is_second_row else above_y
+        is_second_line = int(region.get("line") or 1) == 2
+        if layer_window:
+            desired_y = above_y if is_second_line else below_y
+        else:
+            desired_y = below_y if is_second_line else above_y
 
         if not pointer_x and not pointer_y:
             pointer_x, pointer_y = popup_x + (hover_w // 2), popup_y + (popup_h // 2)
@@ -639,15 +823,18 @@ class CopyPopup:
             self._show_hover_text(region, ruby_text, font_scale=0.60, bold=True)
 
     def _show_hover_dictionary(self, region: HitRegion) -> None:
+        entry_text = self._hover_dictionary_text(region)
+        if entry_text:
+            self._show_hover_text(region, entry_text, font_scale=0.55, bold=True)
+
+    def _hover_dictionary_text(self, region: HitRegion) -> str:
         lookup = getattr(self, "_dictionary_lookup", None)
         if not callable(lookup):
-            self._show_hover_ruby(region)
-            return
+            return ""
 
         query = str(region.get("lookup") or region.get("base") or region.get("sentence_lookup") or "").strip()
         if not query:
-            self._show_hover_ruby(region)
-            return
+            return ""
 
         try:
             if bool(region.get("is_selection")):
@@ -662,39 +849,84 @@ class CopyPopup:
         except Exception:
             entry_text = ""
 
-        if entry_text:
-            self._show_hover_text(region, entry_text, font_scale=0.55, bold=True)
-        else:
-            self._show_hover_ruby(region)
+        return entry_text
 
     def _show_hover_translation(self, region: HitRegion) -> None:
         lookup = getattr(self, "_translation_lookup", None)
         if not callable(lookup):
             return
 
-        query = str(region.get("lookup") or region.get("base") or "").strip()
+        query = str(region.get("base") or region.get("lookup") or "").strip()
         if not query:
             return
+        provider = self._translation_provider()
+        cache_key = (provider, query)
+        self._hover_active_translation_key = cache_key
 
-        try:
-            entry_text = str(lookup(query, provider=self._translation_provider()) or "").strip()
-        except TypeError:
+        cached = self._translation_hover_cache.get(cache_key)
+        if cached is not None:
+            if cached:
+                self._show_hover_text(region, cached, font_scale=0.55, bold=True)
+            return
+
+        self._show_hover_text(region, "Translating...", font_scale=0.55, bold=True)
+        if cache_key in self._translation_hover_pending:
+            return
+        self._translation_hover_pending.add(cache_key)
+
+        def worker() -> None:
             try:
-                entry_text = str(lookup(query) or "").strip()
+                entry_text = str(lookup(query, provider=provider) or "").strip()
+            except TypeError:
+                try:
+                    entry_text = str(lookup(query) or "").strip()
+                except Exception:
+                    entry_text = ""
             except Exception:
                 entry_text = ""
-        except Exception:
-            entry_text = ""
 
-        if entry_text:
-            self._show_hover_text(region, entry_text, font_scale=0.55, bold=True)
+            def apply_result() -> None:
+                self._translation_hover_pending.discard(cache_key)
+                self._translation_hover_cache[cache_key] = entry_text
+                if len(self._translation_hover_cache) > 256:
+                    try:
+                        oldest = next(iter(self._translation_hover_cache))
+                        self._translation_hover_cache.pop(oldest, None)
+                    except Exception:
+                        pass
+                if self._hover_active_mode != "translation":
+                    return
+                if self._hover_active_translation_key != cache_key:
+                    return
+                active_region = self._hover_active_region or region
+                if entry_text:
+                    self._show_hover_text(active_region, entry_text, font_scale=0.55, bold=True)
+                else:
+                    self._clear_hover_ruby()
+
+            try:
+                dispatch_to_tk(self.root, apply_result)
+            except Exception:
+                pass
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def _show_hover_status(self, region: HitRegion) -> None:
+        text = self._hover_status_text(region)
+        if text:
+            self._show_hover_text(region, text, font_scale=0.55, bold=True)
+
+    def _hover_status_text(self, region: HitRegion) -> str:
         provider = getattr(self, "_annotation_provider", None)
         token = {
             "surface": str(region.get("base") or "").strip(),
             "lookup": str(region.get("lookup") or region.get("base") or "").strip(),
-            "reading": str(region.get("ruby") or "").strip(),
+            "reading": str(
+                region.get("lookup_reading")
+                or region.get("reading")
+                or region.get("ruby")
+                or ""
+            ).strip(),
         }
         parts = []
         if provider is not None:
@@ -715,12 +947,100 @@ class CopyPopup:
                 except Exception:
                     pass
         text = "\n".join(part for part in parts if part)
+        return text
+
+    def _show_hover_layers(self, region: HitRegion, layers: tuple[str, ...]) -> None:
+        parts: list[tuple[str, str]] = []
+        if "dictionary" in layers:
+            parts.append(("dictionary", self._hover_dictionary_text(region) or "No dictionary entry"))
+        if "translation" in layers:
+            query = str(region.get("base") or region.get("lookup") or "").strip()
+            provider = self._translation_provider()
+            cache_key = (provider, query)
+            self._hover_active_translation_key = cache_key
+            cached = self._translation_hover_cache.get(cache_key)
+            if cached is not None:
+                logger.debug(
+                    "Popup hover translation cache hit provider=%s query=%r result_chars=%d",
+                    provider,
+                    query,
+                    len(cached),
+                )
+            parts.append(("translation", "Translating..." if cached is None else (cached or "No translation")))
+            if query and cached is None and cache_key not in self._translation_hover_pending:
+                self._start_layer_translation(region, layers, cache_key, query, provider)
+        if "status" in layers:
+            parts.append(("status", self._hover_status_text(region) or "Not in database"))
+
+        text = combine_hover_text(parts)
         if text:
-            self._show_hover_text(region, text, font_scale=0.55, bold=True)
+            self._show_hover_text(
+                region,
+                text,
+                font_scale=0.55,
+                bold=False,
+                layer_window=True,
+            )
+
+    def _start_layer_translation(
+        self,
+        region: HitRegion,
+        layers: tuple[str, ...],
+        cache_key: tuple[str, str],
+        query: str,
+        provider: str,
+    ) -> None:
+        lookup = getattr(self, "_translation_lookup", None)
+        if not callable(lookup):
+            logger.debug("Popup hover translation skipped: no lookup callback")
+            return
+        self._translation_hover_pending.add(cache_key)
+        logger.debug("Popup hover translation requested provider=%s query=%r", provider, query)
+
+        def worker() -> None:
+            try:
+                value = clean_hover_translation(query, str(lookup(query, provider=provider) or ""))
+            except TypeError:
+                try:
+                    value = clean_hover_translation(query, str(lookup(query) or ""))
+                except Exception:
+                    value = ""
+            except Exception:
+                value = ""
+            logger.debug(
+                "Popup hover translation completed provider=%s query=%r result_chars=%d",
+                provider,
+                query,
+                len(value),
+            )
+
+            def apply_result() -> None:
+                self._translation_hover_pending.discard(cache_key)
+                self._translation_hover_cache[cache_key] = value
+                if not value:
+                    self.root.after(
+                        10000,
+                        lambda key=cache_key: self._translation_hover_cache.pop(key, None)
+                        if self._translation_hover_cache.get(key) == ""
+                        else None,
+                    )
+                if len(self._translation_hover_cache) > 256:
+                    self._translation_hover_cache.pop(next(iter(self._translation_hover_cache)), None)
+                if self._hover_active_translation_key != cache_key:
+                    return
+                if not self._same_hover_region(region, self._hover_active_region):
+                    return
+                self._show_hover_layers(region, layers)
+
+            dispatch_to_tk(self.root, apply_result)
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def _keep_hover_visible(self, _event=None):
         self._cancel_hover_clear()
         self._cancel_close()
+        if getattr(_event, "widget", None) in {self._hover_layer_window, self._hover_layer_label}:
+            self._cancel_hover_layer_job()
         return None
 
     def _cancel_hover_clear(self) -> None:
@@ -733,6 +1053,45 @@ class CopyPopup:
             pass
         self._hover_clear_job = None
 
+    def _cancel_hover_layer_job(self) -> None:
+        job, self._hover_layer_job = self._hover_layer_job, None
+        if job is not None:
+            try:
+                self.root.after_cancel(job)
+            except Exception:
+                pass
+
+    def _hover_layer_delay_ms(self) -> int:
+        try:
+            value = self.config.get("HOVER_LAYER_DELAY_MS")
+            if value is None or str(value).strip() == "":
+                value = 500
+            return max(0, min(10000, int(float(value))))
+        except Exception:
+            return 500
+
+    def _schedule_hover_layers(
+        self,
+        region: HitRegion,
+        layers: tuple[str, ...],
+        mode: str,
+    ) -> None:
+        if not any(layer != "ruby" for layer in layers):
+            return
+
+        def show() -> None:
+            self._hover_layer_job = None
+            if self._hover_active_mode != mode or not self._same_hover_region(region, self._hover_active_region):
+                return
+            self._set_hover_highlight(region)
+            self._show_hover_layers(region, layers)
+
+        delay = self._hover_layer_delay_ms()
+        if delay <= 0:
+            show()
+        else:
+            self._hover_layer_job = self.root.after(delay, show)
+
     def _schedule_hover_clear(self, delay_ms: int | None = None, *, keep_if_inside_popup: bool = False) -> None:
         self._cancel_hover_clear()
         if self._pinned or self._menu_open or self._dragging:
@@ -743,6 +1102,7 @@ class CopyPopup:
         def _clear_if_not_reentered() -> None:
             self._hover_clear_job = None
             inside_hover = self._pointer_inside_window(getattr(self, "_hover_ruby_window", None))
+            inside_hover = inside_hover or self._pointer_inside_window(getattr(self, "_hover_layer_window", None))
             inside_popup = self._pointer_inside_window(getattr(self, "_popup", None))
             if inside_hover or (keep_if_inside_popup and inside_popup):
                 self._cancel_close()
@@ -778,7 +1138,16 @@ class CopyPopup:
         self._hover_active_mode = None
         self._on_popup_motion(type("_PopupMotion", (), {"x": x, "y": y})())
 
-    def _region_at_pointer(self, entry: tk.Text, regions: list[HitRegion], x: int, y: int) -> HitRegion | None:
+    def _region_at_pointer(
+        self,
+        entry: tk.Text,
+        regions: list[HitRegion],
+        x: int,
+        y: int,
+        *,
+        anchor: HitRegion | None = None,
+    ) -> HitRegion | None:
+        candidates: list[HitRegion] = []
         for region in regions:
             if bool(region.get("is_selection")):
                 try:
@@ -808,58 +1177,61 @@ class CopyPopup:
                 continue
             bx, by, bw, bh = bbox
             if bx <= x <= bx + bw and by <= y <= by + bh:
-                return region
-        return None
+                candidates.append(region)
+        return choose_hover_region(candidates, anchor)
 
     def _on_popup_motion(self, event) -> None:
         entry = getattr(self, "_entry_widget", None)
         if entry is None:
             return
+        if self._manual_selection_active:
+            self._clear_hover_highlight()
+            return
 
         x = int(event.x)
         y = int(event.y)
         mode = self._hover_mode(event)
-        translation_mode = mode == "translation"
-        dictionary_mode = mode == "dictionary"
-        status_mode = mode == "status"
-        regions = self._word_hits if mode in {"dictionary", "status", "translation"} else self._segment_hits
+        layers = hover_layers(self.config, mode, popup=True)
+        uses_word_hit = any(layer != "ruby" for layer in layers)
+        ruby_hit = self._region_at_pointer(entry, self._segment_hits, x, y)
 
+        selected_region = self._selected_text_region()
         hit = None
-        if translation_mode:
-            selected_region = self._selected_text_region()
+        if uses_word_hit:
             if selected_region is not None:
-                hit = self._region_at_pointer(entry, [selected_region], x, y)
-        elif dictionary_mode:
-            selected_region = self._selected_text_region()
-            if selected_region is not None:
-                hit = self._region_at_pointer(entry, [selected_region], x, y)
+                hit = selected_region
+            else:
+                hit = self._region_at_pointer(entry, self._word_hits, x, y, anchor=ruby_hit)
         if hit is None:
-            hit = self._region_at_pointer(entry, regions, x, y)
+            hit = ruby_hit
+
+        visible_ruby_hit = ruby_hit if "ruby" in layers else None
+        if not self._same_hover_region(visible_ruby_hit, self._hover_active_ruby_region):
+            self._hover_active_ruby_region = visible_ruby_hit
+            if visible_ruby_hit is not None:
+                self._show_hover_ruby(visible_ruby_hit)
+            else:
+                self._safe_withdraw(self._hover_ruby_window)
 
         if self._same_hover_region(hit, self._hover_active_region) and mode == self._hover_active_mode:
             self._cancel_hover_clear()
             return
 
         if hit is None:
-            self._schedule_hover_clear(keep_if_inside_popup=False)
+            if self._hover_clear_job is None:
+                self._schedule_hover_clear(keep_if_inside_popup=False)
             return
 
         self._cancel_hover_clear()
+        self._cancel_hover_layer_job()
         if self._hover_active_region is not None or self._hover_active_mode is not None:
-            self._clear_hover_ruby()
+            self._hover_active_translation_key = None
+            self._clear_hover_highlight()
+            if not any(layer != "ruby" for layer in layers):
+                self._safe_withdraw(self._hover_layer_window)
         self._hover_active_region = hit
         self._hover_active_mode = mode
-        if translation_mode:
-            self._set_hover_highlight(hit)
-            self._show_hover_translation(hit)
-        elif status_mode:
-            self._set_hover_highlight(hit)
-            self._show_hover_status(hit)
-        elif dictionary_mode:
-            self._set_hover_highlight(hit)
-            self._show_hover_dictionary(hit)
-        else:
-            self._show_hover_ruby(hit)
+        self._schedule_hover_layers(hit, layers, mode)
 
     def _tokenize_words(self, text: str) -> list[dict[str, Any]]:
         callback = getattr(self, "_word_tokenizer", None)
@@ -880,7 +1252,8 @@ class CopyPopup:
                 surface = str(span.get("surface") or text[start:end]).strip()
                 if not surface:
                     continue
-                out.append(
+                item = dict(span)
+                item.update(
                     {
                         "surface": surface,
                         "lookup": str(span.get("lookup") or surface).strip(),
@@ -889,6 +1262,7 @@ class CopyPopup:
                         "end": end,
                     }
                 )
+                out.append(item)
             if out:
                 return out
 
@@ -919,15 +1293,27 @@ class CopyPopup:
                 end_col = int(token["end"])
                 if end_col <= start_col:
                     continue
+                surface = str(token.get("surface") or line[start_col:end_col])
                 self._word_hits.append(
                     {
                         "start": f"{line_no}.{start_col}",
                         "end": f"{line_no}.{end_col}",
+                        "char_start": start_col,
+                        "char_end": end_col,
                         "line": line_no,
-                        "base": str(token.get("surface") or line[start_col:end_col]),
+                        "base": surface,
                         "lookup": str(token.get("lookup") or token.get("surface") or ""),
+                        "orth_base": str(token.get("orth_base") or ""),
                         "sentence_lookup": self._plain_popup_text(),
-                        "ruby": str(token.get("reading") or ""),
+                        # Ruby display must come from the same parsed segments as
+                        # the subtitle window, not a whole-token dictionary reading.
+                        "ruby": "",
+                        "reading": str(token.get("reading") or ""),
+                        "pos1": str(token.get("pos1") or ""),
+                        "pos2": str(token.get("pos2") or ""),
+                        "c_type": str(token.get("c_type") or ""),
+                        "c_form": str(token.get("c_form") or ""),
+                        "compound": bool(token.get("compound")),
                     }
                 )
 
@@ -949,10 +1335,61 @@ class CopyPopup:
             lines = [plain_text]
 
         configured_tags: set[str] = set()
+
+        def _tag_options(style: dict) -> dict:
+            options = {}
+            if style.get("text_color"):
+                options["foreground"] = str(style.get("text_color"))
+            if style.get("background_color"):
+                options["background"] = str(style.get("background_color"))
+            if style.get("underline"):
+                options["underline"] = True
+            return options
+
+        def _ensure_tag(status: str, style: dict) -> str:
+            tag_name = f"annotation_{status}"
+            if tag_name in configured_tags:
+                return tag_name
+            try:
+                options = _tag_options(style)
+                if options:
+                    entry.tag_configure(tag_name, **options)
+            except Exception:
+                logger.debug("Failed to configure popup annotation tag", exc_info=True)
+            configured_tags.add(tag_name)
+            return tag_name
+
+        if self._line_segments:
+            for line_no, line_segments in enumerate(self._line_segments, start=1):
+                try:
+                    annotated = provider.annotate_segments(line_segments, self._word_tokenizer)
+                except Exception:
+                    logger.debug("Failed to annotate popup segments", exc_info=True)
+                    annotated = []
+                col = 0
+                for segment in annotated or []:
+                    try:
+                        base = str(segment[0] or "")
+                        meta = segment[2] if len(segment) > 2 and isinstance(segment[2], dict) else {}
+                    except Exception:
+                        continue
+                    next_col = col + len(base)
+                    if meta.get("annotation") and bool(meta.get("normal_style_visible", True)):
+                        status = str(meta.get("status") or "")
+                        style = meta.get("style") if isinstance(meta.get("style"), dict) else {}
+                        if status and bool(style.get("enabled")):
+                            tag_name = _ensure_tag(status, style)
+                            try:
+                                entry.tag_add(tag_name, f"{line_no}.{col}", f"{line_no}.{next_col}")
+                            except Exception:
+                                logger.debug("Failed to add popup annotation tag", exc_info=True)
+                    col = next_col
+            return
+
         for line_no, line in enumerate(lines, start=1):
             try:
                 tokens = provider._tokens_for_line(line, self._word_tokenizer)
-                intervals = provider._matched_intervals(tokens)
+                intervals = provider._matched_intervals(tokens, line_text=line)
             except Exception:
                 tokens = self._tokenize_words(line)
                 intervals = []
@@ -977,21 +1414,7 @@ class CopyPopup:
                     style = {}
                 if not bool(style.get("enabled")):
                     continue
-                tag_name = f"annotation_{match.status}"
-                if tag_name not in configured_tags:
-                    options = {}
-                    if style.get("text_color"):
-                        options["foreground"] = str(style.get("text_color"))
-                    if style.get("background_color"):
-                        options["background"] = str(style.get("background_color"))
-                    if style.get("underline"):
-                        options["underline"] = True
-                    try:
-                        if options:
-                            entry.tag_configure(tag_name, **options)
-                    except Exception:
-                        logger.debug("Failed to configure popup annotation tag", exc_info=True)
-                    configured_tags.add(tag_name)
+                tag_name = _ensure_tag(str(match.status), style)
                 try:
                     entry.tag_add(tag_name, f"{line_no}.{start_col}", f"{line_no}.{end_col}")
                 except Exception:
@@ -1010,7 +1433,7 @@ class CopyPopup:
                 start = f"{line_no}.{col}"
                 end = f"{line_no}.{col + len(base)}"
 
-                if ruby and base:
+                if ruby and base and self._popup_ruby_base(base):
                     tag_name = f"ruby_{line_no}_{seg_index}"
                     try:
                         entry.tag_add(tag_name, start, end)
@@ -1022,12 +1445,28 @@ class CopyPopup:
                             "ruby": ruby,
                             "start": start,
                             "end": end,
+                            "char_start": col,
+                            "char_end": col + len(base),
                             "line": line_no,
                             "base": base,
                         }
                     )
 
                 col += len(base)
+
+    @staticmethod
+    def _popup_ruby_base(text: str) -> bool:
+        if re.search(r"[0-9\uff10-\uff19]+\u3064", str(text or "")):
+            return True
+        for ch in str(text or ""):
+            code = ord(ch)
+            if code == 0x3005:
+                return True
+            if 0x3400 <= code <= 0x9FFF or 0xF900 <= code <= 0xFAFF or ch == "々":
+                return True
+            if 0x30A0 <= code <= 0x30FF:
+                return True
+        return False
 
     def _destroy_current_popup(self) -> None:
         popup = self._popup
@@ -1044,9 +1483,35 @@ class CopyPopup:
             self._popup = None
             self._reset_popup_state()
 
-    def _prepare_popup_content(self, subtitle_text: str | None) -> str:
+    @staticmethod
+    def _copy_popup_line_segments(line_segments) -> list[list[TextSegment]]:
+        copied: list[list[TextSegment]] = []
+        for line in line_segments or []:
+            copied_line: list[TextSegment] = []
+            for segment in line or []:
+                if isinstance(segment, dict):
+                    base = str(segment.get("base") or "")
+                    ruby = segment.get("ruby")
+                else:
+                    try:
+                        base = str(segment[0] or "")
+                    except Exception:
+                        base = ""
+                    try:
+                        ruby = segment[1]
+                    except Exception:
+                        ruby = None
+                if base:
+                    copied_line.append((base, str(ruby) if ruby else None))
+            if copied_line:
+                copied.append(copied_line)
+        return copied
+
+    def _prepare_popup_content(self, subtitle_text: str | None, line_segments=None) -> str:
         self._raw_subtitle_text = subtitle_text or ""
-        self._line_segments = self._parse_inline_ruby(self._raw_subtitle_text)
+        self._line_segments = self._copy_popup_line_segments(line_segments)
+        if not self._line_segments:
+            self._line_segments = self._parse_inline_ruby(self._raw_subtitle_text)
         return self._plain_popup_text()
 
     def _create_popup_window(self) -> tk.Toplevel:
@@ -1056,7 +1521,6 @@ class CopyPopup:
         popup.withdraw()
         popup.overrideredirect(True)
         popup.attributes("-topmost", True)
-        make_nonactivating_tool_window(popup)
         return popup
 
     def _popup_fonts(self) -> tuple[tkFont.Font, tkFont.Font]:
@@ -1209,13 +1673,21 @@ class CopyPopup:
         return "break"
 
     def _copy_selection_to_clipboard(self, owner: tk.Misc) -> None:
-        self._copy_to_clipboard(owner, self._get_selected_text())
+        self._copy_to_clipboard(owner, self._current_or_last_selected_text())
 
     def _copy_all_to_clipboard(self, owner: tk.Misc) -> None:
         self._copy_to_clipboard(owner, self._raw_subtitle_text or "")
 
-    def _add_selection_to_anki_from_popup(self, popup: tk.Toplevel, plain_text: str) -> None:
-        selected = self._get_selected_text()
+    def _add_selection_to_anki_from_popup(
+        self,
+        popup: tk.Toplevel,
+        plain_text: str,
+        selected_text: str | None = None,
+        post_add_capture: bool = False,
+    ) -> None:
+        selected = self._clean_selected_text(
+            selected_text if selected_text is not None else self._get_selected_text()
+        )
         if not selected:
             logger.debug("Add Selection To Anki skipped because no text is selected")
             return
@@ -1225,7 +1697,13 @@ class CopyPopup:
 
         def _run() -> None:
             try:
-                self._on_add_anki(selected_text=selected, subtitle_text=plain_text or "")
+                kwargs = {
+                    "selected_text": selected,
+                    "subtitle_text": plain_text or "",
+                }
+                if post_add_capture:
+                    kwargs["post_add_capture"] = True
+                self._on_add_anki(**kwargs)
             except Exception:
                 logger.exception("Add Selection To Anki failed")
 
@@ -1234,15 +1712,41 @@ class CopyPopup:
         except Exception:
             _run()
 
-    def add_selected_to_anki_if_pointer_inside(self) -> bool:
+    def add_selected_to_anki_if_pointer_inside(self, post_add_capture: bool = False) -> bool:
         popup = getattr(self, "_popup", None)
         if not self._window_exists(popup):
             return False
-        if not self._pointer_inside_window(popup):
+        selected = self._get_selected_text()
+        if not selected:
             return False
-        if not self._get_selected_text():
+        self._add_selection_to_anki_from_popup(
+            popup,
+            self._plain_popup_text(),
+            selected_text=selected,
+            post_add_capture=bool(post_add_capture),
+        )
+        return True
+
+    def copy_selection_to_clipboard_if_pointer_inside(self) -> bool:
+        for hover, widget in (
+            (getattr(self, "_hover_ruby_window", None), getattr(self, "_hover_ruby_label", None)),
+            (getattr(self, "_hover_layer_window", None), getattr(self, "_hover_layer_label", None)),
+        ):
+            if not (self._window_exists(hover) and self._pointer_inside_window(hover)):
+                continue
+            text = self._hover_text_selection(widget) or self._hover_text_content(widget)
+            if not text:
+                return False
+            self._copy_to_clipboard(hover, text)
+            return True
+
+        popup = getattr(self, "_popup", None)
+        if not self._window_exists(popup):
             return False
-        self._add_selection_to_anki_from_popup(popup, self._plain_popup_text())
+        text = self._current_or_last_selected_text()
+        if not text:
+            return False
+        self._copy_to_clipboard(popup, text)
         return True
 
     def _build_context_menu(self, popup: tk.Toplevel, plain_text: str) -> tk.Menu:
@@ -1269,12 +1773,20 @@ class CopyPopup:
             return False
 
     def _select_word_at_pointer(self, entry: tk.Text, x: int, y: int) -> None:
-        region = self._region_at_pointer(entry, self._word_hits, int(x), int(y))
+        ruby_hit = self._region_at_pointer(entry, self._segment_hits, int(x), int(y))
+        region = self._region_at_pointer(
+            entry,
+            self._word_hits,
+            int(x),
+            int(y),
+            anchor=ruby_hit,
+        )
         if not region:
             try:
                 entry.tag_remove("sel", "1.0", "end")
             except Exception:
                 pass
+            self._last_selected_text = ""
             return
         if self._selection_contains_region(entry, region):
             return
@@ -1282,6 +1794,7 @@ class CopyPopup:
             entry.tag_remove("sel", "1.0", "end")
             entry.tag_add("sel", region["start"], region["end"])
             entry.mark_set("insert", region["end"])
+            self._remember_popup_selection()
         except Exception:
             pass
 
@@ -1329,17 +1842,38 @@ class CopyPopup:
         return "break"
 
     def _bind_popup_events(self, popup: tk.Toplevel, entry: tk.Text, menu: tk.Menu) -> None:
+        entry.bind("<ButtonPress-1>", self._begin_popup_selection, add="+")
+        entry.bind("<B1-Motion>", self._continue_popup_selection, add="+")
         entry.bind("<Button-3>", lambda event: self._show_context_menu(event, menu, entry))
         entry.bind("<Enter>", lambda _event: self._cancel_close())
         entry.bind("<Motion>", self._on_popup_motion)
         entry.bind("<Leave>", self._on_popup_leave)
+        entry.bind("<ButtonRelease-1>", self._end_popup_selection, add="+")
+        entry.bind("<KeyRelease>", self._remember_popup_selection, add="+")
         entry.bind("<Control-a>", lambda _event: self._select_all_text(entry))
         entry.bind("<Control-A>", lambda _event: self._select_all_text(entry))
         popup.bind("<Control-a>", lambda _event: self._select_all_text(entry))
         popup.bind("<Control-A>", lambda _event: self._select_all_text(entry))
+        popup.bind("<ButtonPress-1>", lambda _event: self._focus_popup_for_hotkeys(), add="+")
         popup.bind("<Enter>", lambda _event: self._cancel_close())
         popup.bind("<Leave>", lambda _event: self._on_popup_leave())
         popup.bind("<Destroy>", lambda event, owner=popup: self._on_popup_destroy(owner, event), add="+")
+
+    def _focus_popup_for_hotkeys(self) -> None:
+        popup = getattr(self, "_popup", None)
+        entry = getattr(self, "_entry_widget", None)
+        if not self._window_exists(popup):
+            return
+        try:
+            popup.lift()
+            popup.focus_force()
+        except Exception:
+            pass
+        if entry is not None:
+            try:
+                entry.focus_force()
+            except Exception:
+                pass
 
     @staticmethod
     def _clamp_popup_size(measurements: _PopupMeasurements, screen_rect: ScreenRect) -> tuple[int, int]:
@@ -1369,11 +1903,11 @@ class CopyPopup:
             y = int(pointer_y - height - 16)
         return self._clamp_window_position(x, y, width, height, screen_rect)
 
-    def open_copy_popup(self, subtitle_text=None) -> None:
+    def open_copy_popup(self, subtitle_text=None, line_segments=None) -> None:
         self._destroy_current_popup()
 
         popup = self._create_popup_window()
-        plain_text = self._prepare_popup_content(subtitle_text)
+        plain_text = self._prepare_popup_content(subtitle_text, line_segments=line_segments)
         base_font, ruby_font = self._popup_fonts()
         measurements = self._measure_popup_content(plain_text, base_font, ruby_font)
 
@@ -1642,7 +2176,11 @@ class CopyPopup:
             self._safe_destroy(target)
             return
 
-        if self._pointer_inside_window(target) or self._pointer_inside_window(getattr(self, "_hover_ruby_window", None)):
+        if (
+            self._pointer_inside_window(target)
+            or self._pointer_inside_window(getattr(self, "_hover_ruby_window", None))
+            or self._pointer_inside_window(getattr(self, "_hover_layer_window", None))
+        ):
             self._close_job = None
             return
 
@@ -1677,7 +2215,7 @@ class CopyPopup:
             return
         if self._pointer_inside_window(getattr(self, "_popup", None)) or self._pointer_inside_window(
             getattr(self, "_hover_ruby_window", None)
-        ):
+        ) or self._pointer_inside_window(getattr(self, "_hover_layer_window", None)):
             self._cancel_close()
             self._cancel_hover_clear()
             return

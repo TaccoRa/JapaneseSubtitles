@@ -7,15 +7,19 @@ import logging
 from typing import Callable, List, Optional, Tuple
 
 try:
-    from SubtitlePlayer.furigana_splitter import iter_number_counter_matches, split_furigana
+    from SubtitlePlayer.furigana_splitter import (
+        iter_number_counter_matches,
+        iter_ordinal_number_matches,
+        split_furigana,
+    )
 except ImportError:
     try:
-        from furigana_splitter import iter_number_counter_matches, split_furigana
+        from furigana_splitter import iter_number_counter_matches, iter_ordinal_number_matches, split_furigana
     except ImportError:
         _package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
         if _package_dir not in sys.path:
             sys.path.insert(0, _package_dir)
-        from furigana_splitter import iter_number_counter_matches, split_furigana
+        from furigana_splitter import iter_number_counter_matches, iter_ordinal_number_matches, split_furigana
 
 IS_WIN = sys.platform == "win32"
 IS_MAC = sys.platform == "darwin"
@@ -609,10 +613,35 @@ class AddonRubyGenerator:
         if not text:
             return []
         split_flag = self.split_kanji_compounds if split_kanji_compounds is None else bool(split_kanji_compounds)
+        ordinal_segments = self._segments_with_ordinal_readings(text, split_kanji_compounds=split_flag)
+        if ordinal_segments is not None:
+            return ordinal_segments
         counter_segments = self._segments_with_counter_readings(text, split_kanji_compounds=split_flag)
         if counter_segments is not None:
             return counter_segments
         return self._plain_segments_without_counters(text, split_kanji_compounds=split_flag)
+
+    def _segments_with_ordinal_readings(
+        self,
+        text: str,
+        split_kanji_compounds: bool | None = None,
+    ) -> List[Segment] | None:
+        matches = list(iter_ordinal_number_matches(text))
+        if not matches:
+            return None
+
+        split_flag = self.split_kanji_compounds if split_kanji_compounds is None else bool(split_kanji_compounds)
+        segments: List[Segment] = []
+        cursor = 0
+        for match, reading in matches:
+            if match.start() > cursor:
+                segments.extend(self._plain_segments(text[cursor:match.start()], split_kanji_compounds=split_flag))
+            surface = match.group(0)
+            segments.append((surface, WHOLE_RUBY_OVERRIDES.get(surface, reading)))
+            cursor = match.end()
+        if cursor < len(text):
+            segments.extend(self._plain_segments(text[cursor:], split_kanji_compounds=split_flag))
+        return segments
 
     def _plain_segments_without_counters(
         self,

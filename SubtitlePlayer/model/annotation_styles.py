@@ -20,6 +20,7 @@ STATUS_ORDER = [
     "wanikani_guru",
     "wanikani_apprentice",
     "wanikani_unlocked",
+    "name",
     "uncollected",
     "ignored",
 ]
@@ -37,6 +38,7 @@ STATUS_LABELS = {
     "wanikani_guru": "WaniKani Guru",
     "wanikani_apprentice": "WaniKani Apprentice",
     "wanikani_unlocked": "WaniKani Unlocked",
+    "name": "Name",
     "uncollected": "Uncollected",
     "ignored": "Ignored",
 }
@@ -78,6 +80,7 @@ STATUS_PRIORITY = {
     "wanikani_guru": 33,
     "wanikani_apprentice": 34,
     "wanikani_unlocked": 35,
+    "name": 90,
     "uncollected": 99,
 }
 
@@ -127,6 +130,7 @@ DEFAULT_STYLES: dict[str, dict[str, Any]] = {
     "wanikani_guru": _style(enabled=True, text_color="#00b4d8"),
     "wanikani_apprentice": _style(enabled=True, text_color="#ff4d8d"),
     "wanikani_unlocked": _style(enabled=True, underline=True, underline_color="#9aa0a6"),
+    "name": _style(enabled=True, text_color="#d0d0d0"),
     "uncollected": _style(enabled=False, text_color="#b0b0b0"),
     "ignored": _style(enabled=False, text_color="#808080"),
 }

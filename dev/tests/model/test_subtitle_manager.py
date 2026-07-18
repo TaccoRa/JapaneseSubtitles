@@ -1,7 +1,10 @@
 from SubtitlePlayer.model.config_manager import ConfigManager
 from SubtitlePlayer.model.subtitle_manager import SubtitleManager
 from SubtitlePlayer.utils import parse_time_value
+from collections import OrderedDict, defaultdict
 import datetime
+import json
+import threading
 import srt
 
 
@@ -11,6 +14,9 @@ class _DictConfig:
 
     def get(self, key):
         return self.values.get(key)
+
+    def set(self, key, value):
+        self.values[key] = value
 
 
 def _cleaner(values):
@@ -38,6 +44,170 @@ def test_episode_dropdown_items_include_season_episode_label():
     assert items[0]["global"] == 27
     assert items[0]["season"] == 2
     assert items[0]["episode"] == 1
+
+
+def test_remote_episode_item_merge_preserves_old_items_and_prefers_new_metadata():
+    manager = object.__new__(SubtitleManager)
+    old_items = [
+        {"path": "subtitles/anime_tv/baki-dou/Season1/old.S01E01.srt", "name": "old.S01E01.srt", "global": 1},
+        {"path": "subtitles/anime_tv/baki-dou/Season1/old.S01E02.srt", "name": "old.S01E02.srt", "global": 2},
+    ]
+    new_items = [
+        {"path": "subtitles/anime_tv/baki-dou/Season1/old.S01E02.srt", "name": "new.S01E02.srt", "global": 2},
+        {"path": "subtitles/anime_tv/baki-dou part 2/Season1/new.S01E13.srt", "name": "new.S01E13.srt", "global": 13},
+    ]
+
+    merged = manager._merge_remote_episode_items(old_items, new_items)
+
+    assert [item["global"] for item in merged] == [1, 2, 13]
+    assert merged[1]["name"] == "new.S01E02.srt"
+    assert "baki-dou part 2" in merged[2]["path"]
+
+
+def test_refresh_remote_episode_map_force_merges_broad_part_folder_results():
+    manager = object.__new__(SubtitleManager)
+    manager.remote_flag = True
+    manager.anime_folder_name = "baki-dou"
+    manager.github_owner = "owner"
+    manager.github_repo = "repo"
+    manager.all_results_items = [
+        {"path": "subtitles/anime_tv/baki-dou/Season1/Baki.S01E01.srt", "name": "Baki.S01E01.srt", "season": 1, "episode": 1, "global": 1},
+    ]
+    force_values = []
+
+    def create_map(force_refresh=False):
+        force_values.append(force_refresh)
+        manager.all_results_items = [
+            {"path": "subtitles/anime_tv/baki-dou/Season1/Baki.S01E01.srt", "name": "Baki.S01E01.srt", "season": 1, "episode": 1, "global": 1},
+        ]
+
+    manager._create_remote_episode_map_per_season = create_map
+    manager._search_remote_candidates_in_path = lambda anime, repo_path: [
+        {"path": "subtitles/anime_tv/baki-dou part 2/Season1/Baki.S01E01.srt", "name": "Baki.S01E01.srt", "season": 1, "episode": 1, "global": 1},
+    ]
+    manager.update_local_srt_files = lambda: []
+    manager._write_remote_episode_search_cache = lambda items, last_search="": None
+
+    result = manager.refresh_remote_episode_map(force=True)
+
+    assert result["ok"] is True
+    assert force_values == [True]
+    assert any("baki-dou part 2" in item["path"] for item in manager.all_results_items)
+    assert manager.remote_episode_map_global[2]["episode"] == 1
+    assert manager.remote_episode_map_global[2]["season"] == 2
+
+
+def test_remote_metadata_preserves_saved_search_query_for_last_github_url():
+    manager = object.__new__(SubtitleManager)
+    config = _DictConfig(
+        {
+            "LAST_REMOTE_SEARCH_QUERY": "Baki-Dou",
+            "LAST_ANIME_NAME": "Baki-Dou",
+        }
+    )
+    manager.config = config
+    manager._cached_search_query_for_remote_path = lambda remote_path: ""
+
+    manager._extract_and_set_remote_episode_metadata(
+        "https://github.com/o/r/blob/main/subtitles/anime_tv/Baki-Dou%20Part%20Two/Season1/Baki.S01E14.srt",
+        preserve_search_query=True,
+    )
+
+    assert manager.anime_folder_name == "Baki-Dou"
+    assert manager.get_display_anime_name() == "Baki-Dou Part Two"
+    assert manager.remote_search_query == "Baki-Dou"
+    assert config.get("LAST_REMOTE_SEARCH_QUERY") == "Baki-Dou"
+    assert config.get("LAST_ANIME_NAME") == "Baki-Dou"
+    assert config.get("LAST_DISPLAY_ANIME_NAME") == "Baki-Dou Part Two"
+
+
+def test_remote_metadata_direct_url_can_replace_old_saved_search_query():
+    manager = object.__new__(SubtitleManager)
+    config = _DictConfig(
+        {
+            "LAST_REMOTE_SEARCH_QUERY": "Old Anime",
+            "LAST_ANIME_NAME": "Old Anime",
+        }
+    )
+    manager.config = config
+    manager._cached_search_query_for_remote_path = lambda remote_path: ""
+
+    manager._extract_and_set_remote_episode_metadata(
+        "https://github.com/o/r/blob/main/subtitles/anime_tv/New%20Anime/Season1/New.S01E01.srt",
+        preserve_search_query=False,
+    )
+
+    assert manager.anime_folder_name == "New Anime"
+    assert manager.get_display_anime_name() == "New Anime"
+    assert config.get("LAST_REMOTE_SEARCH_QUERY") == "New Anime"
+
+
+def test_remote_metadata_recovers_search_query_from_matching_cached_map(tmp_path):
+    remote_path = "subtitles/anime_tv/Baki-Dou Part Two/Season1/Baki.S01E14.srt"
+    cache_path = tmp_path / "github_search_Baki-Dou.json"
+    cache_path.write_text(
+        json.dumps(
+            {
+                "anime_query": "Baki-Dou",
+                "items": [
+                    {"name": "Baki.S01E01.srt", "path": "subtitles/anime_tv/Baki-Dou/Season1/Baki.S01E01.srt"},
+                    {"name": "Baki.S01E14.srt", "path": remote_path},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    manager = object.__new__(SubtitleManager)
+    config = _DictConfig({"LAST_ANIME_NAME": "Baki-Dou Part Two"})
+    manager.config = config
+    manager._list_cached_github_search_records = lambda: [
+        {"query": "Baki-Dou", "path": str(cache_path)},
+    ]
+
+    manager._extract_and_set_remote_episode_metadata(
+        "https://github.com/o/r/blob/main/" + remote_path.replace(" ", "%20"),
+        preserve_search_query=True,
+    )
+
+    assert manager.anime_folder_name == "Baki-Dou"
+    assert manager.get_display_anime_name() == "Baki-Dou Part Two"
+    assert config.get("LAST_REMOTE_SEARCH_QUERY") == "Baki-Dou"
+
+
+def test_remote_url_sync_updates_display_name_without_changing_search_key():
+    manager = object.__new__(SubtitleManager)
+    config = _DictConfig(
+        {
+            "LAST_REMOTE_SEARCH_QUERY": "Baki-Dou",
+            "LAST_ANIME_NAME": "Baki-Dou",
+        }
+    )
+    manager.config = config
+    manager.remote_flag = True
+    manager.github_owner = "o"
+    manager.github_repo = "r"
+    manager.github_ref = "main"
+    manager.anime_folder_name = "Baki-Dou"
+    manager.remote_search_query = "Baki-Dou"
+    manager.current_season = 2
+    manager.current_episode = 1
+    item = {
+        "season": 2,
+        "episode": 1,
+        "global": 14,
+        "path": "subtitles/anime_tv/Baki-Dou Part Two/Season1/Baki.S01E01.srt",
+        "name": "Baki.S01E01.srt",
+    }
+    manager.remote_episode_map_global = {14: item}
+    manager.remote_episode_map_season = defaultdict(list, {2: [item]})
+
+    manager._sync_remote_url_to_current_episode(item)
+
+    assert manager.anime_folder_name == "Baki-Dou"
+    assert manager.remote_search_query == "Baki-Dou"
+    assert manager.get_display_anime_name() == "Baki-Dou Part Two"
+    assert config.get("LAST_DISPLAY_ANIME_NAME") == "Baki-Dou Part Two"
 
 
 def test_clean_text_strips_html_tags_without_allowlist():
@@ -267,6 +437,58 @@ def test_build_display_payload_skips_empty_cleaned_duplicate_timestamp():
     assert payload["display_start_times"] == [410.993]
     assert payload["display_end_times"] == [414.080]
     assert payload["display_data"][0][0] == "\u30db\u30f3\u30c8\u306b \u3088\u304f\u6ce3\u304f\u4eba\u3060\u306a"
+
+
+def test_set_display_data_redownloads_missing_remote_cache_file(tmp_path):
+    manager = _cleaner(
+        {
+            "SUBTITLE_AUTO_RUBY": False,
+            "SUBTITLE_SPEAKER_MODE": "hide",
+            "SUBTITLE_STRIP_PAREN_NOTES": True,
+            "DEFAULT_START_TIME": 0.0,
+            "AUTO_RUBY_EAGER_WINDOW_SEC": 0.0,
+        }
+    )
+    manager.remote_flag = True
+    manager.github_owner = "owner"
+    manager.github_repo = "repo"
+    manager.github_ref = "main"
+    manager.anime_folder_name = "MASHLE"
+    manager.current_season = 1
+    manager.current_episode = 5
+    manager.is_movie = False
+    manager._prepared_episode_cache = OrderedDict()
+    manager._prepared_episode_lock = threading.Lock()
+    manager._episode_prepare_seen = set()
+    manager._ruby_stats = {"episode_load_times": []}
+    manager._get_cache_base_dir = lambda: str(tmp_path / "cache_github")
+
+    remote_path = "subtitles/anime_tv/MASHLE/Show.S01E05.ja.srt"
+    item = {
+        "season": 1,
+        "episode": 5,
+        "global": 5,
+        "path": remote_path,
+        "name": "Show.S01E05.ja.srt",
+    }
+    manager.remote_episode_map_global = {5: item}
+    manager.remote_episode_map_season = defaultdict(list, {1: [item]})
+    local_path = tmp_path / "cache_github" / "MASHLE" / "Season1" / "Show.S01E05.ja.srt"
+    downloads = []
+
+    def download(raw_url, path):
+        downloads.append((raw_url, path))
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write("1\n00:00:01,000 --> 00:00:02,000\n\u3053\u3053\u306f\u30de\u30c3\u30b7\u30e5\n")
+
+    manager._download_file = download
+
+    manager.set_subtitle_display_data(str(local_path))
+
+    assert local_path.exists()
+    assert downloads == [("https://raw.githubusercontent.com/owner/repo/main/" + remote_path, str(local_path))]
+    assert manager.srt_file == str(local_path)
+    assert manager.display_data[0][0] == "\u3053\u3053\u306f\u30de\u30c3\u30b7\u30e5"
 
 
 def test_candidate_geometry_lines_keep_source_subtitle_lines_separate():

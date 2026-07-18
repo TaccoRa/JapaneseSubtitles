@@ -13,7 +13,7 @@ from typing import Any
 
 from model.annotation_styles import DEFAULT_STYLES, STATUS_LABELS, STATUS_ORDER, dump_style_config, load_style_config
 from model.word_database import normalize_word, search_query_variants
-from utils import get_monitor_rects
+from utils import dispatch_to_tk, get_monitor_rects
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +79,7 @@ ANNOTATION_SPECS = [
     {"key": "ANNOTATION_COLORIZE_WANIKANI", "type": "bool", "default": False},
     {"key": "ANNOTATION_INCLUDE_PARTICLES", "type": "bool", "default": False},
     {"key": "ANNOTATION_MATCH_DERIVED_VERB_NOUNS", "type": "bool", "default": False},
+    {"key": "ANNOTATION_RECOGNIZE_HONORIFIC_NAMES", "type": "bool", "default": True},
     {"key": "ANNOTATION_MIN_TOKEN_LENGTH", "type": "int", "default": 1, "min": 1, "max": 20},
     {"key": "ANNOTATION_ONLY_ON_HOVER", "type": "bool", "default": False},
     {"key": "ANNOTATION_HIGHLIGHT_ON_HOVER", "type": "bool", "default": True},
@@ -115,9 +116,12 @@ class AnnotationTab:
         self.tab_id = tab_id
         self._style_vars: dict[str, tk.Variable] = {}
         self._word_search_var = tk.StringVar(value="")
+        self._word_counts_var = tk.StringVar(value="")
+        self._add_counts_var = tk.StringVar(value="")
         self._word_column_labels = {
             "word": "Word",
             "meaning": "Meaning",
+            "anime": "Anime",
             "status": "Status",
             "nid": "NID",
             "due_date": "Due Date",
@@ -130,6 +134,10 @@ class AnnotationTab:
         self._word_drag_column = ""
         self._word_drag_original_order: list[str] = []
         self._word_drag_window: tk.Toplevel | None = None
+        self._word_drag_start: tuple[int, int] | None = None
+        self._word_drag_moved = False
+        self._word_sort_column = ""
+        self._word_sort_descending = False
         self._status_label_to_key = {STATUS_LABELS.get(key, key): key for key in STATUS_ORDER}
         self._style_status_var = tk.StringVar(value=STATUS_LABELS.get("local_known", "local_known"))
         self._word_tree: ttk.Treeview | None = None
@@ -141,6 +149,10 @@ class AnnotationTab:
         self._tab_wheel_handlers = None
         self._register_settings()
         self._build()
+        self.set_add_counts(
+            getattr(self.ui, "_anki_add_session_count", 0),
+            getattr(self.ui, "_anki_add_today_count", 0),
+        )
 
     @staticmethod
     def _w(width: int) -> int:
@@ -254,17 +266,24 @@ class AnnotationTab:
     def _on_word_column_press(self, event) -> None:
         tree = self._word_tree
         self._word_drag_column = ""
+        self._word_drag_start = None
+        self._word_drag_moved = False
         if tree is None or tree.identify_region(event.x, event.y) != "heading":
             return
         self._word_drag_column = self._word_column_from_tree_x(tree, event.x)
         if self._word_drag_column:
             self._word_drag_original_order = self._current_word_display_order(tree)
-            self._show_word_column_drag_header(event)
+            self._word_drag_start = (int(event.x), int(event.y))
 
     def _on_word_column_motion(self, event) -> None:
         tree = self._word_tree
         if tree is None or not self._word_drag_column:
             return
+        if not self._word_drag_moved:
+            start_x, start_y = self._word_drag_start or (int(event.x), int(event.y))
+            if abs(int(event.x) - start_x) < 5 and abs(int(event.y) - start_y) < 5:
+                return
+            self._word_drag_moved = True
         self._show_word_column_drag_header(event)
         order = self._preview_reordered_word_columns_at_x(tree, event.x)
         if not order:
@@ -281,11 +300,21 @@ class AnnotationTab:
             if tree is not None and self._word_drag_original_order:
                 tree.configure(displaycolumns=self._word_drag_original_order)
             self._word_drag_original_order = []
+            self._word_drag_start = None
+            self._word_drag_moved = False
+            return
+        if not self._word_drag_moved:
+            tree.configure(displaycolumns=self._word_drag_original_order)
+            self._word_drag_original_order = []
+            self._word_drag_start = None
+            self._sort_word_table(dragged, toggle=True)
             return
         self._word_column_order = self._preview_reordered_word_columns_at_x(tree, event.x) or self._current_word_display_order(tree)
         tree.configure(displaycolumns=self._word_column_order)
         self._save_word_column_order()
         self._word_drag_original_order = []
+        self._word_drag_start = None
+        self._word_drag_moved = False
 
     def _preview_reordered_word_columns_at_x(self, tree: ttk.Treeview, x: int) -> list[str]:
         dragged = self._word_drag_column
@@ -516,9 +545,19 @@ class AnnotationTab:
         search.grid(row=0, column=1, sticky="ew", pady=(6, 2))
         self._word_search_var.trace_add("write", lambda *_args: self.refresh_words())
 
+        tk.Label(section, textvariable=self._add_counts_var, anchor="w").grid(
+            row=1, column=0, columnspan=2, sticky="ew", pady=(2, 0)
+        )
+        tk.Button(section, text="Activity", command=self.ui.open_anki_activity_window).grid(
+            row=1, column=2, sticky="e", pady=(2, 0)
+        )
+        tk.Label(section, textvariable=self._word_counts_var, anchor="w", justify="left").grid(
+            row=2, column=0, columnspan=3, sticky="ew", pady=(0, 2)
+        )
+
         columns = tuple(self._word_column_labels)
         table = tk.Frame(section, width=540, height=210)
-        table.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(4, 4))
+        table.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(4, 4))
         table.grid_propagate(False)
         table.grid_rowconfigure(0, weight=1)
         table.grid_columnconfigure(0, weight=1)
@@ -527,6 +566,7 @@ class AnnotationTab:
         widths = {
             "word": 140,
             "meaning": 170,
+            "anime": 170,
             "status": 120,
             "nid": 90,
             "due_date": 120,
@@ -552,7 +592,7 @@ class AnnotationTab:
         self._bind_word_column_drag(tree)
 
         buttons = tk.Frame(section)
-        buttons.grid(row=2, column=0, columnspan=3, sticky="ew")
+        buttons.grid(row=4, column=0, columnspan=3, sticky="ew")
         for text, command in (
             ("Import words", self.import_words),
             ("Export words", self.export_words),
@@ -666,7 +706,7 @@ class AnnotationTab:
         hover_only.grid(row=1, column=0, columnspan=2, sticky="w")
         _Tooltip(
             hover_only,
-            "Only affects visible annotation styling. It is most useful when General -> Show ruby only on kanji hover is off, because hover-ruby mode already delays ruby display until hover.",
+            "Only affects visible annotation styling. General -> Subtitle hover: ruby controls whether subtitle ruby is hover-only or always visible.",
         )
         tk.Checkbutton(section, text="Highlight words on hover", variable=self._var("ANNOTATION_HIGHLIGHT_ON_HOVER")).grid(row=2, column=0, columnspan=2, sticky="w")
         tk.Checkbutton(section, text="Show hidden ruby on hover", variable=self._var("ANNOTATION_SHOW_RUBY_ON_HOVER")).grid(row=3, column=0, columnspan=2, sticky="w")
@@ -679,10 +719,20 @@ class AnnotationTab:
             derived_nouns,
             "Off by default. When off, noun-like forms such as \u52d5\u304d are not marked known just because \u52d5\u304f is in the database.",
         )
+        honorific_names = tk.Checkbutton(
+            section,
+            text="Recognize names with honorifics",
+            variable=self._var("ANNOTATION_RECOGNIZE_HONORIFIC_NAMES"),
+        )
+        honorific_names.grid(row=8, column=0, columnspan=2, sticky="w")
+        _Tooltip(
+            honorific_names,
+            "Recognizes proper names followed by honorifics such as さん, くん, 君, ちゃん, 様, 先生, and 先輩. Known base names keep their database status; otherwise the full name is ignored as vocabulary.",
+        )
         min_len_label = tk.Label(section, text="Minimum token length for annotation")
-        min_len_label.grid(row=8, column=0, sticky="w")
+        min_len_label.grid(row=9, column=0, sticky="w")
         min_len_entry = tk.Entry(section, textvariable=self._var("ANNOTATION_MIN_TOKEN_LENGTH"), width=self._w(8))
-        min_len_entry.grid(row=8, column=1, sticky="w")
+        min_len_entry.grid(row=9, column=1, sticky="w")
         min_len_help = "Minimum subtitle-token length to mark. Example: 2 skips one-character tokens like は or の, but still marks 重要."
         _Tooltip(min_len_label, min_len_help)
         _Tooltip(min_len_entry, min_len_help)
@@ -804,9 +854,10 @@ class AnnotationTab:
             return
         query = self._word_search_var.get()
         try:
-            rows = self.ui._on_annotation_list_words("" if self._is_column_search(query) else query) or []
+            rows = self.ui._on_annotation_list_words("") or []
         except Exception:
             rows = []
+        self._refresh_word_counts(rows)
         tree.delete(*tree.get_children())
         for row in rows:
             values = self._word_row_values(row)
@@ -820,6 +871,7 @@ class AnnotationTab:
                 values=(
                     values["word"],
                     values["meaning"],
+                    values["anime"],
                     values["status"],
                     values["nid"],
                     values["due_date"],
@@ -829,6 +881,99 @@ class AnnotationTab:
                     values["sentence_translated"],
                 ),
             )
+        self._sort_word_table(self._word_sort_column, toggle=False)
+
+    def _sort_word_table(self, column: str, *, toggle: bool) -> None:
+        tree = self._word_tree
+        if tree is None or column not in self._word_column_labels:
+            return
+        if toggle:
+            if self._word_sort_column == column:
+                self._word_sort_descending = not self._word_sort_descending
+            else:
+                self._word_sort_column = column
+                self._word_sort_descending = False
+
+        def sort_value(value: str):
+            text = str(value or "").strip()
+            if column in {"nid", "reviews"}:
+                try:
+                    return (0, float(text.replace(",", ".")))
+                except ValueError:
+                    return (1, text.casefold())
+            if column == "due_date":
+                for fmt in ("%d.%m.%Y", "%d-%m-%Y"):
+                    try:
+                        return (0, datetime.strptime(text, fmt))
+                    except ValueError:
+                        pass
+            if column == "note_modified":
+                for fmt in ("%H:%M %d.%m.%Y", "%H:%M %d-%m-%Y"):
+                    try:
+                        return (0, datetime.strptime(text, fmt))
+                    except ValueError:
+                        pass
+            return (1, text.casefold())
+
+        populated = []
+        empty = []
+        for item in tree.get_children(""):
+            value = str(tree.set(item, column) or "").strip()
+            (populated if value else empty).append((sort_value(value), item))
+        populated.sort(key=lambda pair: pair[0], reverse=self._word_sort_descending)
+        for index, (_value, item) in enumerate(populated + empty):
+            tree.move(item, "", index)
+        for key, label in self._word_column_labels.items():
+            suffix = ""
+            if key == self._word_sort_column:
+                suffix = " v" if self._word_sort_descending else " ^"
+            tree.heading(key, text=f"{label}{suffix}")
+
+    def set_add_counts(self, session_count: int, today_count: int) -> None:
+        try:
+            session = max(0, int(session_count or 0))
+        except Exception:
+            session = 0
+        try:
+            today = max(0, int(today_count or 0))
+        except Exception:
+            today = 0
+        self._add_counts_var.set(f"Added: Session {session} | Today {today}")
+
+    def _refresh_word_counts(self, rows: list[dict]) -> None:
+        counts = {
+            "unknown": 0,
+            "learning": 0,
+            "young": 0,
+            "mature": 0,
+            "due_today": 0,
+            "suspended": 0,
+        }
+        today = datetime.now().strftime("%d.%m.%Y")
+        for row in rows or []:
+            if str(row.get("source") or "") != "anki":
+                continue
+            status = str(row.get("status") or "").strip().lower()
+            if status == "anki_unknown":
+                counts["unknown"] += 1
+            elif status == "anki_learning":
+                counts["learning"] += 1
+            elif status == "anki_young":
+                counts["young"] += 1
+            elif status in {"anki_mature", "anki_graduated"}:
+                counts["mature"] += 1
+
+            extra = row.get("extra") if isinstance(row.get("extra"), dict) else {}
+            if self._display_due_date(self._display_extra_value(extra, "due_date")) == today:
+                counts["due_today"] += 1
+            suspended = extra.get("suspended")
+            if suspended is True or str(suspended or "").strip().lower() in {"1", "true", "yes", "on"}:
+                counts["suspended"] += 1
+
+        self._word_counts_var.set(
+            "Unknown {unknown} | Learning {learning} | Young {young} | Mature {mature}\n"
+            "Due today {due_today} | Suspended {suspended}".format(**counts)
+        )
 
     def refresh_word_database(self) -> None:
         try:
@@ -849,9 +994,10 @@ class AnnotationTab:
         return {
             "word": str(row.get("surface") or row.get("base") or ""),
             "meaning": str(row.get("meaning") or ""),
+            "anime": str(row.get("anime") or extra.get("anime") or ""),
             "status": str(row.get("status") or ""),
             "nid": self._display_extra_value(extra, "note_id"),
-            "due_date": self._display_extra_value(extra, "due_date"),
+            "due_date": self._display_due_date(self._display_extra_value(extra, "due_date")),
             "reviews": reviews,
             "note_modified": self._display_note_modified(self._display_extra_value(extra, "note_modified")),
             "sentence": self._display_extra_value(extra, "sentence"),
@@ -864,6 +1010,18 @@ class AnnotationTab:
             return ""
         value = extra.get(key)
         return "" if value is None else str(value)
+
+    @staticmethod
+    def _display_due_date(value: str) -> str:
+        text = re.sub(r"^Due\s+", "", str(value or "").strip(), flags=re.IGNORECASE)
+        if not text:
+            return ""
+        for fmt in ("%d.%m.%Y", "%d-%m-%Y", "%Y-%m-%d"):
+            try:
+                return datetime.strptime(text, fmt).strftime("%d.%m.%Y")
+            except Exception:
+                continue
+        return text
 
     @staticmethod
     def _display_note_modified(value: str) -> str:
@@ -913,6 +1071,9 @@ class AnnotationTab:
                 "surface": "word",
                 "back": "meaning",
                 "definition": "meaning",
+                "show": "anime",
+                "series": "anime",
+                "animename": "anime",
                 "review": "reviews",
                 "reviews": "reviews",
                 "reps": "reviews",
@@ -959,8 +1120,7 @@ class AnnotationTab:
         key = self._selected_word_key()
         if not key:
             return
-        query = self._word_search_var.get()
-        rows = self.ui._on_annotation_list_words("" if self._is_column_search(query) else query) or []
+        rows = self.ui._on_annotation_list_words("") or []
         current = next((row for row in rows if str(row.get("key")) == key), None)
         if current:
             self._word_dialog(current)
@@ -1096,7 +1256,7 @@ class AnnotationTab:
                     self._model_combo.configure(values=models)
                 self._anki_status_var.set(f"Loaded {len(decks)} deck(s), {len(models)} note type(s).")
 
-            self.ui.root.after(0, _apply)
+            dispatch_to_tk(self.ui.root, _apply)
 
         threading.Thread(target=_worker, daemon=True, name="annotation-anki-refresh").start()
 
@@ -1116,7 +1276,7 @@ class AnnotationTab:
                     f"Fields: {', '.join(fields[:8])}" if fields else result.get("error", "No fields found.")
                 )
 
-            self.ui.root.after(0, _apply)
+            dispatch_to_tk(self.ui.root, _apply)
 
         threading.Thread(target=_worker, daemon=True, name="annotation-anki-fields").start()
 
@@ -1168,7 +1328,7 @@ class AnnotationTab:
                     )
                 self.refresh_words()
 
-            self.ui.root.after(0, _apply)
+            dispatch_to_tk(self.ui.root, _apply)
 
         threading.Thread(target=_worker, daemon=True, name="annotation-anki-sync").start()
 
@@ -1202,10 +1362,15 @@ class AnnotationTab:
 
         def _test():
             status_var.set("Testing token...")
+            token = token_var.get()
 
             def _worker():
-                result = self.ui._on_annotation_wanikani_test(token_var.get()) or {}
-                self.ui.root.after(0, lambda: status_var.set(result.get("message") or result.get("error") or "Test failed."))
+                result = self.ui._on_annotation_wanikani_test(token) or {}
+                dispatch_to_tk(
+                    self.ui.root,
+                    status_var.set,
+                    result.get("message") or result.get("error") or "Test failed.",
+                )
 
             threading.Thread(target=_worker, daemon=True, name="annotation-wanikani-test").start()
 
@@ -1265,7 +1430,7 @@ class AnnotationTab:
                 )
                 self.refresh_words()
 
-            self.ui.root.after(0, _apply)
+            dispatch_to_tk(self.ui.root, _apply)
 
         threading.Thread(target=_worker, daemon=True, name="annotation-wanikani-sync").start()
 

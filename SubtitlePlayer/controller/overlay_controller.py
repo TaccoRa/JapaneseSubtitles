@@ -48,7 +48,10 @@ class OverlayController(_ControllerProxy):
             return
         if self._pointer_inside_window(self.settings.control_window) or self._pointer_inside_window(self.overlay.sub_window):
             return
-        self.settings.control_window.lower()
+        if bool(getattr(self, "control_show_on_subtitle_hover", True)):
+            self.settings.control_window.lower()
+        else:
+            self.settings.control_window.withdraw()
 
     @staticmethod
     def _pointer_inside_window(win) -> bool:
@@ -82,14 +85,18 @@ class OverlayController(_ControllerProxy):
             return
         self._trigger_background_video_space(paused=True)
         self.overlay.sub_window.attributes("-transparentcolor", "")
-        self.settings.control_window.deiconify()
-        self.settings.control_window.lift()
-        self.settings.control_window.attributes("-topmost", True)
+        if bool(getattr(self, "control_show_on_subtitle_hover", True)):
+            self.settings.control_window.deiconify()
+            self.settings.control_window.lift()
+            self.settings.control_window.attributes("-topmost", True)
+            if getattr(self, "_con_hide_job", None) is not None:
+                self.settings.control_window.after_cancel(self._con_hide_job)
+                self._con_hide_job = None
         self.overlay.sub_window.attributes("-topmost", True)
         self.popup.ensure_on_top()
-        if getattr(self, "_con_hide_job", None) is not None:
-            self.settings.control_window.after_cancel(self._con_hide_job)
-            self._con_hide_job = None
+        ensure_hover_on_top = getattr(self.renderer, "ensure_hover_text_on_top", None)
+        if callable(ensure_hover_on_top):
+            ensure_hover_on_top()
 
     def sub_window_leave(self, event):
         if not self._windows_alive():
@@ -150,6 +157,8 @@ class OverlayController(_ControllerProxy):
             return
         if getattr(self, "subtitles_user_hidden", False):
             return
+        if not bool(getattr(self, "control_show_on_subtitle_hover", True)):
+            return
         self.settings.control_window.deiconify()
         self.settings.control_window.lift()
         self.settings.control_window.attributes("-topmost", True)
@@ -184,27 +193,39 @@ class OverlayController(_ControllerProxy):
         self._hide_controls_after(delay)
 
     def show_subtitle_handle(self, is_phone):
-        if is_phone:
+        setter = getattr(self.overlay, "set_handle_enabled", None)
+        enabled = bool(is_phone) and bool(getattr(self, "phone_subtitle_handle_enabled", True))
+        if enabled:
             try:
                 if self.controller._pointer_inside_settings_windows():
                     self.overlay.hide_handle()
                     return
             except Exception:
                 pass
-            self.overlay.show_handle()
+            if callable(setter):
+                self.overlay.set_handle_enabled(True)
+            else:
+                self.overlay.show_handle()
         else:
-            self.overlay.hide_handle()
+            if callable(setter):
+                self.overlay.set_handle_enabled(False)
+            else:
+                self.overlay.hide_handle()
 
     def _hide_subtitle_handle_for_settings(self):
         if self.settings.default_phone_mode:
             self.overlay.hide_handle()
 
     def _restore_subtitle_handle_after_settings(self):
-        if self.settings.default_phone_mode:
+        if self.settings.default_phone_mode and bool(getattr(self, "phone_subtitle_handle_enabled", True)):
             try:
                 if self.controller._pointer_inside_settings_windows():
                     self.overlay.hide_handle()
                     return
             except Exception:
                 pass
-            self.overlay.show_handle()
+            setter = getattr(self.overlay, "set_handle_enabled", None)
+            if callable(setter):
+                self.overlay.set_handle_enabled(True)
+            else:
+                self.overlay.show_handle()

@@ -39,6 +39,30 @@ _GODAN_RENYOU_ENDINGS = {
     "り": "る",
 }
 
+_GODAN_POTENTIAL_ENDINGS = {
+    "え": "う",
+    "け": "く",
+    "げ": "ぐ",
+    "せ": "す",
+    "て": "つ",
+    "ね": "ぬ",
+    "べ": "ぶ",
+    "め": "む",
+    "れ": "る",
+}
+
+
+def godan_base_from_potential_form(text: str | None) -> str:
+    """Return the likely godan base for an e-row potential dictionary form."""
+    value = unicodedata.normalize("NFKC", str(text or "")).strip()
+    if len(value) < 3 or not value.endswith("る"):
+        return ""
+    stem = value[:-1]
+    replacement = _GODAN_POTENTIAL_ENDINGS.get(stem[-1:])
+    if not replacement:
+        return ""
+    return stem[:-1] + replacement
+
 
 def search_query_variants(text: str | None) -> list[str]:
     value = unicodedata.normalize("NFKC", str(text or "")).strip()
@@ -76,6 +100,7 @@ class WordEntry:
     base: str = ""
     reading: str = ""
     meaning: str = ""
+    anime: str = ""
     source: str = "local"
     status: str = "local_known"
     created_at: str = ""
@@ -88,6 +113,7 @@ class WordEntry:
         self.base = clean_import_text(self.base)
         self.reading = clean_import_text(self.reading)
         self.meaning = str(self.meaning or "").strip()
+        self.anime = str(self.anime or "").strip()
         self.source = str(self.source or "local").strip() or "local"
         self.status = str(self.status or "local_known").strip() or "local_known"
         self.normalized = normalize_word(self.normalized or self.base or self.surface)
@@ -111,6 +137,11 @@ class WordEntry:
             base=payload.get("base") or payload.get("lemma") or "",
             reading=payload.get("reading") or "",
             meaning=payload.get("meaning") or payload.get("translation") or "",
+            anime=payload.get("anime") or (
+                payload.get("extra", {}).get("anime", "")
+                if isinstance(payload.get("extra"), dict)
+                else ""
+            ),
             source=payload.get("source") or "local",
             status=payload.get("status") or "local_known",
             created_at=payload.get("created_at") or "",
@@ -205,6 +236,7 @@ class WordDatabase:
                 normalize_word(entry.base),
                 normalize_word(entry.reading),
                 normalize_word(entry.meaning),
+                normalize_word(entry.anime),
                 normalize_word(entry.status),
                 normalize_word(entry.source),
             )
@@ -225,7 +257,7 @@ class WordDatabase:
         if existing and preserve_existing:
             incoming.created_at = existing.created_at
             incoming.updated_at = utc_now_iso()
-            for attr in ("surface", "base", "reading", "meaning", "notes"):
+            for attr in ("surface", "base", "reading", "meaning", "anime", "notes"):
                 new_value = getattr(incoming, attr)
                 old_value = getattr(existing, attr)
                 if not new_value and old_value:
@@ -362,6 +394,7 @@ class WordDatabase:
                         "base",
                         "reading",
                         "meaning",
+                        "anime",
                         "source",
                         "status",
                         "updated_at",
@@ -376,6 +409,7 @@ class WordDatabase:
                             "base": entry.base,
                             "reading": entry.reading,
                             "meaning": entry.meaning,
+                            "anime": entry.anime,
                             "source": entry.source,
                             "status": entry.status,
                             "updated_at": entry.updated_at,

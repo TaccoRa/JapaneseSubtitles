@@ -47,7 +47,7 @@ from model.subtitle_geometry import (
     subtitle_geometry_from_measured_width,
 )
 from model.subtitle_parsing import parse_subtitle_file
-from utils import format_time, get_monitor_rects
+from utils import dispatch_to_tk_sync, format_time, get_monitor_rects
 from view.overlays import LoadingOverlay, get_startup_overlay, hide_startup_overlay, show_startup_overlay
 
 import logging
@@ -81,6 +81,10 @@ class SubtitleManager:
         "雑音",
         "心の声",
         "モノローグ",
+        "\u96c4\u305f\u3051\u3073",
+        "\u53eb\u3073",
+        "\u30d7\u30ed\u30da\u30e9",
+        "\u7d9a\u304f",
     )
     SEASON_PATTERN = re.compile(r'S(\d+)', re.IGNORECASE)
     EPISODE_PATTERN = re.compile(r'E(\d+)', re.IGNORECASE)
@@ -110,6 +114,10 @@ class SubtitleManager:
         "\u5fc3\u306e\u58f0",
         "\u30e2\u30ce\u30ed\u30fc\u30b0",
         "\u3056\u308f\u3081\u304d",
+        "\u96c4\u305f\u3051\u3073",
+        "\u53eb\u3073",
+        "\u30d7\u30ed\u30da\u30e9",
+        "\u7d9a\u304f",
     )
     PAREN_NOTE_SUFFIXES = (
         "\u97f3",
@@ -274,7 +282,7 @@ class SubtitleManager:
 
     def save_state(self):
         #save all the variables to config on close:
-        #LAST_LOCAL_SRT_FILE, LAST_ANIME_NAME, LAST_GITHUB_URL, 
+        #LAST_LOCAL_SRT_FILE, LAST_ANIME_NAME, LAST_REMOTE_SEARCH_QUERY, LAST_GITHUB_URL,
         if getattr(self, "remote_flag", False):
             try:
                 self._sync_remote_url_to_current_episode()
@@ -285,6 +293,17 @@ class SubtitleManager:
             self.config.set("LAST_LOCAL_SRT_FILE", self.srt_file)
         if getattr(self, "anime_folder_name", None) != self.config.get("LAST_ANIME_NAME"):
             self.config.set("LAST_ANIME_NAME", self.anime_folder_name)
+        display_name = self._normalize_search_query_text(getattr(self, "display_anime_name", None) or "")
+        if display_name and display_name != self.config.get("LAST_DISPLAY_ANIME_NAME"):
+            self.config.set("LAST_DISPLAY_ANIME_NAME", display_name)
+        if getattr(self, "remote_flag", False):
+            query = self._normalize_search_query_text(
+                getattr(self, "remote_search_query", None)
+                or self.config.get("LAST_REMOTE_SEARCH_QUERY")
+                or getattr(self, "anime_folder_name", None)
+            )
+            if query and query != self.config.get("LAST_REMOTE_SEARCH_QUERY"):
+                self.config.set("LAST_REMOTE_SEARCH_QUERY", query)
         remote_url = getattr(self, "remote_url", None)
         if remote_url and remote_url != self.config.get("LAST_GITHUB_URL"):
             self.config.set("LAST_GITHUB_URL", remote_url)
@@ -293,7 +312,7 @@ class SubtitleManager:
     def _load_local_and_process(self, local_srt_path: str) -> bool:
         if not (local_srt_path and os.path.isfile(local_srt_path)):
             logger.error("Local SRT path not found: \n%s\n -> Manual selection", local_srt_path)
-            local_srt_path = self.choose_new_file()  # ask for local or remote
+            local_srt_path = self._choose_new_file_on_tk_thread()
             if local_srt_path is None:
                 return False
         # Keep the currently loaded file path in sync so helpers like get_current_global()
@@ -313,6 +332,19 @@ class SubtitleManager:
             else:
                 logger.info(f"Loaded subtitle: Episode | {local_srt_path}")
 
+    def _choose_new_file_on_tk_thread(self) -> Optional[str]:
+        root = getattr(tk, "_default_root", None)
+        dispatcher = getattr(root, "_tk_main_thread_dispatcher", None) if root is not None else None
+        if (
+            root is not None
+            and dispatcher is not None
+            and threading.get_ident() != getattr(dispatcher, "owner_thread_id", None)
+        ):
+            return dispatch_to_tk_sync(root, self.choose_new_file)
+        if threading.current_thread() is not threading.main_thread():
+            raise RuntimeError("Cannot open the subtitle source dialog outside Tk's owner thread")
+        return self.choose_new_file()
+
 # -------------------------helpers-----------------------------
     def _extract_and_set_local_episode_metadata(self, local_path):
         if not self.remote_flag: #hardcoded certain local folder when not using cached files
@@ -323,6 +355,8 @@ class SubtitleManager:
                 parent = os.path.basename(os.path.dirname(local_path))
                 grandparent = os.path.basename(os.path.dirname(os.path.dirname(local_path)))
                 self.anime_folder_name = grandparent or parent or os.path.splitext(os.path.basename(local_path))[0]
+        if not getattr(self, "remote_flag", False):
+            self.display_anime_name = self.anime_folder_name
         self.config.set("LAST_LOCAL_SRT_FILE", local_path)
 
         # Always parse from the filename (works for both fixed subs folder and runtime cache).
@@ -512,6 +546,7 @@ class SubtitleManager:
         return end_times
 
     def set_subtitle_display_data(self, local_path):
+        local_path = self._ensure_subtitle_file_available(local_path)
         payload = self._take_prepared_episode_payload(local_path)
         if payload is None:
             payload = self._build_subtitle_display_payload(local_path, allow_eager_auto=True)
@@ -519,6 +554,131 @@ class SubtitleManager:
 
     def load_subtitles(self, local_path: str) -> List[srt.Subtitle]:
         return parse_subtitle_file(local_path, self._parse_ass_subtitles)
+
+    def _ensure_subtitle_file_available(self, local_path: str) -> str:
+        if not local_path or os.path.isfile(local_path):
+            return local_path
+        if not getattr(self, "remote_flag", False):
+            return local_path
+
+        item = self._find_remote_item_for_cache_path(local_path)
+        if not item or not item.get("path"):
+            logger.warning("Remote subtitle cache file is missing and no remote item matched it: %s", local_path)
+            return local_path
+
+        cache_path = self._remote_item_cache_path(
+            item,
+            fallback_season=item.get("season") if item.get("season") is not None else getattr(self, "current_season", None),
+        ) or local_path
+        if os.path.isfile(cache_path):
+            if cache_path != getattr(self, "srt_file", None):
+                self.srt_file = cache_path
+            return cache_path
+
+        try:
+            logger.info("Remote subtitle cache file missing; redownloading: %s", cache_path)
+            self._download_file(self._get_raw_url(item["path"]), cache_path)
+        except Exception:
+            logger.exception("Failed to redownload missing remote subtitle cache file: %s", cache_path)
+
+        if os.path.isfile(cache_path):
+            self.srt_file = cache_path
+            return cache_path
+        return local_path
+
+    def _find_remote_item_for_cache_path(self, local_path: str) -> Optional[Dict]:
+        if not getattr(self, "remote_flag", False):
+            return None
+        self._ensure_remote_episode_maps_available()
+
+        basename = os.path.basename(str(local_path or ""))
+        parsed_s, parsed_e, parsed_g = self.extract_season_episode_global(basename)
+        remote_map = getattr(self, "remote_episode_map_global", None) or {}
+        if parsed_g is not None:
+            item = remote_map.get(int(parsed_g))
+            if item:
+                return item
+
+        season_map = getattr(self, "remote_episode_map_season", None) or {}
+        if parsed_s is not None and parsed_e is not None:
+            for item in season_map.get(int(parsed_s), []):
+                if item.get("episode") == int(parsed_e):
+                    return item
+
+        current_s = getattr(self, "current_season", None)
+        current_e = getattr(self, "current_episode", None)
+        if current_s is not None and current_e is not None:
+            for item in season_map.get(int(current_s), []):
+                if item.get("episode") == int(current_e):
+                    return item
+
+        try:
+            current_g = self.get_current_global()
+        except Exception:
+            current_g = None
+        if current_g is not None:
+            item = remote_map.get(int(current_g))
+            if item:
+                return item
+
+        normalized_basename = self.sanitize_filename(basename)
+        remote_path = getattr(self, "remote_path", None)
+        for item in self._iter_known_remote_items():
+            item_path = item.get("path") or ""
+            item_name = item.get("name") or os.path.basename(item_path)
+            if remote_path and item_path == remote_path:
+                return item
+            if self.sanitize_filename(os.path.basename(item_path)) == normalized_basename:
+                return item
+            if self.sanitize_filename(item_name) == normalized_basename:
+                return item
+
+        if remote_path:
+            return {
+                "season": current_s,
+                "episode": current_e,
+                "global": current_g,
+                "path": remote_path,
+                "name": os.path.basename(remote_path),
+            }
+        return None
+
+    def _ensure_remote_episode_maps_available(self) -> None:
+        if getattr(self, "remote_episode_map_global", None) or getattr(self, "all_results_items", None):
+            return
+        try:
+            self.build_remote_episode_maps()
+        except Exception:
+            logger.debug("Failed to build existing remote episode maps", exc_info=True)
+        if getattr(self, "remote_episode_map_global", None) or getattr(self, "all_results_items", None):
+            return
+        try:
+            self._create_remote_episode_map_per_season()
+            self.build_remote_episode_maps()
+        except Exception:
+            logger.debug("Failed to rebuild remote episode maps for missing cache file", exc_info=True)
+
+    def _iter_known_remote_items(self) -> List[Dict]:
+        items: List[Dict] = []
+        seen: set[str] = set()
+
+        def add(item):
+            if not isinstance(item, dict):
+                return
+            key = str(item.get("path") or item.get("name") or id(item))
+            if key in seen:
+                return
+            seen.add(key)
+            items.append(item)
+
+        for item in (getattr(self, "remote_episode_map_global", None) or {}).values():
+            add(item)
+        for season_items in (getattr(self, "remote_episode_map_season", None) or {}).values():
+            for item in season_items:
+                add(item)
+        for item in getattr(self, "all_results_items", None) or []:
+            add(item)
+        return items
 
     def _clean_text(self, text: str) -> str:
         cleaned = self.CLEAN_PATTERN.sub('', text)
@@ -541,6 +701,8 @@ class SubtitleManager:
         for raw_line in cleaned.splitlines():
             line = (raw_line or "").strip()
             if not line:
+                continue
+            if strip_paren_notes and self._is_parenthetical_note_only(line):
                 continue
             name, rest, anime_prefix = self._find_leading_speaker_label(line)
             if name is not None:
@@ -1063,6 +1225,8 @@ class SubtitleManager:
 
 # ---------------------- get data -------------------------
     def get_anime_name(self)-> Optional[str]: return self.anime_folder_name
+    def get_display_anime_name(self) -> Optional[str]:
+        return getattr(self, "display_anime_name", None) or self.anime_folder_name
     def get_subtitle_display_data(self): return self.display_data
     def get_subtitle_geometry(self): return self.calculate_geometry()
 
@@ -1323,6 +1487,7 @@ class SubtitleManager:
             return
 
         self.remote_path = remote_path
+        self._update_display_anime_name_from_remote_path(remote_path)
         self.remote_url = f"https://github.com/{owner}/{repo}/blob/{ref}/{remote_path}"
 
     def change_episode(
@@ -2100,7 +2265,12 @@ class SubtitleManager:
                             anchor_window=root,
                             y_offset=0,
                         )
-                    result["path"] = self._initialize_remote_path(url, hint=hint, movie_mode=is_movie_mode)
+                    result["path"] = self._initialize_remote_path(
+                        url,
+                        hint=hint,
+                        movie_mode=is_movie_mode,
+                        preserve_search_query=False,
+                    )
                 except Exception as exc:
                     logger.exception("Remote URL initialization failed")
                     try:
@@ -2185,10 +2355,34 @@ class SubtitleManager:
                     if overlay:
                         overlay.close()
 
+            def refresh_current_anime():
+                if not getattr(self, "remote_flag", False):
+                    messagebox.showinfo("Refresh Episodes", "The current subtitle source is not a remote anime search.", parent=popup)
+                    return
+                popup.configure(cursor="watch")
+                popup.update_idletasks()
+                try:
+                    refresh_result = self.refresh_remote_episode_map(force=True)
+                finally:
+                    popup.configure(cursor="")
+                if not refresh_result.get("ok"):
+                    messagebox.showerror(
+                        "Refresh Episodes",
+                        str(refresh_result.get("reason") or "Could not refresh the current anime."),
+                        parent=popup,
+                    )
+                    return
+                added = int(refresh_result.get("added_count") or 0)
+                messagebox.showinfo("Refresh Episodes", f"Episode map refreshed. Added {added} episode(s).", parent=popup)
+                _done(getattr(self, "srt_file", None))
+
             tk.Button(button_frame, text="Local File", width=15, command=choose_local).grid(row=0, column=0, padx=6, pady=4)
             tk.Button(button_frame, text="Remote URL", width=15, command=choose_remote_url).grid(row=0, column=1, padx=6, pady=4)
             tk.Button(button_frame, text="Remote Search", width=15, command=choose_remote_search).grid(row=1, column=0, padx=6, pady=4)
             tk.Button(button_frame, text="Use Saved Search", width=15, command=choose_saved_remote_search).grid(row=1, column=1, padx=6, pady=4)
+            tk.Button(button_frame, text="Refresh Current Anime", width=32, command=refresh_current_anime).grid(
+                row=2, column=0, columnspan=2, padx=6, pady=4, sticky="ew"
+            )
 
             self._fit_dialog_to_screen(popup, min_w=330, min_h=150)
             popup.wait_window(popup)
@@ -2329,6 +2523,35 @@ class SubtitleManager:
     def _list_cached_github_search_queries(self) -> List[str]:
         queries = [record["query"] for record in self._list_cached_github_search_records() if record.get("query")]
         return sorted(set(queries), key=str.casefold)
+
+    def _cached_search_query_for_remote_path(self, remote_path: Optional[str]) -> str:
+        target = str(remote_path or "").replace("\\", "/").strip().casefold()
+        if not target:
+            return ""
+        for record in self._list_cached_github_search_records():
+            path = str(record.get("path") or "")
+            if not path:
+                continue
+            try:
+                payload = load_remote_search_cache_payload(path)
+            except Exception:
+                logger.debug("Failed to inspect saved GitHub search cache: %s", path, exc_info=True)
+                continue
+            for item in remote_search_cache_items(payload):
+                item_path = str(item.get("path") or "").replace("\\", "/").strip().casefold()
+                if item_path and item_path == target:
+                    return self._normalize_search_query_text(record.get("query") or payload.get("anime_query") or "")
+        return ""
+
+    def _update_display_anime_name_from_remote_path(self, remote_path: Optional[str]) -> str:
+        display_name = self._normalize_search_query_text(self._extract_anime_name_from_url(remote_path or "") or "")
+        if display_name:
+            self.display_anime_name = display_name
+            try:
+                self.config.set("LAST_DISPLAY_ANIME_NAME", display_name)
+            except Exception:
+                logger.debug("Failed to persist display anime name", exc_info=True)
+        return display_name
 
     def _write_cached_github_search_payload(self, path: str, payload: dict) -> None:
         with open(path, "w", encoding="utf-8") as fh:
@@ -2593,8 +2816,12 @@ class SubtitleManager:
 
             filter_entry.bind("<KeyRelease>", _apply_filter)
 
+            status_var = tk.StringVar(value="")
+            tk.Label(chooser, textvariable=status_var, anchor="w").grid(
+                row=4, column=0, sticky="ew", padx=8, pady=(0, 4)
+            )
             btn_frame = tk.Frame(chooser)
-            btn_frame.grid(row=4, column=0, pady=(0, 8))
+            btn_frame.grid(row=5, column=0, pady=(0, 8))
 
             def on_ok(event=None):
                 selection = listbox.curselection()
@@ -2640,11 +2867,34 @@ class SubtitleManager:
                 if self._rename_cached_github_search_record(record, new_name):
                     _reload_records()
 
+            def on_refresh():
+                selection = listbox.curselection()
+                if not selection:
+                    chooser.bell()
+                    return
+                try:
+                    record = visible_records[int(selection[0])]
+                except Exception:
+                    return
+                status_var.set("Refreshing selected anime...")
+                chooser.configure(cursor="watch")
+                chooser.update_idletasks()
+                try:
+                    refresh_result = self._refresh_cached_github_search_record(record)
+                finally:
+                    chooser.configure(cursor="")
+                if refresh_result.get("ok"):
+                    _reload_records()
+                    status_var.set(f"Refreshed. Added {int(refresh_result.get('added_count') or 0)} episode(s).")
+                else:
+                    status_var.set(str(refresh_result.get("reason") or "Refresh failed."))
+
             def on_cancel(event=None):
                 chooser.destroy()
                 return "break"
 
-            tk.Button(btn_frame, text="Use Saved Search", width=16, command=on_ok).pack(side="left", padx=6)
+            tk.Button(btn_frame, text="Use", width=10, command=on_ok).pack(side="left", padx=6)
+            tk.Button(btn_frame, text="Refresh", width=10, command=on_refresh).pack(side="left", padx=6)
             tk.Button(btn_frame, text="Rename", width=10, command=on_rename).pack(side="left", padx=6)
             tk.Button(btn_frame, text="Cancel", width=10, command=on_cancel).pack(side="left", padx=6)
 
@@ -2666,6 +2916,62 @@ class SubtitleManager:
             )
         finally:
             self._set_search_dialog_active(False)
+
+    def _refresh_cached_github_search_record(self, record: dict) -> Dict[str, int | bool | str]:
+        path = str(record.get("path") or "")
+        query = self._normalize_search_query_text(record.get("query") or "")
+        if not path or not query:
+            return {"ok": False, "reason": "The selected saved search is invalid."}
+        try:
+            old_payload = load_remote_search_cache_payload(path)
+            old_items = [dict(item) for item in remote_search_cache_items(old_payload)]
+        except Exception as exc:
+            return {"ok": False, "reason": str(exc)}
+
+        saved_state = {
+            name: getattr(self, name, None)
+            for name in (
+                "anime_folder_name",
+                "remote_search_query",
+                "all_results_items",
+                "remote_flag",
+                "local_srt_files",
+            )
+        }
+        try:
+            self.anime_folder_name = query
+            self.remote_search_query = query
+            self.remote_flag = True
+            self.all_results_items = old_items
+            result = self.refresh_remote_episode_map(force=True)
+            if not result.get("ok"):
+                return result
+
+            generated_path = os.path.join(self._cached_github_search_dir(), f"github_search_{self._safe_search_query_name(query)}.json")
+            if os.path.isfile(generated_path):
+                payload = load_remote_search_cache_payload(generated_path)
+            else:
+                payload = build_remote_search_cache_payload(
+                    anime_query=query,
+                    last_search=f"refresh:{query}",
+                    repo=f"{getattr(self, 'github_owner', '')}/{getattr(self, 'github_repo', '')}",
+                    items=list(self.all_results_items or []),
+                )
+            for key in ("display_name", "aliases"):
+                if key in old_payload:
+                    payload[key] = old_payload[key]
+            self._write_cached_github_search_payload(path, payload)
+            return result
+        except Exception as exc:
+            logger.exception("Failed to refresh saved anime search %s", query)
+            return {"ok": False, "reason": str(exc)}
+        finally:
+            for name, value in saved_state.items():
+                setattr(self, name, value)
+            try:
+                self.build_remote_episode_maps()
+            except Exception:
+                logger.debug("Failed to restore active episode maps after saved-search refresh", exc_info=True)
 
     def ask_remote_search_query(self) -> Tuple[Optional[str], Optional[int], Optional[int], bool]:
         """
@@ -2759,8 +3065,17 @@ class SubtitleManager:
     
     def ask_local_srt_file(self) -> Optional[str]:
         hide_startup_overlay()
+        window = None
         try:
-            window = tk.Tk(); window.withdraw(); window.attributes("-topmost", True)
+            parent = getattr(tk, "_default_root", None)
+            window = tk.Toplevel(parent) if parent is not None else tk.Toplevel()
+            window.withdraw()
+            window.attributes("-topmost", True)
+            if parent is not None:
+                try:
+                    window.transient(parent)
+                except Exception:
+                    pass
             path = filedialog.askopenfilename(
                 parent=window,
                 title="Select Subtitle File",
@@ -2772,7 +3087,6 @@ class SubtitleManager:
                     ("All Files", "*.*"),
                 ]
             )
-            window.destroy()
             if not path:
                 return None
             return path
@@ -2780,6 +3094,11 @@ class SubtitleManager:
             logger.exception("Subtitle file selection failed")
             return None
         finally:
+            if window is not None:
+                try:
+                    window.destroy()
+                except Exception:
+                    pass
             show_startup_overlay()
 
     def calculate_geometry(self):
@@ -3021,6 +3340,7 @@ class SubtitleManager:
         init_url: Optional[str] = None,
         hint: Optional[Tuple[Optional[int], Optional[int]]] = None,
         movie_mode: bool = False,
+        preserve_search_query: bool = True,
     ) -> Optional[str]:
         url = init_url
         prompt_hint = None
@@ -3034,7 +3354,7 @@ class SubtitleManager:
         use_movie_mode = bool(movie_mode or prompt_movie_mode)
 
         # download/gather metadata for the chosen URL, then build maps once
-        self._extract_and_set_remote_episode_metadata(url)
+        self._extract_and_set_remote_episode_metadata(url, preserve_search_query=preserve_search_query)
 
         remote_norm = (self.remote_path or "").replace("\\", "/")
         is_movie_url = (
@@ -3200,7 +3520,7 @@ class SubtitleManager:
 
 
      
-    def _extract_and_set_remote_episode_metadata(self, remote_url):
+    def _extract_and_set_remote_episode_metadata(self, remote_url, preserve_search_query: bool = True):
         self.config.set("LAST_GITHUB_URL", remote_url)
         github_dict = self._parse_github_url(remote_url)
         self.github_owner = github_dict["owner"]
@@ -3213,8 +3533,17 @@ class SubtitleManager:
             self.current_season, self.current_episode = None, int(global_e)
         else:
             self.current_season, self.current_episode = s, e
-        self.anime_folder_name = self.config.get("LAST_ANIME_NAME")
+        saved_search_query = self._normalize_search_query_text(self.config.get("LAST_REMOTE_SEARCH_QUERY") or "")
+        cached_search_query = ""
+        if not saved_search_query or not preserve_search_query:
+            cached_search_query = self._cached_search_query_for_remote_path(self.remote_path)
+        saved_anime_name = self.config.get("LAST_ANIME_NAME")
         url_anime_name = self._extract_anime_name_from_url(self.remote_path)
+        self.display_anime_name = (
+            self._normalize_search_query_text(url_anime_name or "")
+            or self._normalize_search_query_text(self.config.get("LAST_DISPLAY_ANIME_NAME") or "")
+            or self._normalize_search_query_text(saved_anime_name or "")
+        )
 
         remote_norm = (self.remote_path or "").replace("\\", "/")
         is_movie_url = (
@@ -3224,11 +3553,32 @@ class SubtitleManager:
             or remote_norm.startswith("subtitles/drama_movie/")
         )
 
-        # TV shows: keep the name of season 1 (user preference), since later seasons can have
-        # slightly different folder names. Movies: always use the movie folder name.
-        if url_anime_name and (is_movie_url or self.current_season == 1 or not self.anime_folder_name):
-            self.anime_folder_name = url_anime_name
-            self.config.set("LAST_ANIME_NAME", url_anime_name)
+        if is_movie_url:
+            self.anime_folder_name = url_anime_name or saved_anime_name
+        else:
+            if preserve_search_query:
+                self.anime_folder_name = (
+                    saved_search_query
+                    or cached_search_query
+                    or self._normalize_search_query_text(saved_anime_name or "")
+                    or self._strip_remote_part_suffix(url_anime_name)
+                    or url_anime_name
+                )
+            else:
+                self.anime_folder_name = (
+                    cached_search_query
+                    or self._strip_remote_part_suffix(url_anime_name)
+                    or url_anime_name
+                    or saved_search_query
+                    or self._normalize_search_query_text(saved_anime_name or "")
+                )
+        if getattr(self, "anime_folder_name", None):
+            self.remote_search_query = self.anime_folder_name
+            if not is_movie_url:
+                self.config.set("LAST_REMOTE_SEARCH_QUERY", self.anime_folder_name)
+            self.config.set("LAST_ANIME_NAME", self.anime_folder_name)
+        if getattr(self, "display_anime_name", None):
+            self.config.set("LAST_DISPLAY_ANIME_NAME", self.display_anime_name)
         return
 
     def _initialize_remote_from_search_query(
@@ -3254,7 +3604,9 @@ class SubtitleManager:
         self.github_ref = getattr(self, "github_ref", None) or self.config.get("GITHUB_REF") or "main"
 
         self.anime_folder_name = anime_query
+        self.remote_search_query = anime_query
         try:
+            self.config.set("LAST_REMOTE_SEARCH_QUERY", self.remote_search_query)
             self.config.set("LAST_ANIME_NAME", self.anime_folder_name)
         except Exception:
             pass
@@ -3337,6 +3689,7 @@ class SubtitleManager:
 
         if not target_remote_path:
             return None
+        self._update_display_anime_name_from_remote_path(target_remote_path)
 
         # Download synchronously so we can load immediately.
         try:
@@ -3522,6 +3875,7 @@ class SubtitleManager:
             else:
                 logger.error("GitHub search failed: %s", resp.text)
                 break
+        self._apply_remote_part_folder_numbering(all_results_items)
         season_offset, local_numbering, season_len_est, season_len_density = self.compute_season_offsets_per_season(all_results_items)
         self.assign_globals_per_season(all_results_items, season_offset, local_numbering, season_len_est, season_len_density)
         all_results_items.sort(key=self.sort_key_per_season)
@@ -3597,7 +3951,233 @@ class SubtitleManager:
                 logger.error("GitHub search failed: %s", resp.text)
                 break
 
-    def _create_remote_episode_map_per_season(self):
+    @staticmethod
+    def _remote_item_merge_key(item: Dict) -> str:
+        if not isinstance(item, dict):
+            return ""
+        path = str(item.get("path") or "").replace("\\", "/").strip().casefold()
+        if path:
+            return f"path:{path}"
+        name = str(item.get("name") or "").strip().casefold()
+        return f"name:{name}" if name else ""
+
+    def _merge_remote_episode_items(self, old_items: List[Dict], new_items: List[Dict]) -> List[Dict]:
+        """
+        Merge remote search results incrementally.
+
+        New search results win for matching paths, but old entries stay available when
+        a later GitHub search misses them. Local downloaded subtitle files are not touched.
+        """
+        merged: "OrderedDict[str, Dict]" = OrderedDict()
+        fallback_idx = 0
+
+        def add_items(items: List[Dict], *, replace: bool) -> None:
+            nonlocal fallback_idx
+            for item in items or []:
+                if not isinstance(item, dict):
+                    continue
+                key = self._remote_item_merge_key(item)
+                if not key:
+                    fallback_idx += 1
+                    key = f"fallback:{fallback_idx}"
+                if replace or key not in merged:
+                    merged[key] = dict(item)
+
+        add_items(old_items, replace=False)
+        add_items(new_items, replace=True)
+        out = list(merged.values())
+        self._apply_remote_part_folder_numbering(out)
+        try:
+            out.sort(key=self.sort_key_per_season)
+        except Exception:
+            pass
+        return out
+
+    @staticmethod
+    def _roman_part_number(value: str) -> Optional[int]:
+        text = (value or "").strip().lower()
+        named = {
+            "one": 1,
+            "two": 2,
+            "three": 3,
+            "four": 4,
+            "five": 5,
+            "ii": 2,
+            "iii": 3,
+            "iv": 4,
+            "v": 5,
+        }
+        if text in named:
+            return named[text]
+        try:
+            number = int(text)
+            return number if number > 0 else None
+        except Exception:
+            return None
+
+    @classmethod
+    def _strip_remote_part_suffix(cls, name: Optional[str]) -> str:
+        text = str(name or "").strip()
+        if not text:
+            return ""
+        token = r"\d+|one|two|three|four|five|ii|iii|iv|v"
+        match = re.match(rf"(?i)^(?P<base>.+?)[\s._-]*(?:part|pt)[\s._-]*(?P<num>{token})\s*$", text)
+        if not match:
+            return text
+        part = cls._roman_part_number(match.group("num"))
+        if part is None or part <= 1:
+            return text
+        base = match.group("base").strip(" ._-")
+        return base or text
+
+    def _series_folder_from_remote_path(self, path: str) -> str:
+        parts = str(path or "").replace("\\", "/").split("/")
+        for marker in ("anime_tv", "drama_tv"):
+            if marker in parts:
+                idx = parts.index(marker)
+                if idx + 1 < len(parts):
+                    return parts[idx + 1]
+        return ""
+
+    def _part_number_from_series_folder(self, folder: str) -> Optional[int]:
+        folder = str(folder or "").strip()
+        if not folder:
+            return None
+        anime_name = self._normalize_search_query_text(getattr(self, "anime_folder_name", "") or "")
+        folder_norm = self._normalize_search_query_text(folder)
+        if not anime_name or not folder_norm:
+            return None
+        if folder_norm == anime_name:
+            return 1
+        match = re.match(r"(?i)^(?P<base>.+?)[\s._-]*(?:part|pt)[\s._-]*(?P<num>\d+|one|two|three|four|five|ii|iii|iv|v)$", folder)
+        if not match:
+            return None
+        base_norm = self._normalize_search_query_text(match.group("base"))
+        if base_norm != anime_name:
+            return None
+        return self._roman_part_number(match.group("num"))
+
+    def _apply_remote_part_folder_numbering(self, items: List[Dict]) -> None:
+        """
+        Treat sibling folders like "baki-dou" and "baki-dou part 2" as sequential
+        seasons when the part folder restarts its filenames at episode 1.
+        """
+        part_eps: dict[int, set[int]] = defaultdict(set)
+        item_parts: list[tuple[Dict, Optional[int]]] = []
+        for item in items or []:
+            if not isinstance(item, dict):
+                continue
+            part = self._part_number_from_series_folder(self._series_folder_from_remote_path(item.get("path") or ""))
+            item_parts.append((item, part))
+            if part and part > 1 and item.get("episode") is not None:
+                try:
+                    part_eps[int(part)].add(int(item.get("episode")))
+                except Exception:
+                    pass
+
+        restart_parts = {part for part, eps in part_eps.items() if 1 in eps}
+        if not restart_parts:
+            return
+
+        for item, part in item_parts:
+            if not part or part <= 1 or part not in restart_parts:
+                continue
+            try:
+                season = int(item.get("season")) if item.get("season") is not None else None
+            except Exception:
+                season = None
+            if season not in (None, 1):
+                continue
+            item["season"] = int(part)
+            if item.get("episode") is not None and item.get("global") == item.get("episode"):
+                item["global"] = None
+            item.setdefault("part_folder", int(part))
+
+    def _write_remote_episode_search_cache(self, items: List[Dict], *, last_search: str = "") -> None:
+        if not items:
+            return
+        sxexx_to_gxx = {}
+        for it in items:
+            s = it.get("season")
+            e = it.get("episode")
+            g = it.get("global")
+            if s is not None and e is not None and g is not None:
+                key = f"S{int(s):02d}E{int(e):02d}"
+                if key not in sxexx_to_gxx:
+                    sxexx_to_gxx[key] = int(g)
+
+        safe_name = self._safe_search_query_name(self.anime_folder_name or "")
+        folder_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "github_search")
+        os.makedirs(folder_dir, exist_ok=True)
+        json_path = os.path.join(folder_dir, f"github_search_{safe_name}.json")
+        payload = build_remote_search_cache_payload(
+            anime_query=self._normalize_search_query_text(self.anime_folder_name or ""),
+            last_search=last_search,
+            repo=f"{getattr(self, 'github_owner', None)}/{getattr(self, 'github_repo', None)}",
+            items=items,
+            sxexx_to_gxx=sxexx_to_gxx,
+            stop_reason="manual_refresh_merge",
+        )
+        try:
+            with open(json_path, "w", encoding="utf-8") as fh:
+                json.dump(payload, fh, ensure_ascii=False, indent=2)
+            logger.info("Wrote merged GitHub search cache to %s", json_path)
+        except Exception:
+            logger.debug("Failed to write merged GitHub search cache JSON", exc_info=True)
+
+    def refresh_remote_episode_map(self, force: bool = True) -> Dict[str, int | bool | str]:
+        """
+        Re-query remote subtitles for the current anime and merge the result into the
+        existing episode map. This is intentionally index-only: cached/downloaded files
+        are kept, and missing episodes are still downloaded on demand.
+        """
+        if not getattr(self, "remote_flag", False):
+            return {"ok": False, "reason": "not_remote"}
+        if not getattr(self, "anime_folder_name", None):
+            return {"ok": False, "reason": "missing_anime_name"}
+
+        old_items = [dict(item) for item in (getattr(self, "all_results_items", None) or []) if isinstance(item, dict)]
+        old_count = len(old_items)
+
+        try:
+            self._create_remote_episode_map_per_season(force_refresh=bool(force))
+            new_items = [dict(item) for item in (getattr(self, "all_results_items", None) or []) if isinstance(item, dict)]
+
+            # A forced manual/auto refresh should also search the base anime path. This
+            # catches newly added folders like "baki-dou part 2" even when the strict
+            # season/provider query would not run the broad fallback.
+            if force:
+                broad_items = self._search_remote_candidates_in_path(
+                    self.anime_folder_name,
+                    "subtitles/anime_tv",
+                )
+                if broad_items:
+                    new_items = self._merge_remote_episode_items(new_items, broad_items)
+
+            self._apply_remote_part_folder_numbering(new_items)
+            season_offset, local_numbering, season_len_est, season_len_density = self.compute_season_offsets_per_season(new_items)
+            self.assign_globals_per_season(new_items, season_offset, local_numbering, season_len_est, season_len_density)
+
+            merged_items = self._merge_remote_episode_items(old_items, new_items)
+            self.all_results_items = merged_items
+            self.build_remote_episode_maps()
+            self._write_remote_episode_search_cache(merged_items, last_search=f"refresh:{self.anime_folder_name}")
+            try:
+                self.update_local_srt_files()
+            except Exception:
+                logger.debug("Failed to refresh local remote cache index after remote episode refresh", exc_info=True)
+            added = max(0, len(merged_items) - old_count)
+            return {"ok": True, "old_count": old_count, "new_count": len(new_items), "merged_count": len(merged_items), "added_count": added}
+        except Exception as exc:
+            self.all_results_items = old_items
+            try:
+                self.build_remote_episode_maps()
+            except Exception:
+                logger.debug("Failed to restore previous remote episode map after refresh error", exc_info=True)
+            logger.exception("Failed to refresh remote episode map")
+            return {"ok": False, "reason": str(exc)}
+
+    def _create_remote_episode_map_per_season(self, force_refresh: bool = False):
         #add end_season and anime name searches in the gui
         end_season = 50
         # self.anime_folder_name = "Daini no Shokugyo"
@@ -3622,7 +4202,7 @@ class SubtitleManager:
                 if legacy_query == normalized_query:
                     cache_path = os.path.join(folder_dir, fn)
                     break
-        if os.path.isfile(cache_path):
+        if not force_refresh and os.path.isfile(cache_path):
             try:
                 expected_repo = f"{getattr(self, 'github_owner', None)}/{getattr(self, 'github_repo', None)}"
                 payload = load_remote_search_cache_payload(cache_path)
@@ -3899,6 +4479,7 @@ class SubtitleManager:
                 break
             if self.anime_folder_name == "One Piece" and season == 40:
                 break
+        self._apply_remote_part_folder_numbering(all_results_items)
         season_offset, local_numbering, season_len_est, season_len_density = self.compute_season_offsets_per_season(all_results_items)
         self.assign_globals_per_season(all_results_items, season_offset, local_numbering, season_len_est, season_len_density)
         all_results_items.sort(key=self.sort_key_per_season)

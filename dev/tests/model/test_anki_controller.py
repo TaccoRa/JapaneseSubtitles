@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+import SubtitlePlayer.controller.anki_controller as anki_controller_module
 from SubtitlePlayer.controller.anki_controller import AnkiController
 
 
@@ -39,3 +40,30 @@ def test_anki_add_result_prints_plain_status_lines(capsys):
     assert "Sentence Google: Google Satz" in out
     assert "Card IDs: 11, 12" in out
     assert "Anki " not in out
+
+
+def test_post_add_external_capture_focuses_target_and_sends_hotkey(monkeypatch):
+    calls = []
+    controller = SimpleNamespace(
+        config=SimpleNamespace(
+            get=lambda key: {
+                "POST_ADD_CAPTURE_TARGET_TITLE": "Chrome",
+                "POST_ADD_CAPTURE_EXTERNAL_HOTKEY": "ctrl+shift+y",
+            }.get(key)
+        )
+    )
+    anki_controller = AnkiController(controller)
+
+    monkeypatch.setattr(
+        anki_controller_module,
+        "focus_window_by_title",
+        lambda title: calls.append(("focus", title)) or True,
+    )
+    monkeypatch.setattr(
+        anki_controller_module,
+        "send_global_hotkey",
+        lambda hotkey: calls.append(("hotkey", hotkey)) or True,
+    )
+
+    assert anki_controller._run_post_add_external_capture(123) is True
+    assert calls == [("focus", "Chrome"), ("hotkey", "ctrl+shift+y")]

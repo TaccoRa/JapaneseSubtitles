@@ -56,6 +56,61 @@ class EpisodeController(_ControllerProxy):
                 return "Movie"
             return str(self.sub_manager.current_episode)
 
+    def _episode_identity(self) -> tuple:
+            return (
+                getattr(self.sub_manager, "srt_file", None),
+                getattr(self.sub_manager, "current_season", None),
+                getattr(self.sub_manager, "current_episode", None),
+            )
+
+    def _requested_episode_is_current(
+        self,
+        raw_int: int | None,
+        season_hint: int | None = None,
+        parsed_global: int | None = None,
+    ) -> bool:
+            if raw_int is None:
+                return False
+            cur_s = getattr(self.sub_manager, "current_season", None)
+            cur_e = getattr(self.sub_manager, "current_episode", None)
+            try:
+                cur_g = self.sub_manager.get_current_global()
+            except Exception:
+                cur_g = None
+            if season_hint is not None:
+                return cur_s == int(season_hint) and cur_e == int(raw_int)
+            if parsed_global is not None and cur_g is not None and int(parsed_global) == int(cur_g):
+                return True
+            if cur_g is not None and int(raw_int) == int(cur_g):
+                return True
+            return cur_e is not None and int(raw_int) == int(cur_e)
+
+    def refresh_remote_episodes(self, event=None, *, silent: bool = False) -> dict:
+            refresher = getattr(self.sub_manager, "refresh_remote_episode_map", None)
+            if not callable(refresher) or not getattr(self.sub_manager, "remote_flag", False):
+                if not silent:
+                    logger.info("Episode refresh skipped: current subtitle source is not remote.")
+                return {"ok": False, "reason": "not_remote"}
+            result = refresher(force=True)
+            try:
+                self.update_episode_nav_controls()
+            except Exception:
+                logger.debug("Failed to refresh episode controls after remote episode refresh", exc_info=True)
+            if not silent:
+                if result.get("ok"):
+                    logger.info(
+                        "Remote episode refresh complete: %s item(s), %s added.",
+                        result.get("merged_count"),
+                        result.get("added_count"),
+                    )
+                else:
+                    logger.info("Remote episode refresh failed/skipped: %s", result.get("reason"))
+            return result
+
+    def _refresh_remote_episodes_for_missing_target(self) -> bool:
+            result = self.refresh_remote_episodes(silent=True)
+            return bool(result.get("ok"))
+
     @staticmethod
     def _parse_episode_label(text: str) -> tuple[int | None, int | None, int | None]:
             match = re.fullmatch(r"\s*(?P<global>\d+)\s*\(\s*S(?P<s>\d{1,2})\s*E(?P<e>\d{1,4})\s*\)\s*", text or "", re.I)
@@ -295,9 +350,15 @@ class EpisodeController(_ControllerProxy):
 
     def on_open_srt(self, event=None):
             self.save_current_episode_position()
+            remember_offset = getattr(self.controller, "_remember_current_anime_offset", None)
+            if callable(remember_offset):
+                remember_offset()
             path = self.sub_manager.set_new_file()
             if path:
                 self._after_episode_change()
+                apply_offset = getattr(self.controller, "_apply_saved_offset_for_current_anime", None)
+                if callable(apply_offset):
+                    apply_offset()
 
     def change_episode(self, action: str):
             switch_start = time.perf_counter()
@@ -307,10 +368,20 @@ class EpisodeController(_ControllerProxy):
 
             raw = self.settings.episode_var.get().strip()
             if action in ("inc", "dec"):
+                before = self._episode_identity()
                 target_season, target_episode = self.sub_manager.change_episode(action)
-                if target_episode is not None:
+                after = self._episode_identity()
+                if target_episode is not None and after != before:
                     self.settings.episode_var.set(self._current_episode_label())
                     self._after_episode_change()
+                elif self._refresh_remote_episodes_for_missing_target():
+                    target_season, target_episode = self.sub_manager.change_episode(action)
+                    after_retry = self._episode_identity()
+                    if target_episode is not None and after_retry != before:
+                        self.settings.episode_var.set(self._current_episode_label())
+                        self._after_episode_change()
+                    else:
+                        _restore_entry()
                 else:
                     _restore_entry()
                 self._record_episode_switch_time(switch_start)
@@ -357,26 +428,32 @@ class EpisodeController(_ControllerProxy):
                 self._record_episode_switch_time(switch_start)
                 return
 
-            before = (
-                getattr(self.sub_manager, "srt_file", None),
-                getattr(self.sub_manager, "current_season", None),
-                getattr(self.sub_manager, "current_episode", None),
-            )
+            before = self._episode_identity()
             target_season, target_episode = self.sub_manager.change_episode("set", raw_int, season_hint)
-            after = (
-                getattr(self.sub_manager, "srt_file", None),
-                getattr(self.sub_manager, "current_season", None),
-                getattr(self.sub_manager, "current_episode", None),
-            )
+            after = self._episode_identity()
 
             # Fallback: if explicit SxxEyy did not resolve, and parser also gave a global
             # candidate, try the global target once.
             if before == after and season_hint is not None and parsed_global is not None and parsed_global > 0:
                 target_season, target_episode = self.sub_manager.change_episode("set", parsed_global, None)
+                after = self._episode_identity()
 
-            if target_episode is not None:
+            changed_or_current = after != before or self._requested_episode_is_current(raw_int, season_hint, parsed_global)
+            if target_episode is not None and changed_or_current:
                 self.settings.episode_var.set(self._current_episode_label())
                 self._after_episode_change() #reset all with new srt data
+            elif self._refresh_remote_episodes_for_missing_target():
+                target_season, target_episode = self.sub_manager.change_episode("set", raw_int, season_hint)
+                after = self._episode_identity()
+                if before == after and season_hint is not None and parsed_global is not None and parsed_global > 0:
+                    target_season, target_episode = self.sub_manager.change_episode("set", parsed_global, None)
+                    after = self._episode_identity()
+                changed_or_current = after != before or self._requested_episode_is_current(raw_int, season_hint, parsed_global)
+                if target_episode is not None and changed_or_current:
+                    self.settings.episode_var.set(self._current_episode_label())
+                    self._after_episode_change()
+                else:
+                    _restore_entry()
             else: #change not allowed
                 _restore_entry()
             self._record_episode_switch_time(switch_start)
@@ -395,7 +472,9 @@ class EpisodeController(_ControllerProxy):
             self.settings.set_total_duration(new_total)
             self.total_duration = new_total
             self.update_max_width()
-            title= f'S{self.sub_manager.get_current_season()}E{self.sub_manager.get_current_episode()} {self.sub_manager.get_anime_name()}'
+            display_name_getter = getattr(self.sub_manager, "get_display_anime_name", None)
+            anime_name = display_name_getter() if callable(display_name_getter) else self.sub_manager.get_anime_name()
+            title= f'S{self.sub_manager.get_current_season()}E{self.sub_manager.get_current_episode()} {anime_name}'
             self.settings.root.title(title)
             self.current_time = self._episode_start_time_for_current()
             self._defer_auto_ruby_once = True

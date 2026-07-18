@@ -418,6 +418,24 @@ def test_hotkey_dispatch_adds_popup_selection_to_anki():
     assert calls == ["popup_add"]
 
 
+def test_hotkey_dispatch_adds_popup_selection_to_anki_with_capture():
+    calls = []
+    controller = SimpleNamespace(
+        _shutting_down=False,
+        popup=SimpleNamespace(
+            add_selected_to_anki_if_pointer_inside=lambda **kwargs: calls.append(kwargs)
+        ),
+        playback=SimpleNamespace(),
+        subtitle_navigation=SimpleNamespace(toggle_subtitle_visibility=lambda: None),
+        config=SimpleNamespace(get=lambda _key: False),
+    )
+    hotkeys = HotkeyController(controller)
+
+    hotkeys._dispatch_input_action("popup_add_anki_capture")
+
+    assert calls == [{"post_add_capture": True}]
+
+
 def test_repeat_seek_preview_updates_time_display_only():
     calls = []
     controller = SimpleNamespace(
