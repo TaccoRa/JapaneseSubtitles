@@ -207,9 +207,11 @@ def test_ordinary_pages_and_unidentified_clients_cannot_auto_pair(origin):
     assert bridge.ready.wait(3)
     try:
         with connect(f"ws://127.0.0.1:{bridge.port}", origin=origin) as peer:
-            peer.send(json.dumps(dict(type="Hello", version=1, token="", pair=True)))
-            with pytest.raises(ConnectionClosed):
+            # The server may reject an invalid origin before Hello is sent.
+            with pytest.raises(ConnectionClosed) as rejected:
+                peer.send(json.dumps(dict(type="Hello", version=1, token="", pair=True)))
                 peer.recv(timeout=2)
+            assert rejected.value.rcvd.code == 1008
         assert bridge.events.empty()
     finally:
         bridge.close()

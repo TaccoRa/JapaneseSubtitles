@@ -23,7 +23,8 @@ async function until(predicate){
 }
 function environment(){
   let listener,socket;
-  const frames=[],offscreen=[],sent=[],scripts=[],timers=new Map();let timerId=0;
+  const frames=[],offscreen=[],sent=[],scripts=[],windowChanges=[],timers=new Map();let timerId=0;
+  const browserWindow={state:'maximized',type:'normal'};
   class Socket{
     static OPEN=1;
     constructor(){socket=this;this.readyState=1;}
@@ -36,12 +37,13 @@ function environment(){
     offscreen:{async hasDocument(){return true;},async createDocument(){}},
     tabCapture:{async getMediaStreamId(){return 'stream';}},
     scripting:{async executeScript(value){scripts.push(value);}},
+    windows:{async get(){return {...browserWindow};},async update(id,change){windowChanges.push({id,...change});Object.assign(browserWindow,change);}},
     fetch:async()=>({ok:true,text:async()=>Array.from({length:10},(_,i)=>`${i+1}\n00:00:${String(i*5).padStart(2,'0')}.000 --> 00:00:${String(i*5+2).padStart(2,'0')}.000\ntext`).join('\n\n')}),
     tabs:{async query(){return [];},async get(id){return {id,active:true,windowId:5};},async captureVisibleTab(){return 'data:image/png;base64,picture';},async sendMessage(tab,m,target){frames.push({tab,m,target});return {ok:true,state:{}};},onActivated:{addListener(){}},onRemoved:{addListener(){}},onUpdated:{addListener(){}}}
   };
   vm.runInNewContext(source,{chrome,fetch:(...args)=>chrome.fetch(...args),WebSocket:Socket,crypto:webcrypto,TextEncoder,URL,console,setInterval:()=>1,clearInterval(){},setTimeout:(fn,delay)=>{timers.set(++timerId,{fn,delay});return timerId;},clearTimeout:id=>timers.delete(id)});
   const message=(m,s={})=>new Promise(resolve=>{const pending=listener(m,s,resolve);if(pending!==true)resolve();});
-  return {chrome,frames,offscreen,sent,scripts,timers,message,get socket(){return socket;},
+  return {chrome,frames,offscreen,sent,scripts,timers,browserWindow,windowChanges,message,get socket(){return socket;},
     async fireTimers(){const pending=[...timers.values()];timers.clear();for(const timer of pending)timer.fn();await settle();},
     async connect(paused=true,native=true){
       await message({type:'Connect',identity,token:'code'});socket.onopen();socket.onmessage({data:JSON.stringify({type:'Welcome'})});
@@ -167,8 +169,8 @@ test('the single visible video automatically connects without acquiring audio',a
   const env=environment();await settle();
   await env.message({type:'ListVideos',tabId:1});
   await env.message({type:'PlaybackSnapshot',videoId:'video',sequence:1,currentTime:10,duration:1000,rate:1,paused:true,mediaKey:'auto-episode',width:1000,height:500},sender);
-  await settle();await env.fireTimers();
-  assert.ok(env.socket);assert.equal(env.offscreen.filter(m=>m.type==='ConnectStream').length,0);
+  await until(()=>[...env.timers.values()].some(timer=>timer.delay===300));await env.fireTimers();
+  await until(()=>env.socket);assert.equal(env.offscreen.filter(m=>m.type==='ConnectStream').length,0);
   env.socket.onopen();env.socket.onmessage({data:JSON.stringify({type:'Welcome'})});await settle();
   assert.equal(env.sent.find(m=>m.type==='Bound').identity.videoId,'video');
 });
@@ -189,6 +191,49 @@ test('a refused bridge connection stays retryable until the app starts',async()=
   await env.fireTimers();assert.notEqual(env.socket,first);
   env.socket.onopen();env.socket.onmessage({data:JSON.stringify({type:'Welcome'})});await settle();
   assert.equal((await env.message({type:'ListVideos',tabId:1})).status,'Connected');
+});
+
+test('captured player fullscreen expands the browser and restores its previous size',async()=>{
+  const env=environment();await env.connect();
+  await env.message({type:'FullscreenChanged',fullscreen:true},sender);await settle();
+  assert.equal(env.browserWindow.state,'fullscreen');assert.equal(env.windowChanges[0].id,5);
+  await env.message({type:'FullscreenChanged',fullscreen:false},sender);await settle();
+  assert.equal(env.browserWindow.state,'maximized');
+});
+
+test('fullscreen belonging to another video tab or document cannot resize the watching window',async()=>{
+  const env=environment();await env.connect();
+  await env.message({type:'FullscreenChanged',fullscreen:true},{...sender,tab:{id:99}});
+  await env.message({type:'FullscreenChanged',fullscreen:true},{...sender,documentId:'other-doc'});await settle();
+  assert.equal(env.windowChanges.length,0);
+});
+
+test('preexisting browser fullscreen is preserved on player fullscreen exit',async()=>{
+  const env=environment();await env.connect();env.browserWindow.state='fullscreen';
+  await env.message({type:'FullscreenChanged',fullscreen:true},sender);await settle();
+  await env.message({type:'FullscreenChanged',fullscreen:false},sender);await settle();
+  assert.equal(env.windowChanges.length,0);assert.equal(env.browserWindow.state,'fullscreen');
+});
+
+test('a replaced fullscreen frame cannot leave the new episode stuck in browser fullscreen',async()=>{
+  const env=environment();await env.connect();
+  await env.message({type:'FullscreenChanged',fullscreen:true},sender);await settle();
+  assert.equal(env.browserWindow.state,'fullscreen');
+  await env.message({type:'PlaybackSnapshot',videoId:'next-video',sequence:1,currentTime:0,duration:1447,rate:1,paused:true,mediaKey:'next-episode',width:1000,height:500,fullscreen:false},{...sender,documentId:'new-document'});
+  await until(()=>env.browserWindow.state==='maximized');
+  assert.equal(env.sent.filter(m=>m.type==='Bound').at(-1).identity.documentId,'new-document');
+});
+
+test('nested fullscreen remains expanded until both frames exit; manual restore takes priority',async()=>{
+  const env=environment();await env.connect();
+  const outer={tab:{id:1},documentId:'outer',frameId:0};
+  await env.message({type:'FullscreenChanged',fullscreen:true},sender);
+  await env.message({type:'FullscreenChanged',fullscreen:true},outer);await settle();
+  await env.message({type:'FullscreenChanged',fullscreen:false},sender);await settle();
+  assert.equal(env.browserWindow.state,'fullscreen');
+  env.browserWindow.state='normal'; // Manual F11/restore supersedes automatic state.
+  await env.message({type:'FullscreenChanged',fullscreen:false},outer);await settle();
+  assert.equal(env.browserWindow.state,'normal');assert.equal(env.windowChanges.length,1);
 });
 
 test('screenshot uses the bound browser window and resumes only after cropping succeeds',async()=>{

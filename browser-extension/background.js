@@ -7,6 +7,8 @@ let episodeContexts=new Map(),bindingLost=false;
 let activeTabId=null,autoEnabled=true,storedToken='',initialized=false,autoTimer=null;
 let reconnectDelay=1000;
 const discoveries=new Map();
+let fullscreenLease=null,fullscreenUpdates=Promise.resolve();
+const fullscreenFrames=new Map();
 const serializeConnection=task=>{const result=connections.then(task);connections=result.catch(()=>{});return result;};
 const key=i=>JSON.stringify(i);
 const send=m=>{if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify(m));};
@@ -44,6 +46,7 @@ async function connect(m){
   }catch(error){await disconnect();throw error;}
 }
 async function disconnect(manual=false){
+  fullscreenFrames.clear();await restoreWindowFullscreen();
   if(manual){autoEnabled=false;await chrome.storage.local.set({autoConnect:false});}
   send({type:'Unbound'});await fail('Disconnected');selected=null;
   connectionEpoch++;clearTimeout(reconnectTimer);clearInterval(heartbeat);
@@ -55,6 +58,36 @@ async function disconnect(manual=false){
     if(!result?.ok)throw Error(result?.error||'Could not release tab audio');
   }
   return {ok:true};
+}
+async function restoreWindowFullscreen(){
+  const lease=fullscreenLease;fullscreenLease=null;
+  if(!lease)return;
+  try{
+    const window=await chrome.windows.get(lease.windowId);
+    // A manual F11/restore already superseded our fullscreen change.
+    if(window.state==='fullscreen')await chrome.windows.update(lease.windowId,{state:lease.previousState});
+  }catch{}
+}
+function followFullscreen(fullscreen,sender){
+  if(!selected||sender.tab?.id!==selected.tabId||
+     (sender.frameId!==0&&sender.documentId!==selected.documentId)||typeof fullscreen!=='boolean')return;
+  const frame=sender.frameId+':'+sender.documentId;
+  if(fullscreenFrames.get(frame)===fullscreen)return;
+  fullscreenFrames.set(frame,fullscreen);
+  const identity=selected;
+  fullscreenUpdates=fullscreenUpdates.then(async()=>{
+    if(key(identity)!==key(selected))return;
+    if(![...fullscreenFrames.values()].some(Boolean)){await restoreWindowFullscreen();return;}
+    if(fullscreenLease)return;
+    const tab=await chrome.tabs.get(identity.tabId);
+    if(!tab.active)return;
+    const window=await chrome.windows.get(tab.windowId);
+    if(key(identity)!==key(selected)||![...fullscreenFrames.values()].some(Boolean))return;
+    // Preserve browser fullscreen that the user enabled before the player did.
+    if(window.state==='fullscreen'||window.type!=='normal')return;
+    fullscreenLease={tabId:identity.tabId,windowId:tab.windowId,previousState:window.state==='maximized'?'maximized':'normal'};
+    await chrome.windows.update(tab.windowId,{state:'fullscreen'});
+  }).catch(error=>{fullscreenLease=null;status='Fullscreen: '+error.message;});
 }
 async function discoverTab(tabId){
   const previous=discoveries.get(tabId);
@@ -210,6 +243,7 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
     return;
   }
   const identity={tabId:sender.tab.id,documentId:sender.documentId,frameId:sender.frameId,videoId:m.videoId};
+  if(m.type==='FullscreenChanged'){followFullscreen(m.fullscreen,sender);return;}
   if(m.type==='EpisodeContext'&&sender.frameId===0){
     (async()=>{
       const context={type:'EpisodeContext',seriesKey:await hash(m.seriesKey),episode:m.episode,season:m.season,scope:m.scope,title:String(m.title||'').slice(0,300)};
@@ -234,11 +268,14 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
          (bindingLost||(identity.frameId===selected.frameId&&identity.documentId!==selected.documentId)||Date.now()-(observed.get(key(selected))?.seen||0)>500)){
         const candidates=[...observed.values()].filter(v=>v.identity.tabId===selected.tabId&&Date.now()-v.seen<500&&v.width>=240&&v.height>=120&&key(v.identity)!==key(selected));
         if(candidates.length===1){
-          await fail('Video replaced');selected=identity;bindingLost=false;
+          await fail('Video replaced');
+          fullscreenFrames.delete(selected.frameId+':'+selected.documentId);
+          selected=identity;bindingLost=false;
           await chrome.storage.local.set({selected});publishBinding();
         }
       }
       if(key(identity)===key(selected)){
+        followFullscreen(m.fullscreen,sender);
         if(bindingLost){bindingLost=false;publishBinding();}
         send(value);
         offscreen({...value,type:'AnalysisClock'}).catch(()=>{});
@@ -276,9 +313,10 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
     }catch{if(key(identity)===key(selected))send({type:'CaptionUnavailable',identity,error:'Site captions could not be loaded. Check that English captions are enabled.'});}})();
   }
 });
-chrome.tabs.onActivated.addListener(({tabId})=>{activeTabId=tabId;if(recording&&selected?.tabId!==tabId)fail('Selected tab changed');discoverTab(tabId);scheduleAutoConnect();});
-chrome.tabs.onRemoved.addListener(tabId=>{if(tabId===selected?.tabId){fail('Video tab closed');selected=null;}});
+chrome.tabs.onActivated.addListener(({tabId})=>{activeTabId=tabId;if(recording&&selected?.tabId!==tabId)fail('Selected tab changed');if(fullscreenLease&&fullscreenLease.tabId!==tabId){fullscreenFrames.clear();fullscreenUpdates=fullscreenUpdates.then(restoreWindowFullscreen);}discoverTab(tabId);scheduleAutoConnect();});
+chrome.tabs.onRemoved.addListener(tabId=>{if(tabId===selected?.tabId){fail('Video tab closed');selected=null;fullscreenFrames.clear();fullscreenUpdates=fullscreenUpdates.then(restoreWindowFullscreen);}});
 chrome.tabs.onUpdated.addListener((tabId,change)=>{if(tabId===selected?.tabId&&change.status==='loading'){
+  fullscreenFrames.clear();fullscreenUpdates=fullscreenUpdates.then(restoreWindowFullscreen);
   bindingLost=true;fail('Video page changed');send({type:'VideoUnavailable',identity:selected});
 }});
 // A worker restart keeps the same bound document; it never adopts the active tab.

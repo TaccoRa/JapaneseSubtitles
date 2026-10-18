@@ -87,7 +87,8 @@ test('fullscreen changing mid-capture cancels the crop rather than attaching the
   const identity={videoId:env.sent[0].videoId},operationId='card';
   await env.message({type:'PrepareCapture',identity,operationId,start:10,end:12});
   env.fullscreen();
-  assert.equal(env.sent.at(-1).type,'CaptureAborted');
+  assert.equal(env.sent.filter(m=>m.type==='CaptureAborted').length,1);
+  assert.equal(env.sent.at(-1).type,'FullscreenChanged');
   assert.equal((await env.message({type:'ScreenshotReady',operationId})).ok,false);
 });
 test('seeked arriving before seeking clears does not cause a false timeout',async()=>{

@@ -38,6 +38,7 @@ function snapshot(video,id,event='tick'){
     currentTime:video.currentTime,duration:Number.isFinite(video.duration)?video.duration:0,
     paused:video.paused,buffering:video.readyState<3,seeking:video.seeking,rate:video.playbackRate,
     width:r.width,height:r.height,viewport:{width:innerWidth,height:innerHeight},
+    fullscreen:!!document.fullscreenElement,
     // Full URL is hashed in the worker and never sent to the desktop.
     mediaKey:mediaKey(video),event};
 }
@@ -140,7 +141,10 @@ window.addEventListener('message',e=>{
 });
 let lastCaption='';
 // A crop belongs to one layout. Do not attach a stale crop after fullscreen/resize.
-document.addEventListener('fullscreenchange',()=>{if(capture)abort('Fullscreen changed during capture');});
+document.addEventListener('fullscreenchange',()=>{
+  if(capture)abort('Fullscreen changed during capture');
+  send({type:'FullscreenChanged',fullscreen:!!document.fullscreenElement});
+});
 window.addEventListener('resize',()=>{if(capture)abort('Video layout changed during capture');});
 setInterval(()=>{
   if(window===top&&typeof subtitlePlayerEpisodeContext==='function'){
