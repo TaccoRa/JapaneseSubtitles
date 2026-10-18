@@ -1,7 +1,6 @@
 import time
 import bisect
 
-
 class PlaybackController:
     def __init__(self, controller=None):
         self.controller = controller

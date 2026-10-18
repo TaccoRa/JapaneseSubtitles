@@ -28,6 +28,7 @@ from model.anki_client import AnkiClient, AnkiConnectRequestError
 from model.anki_word_sync import AnkiSyncSettings, AnkiWordSync, split_csv_values
 from model.annotation_provider import AnnotationProvider
 from model.config_manager import ConfigManager
+from model.cue_snapshot import CueSnapshot, CueSnapshotBuilder
 from model.renderer import SubtitleRenderer
 from model.subtitle_manager import SubtitleManager
 from model.voice_service import VoiceCommandService
@@ -39,6 +40,7 @@ from view.subtitle_overlay import SubtitleOverlayUI
 
 from controller.anki_controller import AnkiController
 from controller.episode_controller import EpisodeController
+from controller.external_video_controller import ExternalVideoCommandService, PlaybackPauseLease
 from controller.hotkey_controller import HotkeyController
 from controller.ocr_controller import OCRController
 from controller.overlay_controller import OverlayController
@@ -126,8 +128,10 @@ class SubtitleController:
         self._apply_saved_offset_for_current_anime()
         self._start_input_listeners()
         self.voice.start()
+        self.anki_controller.start_anki_with_app_if_enabled()
 
         self.episode_controller.restore_startup_time_and_mode()
+        self.episode_controller.remember_current_anime_episode()
 
         self.last_update = time.perf_counter()
         self.playback.set_current_time(float(self.current_time or 0.0))
@@ -165,7 +169,7 @@ class SubtitleController:
         self._hover_video_pause_active = False
         self._hover_timer_pause_active = False
         self._suppress_synthetic_space_until = 0.0
-        self._suppress_synthetic_tokens_until: dict[str, float] = {}
+        self._suppress_synthetic_tokens_until: dict[str, dict[str, float | int] | float] = {}
 
         self.playing = False
         self.entry_editing = False
@@ -236,6 +240,7 @@ class SubtitleController:
         self._anki_preview_window = None
         self._anki_add_busy = False
         self._voice_anki_action_queued = False
+        self._voice_anki_batch_running = False
         self._voice_playback_pending = False
         self._voice_target_window = None
         self._voice_last_status = {"state": "disabled", "message": "Voice commands disabled."}
@@ -243,8 +248,12 @@ class SubtitleController:
         self._voice_mic_test_stop = None
         self._voice_mic_test_monitor_enabled = True
         self._voice_mic_test_restart_recognition = False
+        self._latest_added_anki_note_id = 0
         self._latest_post_add_capture_note_id = 0
         self._latest_post_add_capture_window_hwnd = 0
+        self._capture_only_resolution_running = False
+        self._anki_pause_lease_lock = threading.RLock()
+        self._anki_pause_leases: dict[str, PlaybackPauseLease] = {}
 
         self.subtitle_timeout_job = None
         self._last_time_overlay_text = None
@@ -252,6 +261,7 @@ class SubtitleController:
         self.last_subtitle_raw = ""
         self.last_rendered_index = None
         self.last_rendered_sub_time = None
+        self.current_cue_snapshot: CueSnapshot | None = None
 
     @staticmethod
     def _coerce_fast_forward_speed(value) -> float:
@@ -264,6 +274,7 @@ class SubtitleController:
 
     def _create_services_and_controllers(self) -> None:
         self.playback = PlaybackController(self)
+        self.video_commands = ExternalVideoCommandService(self)
         self.subtitle_navigation = SubtitleNavigationController(self)
         self.episode_controller = EpisodeController(self)
         self.overlay_controller = OverlayController(self)
@@ -275,6 +286,7 @@ class SubtitleController:
         if self._annotation_is_enabled():
             self._ensure_annotation_services()
         self.anki = AnkiClient(self.config)
+        self.cue_snapshot_builder = CueSnapshotBuilder(self._word_spans_for_lookup)
         self.voice = VoiceCommandService(
             self.config,
             action_callback=self._on_voice_recognized,
@@ -358,6 +370,7 @@ class SubtitleController:
         self.settings.bind_update_display           (self.update_time_and_subtitle_displays)
         self.overlay.subtitle_canvas.bind           ("<Button-3>", self._on_copy_popup)
         self.popup.bind_add_to_anki                 (self._add_selection_to_anki)
+        self.popup.bind_manual_selection            (self.renderer.clear_voice_word_highlights)
         self.popup.bind_dictionary_lookup           (self._lookup_dictionary_entry)
         self.popup.bind_translation_lookup          (self._translate_hover_selection)
         self.popup.bind_word_tokenizer              (self._word_spans_for_lookup)
@@ -548,7 +561,8 @@ class SubtitleController:
                 line_segments = getter()
         except Exception:
             logger.debug("Failed to resolve current subtitle segments for popup", exc_info=True)
-        self.popup.open_copy_popup(text, line_segments=line_segments)
+        snapshot = getattr(self, "current_cue_snapshot", None)
+        self.popup.open_copy_popup(text, line_segments=line_segments, cue_snapshot=snapshot)
         return "break"
 
     def _skip_buttons_use_subtitle_segments(self) -> bool:
@@ -559,11 +573,19 @@ class SubtitleController:
         selected_text: str,
         subtitle_text: str = "",
         post_add_capture: bool = False,
+        on_complete=None,
+        cue_snapshot: CueSnapshot | None = None,
+        selection_spans=None,
+        initiator: str = "anki",
     ) -> None:
         return self.anki_controller._add_selection_to_anki(
             selected_text,
             subtitle_text,
             post_add_capture=bool(post_add_capture),
+            on_complete=on_complete,
+            cue_snapshot=cue_snapshot or getattr(self, "current_cue_snapshot", None),
+            selection_spans=selection_spans,
+            initiator=initiator,
         )
 
     def _publish_anki_add_counts(self) -> None:
@@ -1728,7 +1750,11 @@ class SubtitleController:
             except Exception:
                 pass
             self.anki = AnkiClient(self.config)
+            clear_snapshots = getattr(getattr(self, "cue_snapshot_builder", None), "clear", None)
+            if callable(clear_snapshots):
+                clear_snapshots()
             self.anki_busy_cursor = self.anki_busy_cursor or "wait"
+            self.anki_controller.start_anki_with_app_if_enabled()
 
     def _apply_annotation_settings(self, values: dict) -> None:
         if not any(str(k).startswith("ANNOTATION_") for k in values.keys()):
@@ -1936,11 +1962,18 @@ class SubtitleController:
         del phrase
         if self._shutting_down:
             return
-        self.hotkey_controller.enqueue_action(
-            action,
-            source="voice",
-            repeat_count=repeat_count,
-        )
+        # Resolve popup selections, persistent highlights, and the pointer target on
+        # Tk's thread at recognition time. The queued action then uses that immutable
+        # snapshot even if the pointer moves while speech recognition finishes.
+        try:
+            dispatch_to_tk(
+                self.settings.root,
+                self.hotkey_controller.enqueue_voice_action,
+                action,
+                repeat_count,
+            )
+        except Exception:
+            logger.debug("Failed to queue frozen voice action", exc_info=True)
 
     def toggle_voice_enabled(self) -> bool:
         return self.set_voice_enabled(not bool(self.config.get("VOICE_ENABLED") or False))
@@ -1970,6 +2003,44 @@ class SubtitleController:
             return False
         self.hotkey_controller._reset_hotkey_state(reset_shift=False)
         self._report_voice_status("listening", f"Input mode M{int(target)} is active.")
+        return True
+
+    def handle_voice_recognition_language(self, language: str) -> bool:
+        """Switch the active offline recognizer without ever selecting a missing model."""
+        target = "de" if str(language).strip().lower() == "de" else "en"
+        label = "German" if target == "de" else "English"
+        current = "de" if str(self.config.get("VOICE_LANGUAGE") or "en").lower() == "de" else "en"
+        try:
+            status = self.voice.model_status(target)
+        except Exception:
+            logger.exception("Could not inspect the %s voice model", label)
+            self._report_voice_status("error", f"Could not inspect the {label} voice model.")
+            return False
+        if not bool(status.get("installed")):
+            self._report_voice_status(
+                "error",
+                f"The {label} voice model is not installed. Open Voice settings and download it first.",
+            )
+            return False
+        if current == target:
+            self._report_voice_status("listening", f"{label} voice recognition is already active.")
+            return True
+
+        self.config.set("VOICE_LANGUAGE", target)
+        voice_tab = getattr(getattr(self.settings, "adv_settings", None), "_voice_tab_ui", None)
+        if voice_tab is not None:
+            try:
+                voice_tab.load_values()
+            except Exception:
+                logger.debug("Failed to refresh the Voice settings language", exc_info=True)
+        try:
+            self.voice.reconfigure(force=True)
+        except Exception:
+            logger.exception("Failed to restart voice recognition in %s", label)
+            self.config.set("VOICE_LANGUAGE", current)
+            self._report_voice_status("error", f"Could not restart {label} voice recognition.")
+            return False
+        self._report_voice_status("loading", f"Switching voice recognition to {label}.")
         return True
 
     def voice_list_input_devices(self) -> list[dict]:
@@ -2170,12 +2241,25 @@ class SubtitleController:
                 result.append(normalized)
         return result
 
+    def _shared_external_video_target_config(self) -> dict:
+        """Return the one persisted rule used by playback and capture commands."""
+        configured = self.config.get("EXTERNAL_VIDEO_TARGET")
+        if isinstance(configured, dict) and any(
+            str(configured.get(key) or "").strip()
+            for key in ("title_filter", "title", "process", "class_name")
+        ):
+            return dict(configured)
+        legacy = self.config.get("VOICE_PLAYBACK_TARGET")
+        return dict(legacy) if isinstance(legacy, dict) else {}
+
+    def _resolve_external_video_target(self) -> dict | None:
+        return self._resolve_voice_video_target()
+
     def _resolve_voice_video_target(self) -> dict | None:
         windows = self.voice_list_windows()
         if not windows:
             return None
-        saved = self.config.get("VOICE_PLAYBACK_TARGET")
-        saved = saved if isinstance(saved, dict) else {}
+        saved = self._shared_external_video_target_config()
         saved_title = self._normalize_voice_window_text(
             saved.get("title_filter") or saved.get("title")
         )
@@ -2273,13 +2357,43 @@ class SubtitleController:
         self.playback.set_current_time(seconds)
         self._report_voice_status("listening", f"Jumped subtitles to {format_time(seconds)}.")
 
-    def resume_video_and_subtitles_after_capture(self, note_id: int) -> None:
-        if not bool(self.config.get("POST_ADD_CAPTURE_RESUME_PLAYBACK") or False):
+    def acquire_anki_pause_lease(self, _target=None) -> PlaybackPauseLease:
+        """Track an Anki action without changing video playback.
+
+        Capture-session cancellation still needs an ownership record, but Add
+        and Capture must not inject a background-player pause command.  The
+        configured post-capture resume follows the established voice-playback
+        path below.
+        """
+        lease = PlaybackPauseLease(was_playing=bool(self.playing))
+        with self._anki_pause_lease_lock:
+            self._anki_pause_leases[lease.id] = lease
+        return lease
+
+    def release_anki_pause_lease(self, lease: PlaybackPauseLease | None, *, resume: bool = False) -> None:
+        """Release an Anki action record without sending video commands."""
+        if lease is None or lease.released:
+            return
+        with self._anki_pause_lease_lock:
+            self._anki_pause_leases.pop(lease.id, None)
+            lease.released = True
+
+    def resume_video_and_subtitles_after_capture(self, note_id: int, *, session=None) -> None:
+        capture_only = bool(getattr(session, "capture_only", False))
+        resume_key = (
+            "CAPTURE_ONLY_RESUME_PLAYBACK"
+            if capture_only
+            else "POST_ADD_CAPTURE_RESUME_PLAYBACK"
+        )
+        if not bool(self.config.get(resume_key) or False):
             return
         try:
             note_id = int(note_id)
         except Exception:
             return
+        if session is not None:
+            lease = getattr(session, "pause_lease", None)
+            self.release_anki_pause_lease(lease, resume=False)
         if note_id != int(getattr(self, "_latest_post_add_capture_note_id", 0) or 0):
             logger.debug("Skipping playback resume for superseded capture note %s", note_id)
             return
@@ -2287,7 +2401,7 @@ class SubtitleController:
             try:
                 self.settings.root.after(
                     100,
-                    lambda: self.resume_video_and_subtitles_after_capture(note_id),
+                    lambda: self.resume_video_and_subtitles_after_capture(note_id, session=session),
                 )
             except Exception:
                 pass
@@ -2298,6 +2412,9 @@ class SubtitleController:
                 "desired": True,
                 "repeat_count": 1,
                 "source": "capture",
+                # The final play command should leave the player focused so the
+                # user's next Space reaches both the player and our global hook.
+                "restore_foreground": False,
                 "target": {
                     "hwnd": int(getattr(self, "_latest_post_add_capture_window_hwnd", 0) or 0),
                 },
@@ -2368,10 +2485,17 @@ class SubtitleController:
                 tokens.append(token)
         repeat_duration = max(0, int(repeat_count) - 1) * max(0, int(repeat_interval_ms)) / 1000.0
         deadline = time.perf_counter() + max(0.6, repeat_duration + 0.45)
+        event_count = max(1, int(repeat_count))
         for token in tokens:
-            self._suppress_synthetic_tokens_until[token] = deadline
+            self._suppress_synthetic_tokens_until[token] = {
+                "deadline": deadline,
+                "presses": event_count,
+                "releases": event_count,
+            }
+        # New sends are represented by the counted token entries above.  Do not
+        # let the legacy deadline suppress an additional real Space press.
         if "space" in tokens:
-            self._suppress_synthetic_space_until = deadline
+            self._suppress_synthetic_space_until = 0.0
 
     def _run_voice_video_delivery(self, request: dict, target: dict, *, allow_prompt: bool) -> None:
         if self._voice_playback_pending:
@@ -2416,11 +2540,12 @@ class SubtitleController:
                 dispatch_to_tk_sync(self.settings.root, _apply)
 
             self._suppress_external_hotkey_events(hotkey, repeat_count, repeat_interval_ms)
+
             result = send_hotkey_to_window(
                 target,
                 hotkey,
                 exclude_hwnds=excluded,
-                restore_foreground=True,
+                restore_foreground=bool(request.get("restore_foreground", True)),
                 repeat_count=repeat_count,
                 repeat_interval_ms=repeat_interval_ms,
                 before_send=(

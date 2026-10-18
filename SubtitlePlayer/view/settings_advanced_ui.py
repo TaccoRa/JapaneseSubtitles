@@ -143,6 +143,21 @@ class SettingsAdvancedUI(_SettingsUIProxy):
     def __init__(self, settings_ui: Any) -> None:
         super().__init__(settings_ui)
 
+    def _set_modal_input_active(self, active: bool) -> None:
+        """Share native file-dialog state with the global hotkey input gate."""
+        try:
+            root = getattr(self, "root", None)
+            if root is None:
+                return
+            count = int(getattr(root, "_subtitleplayer_modal_input_open_count", 0) or 0)
+            setattr(
+                root,
+                "_subtitleplayer_modal_input_open_count",
+                count + 1 if active else max(0, count - 1),
+            )
+        except Exception:
+            logger.debug("Failed to update modal input state for native file dialog", exc_info=True)
+
     @staticmethod
     def _is_text_input_widget(widget) -> bool:
         if widget is None:
@@ -556,6 +571,23 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 logger.exception("Failed to persist Anki activity for profile %s", name)
         self.refresh_anki_activity_chart()
 
+    def persist_active_profile_fields(self, updates: dict) -> None:
+        """Write runtime-owned values through to the active profile snapshot."""
+        if not isinstance(updates, dict) or not updates:
+            return
+        active_raw = str(self.config.get("ACTIVE_SETTINGS_PROFILE") or "").strip()
+        if not active_raw:
+            return
+        name = self._sanitize_profile_name(active_raw)
+        path = self._profile_path(name)
+        try:
+            data = self._read_profile_file(path) if os.path.exists(path) else self._current_local_config_snapshot(name)
+            data["ACTIVE_SETTINGS_PROFILE"] = name
+            data.update(updates)
+            self._write_profile_file(name, data)
+        except Exception:
+            logger.exception("Failed to persist runtime fields for profile %s", name)
+
     def _activity_profile_values(self) -> list[str]:
         values = [self._ACTIVITY_LOCAL_LABEL]
         for name in self._list_profile_names():
@@ -944,6 +976,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         try:
             data = self._current_local_config_snapshot(name)
             self._set_activity_fields(data, {}, date.today().isoformat(), 0)
+            data["ANIME_EPISODE_PROGRESS"] = {}
             self._write_profile_file(name, data)
             if getattr(self, "_profile_var", None) is not None:
                 self._profile_var.set(name)
@@ -968,6 +1001,10 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 target_day = date.today().isoformat()
                 target_today = int(target_history.get(target_day, 0) or 0)
                 self._set_activity_fields(data, target_history, target_day, target_today)
+                target_progress = target_data.get("ANIME_EPISODE_PROGRESS")
+                data["ANIME_EPISODE_PROGRESS"] = (
+                    dict(target_progress) if isinstance(target_progress, dict) else {}
+                )
             self._write_profile_file(name, data)
             if switching_profiles:
                 self._apply_loaded_profile(name, data)
@@ -1035,11 +1072,15 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             messagebox.showerror("Profile delete failed", str(exc), parent=getattr(self, "advanced_window", None))
 
     def _import_profile(self) -> None:
-        path = filedialog.askopenfilename(
-            title="Import settings profile",
-            filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
-            parent=getattr(self, "advanced_window", None),
-        )
+        self._set_modal_input_active(True)
+        try:
+            path = filedialog.askopenfilename(
+                title="Import settings profile",
+                filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+                parent=getattr(self, "advanced_window", None),
+            )
+        finally:
+            self._set_modal_input_active(False)
         if not path:
             return
         try:
@@ -1063,13 +1104,17 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         name = self._selected_profile_name(prompt=True)
         if not name:
             return
-        path = filedialog.asksaveasfilename(
-            title="Export settings profile",
-            initialfile=f"{name}.json",
-            defaultextension=".json",
-            filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
-            parent=getattr(self, "advanced_window", None),
-        )
+        self._set_modal_input_active(True)
+        try:
+            path = filedialog.asksaveasfilename(
+                title="Export settings profile",
+                initialfile=f"{name}.json",
+                defaultextension=".json",
+                filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+                parent=getattr(self, "advanced_window", None),
+            )
+        finally:
+            self._set_modal_input_active(False)
         if not path:
             return
         try:
@@ -1973,6 +2018,18 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 "Anki Connection",
                 [
                     {"key": "ANKI_ENABLED", "label": "Enable Anki integration", "type": "bool", "default": True, "button_text": "Check Connection"},
+                    {"key": "ANKI_AUTO_START", "label": "Start Anki automatically when needed", "type": "bool", "default": False},
+                    {"key": "ANKI_START_WITH_APP", "label": "Start Anki with SubtitlePlayer", "type": "bool", "default": False},
+                    {
+                        "key": "ANKI_EXECUTABLE_PATH",
+                        "label": "Anki executable",
+                        "type": "str",
+                        "default": "",
+                        "allow_empty": True,
+                        "button_text": "Browse",
+                        "button_callback": self._browse_anki_executable,
+                        "tooltip": "Leave empty to search common Anki installation locations automatically.",
+                    },
                     {"key": "ANKI_PREVIEW_BEFORE_ADD", "label": "Preview note before adding", "type": "bool", "default": False},
                     {"key": "ANKI_CONNECT_URL", "label": "AnkiConnect URL", "type": "str", "default": "http://127.0.0.1:8765"},
                     {"key": "ANKI_HTTP_TIMEOUT_SEC", "label": "HTTP timeout (sec)", "type": "float", "default": 4.0, "min": 0.5, "max": 120.0},
@@ -2028,6 +2085,25 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             ),
         ]
         return [left, right]
+
+    def _browse_anki_executable(self) -> None:
+        var = self._advanced_vars.get("ANKI_EXECUTABLE_PATH")
+        current = str(var.get() or "").strip() if var is not None else ""
+        initial_dir = os.path.dirname(os.path.expandvars(os.path.expanduser(current))) if current else ""
+        if not initial_dir or not os.path.isdir(initial_dir):
+            initial_dir = os.environ.get("LOCALAPPDATA") or os.environ.get("ProgramFiles") or os.getcwd()
+        self._set_modal_input_active(True)
+        try:
+            path = filedialog.askopenfilename(
+                title="Select Anki executable",
+                initialdir=initial_dir,
+                filetypes=[("Anki executable", "anki.exe"), ("Executable files", "*.exe"), ("All files", "*.*")],
+                parent=getattr(self, "advanced_window", None),
+            )
+        finally:
+            self._set_modal_input_active(False)
+        if path and var is not None:
+            var.set(os.path.normpath(path))
 
     def _build_general_actions(self, general_tab: tk.Frame) -> None:
         # Actions section is now integrated with PHONEMODE_WINDOWS_HIDE_DELAY_MS as a button
@@ -2145,6 +2221,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 [
                     {"key": "SHORTCUT_POPUP_ADD_ANKI", "label": "Add hovered word to Anki", "type": "str", "default": "a", "allow_empty": True},
                     {"key": "SHORTCUT_POPUP_ADD_ANKI_CAPTURE", "label": "Add hovered word + capture", "type": "str", "default": "v", "allow_empty": True},
+                    {"key": "SHORTCUT_CAPTURE_ONLY", "label": "Capture media for last SubtitlePlayer card", "type": "str", "default": "shift+v", "allow_empty": True},
                 ],
             ),
         ]
@@ -2220,6 +2297,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                     {"key": "DISABLE_HOTKEY_FAST_FORWARD_SPEED_DOWN", "label": "Disable speed-down hotkey", "type": "bool", "default": False},
                     {"key": "DISABLE_HOTKEY_TOGGLE_SUBTITLES", "label": "Disable subtitle-toggle hotkeys", "type": "bool", "default": False},
                     {"key": "DISABLE_HOTKEY_POPUP_ADD_ANKI_CAPTURE", "label": "Disable add+capture hotkey", "type": "bool", "default": False},
+                    {"key": "DISABLE_HOTKEY_CAPTURE_ONLY", "label": "Disable capture-only hotkey", "type": "bool", "default": False},
                 ],
             ),
             (
@@ -2239,10 +2317,17 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                     {"key": "POST_ADD_CAPTURE_MEDIA_COPY_DELAY_MS", "label": "Media copy check interval (ms)", "type": "int", "default": 1500, "min": 250, "max": 60000, "width": 16},
                     {
                         "key": "POST_ADD_CAPTURE_RESUME_PLAYBACK",
-                        "label": "Resume playback when captured media arrives",
+                        "label": "Resume playback after add+capture",
                         "type": "bool",
                         "default": False,
-                        "tooltip": "After fresh Sound and Image values appear in the captured Anki note, resume the external video and SubtitlePlayer together.",
+                        "tooltip": "After Sound and Image appear in the captured Anki note, jump to the subtitle end and then resume the external video and SubtitlePlayer together.",
+                    },
+                    {
+                        "key": "CAPTURE_ONLY_RESUME_PLAYBACK",
+                        "label": "Resume playback after capture-only",
+                        "type": "bool",
+                        "default": False,
+                        "tooltip": "After capture-only writes Sound and Image to Anki, jump to the subtitle end and then resume the external video and SubtitlePlayer together.",
                     },
                     {
                         "key": "POST_ADD_CAPTURE_MOVE_MOUSE_TO_BOTTOM",
@@ -2750,11 +2835,43 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         canvas = tk.Canvas(win, width=sw, height=sh, bg="black", highlightthickness=0, cursor="crosshair")
         canvas.pack(fill="both", expand=True)
 
+        suffix = "" if index == 1 else str(index)
+        saved_x = self._coerce_int(values.get(f"OCR_REGION{suffix}_X", 0), default=0)
+        saved_y = self._coerce_int(values.get(f"OCR_REGION{suffix}_Y", 0), default=0)
+        saved_w = self._coerce_int(values.get(f"OCR_REGION{suffix}_W", 0), default=0)
+        saved_h = self._coerce_int(values.get(f"OCR_REGION{suffix}_H", 0), default=0)
         state = {"x0": 0, "y0": 0, "rect": None}
+        if saved_w > 0 and saved_h > 0:
+            left = max(0, min(int(sw), saved_x))
+            top = max(0, min(int(sh), saved_y))
+            right = max(left, min(int(sw), saved_x + saved_w))
+            bottom = max(top, min(int(sh), saved_y + saved_h))
+            if right > left and bottom > top:
+                canvas.create_rectangle(
+                    left,
+                    top,
+                    right,
+                    bottom,
+                    outline="#ffd34d",
+                    fill="#ffd34d",
+                    stipple="gray25",
+                    width=3,
+                    tags=("saved_ocr_region",),
+                )
+                canvas.create_text(
+                    left + 8,
+                    max(8, top + 8),
+                    anchor="nw",
+                    text=f"Current OCR region {index}",
+                    fill="#ffd34d",
+                    font=("Arial", 13, "bold"),
+                    tags=("saved_ocr_region",),
+                )
 
         def _on_press(event):
             state["x0"] = event.x
             state["y0"] = event.y
+            canvas.delete("saved_ocr_region")
             if state["rect"] is not None:
                 canvas.delete(state["rect"])
                 state["rect"] = None
@@ -3066,6 +3183,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             "SHORTCUT_FAST_FORWARD_SPEED_DOWN": "DISABLE_HOTKEY_FAST_FORWARD_SPEED_DOWN",
             "SHORTCUT_TOGGLE_SUBTITLES": "DISABLE_HOTKEY_TOGGLE_SUBTITLES",
             "SHORTCUT_POPUP_ADD_ANKI_CAPTURE": "DISABLE_HOTKEY_POPUP_ADD_ANKI_CAPTURE",
+            "SHORTCUT_CAPTURE_ONLY": "DISABLE_HOTKEY_CAPTURE_ONLY",
         }
         disable_key = disable_keys.get(key)
         if disable_key and bool(values.get(disable_key)):

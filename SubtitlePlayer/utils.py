@@ -356,7 +356,7 @@ def find_window_target(target, exclude_hwnds=None) -> dict | None:
 
 
 def focus_windows_hwnd(hwnd: int) -> bool:
-    """Try to bring a Windows hwnd to foreground so an external hotkey reaches it."""
+    """Bring a Windows hwnd forward without changing its visible window state."""
     try:
         import ctypes
         import sys
@@ -364,29 +364,136 @@ def focus_windows_hwnd(hwnd: int) -> bool:
             return False
 
         user32 = ctypes.windll.user32
+        kernel32 = ctypes.windll.kernel32
         hwnd = int(hwnd)
-        sw_restore = 9
-        user32.ShowWindow(hwnd, sw_restore)
-        user32.SetForegroundWindow(hwnd)
         try:
-            root_hwnd = int(user32.GetAncestor(hwnd, 2)) or hwnd
+            hwnd = int(user32.GetAncestor(hwnd, 2)) or hwnd  # GA_ROOT
         except Exception:
-            root_hwnd = hwnd
-        deadline = time.perf_counter() + 0.06
+            pass
+        initial_foreground = int(user32.GetForegroundWindow() or 0)
+        try:
+            initial_foreground = int(user32.GetAncestor(initial_foreground, 2)) or initial_foreground
+        except Exception:
+            pass
+        sw_restore = 9
+        # SW_RESTORE also converts a maximized window to its normal rectangle.
+        # Only minimized windows need restoring before they can receive input.
+        if bool(user32.IsIconic(hwnd)):
+            user32.ShowWindow(hwnd, sw_restore)
+        if initial_foreground == hwnd:
+            return True
+
+        current_thread = int(kernel32.GetCurrentThreadId() or 0)
+        attached_threads: list[int] = []
+        for window in (initial_foreground, hwnd):
+            if not window:
+                continue
+            try:
+                thread_id = int(user32.GetWindowThreadProcessId(window, None) or 0)
+            except Exception:
+                thread_id = 0
+            if not thread_id or thread_id == current_thread or thread_id in attached_threads:
+                continue
+            try:
+                if bool(user32.AttachThreadInput(current_thread, thread_id, True)):
+                    attached_threads.append(thread_id)
+            except Exception:
+                pass
+        try:
+            user32.BringWindowToTop(hwnd)
+            user32.SetForegroundWindow(hwnd)
+        finally:
+            for thread_id in reversed(attached_threads):
+                try:
+                    user32.AttachThreadInput(current_thread, thread_id, False)
+                except Exception:
+                    pass
+
+        deadline = time.perf_counter() + 0.15
         while True:
             foreground = int(user32.GetForegroundWindow())
             try:
                 foreground = int(user32.GetAncestor(foreground, 2)) or foreground
             except Exception:
                 pass
-            if int(foreground) == int(root_hwnd):
+            if int(foreground) == int(hwnd):
+                # Chrome can report as foreground before its renderer has
+                # finished accepting keyboard input.
+                time.sleep(0.025)
                 return True
             if time.perf_counter() >= deadline:
+                logger.warning(
+                    "Windows refused foreground activation for hwnd=%s; current foreground=%s",
+                    hwnd,
+                    foreground,
+                )
                 return False
             time.sleep(0.005)
     except Exception:
         logger.debug("Failed to focus hwnd %s", hwnd, exc_info=True)
         return False
+
+
+def focus_windows_content_hwnd(hwnd: int) -> bool:
+    """Focus a browser page child after its top-level window is foreground."""
+    try:
+        import ctypes
+        import sys
+        from ctypes import wintypes
+
+        if not sys.platform.startswith("win") or not hwnd:
+            return False
+
+        user32 = ctypes.windll.user32
+        kernel32 = ctypes.windll.kernel32
+        root_hwnd = int(hwnd)
+        try:
+            root_hwnd = int(user32.GetAncestor(root_hwnd, 2)) or root_hwnd  # GA_ROOT
+        except Exception:
+            pass
+
+        content_hwnds: list[int] = []
+        enum_proc_type = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+
+        def _callback(child, _lparam):
+            try:
+                class_buffer = ctypes.create_unicode_buffer(256)
+                user32.GetClassNameW(child, class_buffer, len(class_buffer))
+                if str(class_buffer.value or "") == "Chrome_RenderWidgetHostHWND":
+                    content_hwnds.append(int(child))
+                    return False
+            except Exception:
+                pass
+            return True
+
+        user32.EnumChildWindows(root_hwnd, enum_proc_type(_callback), 0)
+        if not content_hwnds:
+            return True
+
+        content_hwnd = int(content_hwnds[0])
+        current_thread = int(kernel32.GetCurrentThreadId() or 0)
+        target_thread = int(user32.GetWindowThreadProcessId(content_hwnd, None) or 0)
+        attached = False
+        try:
+            if target_thread and target_thread != current_thread:
+                attached = bool(user32.AttachThreadInput(current_thread, target_thread, True))
+            user32.SetFocus(content_hwnd)
+            focused = int(user32.GetFocus() or 0)
+        finally:
+            if attached:
+                user32.AttachThreadInput(current_thread, target_thread, False)
+        if focused != content_hwnd:
+            logger.warning(
+                "Chrome page renderer did not accept keyboard focus: root=%s child=%s focused=%s",
+                root_hwnd,
+                content_hwnd,
+                focused,
+            )
+        time.sleep(0.015)
+        return True
+    except Exception:
+        logger.debug("Failed to focus browser content for hwnd %s", hwnd, exc_info=True)
+        return True
 
 
 def focus_window_by_title(title_filters: str) -> bool:
@@ -461,7 +568,15 @@ def send_hotkey_to_window(
     hwnd = int(window.get("hwnd") or 0)
     previous = get_foreground_root_hwnd()
     if not hwnd or not focus_windows_hwnd(hwnd):
+        logger.warning(
+            "External hotkey target could not be focused: hotkey=%s hwnd=%s title=%r process=%r",
+            hotkey,
+            hwnd,
+            window.get("title"),
+            window.get("process"),
+        )
         return {"ok": False, "reason": "target_focus_failed", "window": window}
+    focus_windows_content_hwnd(hwnd)
     try:
         repeat_count = max(1, min(20, int(repeat_count)))
     except Exception:
@@ -490,6 +605,9 @@ def send_hotkey_to_window(
             if index + 1 < repeat_count:
                 time.sleep(repeat_interval_ms / 1000.0)
     finally:
+        if sent_count:
+            # Let the target consume the final key-up before focus is restored.
+            time.sleep(0.03)
         if restore_foreground and previous and int(previous) != hwnd:
             try:
                 focus_windows_hwnd(int(previous))
@@ -1004,9 +1122,31 @@ def move_pointer_to_monitor_bottom(root: tk.Tk | None = None) -> bool:
         logger.debug("Failed to move pointer to monitor bottom", exc_info=True)
         return False
 
-def make_draggable(drag_handle: tk.Widget,target: tk.Toplevel,sync_windows: list[tk.Toplevel] = None, on_release=None):
+def make_draggable(
+    drag_handle: tk.Widget,
+    target: tk.Toplevel,
+    sync_windows: list[tk.Toplevel] = None,
+    on_release=None,
+    on_start=None,
+    on_move=None,
+    on_end=None,
+):
+    """Bind a draggable window handle.
+
+    ``on_start``/``on_move``/``on_end`` are optional zero-argument lifecycle
+    hooks.  ``on_release`` retains its legacy geometry arguments so existing
+    callers remain compatible.
+    """
 
     drag_state = {}
+
+    def notify(callback, name):
+        if not callable(callback):
+            return
+        try:
+            callback()
+        except Exception:
+            logger.debug("Window drag %s callback failed", name, exc_info=True)
 
     def pointer_position(event):
         try:
@@ -1038,13 +1178,31 @@ def make_draggable(drag_handle: tk.Widget,target: tk.Toplevel,sync_windows: list
         drag_state["pointer_y"] = pointer_y
         drag_state["window_x"] = int(target.winfo_x())
         drag_state["window_y"] = int(target.winfo_y())
+        notify(on_start, "start")
+
+    def finish_drag():
+        was_active = bool(drag_state.pop("active", False))
+        if not was_active:
+            return False
+        if on_release:
+            try:
+                on_release(
+                    target.winfo_x(),
+                    target.winfo_y(),
+                    target.winfo_width(),
+                    target.winfo_height(),
+                )
+            except Exception:
+                logger.debug("Window drag release callback failed", exc_info=True)
+        notify(on_end, "end")
+        return True
 
     def do_drag(event):
         if not drag_state.get("active"):
             return None
         try:
             if int(getattr(event, "state", 0) or 0) & 0x0004:
-                drag_state["active"] = False
+                finish_drag()
                 return "break"
         except Exception:
             pass
@@ -1056,6 +1214,7 @@ def make_draggable(drag_handle: tk.Widget,target: tk.Toplevel,sync_windows: list
         try:
             position_window(target, new_x, new_y)
         except tk.TclError:
+            finish_drag()
             return
         if sync_windows:
             for win in sync_windows:
@@ -1064,14 +1223,10 @@ def make_draggable(drag_handle: tk.Widget,target: tk.Toplevel,sync_windows: list
                         position_window(win, new_x, new_y)
                     except tk.TclError:
                         pass
+        notify(on_move, "move")
 
     def end_drag(event):
-        was_active = bool(drag_state.pop("active", False))
-        if not was_active:
-            return None
-        if on_release:
-            on_release(target.winfo_x(), target.winfo_y(),
-                       target.winfo_width(), target.winfo_height())
+        finish_drag()
 
 
     drag_handle.bind("<ButtonPress-1>", start_drag)

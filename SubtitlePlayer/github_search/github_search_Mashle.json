@@ -1,268 +1,813 @@
 {
+  "schema_version": 3,
   "anime_query": "Mashle",
-  "last search": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:ass in:path Mashle s03 Amazon",
+  "last_search": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:srt in:path \"Mashle\"",
+  "last search": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:srt in:path \"Mashle\"",
   "repo": "Ajatt-Tools/kitsunekko-mirror",
-  "created_at": "2026-04-25T20:27:27.741999Z",
-  "stop_reason": null,
+  "created_at": "2026-09-04T07:53:13.497984Z",
+  "stop_reason": "fallback_unseasoned_search",
   "rate_info": {
     "limit": "10",
     "remaining": "4",
-    "reset": "1777148895",
+    "reset": "1788508453",
     "retry_after": null
   },
-  "result_count": 36,
+  "search_plan_fingerprint": "30f730cf39aa7bc51f8bddcd99b845957e328b33394d5564e870d47ef9bf4e26",
+  "search_plan": {
+    "profiles": [
+      {
+        "id": "netflix",
+        "label": "Netflix",
+        "enabled": true,
+        "template": "{show} s{season02} Netflix",
+        "rank": 0
+      },
+      {
+        "id": "amazon",
+        "label": "Amazon",
+        "enabled": true,
+        "template": "{show} s{season02} Amazon",
+        "rank": 1
+      },
+      {
+        "id": "hulu",
+        "label": "Hulu",
+        "enabled": true,
+        "template": "{show} s{season02} Hulu",
+        "rank": 2
+      }
+    ],
+    "generic_enabled": false,
+    "unseasoned_enabled": true
+  },
+  "executed_queries": [
+    {
+      "profile_id": "netflix",
+      "profile_label": "Netflix",
+      "rank": 0,
+      "phrase": "Mashle s01 Netflix",
+      "season": 1,
+      "fallback_kind": "provider",
+      "is_seasonal": true,
+      "extension": "srt",
+      "github_query": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:srt in:path \"Mashle s01 Netflix\""
+    },
+    {
+      "profile_id": "netflix",
+      "profile_label": "Netflix",
+      "rank": 0,
+      "phrase": "Mashle s01 Netflix",
+      "season": 1,
+      "fallback_kind": "provider",
+      "is_seasonal": true,
+      "extension": "ass",
+      "github_query": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:ass in:path \"Mashle s01 Netflix\""
+    },
+    {
+      "profile_id": "amazon",
+      "profile_label": "Amazon",
+      "rank": 1,
+      "phrase": "Mashle s01 Amazon",
+      "season": 1,
+      "fallback_kind": "provider",
+      "is_seasonal": true,
+      "extension": "srt",
+      "github_query": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:srt in:path \"Mashle s01 Amazon\""
+    },
+    {
+      "profile_id": "amazon",
+      "profile_label": "Amazon",
+      "rank": 1,
+      "phrase": "Mashle s01 Amazon",
+      "season": 1,
+      "fallback_kind": "provider",
+      "is_seasonal": true,
+      "extension": "ass",
+      "github_query": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:ass in:path \"Mashle s01 Amazon\""
+    },
+    {
+      "profile_id": "hulu",
+      "profile_label": "Hulu",
+      "rank": 2,
+      "phrase": "Mashle s01 Hulu",
+      "season": 1,
+      "fallback_kind": "provider",
+      "is_seasonal": true,
+      "extension": "srt",
+      "github_query": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:srt in:path \"Mashle s01 Hulu\""
+    },
+    {
+      "profile_id": "hulu",
+      "profile_label": "Hulu",
+      "rank": 2,
+      "phrase": "Mashle s01 Hulu",
+      "season": 1,
+      "fallback_kind": "provider",
+      "is_seasonal": true,
+      "extension": "ass",
+      "github_query": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:ass in:path \"Mashle s01 Hulu\""
+    },
+    {
+      "profile_id": "unseasoned",
+      "profile_label": "Unseasoned fallback",
+      "rank": 3,
+      "phrase": "Mashle",
+      "season": 1,
+      "fallback_kind": "unseasoned",
+      "is_seasonal": false,
+      "extension": "srt",
+      "github_query": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:srt in:path \"Mashle\""
+    }
+  ],
+  "result_count": 62,
   "items": [
+    {
+      "name": "[IrizaRaws] Mashle - 01 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "path": "subtitles/anime_tv/MASHLE/[IrizaRaws] Mashle - 01 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[NanakoRaws] Mashle - 01 (1080p).srt",
+      "path": "subtitles/anime_tv/MASHLE/[NanakoRaws] Mashle - 01 (1080p).srt",
+      "season": null,
+      "episode": null,
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
     {
       "name": "マッシュル.-MASHLE-.S01E01.マッシュ・バーンデッドと鍛えぬかれた筋肉.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE/マッシュル.-MASHLE-.S01E01.マッシュ・バーンデッドと鍛えぬかれた筋肉.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 1,
-      "global": 1
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][01][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][01][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "season": null,
+      "episode": null,
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[IrizaRaws] Mashle - 02 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "path": "subtitles/anime_tv/MASHLE/[IrizaRaws] Mashle - 02 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[NanakoRaws] Mashle - 02 (1080p).srt",
+      "path": "subtitles/anime_tv/MASHLE/[NanakoRaws] Mashle - 02 (1080p).srt",
+      "season": null,
+      "episode": null,
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "マッシュル.-MASHLE-.S01E02.マッシュ・バーンデッドと不思議な迷路.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE/マッシュル.-MASHLE-.S01E02.マッシュ・バーンデッドと不思議な迷路.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 2,
-      "global": 2
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][02][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][02][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "season": null,
+      "episode": null,
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[IrizaRaws] Mashle - 03 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "path": "subtitles/anime_tv/MASHLE/[IrizaRaws] Mashle - 03 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 3,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[NanakoRaws] Mashle - 03 (1080p).srt",
+      "path": "subtitles/anime_tv/MASHLE/[NanakoRaws] Mashle - 03 (1080p).srt",
+      "season": null,
+      "episode": null,
+      "global": 3,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "マッシュル.-MASHLE-.S01E03.マッシュ・バーンデッドと怒らせちゃいけない人.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE/マッシュル.-MASHLE-.S01E03.マッシュ・バーンデッドと怒らせちゃいけない人.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 3,
-      "global": 3
+      "global": 3,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "Mashle_.Magic.and.Muscles.S01E04.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/MASHLE/extra/Mashle_.Magic.and.Muscles.S01E04.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 4,
-      "global": 4
+      "name": "[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][03][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][03][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "season": null,
+      "episode": null,
+      "global": 3,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[IrizaRaws] Mashle - 04 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "path": "subtitles/anime_tv/MASHLE/[IrizaRaws] Mashle - 04 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 4,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[NanakoRaws] Mashle - 04 (1080p).srt",
+      "path": "subtitles/anime_tv/MASHLE/[NanakoRaws] Mashle - 04 (1080p).srt",
+      "season": null,
+      "episode": null,
+      "global": 4,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "マッシュル.-MASHLE-.S01E04.マッシュ・バーンデッドと強めの魔法使い.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE/マッシュル.-MASHLE-.S01E04.マッシュ・バーンデッドと強めの魔法使い.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 4,
-      "global": 4
+      "global": 4,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][04][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][04][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "season": null,
+      "episode": null,
+      "global": 4,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[IrizaRaws] Mashle - 05 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "path": "subtitles/anime_tv/MASHLE/[IrizaRaws] Mashle - 05 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 5,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[NanakoRaws] Mashle - 05 (1080p).srt",
+      "path": "subtitles/anime_tv/MASHLE/[NanakoRaws] Mashle - 05 (1080p).srt",
+      "season": null,
+      "episode": null,
+      "global": 5,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "マッシュル.-MASHLE-.S01E05.マッシュ・バーンデッドとモテない同級生.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE/マッシュル.-MASHLE-.S01E05.マッシュ・バーンデッドとモテない同級生.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 5,
-      "global": 5
+      "global": 5,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][05][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][05][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "season": null,
+      "episode": null,
+      "global": 5,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[NanakoRaws] Mashle - 06 (1080p).srt",
+      "path": "subtitles/anime_tv/MASHLE/[NanakoRaws] Mashle - 06 (1080p).srt",
+      "season": null,
+      "episode": null,
+      "global": 6,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "マッシュル.-MASHLE-.S01E06.マッシュ・バーンデッドと鉄の魔法.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE/マッシュル.-MASHLE-.S01E06.マッシュ・バーンデッドと鉄の魔法.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 6,
-      "global": 6
+      "global": 6,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[IrizaRaws] Mashle - 06 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "path": "subtitles/anime_tv/MASHLE/[IrizaRaws] Mashle - 06 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 6,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][06][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][06][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "season": null,
+      "episode": null,
+      "global": 6,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[IrizaRaws] Mashle - 07 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "path": "subtitles/anime_tv/MASHLE/[IrizaRaws] Mashle - 07 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 7,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[NanakoRaws] Mashle - 07 (1080p).srt",
+      "path": "subtitles/anime_tv/MASHLE/[NanakoRaws] Mashle - 07 (1080p).srt",
+      "season": null,
+      "episode": null,
+      "global": 7,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "マッシュル.-MASHLE-.S01E07.マッシュ・バーンデッドと人形の魔法使い.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE/マッシュル.-MASHLE-.S01E07.マッシュ・バーンデッドと人形の魔法使い.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 7,
-      "global": 7
+      "global": 7,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][07][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][07][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "season": null,
+      "episode": null,
+      "global": 7,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[IrizaRaws] Mashle - 08 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "path": "subtitles/anime_tv/MASHLE/[IrizaRaws] Mashle - 08 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[NanakoRaws] Mashle - 08 (1080p).srt",
+      "path": "subtitles/anime_tv/MASHLE/[NanakoRaws] Mashle - 08 (1080p).srt",
+      "season": null,
+      "episode": null,
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "マッシュル.-MASHLE-.S01E08.マッシュ・バーンデッドと狼の魔法使いたち.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE/マッシュル.-MASHLE-.S01E08.マッシュ・バーンデッドと狼の魔法使いたち.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 8,
-      "global": 8
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][08][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][08][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "season": null,
+      "episode": null,
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[IrizaRaws] Mashle - 09 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "path": "subtitles/anime_tv/MASHLE/[IrizaRaws] Mashle - 09 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 9,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[NanakoRaws] Mashle - 09 (1080p).srt",
+      "path": "subtitles/anime_tv/MASHLE/[NanakoRaws] Mashle - 09 (1080p).srt",
+      "season": null,
+      "episode": null,
+      "global": 9,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "マッシュル.-MASHLE-.S01E09.マッシュ・バーンデッドと加速の魔法使い.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE/マッシュル.-MASHLE-.S01E09.マッシュ・バーンデッドと加速の魔法使い.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 9,
-      "global": 9
+      "global": 9,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][09][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][09][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "season": null,
+      "episode": null,
+      "global": 9,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[IrizaRaws] Mashle - 10 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "path": "subtitles/anime_tv/MASHLE/[IrizaRaws] Mashle - 10 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 10,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[NanakoRaws] Mashle - 10 (1080p).srt",
+      "path": "subtitles/anime_tv/MASHLE/[NanakoRaws] Mashle - 10 (1080p).srt",
+      "season": null,
+      "episode": null,
+      "global": 10,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "マッシュル.-MASHLE-.S01E10.マッシュ・バーンデッドと神覚者の男.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE/マッシュル.-MASHLE-.S01E10.マッシュ・バーンデッドと神覚者の男.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 10,
-      "global": 10
+      "global": 10,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][10][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][10][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "season": null,
+      "episode": null,
+      "global": 10,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[IrizaRaws] Mashle - 11 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "path": "subtitles/anime_tv/MASHLE/[IrizaRaws] Mashle - 11 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 11,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[NanakoRaws] Mashle - 11 (1080p).srt",
+      "path": "subtitles/anime_tv/MASHLE/[NanakoRaws] Mashle - 11 (1080p).srt",
+      "season": null,
+      "episode": null,
+      "global": 11,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "マッシュル.-MASHLE-.S01E11.マッシュ・バーンデッドと弱肉強食.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE/マッシュル.-MASHLE-.S01E11.マッシュ・バーンデッドと弱肉強食.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 11,
-      "global": 11
+      "global": 11,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][11][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][11][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "season": null,
+      "episode": null,
+      "global": 11,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[IrizaRaws] Mashle - 12 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "path": "subtitles/anime_tv/MASHLE/[IrizaRaws] Mashle - 12 (BDRip 1920x1080 x264 10bit FLAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 12,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[NanakoRaws] Mashle - 12 END (1080p).srt",
+      "path": "subtitles/anime_tv/MASHLE/[NanakoRaws] Mashle - 12 END (1080p).srt",
+      "season": null,
+      "episode": null,
+      "global": 12,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "マッシュル.-MASHLE-.S01E12.マッシュ・バーンデッドと魔法の鏡.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE/マッシュル.-MASHLE-.S01E12.マッシュ・バーンデッドと魔法の鏡.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 12,
-      "global": 12
+      "global": 12,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "Magic.and.Muscles.S02E01.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/MASHLE/extra/Magic.and.Muscles.S02E01.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 1,
-      "global": 13
-    },
-    {
-      "name": "Magic.and.Muscles.S02E02.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/MASHLE/extra/Magic.and.Muscles.S02E02.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 2,
-      "global": 14
-    },
-    {
-      "name": "Magic.and.Muscles.S02E03.WEBRip.Netflix.ja[cc].srt.srt",
-      "path": "subtitles/anime_tv/MASHLE/extra/Magic.and.Muscles.S02E03.WEBRip.Netflix.ja[cc].srt.srt",
-      "season": 2,
-      "episode": 3,
-      "global": 15
-    },
-    {
-      "name": "Magic.and.Muscles.S02E04.WEBRip.Netflix.ja[cc].srt.srt",
-      "path": "subtitles/anime_tv/MASHLE/extra/Magic.and.Muscles.S02E04.WEBRip.Netflix.ja[cc].srt.srt",
-      "season": 2,
-      "episode": 4,
-      "global": 16
-    },
-    {
-      "name": "Magic.and.Muscles.S02E5.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/MASHLE/extra/Magic.and.Muscles.S02E5.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 5,
-      "global": 17
-    },
-    {
-      "name": "Magic.and.Muscles.S02E06.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/MASHLE/extra/Magic.and.Muscles.S02E06.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 6,
-      "global": 18
-    },
-    {
-      "name": "Magic.and.Muscles.S02E07.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/MASHLE/extra/Magic.and.Muscles.S02E07.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 7,
-      "global": 19
-    },
-    {
-      "name": "Magic.and.Muscles.S02E08WEBRip.Netflix.ja[cc].srt.srt",
-      "path": "subtitles/anime_tv/MASHLE/extra/Magic.and.Muscles.S02E08WEBRip.Netflix.ja[cc].srt.srt",
-      "season": 2,
-      "episode": 8,
-      "global": 20
-    },
-    {
-      "name": "Magic.and.Muscles.S02E09.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/MASHLE/extra/Magic.and.Muscles.S02E09.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 9,
-      "global": 21
-    },
-    {
-      "name": "Magic.and.Muscles.S02E10.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/MASHLE/extra/Magic.and.Muscles.S02E10.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 10,
-      "global": 22
-    },
-    {
-      "name": "Magic.and.Muscles.S02E11.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/MASHLE/extra/Magic.and.Muscles.S02E11.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 11,
-      "global": 23
+      "name": "[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][12][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/[DBD-Raws][Mashle Shinkakusha Kouho Senbatsu Shiken Hen][12][1080P][BDRip][HEVC-10bit][FLACx2].srt",
+      "season": null,
+      "episode": null,
+      "global": 12,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "マッシュル.-MASHLE-.S02E13.マッシュ・バーンデッドと神覚者たち.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/マッシュル.-MASHLE-.S02E13.マッシュ・バーンデッドと神覚者たち.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 13,
-      "global": 25
+      "global": 13,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "MASHLE (2024) - 13 「マッシュ・バーンデッドと神覚者たち」 (ANIMAX 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/MASHLE (2024) - 13 「マッシュ・バーンデッドと神覚者たち」 (ANIMAX 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 13,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "マッシュル.-MASHLE-.S02E14.マッシュ・バーンデッドと実家.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/マッシュル.-MASHLE-.S02E14.マッシュ・バーンデッドと実家.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 14,
-      "global": 26
+      "global": 14,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "マッシュル.-MASHLE-.S02E15.レイン・エイムズと神に選ばれた力.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/マッシュル.-MASHLE-.S02E15.レイン・エイムズと神に選ばれた力.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 15,
-      "global": 27
+      "global": 15,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "マッシュル.-MASHLE-.S02E16.マッシュ・バーンデッドと強固な風船.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/マッシュル.-MASHLE-.S02E16.マッシュ・バーンデッドと強固な風船.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 16,
-      "global": 28
+      "global": 16,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "マッシュル.-MASHLE-.S02E17.フィン・エイムズと友達.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/マッシュル.-MASHLE-.S02E17.フィン・エイムズと友達.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 17,
-      "global": 29
+      "global": 17,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "マッシュル.-MASHLE-.S02E18.マッシュ・バーンデッドと危ないアッチ向いてホイ.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/マッシュル.-MASHLE-.S02E18.マッシュ・バーンデッドと危ないアッチ向いてホイ.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 18,
-      "global": 30
+      "global": 18,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "マッシュル.-MASHLE-.S02E19.マッシュ・バーンデッドと音の魔法使い.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/マッシュル.-MASHLE-.S02E19.マッシュ・バーンデッドと音の魔法使い.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 19,
-      "global": 31
+      "global": 19,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "MASHLE (2024) - 20 「マッシュ・バーンデッドと大きな塔」 (ANIMAX 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/MASHLE (2024) - 20 「マッシュ・バーンデッドと大きな塔」 (ANIMAX 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 20,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "マッシュル.-MASHLE-.S02E20.マッシュ・バーンデッドと大きな塔.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/マッシュル.-MASHLE-.S02E20.マッシュ・バーンデッドと大きな塔.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 20,
-      "global": 32
+      "global": 20,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
+      "conflicts": [
+        "global_collision"
+      ]
     },
     {
       "name": "マッシュル.-MASHLE-.S02E21.ウォールバーグ・バイガンと闇の魔法.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/マッシュル.-MASHLE-.S02E21.ウォールバーグ・バイガンと闇の魔法.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 21,
-      "global": 33
+      "global": 21,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "マッシュル.-MASHLE-.S02E22.ウォールバーグ・バイガンと最大の危機.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/マッシュル.-MASHLE-.S02E22.ウォールバーグ・バイガンと最大の危機.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 22,
-      "global": 34
+      "global": 22,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "マッシュル.-MASHLE-.S02E23.マッシュ・バーンデッドと最強の魔法使いの始まり.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/マッシュル.-MASHLE-.S02E23.マッシュ・バーンデッドと最強の魔法使いの始まり.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 23,
-      "global": 35
+      "global": 23,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "マッシュル.-MASHLE-.S02E24.マッシュ・バーンデッドと良い友達.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/MASHLE. Kami Shinkakusha Kouho Senbatsu Shiken-hen/マッシュル.-MASHLE-.S02E24.マッシュ・バーンデッドと良い友達.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 24,
-      "global": 36
+      "global": 24,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     }
   ],
   "sxexx_to_gxx": {
@@ -278,28 +823,17 @@
     "S01E10": 10,
     "S01E11": 11,
     "S01E12": 12,
-    "S02E01": 13,
-    "S02E02": 14,
-    "S02E03": 15,
-    "S02E04": 16,
-    "S02E05": 17,
-    "S02E06": 18,
-    "S02E07": 19,
-    "S02E08": 20,
-    "S02E09": 21,
-    "S02E10": 22,
-    "S02E11": 23,
-    "S02E13": 25,
-    "S02E14": 26,
-    "S02E15": 27,
-    "S02E16": 28,
-    "S02E17": 29,
-    "S02E18": 30,
-    "S02E19": 31,
-    "S02E20": 32,
-    "S02E21": 33,
-    "S02E22": 34,
-    "S02E23": 35,
-    "S02E24": 36
+    "S02E13": 13,
+    "S02E14": 14,
+    "S02E15": 15,
+    "S02E16": 16,
+    "S02E17": 17,
+    "S02E18": 18,
+    "S02E19": 19,
+    "S02E20": 20,
+    "S02E21": 21,
+    "S02E22": 22,
+    "S02E23": 23,
+    "S02E24": 24
   }
 }

@@ -478,3 +478,21 @@ def test_external_hotkey_delivery_repeats_without_refocusing(monkeypatch):
         ("send", "left"),
         ("focus", 10),
     ]
+
+
+def test_external_hotkey_delivery_can_leave_target_focused(monkeypatch):
+    target_window = {"hwnd": 20, "title": "ABSPlayer", "process": "chrome.exe"}
+    calls = []
+    monkeypatch.setattr(utils, "get_foreground_root_hwnd", lambda: 10)
+    monkeypatch.setattr(utils, "focus_windows_hwnd", lambda hwnd: calls.append(("focus", hwnd)) or True)
+    monkeypatch.setattr(utils, "send_global_hotkey", lambda hotkey: calls.append(("send", hotkey)) or True)
+    monkeypatch.setattr(utils.time, "sleep", lambda _delay: None)
+
+    result = utils.send_hotkey_to_window(
+        target_window,
+        "space",
+        restore_foreground=False,
+    )
+
+    assert result["ok"] is True
+    assert calls == [("focus", 20), ("send", "space")]

@@ -1,0 +1,370 @@
+...............................................F........................ [ 16%]
+...........................................................FFFFFFFFFF.FF [ 32%]
+F...........F....F.FFFF..F.....F..F......F......FF......FF......F....... [ 48%]
+....FFF........................F........FF..F........................... [ 64%]
+........................................................................ [ 80%]
+...............................................F....F................... [ 96%]
+..............                                                           [100%]
+================================== FAILURES ===================================
+_______ test_post_add_external_capture_focuses_target_and_sends_hotkey ________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_anki_controller.py:72: in test_post_add_external_capture_focuses_target_and_sends_hotkey
+    assert calls == [
+E   AssertionError: assert [('focus', 'C...trl+shift+y')] == [('focus', 'C...ubtitle_end')]
+E     
+E     Right contains one more item: ('jump', 'subtitle_end')
+E     Use -v to get more diff
+_____ test_slider_drag_preview_skips_auto_ruby_and_uses_preview_rendering _____
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py:166: in test_slider_drag_preview_skips_auto_ruby_and_uses_preview_rendering
+    navigation._render_slider_preview()
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\subtitle_navigation.py:685: in _render_slider_preview
+    self._update_subtitle_display(allow_auto_ruby=False, preview=True)
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\subtitle_navigation.py:419: in _update_subtitle_display
+    self.renderer.render_subtitle(
+E   TypeError: FakeRenderer.render_subtitle() got an unexpected keyword argument 'cue_snapshot'
+______ test_slider_drag_does_not_queue_preview_for_already_rendered_cue _______
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py:176: in test_slider_drag_does_not_queue_preview_for_already_rendered_cue
+    navigation._update_subtitle_display(force=True, allow_auto_ruby=False)
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\subtitle_navigation.py:419: in _update_subtitle_display
+    self.renderer.render_subtitle(
+E   TypeError: FakeRenderer.render_subtitle() got an unexpected keyword argument 'cue_snapshot'
+_______ test_subtitle_render_grows_overlay_when_lazy_ruby_line_is_wider _______
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py:257: in test_subtitle_render_grows_overlay_when_lazy_ruby_line_is_wider
+    navigation._update_subtitle_display(force=True)
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\subtitle_navigation.py:419: in _update_subtitle_display
+    self.renderer.render_subtitle(
+E   TypeError: FakeRenderer.render_subtitle() got an unexpected keyword argument 'cue_snapshot'
+_________________ test_hidden_subtitle_reappears_on_next_cue __________________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py:269: in test_hidden_subtitle_reappears_on_next_cue
+    navigation._update_subtitle_display(force=True, allow_auto_ruby=False)
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\subtitle_navigation.py:419: in _update_subtitle_display
+    self.renderer.render_subtitle(
+E   TypeError: FakeRenderer.render_subtitle() got an unexpected keyword argument 'cue_snapshot'
+_______________ test_subtitle_display_respects_cue_end_time_gap _______________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py:294: in test_subtitle_display_respects_cue_end_time_gap
+    navigation._update_subtitle_display(force=True, allow_auto_ruby=False)
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\subtitle_navigation.py:419: in _update_subtitle_display
+    self.renderer.render_subtitle(
+E   TypeError: FakeRenderer.render_subtitle() got an unexpected keyword argument 'cue_snapshot'
+_____________ test_copy_text_uses_visible_rendered_subtitle_index _____________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py:315: in test_copy_text_uses_visible_rendered_subtitle_index
+    navigation._update_subtitle_display(force=True, allow_auto_ruby=False)
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\subtitle_navigation.py:419: in _update_subtitle_display
+    self.renderer.render_subtitle(
+E   TypeError: FakeRenderer.render_subtitle() got an unexpected keyword argument 'cue_snapshot'
+_______ test_right_click_popup_does_not_redraw_subtitle_before_opening ________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py:336: in test_right_click_popup_does_not_redraw_subtitle_before_opening
+    result = SubtitleController._on_copy_popup(controller)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\controller.py:565: in _on_copy_popup
+    self.popup.open_copy_popup(text, line_segments=line_segments, cue_snapshot=snapshot)
+E   TypeError: test_right_click_popup_does_not_redraw_subtitle_before_opening.<locals>.<lambda>() got an unexpected keyword argument 'line_segments'
+____________ test_episode_switch_resets_time_and_schedules_preload ____________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py:384: in test_episode_switch_resets_time_and_schedules_preload
+    EpisodeController(controller).change_episode("set")
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\episode_controller.py:462: in change_episode
+    self._after_episode_change() #reset all with new srt data
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\episode_controller.py:492: in _after_episode_change
+    self.update_max_width()
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\episode_controller.py:554: in update_max_width
+    self.renderer.render_subtitle(
+E   TypeError: FakeRenderer.render_subtitle() got an unexpected keyword argument 'cue_snapshot'
+_______________ test_episode_switch_restores_saved_episode_time _______________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py:480: in test_episode_switch_restores_saved_episode_time
+    EpisodeController(controller).change_episode("set")
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\episode_controller.py:462: in change_episode
+    self._after_episode_change() #reset all with new srt data
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\episode_controller.py:492: in _after_episode_change
+    self.update_max_width()
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\episode_controller.py:554: in update_max_width
+    self.renderer.render_subtitle(
+E   TypeError: FakeRenderer.render_subtitle() got an unexpected keyword argument 'cue_snapshot'
+_________ test_episode_switch_default_start_toggle_ignores_saved_time _________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py:541: in test_episode_switch_default_start_toggle_ignores_saved_time
+    EpisodeController(controller).change_episode("set")
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\episode_controller.py:462: in change_episode
+    self._after_episode_change() #reset all with new srt data
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\episode_controller.py:492: in _after_episode_change
+    self.update_max_width()
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\episode_controller.py:554: in update_max_width
+    self.renderer.render_subtitle(
+E   TypeError: FakeRenderer.render_subtitle() got an unexpected keyword argument 'cue_snapshot'
+___________________ test_popup_add_selection_callback_flow ____________________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py:584: in test_popup_add_selection_callback_flow
+    assert calls == [{"selected_text": "選択", "subtitle_text": "字幕"}]
+E   AssertionError: assert [{'cue_snapsh..._text': '字幕'}] == [{'selected_t..._text': '字幕'}]
+E     
+E     At index 0 diff: {'selected_text': '選択', 'subtitle_text': '字幕', 'cue_snapshot': None, 'selection_spans': ()} != {'selected_text': '選択', 'subtitle_text': '字幕'}
+E     Use -v to get more diff
+_______ test_popup_hotkey_add_uses_popup_selection_without_window_focus _______
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py:602: in test_popup_hotkey_add_uses_popup_selection_without_window_focus
+    assert calls == [{"selected_text": "\u9078\u629e", "subtitle_text": "\u5b57\u5e55"}]
+E   AssertionError: assert [{'cue_snapsh..._text': '字幕'}] == [{'selected_t..._text': '字幕'}]
+E     
+E     At index 0 diff: {'selected_text': '選択', 'subtitle_text': '字幕', 'cue_snapshot': None, 'selection_spans': ()} != {'selected_text': '選択', 'subtitle_text': '字幕'}
+E     Use -v to get more diff
+_____________ test_popup_hotkey_add_capture_forwards_capture_flag _____________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py:630: in test_popup_hotkey_add_capture_forwards_capture_flag
+    assert calls == [
+E   AssertionError: assert [{'cue_snapsh...ns': (), ...}] == [{'post_add_c..._text': '字幕'}]
+E     
+E     At index 0 diff: {'selected_text': '選択', 'subtitle_text': '字幕', 'cue_snapshot': None, 'selection_spans': (), 'post_add_capture': True} != {'selected_text': '選択', 'subtitle_text': '字幕', 'post_add_capture': True}
+E     Use -v to get more diff
+___________________________ test_video_click_flags ____________________________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py:64: in test_video_click_flags
+    ctrl._init_runtime_state()
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\controller.py:161: in _init_runtime_state
+    self._load_anki_add_history_state(persist=True)
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\controller.py:622: in _load_anki_add_history_state
+    persist_profile = getattr(self.settings, "persist_anki_add_history", None)
+                              ^^^^^^^^^^^^^
+E   AttributeError: 'SubtitleController' object has no attribute 'settings'
+______________ test_physical_altgr_triggers_ctrl_alt_hover_combo ______________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py:192: in test_physical_altgr_triggers_ctrl_alt_hover_combo
+    assert hotkeys.hover_hold_active("HOVER_DICTIONARY_ENABLED", "HOVER_DICTIONARY_HOTKEY", "shift") is True
+E   AssertionError: assert False is True
+E    +  where False = hover_hold_active('HOVER_DICTIONARY_ENABLED', 'HOVER_DICTIONARY_HOTKEY', 'shift')
+E    +    where hover_hold_active = <SubtitlePlayer.controller.hotkey_controller.HotkeyController object at 0x000001643AE8D090>.hover_hold_active
+_________ test_global_shortcut_is_blocked_when_text_input_is_focused __________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py:228: in test_global_shortcut_is_blocked_when_text_input_is_focused
+    assert controller._input_actions.empty()
+E   assert False
+E    +  where False = empty()
+E    +    where empty = <queue.Queue object at 0x00000163B29E3250>.empty
+E    +      where <queue.Queue object at 0x00000163B29E3250> = namespace(config=<test_controller_flags._DictConfig object at 0x00000163B2AC5490>, shift_pressed=True, alt_pressed=Fal...False, _voice_action_generation=0, _voice_frozen_targets={}, _voice_frozen_target_counter=0, _active_voice_target=None)._input_actions
+__________ test_hover_hold_combo_tracks_while_text_input_is_focused ___________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py:245: in test_hover_hold_combo_tracks_while_text_input_is_focused
+    assert controller._input_actions.empty()
+E   assert False
+E    +  where False = empty()
+E    +    where empty = <queue.Queue object at 0x00000163B2B61940>.empty
+E    +      where <queue.Queue object at 0x00000163B2B61940> = namespace(config=<test_controller_flags._DictConfig object at 0x00000163B2A729C0>, shift_pressed=False, alt_pressed=Fa...False, _voice_action_generation=0, _voice_frozen_targets={}, _voice_frozen_target_counter=0, _active_voice_target=None)._input_actions
+____ test_hover_hold_can_switch_key_while_ctrl_remains_held_in_text_input _____
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py:268: in test_hover_hold_can_switch_key_while_ctrl_remains_held_in_text_input
+    assert hotkeys.hover_hold_active("HOVER_DICTIONARY_ENABLED", "HOVER_DICTIONARY_HOTKEY", "shift") is True
+E   AssertionError: assert False is True
+E    +  where False = hover_hold_active('HOVER_DICTIONARY_ENABLED', 'HOVER_DICTIONARY_HOTKEY', 'shift')
+E    +    where hover_hold_active = <SubtitlePlayer.controller.hotkey_controller.HotkeyController object at 0x00000163B2A72E00>.hover_hold_active
+______ test_hover_hold_ctrl_alt_combo_tracks_while_text_input_is_focused ______
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py:292: in test_hover_hold_ctrl_alt_combo_tracks_while_text_input_is_focused
+    assert hotkeys.hover_hold_active("HOVER_DICTIONARY_ENABLED", "HOVER_DICTIONARY_HOTKEY", "shift") is True
+E   AssertionError: assert False is True
+E    +  where False = hover_hold_active('HOVER_DICTIONARY_ENABLED', 'HOVER_DICTIONARY_HOTKEY', 'shift')
+E    +    where hover_hold_active = <SubtitlePlayer.controller.hotkey_controller.HotkeyController object at 0x00000163B2A73BD0>.hover_hold_active
+_ test_cached_app_foreground_blocks_subtitle_toggle_when_text_input_is_focused _
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py:343: in test_cached_app_foreground_blocks_subtitle_toggle_when_text_input_is_focused
+    assert controller._input_actions.empty()
+E   assert False
+E    +  where False = empty()
+E    +    where empty = <queue.Queue object at 0x000001643AEA8550>.empty
+E    +      where <queue.Queue object at 0x000001643AEA8550> = namespace(config=<test_controller_flags._DictConfig object at 0x000001643AE009B0>, shift_pressed=False, alt_pressed=Fa...tion=0, _voice_frozen_targets={}, _voice_frozen_target_counter=0, _active_voice_target=None, _app_window_hwnds={12345})._input_actions
+_____________ test_advanced_window_show_uses_topmost_no_activate ______________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py:504: in test_advanced_window_show_uses_topmost_no_activate
+    SettingsAdvancedUI._show_advanced_window(ui, win)
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\view\settings_advanced_ui.py:1136: in _show_advanced_window
+    self._advanced_hidden_by_minimize = False
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\view\settings_advanced_ui.py:76: in __setattr__
+    setattr(self.settings_ui, name, value)
+          ^^^^^^^^^^^^^^^^
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\view\settings_advanced_ui.py:70: in __getattr__
+    return getattr(self.settings_ui, name)
+                   ^^^^^^^^^^^^^^^^
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\view\settings_advanced_ui.py:70: in __getattr__
+    return getattr(self.settings_ui, name)
+                   ^^^^^^^^^^^^^^^^
+E   RecursionError: maximum recursion depth exceeded
+!!! Recursion detected (same locals & position)
+______________ test_hover_pause_toggles_app_timer_with_spacebar _______________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py:600: in test_hover_pause_toggles_app_timer_with_spacebar
+    assert [event[0] for event in keyboard.events] == ["press", "release"]
+E   AssertionError: assert [] == ['press', 'release']
+E     
+E     Right contains 2 more items, first extra item: 'press'
+E     Use -v to get more diff
+------------------------------ Captured log call ------------------------------
+WARNING  SubtitlePlayer.controller.overlay_controller:overlay_controller.py:141 Failed to send subtitle-hover spacebar toggle
+Traceback (most recent call last):
+  File "D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\..\SubtitlePlayer\controller\overlay_controller.py", line 137, in _trigger_background_video_space
+    keyboard.tap(Key.space)
+    ^^^^^^^^^^^^
+AttributeError: '_Keyboard' object has no attribute 'tap'
+_________ test_generic_anki_prompt_does_not_clear_pending_add_payload _________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py:787: in test_generic_anki_prompt_does_not_clear_pending_add_payload
+    anki_controller._show_anki_wait_dialog()
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\anki_controller.py:1424: in _show_anki_wait_dialog
+    auto_start = bool(self.config.get("ANKI_AUTO_START") or False)
+                      ^^^^^^^^^^^
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\anki_controller.py:31: in __getattr__
+    return getattr(self.controller, name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute 'config'
+_______ test_global_shortcut_is_blocked_when_advanced_entry_is_focused ________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py:925: in test_global_shortcut_is_blocked_when_advanced_entry_is_focused
+    assert controller._input_actions.empty()
+E   assert False
+E    +  where False = empty()
+E    +    where empty = <queue.Queue object at 0x00000163B2ADA850>.empty
+E    +      where <queue.Queue object at 0x00000163B2ADA850> = namespace(config=<test_controller_flags._DictConfig object at 0x00000163B2A56E10>, shift_pressed=False, alt_pressed=Fa...False, _voice_action_generation=0, _voice_frozen_targets={}, _voice_frozen_target_counter=0, _active_voice_target=None)._input_actions
+______ test_popup_translation_shortcut_works_when_popup_entry_is_focused ______
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py:942: in test_popup_translation_shortcut_works_when_popup_entry_is_focused
+    assert controller.translation_pressed is True
+E   assert False is True
+E    +  where False = namespace(config=<test_controller_flags._DictConfig object at 0x000001643AE3D4F0>, shift_pressed=False, alt_pressed=Fa...False, _voice_action_generation=0, _voice_frozen_targets={}, _voice_frozen_target_counter=0, _active_voice_target=None).translation_pressed
+__________ test_popup_translation_release_checks_all_multi_bindings ___________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py:1059: in test_popup_translation_release_checks_all_multi_bindings
+    assert controller.translation_pressed is True
+E   assert False is True
+E    +  where False = namespace(config=<test_controller_flags._DictConfig object at 0x00000163B29B03D0>, shift_pressed=False, alt_pressed=Fa...False, _voice_action_generation=0, _voice_frozen_targets={}, _voice_frozen_target_counter=0, _active_voice_target=None).translation_pressed
+________ test_popup_translation_key_repeat_does_not_refire_while_held _________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py:1084: in test_popup_translation_key_repeat_does_not_refire_while_held
+    assert controller.translation_pressed is True
+E   assert False is True
+E    +  where False = namespace(config=<test_controller_flags._DictConfig object at 0x000001643AF54650>, shift_pressed=False, alt_pressed=Fa...False, _voice_action_generation=0, _voice_frozen_targets={}, _voice_frozen_target_counter=0, _active_voice_target=None).translation_pressed
+_____________ test_external_click_clears_stale_popup_hotkey_state _____________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py:1202: in test_external_click_clears_stale_popup_hotkey_state
+    assert controller.translation_pressed is True
+E   assert False is True
+E    +  where False = namespace(config=<test_controller_flags._DictConfig object at 0x000001643AED4140>, shift_pressed=False, alt_pressed=Fa... _voice_frozen_targets={}, _voice_frozen_target_counter=0, _active_voice_target=None, _active_translation_binding=None).translation_pressed
+_______________ test_plain_shift_hover_requires_no_ctrl_or_alt ________________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py:1482: in test_plain_shift_hover_requires_no_ctrl_or_alt
+    assert controller._plain_shift_hover_active() is True
+E   assert False is True
+E    +  where False = _plain_shift_hover_active()
+E    +    where _plain_shift_hover_active = <SubtitlePlayer.controller.controller.SubtitleController object at 0x000001643AE8CB90>._plain_shift_hover_active
+_____ test_hover_hold_active_supports_configurable_modifier_and_key_combo _____
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py:1504: in test_hover_hold_active_supports_configurable_modifier_and_key_combo
+    assert hotkeys.hover_hold_active("HOVER_DICTIONARY_ENABLED", "HOVER_DICTIONARY_HOTKEY", "shift") is True
+E   AssertionError: assert False is True
+E    +  where False = hover_hold_active('HOVER_DICTIONARY_ENABLED', 'HOVER_DICTIONARY_HOTKEY', 'shift')
+E    +    where hover_hold_active = <SubtitlePlayer.controller.hotkey_controller.HotkeyController object at 0x000001643AEB16D0>.hover_hold_active
+__________ test_specific_hover_combo_wins_over_single_modifier_hover __________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py:1533: in test_specific_hover_combo_wins_over_single_modifier_hover
+    assert controller._hover_modifier_mode() == "dictionary"
+E   AssertionError: assert 'ruby' == 'dictionary'
+E     
+E     - dictionary
+E     + ruby
+_________________ test_hotkey_queue_preserves_event_timestamp _________________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_playback_controller.py:257: in test_hotkey_queue_preserves_event_timestamp
+    hotkeys._process_input_queue()
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\hotkey_controller.py:558: in _process_input_queue
+    self._poll_global_toggle_subtitles()
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\hotkey_controller.py:2428: in _poll_global_toggle_subtitles
+    bindings = self._shortcut_bindings_for_key("SHORTCUT_TOGGLE_SUBTITLES")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\hotkey_controller.py:2014: in _shortcut_bindings_for_key
+    self._get_shortcut_value(config_key),
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\hotkey_controller.py:1920: in _get_shortcut_value
+    default = self._SHORTCUT_DEFAULT_OVERRIDES.get(config_key, self.SHORTCUT_DEFAULTS.get(config_key, ""))
+                                                               ^^^^^^^^^^^^^^^^^^^^^^
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\SubtitlePlayer\controller\hotkey_controller.py:47: in __getattr__
+    return getattr(self.controller, name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute 'SHORTCUT_DEFAULTS'
+______________ test_hotkey_dispatch_adds_popup_selection_to_anki ______________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_playback_controller.py:418: in test_hotkey_dispatch_adds_popup_selection_to_anki
+    assert calls == ["popup_add"]
+E   AssertionError: assert [] == ['popup_add']
+E     
+E     Right contains one more item: 'popup_add'
+E     Use -v to get more diff
+------------------------------ Captured log call ------------------------------
+ERROR    SubtitlePlayer.controller.hotkey_controller:hotkey_controller.py:715 Failed to add current selection or hovered subtitle word to Anki: test_hotkey_dispatch_adds_popup_selection_to_anki.<locals>.<lambda>() got an unexpected keyword argument 'on_complete'
+Traceback (most recent call last):
+  File "D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\..\SubtitlePlayer\controller\hotkey_controller.py", line 713, in _dispatch_input_action
+    self._add_current_anki_hotkey_target(post_add_capture=False)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\..\SubtitlePlayer\controller\hotkey_controller.py", line 1895, in _add_current_anki_hotkey_target
+    elif bool(add_selected(on_complete=on_complete)):
+              ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: test_hotkey_dispatch_adds_popup_selection_to_anki.<locals>.<lambda>() got an unexpected keyword argument 'on_complete'
+_______ test_hotkey_dispatch_adds_popup_selection_to_anki_with_capture ________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_playback_controller.py:436: in test_hotkey_dispatch_adds_popup_selection_to_anki_with_capture
+    assert calls == [{"post_add_capture": True}]
+E   AssertionError: assert [{'on_complet...pture': True}] == [{'post_add_capture': True}]
+E     
+E     At index 0 diff: {'post_add_capture': True, 'on_complete': None} != {'post_add_capture': True}
+E     Use -v to get more diff
+------------------------------ Captured log call ------------------------------
+ERROR    SubtitlePlayer.controller.hotkey_controller:hotkey_controller.py:722 Failed to add current selection or hovered subtitle word with capture: 'types.SimpleNamespace' object has no attribute 'renderer'
+Traceback (most recent call last):
+  File "D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\..\SubtitlePlayer\controller\hotkey_controller.py", line 718, in _dispatch_input_action
+    accepted = self._add_current_anki_hotkey_target(post_add_capture=True)
+  File "D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\..\SubtitlePlayer\controller\hotkey_controller.py", line 1897, in _add_current_anki_hotkey_target
+    return add_highlighted() if not prefer_highlight else False
+           ~~~~~~~~~~~~~~~^^
+  File "D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\..\SubtitlePlayer\controller\hotkey_controller.py", line 1849, in add_highlighted
+    payload = self._highlighted_anki_payload()
+  File "D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\..\SubtitlePlayer\controller\hotkey_controller.py", line 1513, in _highlighted_anki_payload
+    getter = getattr(self.renderer, "highlighted_subtitle_selection_for_anki", None)
+                     ^^^^^^^^^^^^^
+  File "D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\..\SubtitlePlayer\controller\hotkey_controller.py", line 47, in __getattr__
+    return getattr(self.controller, name)
+AttributeError: 'types.SimpleNamespace' object has no attribute 'renderer'
+_ test_release_seek_drops_existing_queued_seek_action_to_prevent_double_jump __
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_playback_controller.py:500: in test_release_seek_drops_existing_queued_seek_action_to_prevent_double_jump
+    assert queued_actions == ["go_back"]
+E   AssertionError: assert ['go_back', 'go_back'] == ['go_back']
+E     
+E     Left contains one more item: 'go_back'
+E     Use -v to get more diff
+_____________ test_disabled_voice_action_is_removed_from_grammar ______________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_voice_commands.py:50: in test_disabled_voice_action_is_removed_from_grammar
+    commands["add_card_capture"]["enabled"] = False
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'add_card_capture'
+________ test_capture_phrases_are_exact_and_support_indexed_positions _________
+D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_voice_commands.py:127: in test_capture_phrases_are_exact_and_support_indexed_positions
+    commands["add_card_capture"]["en"] = ["capture"]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'add_card_capture'
+============================== warnings summary ===============================
+tests/model/test_subtitle_manager.py::test_print_first_subtitles
+  D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\..\SubtitlePlayer\model\subtitle_manager.py:5491: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    ts = datetime.datetime.utcnow().isoformat() + "Z"
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_anki_controller.py::test_post_add_external_capture_focuses_target_and_sends_hotkey
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py::test_slider_drag_preview_skips_auto_ruby_and_uses_preview_rendering
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py::test_slider_drag_does_not_queue_preview_for_already_rendered_cue
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py::test_subtitle_render_grows_overlay_when_lazy_ruby_line_is_wider
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py::test_hidden_subtitle_reappears_on_next_cue
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py::test_subtitle_display_respects_cue_end_time_gap
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py::test_copy_text_uses_visible_rendered_subtitle_index
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py::test_right_click_popup_does_not_redraw_subtitle_before_opening
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py::test_episode_switch_resets_time_and_schedules_preload
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py::test_episode_switch_restores_saved_episode_time
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py::test_episode_switch_default_start_toggle_ignores_saved_time
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py::test_popup_add_selection_callback_flow
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py::test_popup_hotkey_add_uses_popup_selection_without_window_focus
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_fake_tk.py::test_popup_hotkey_add_capture_forwards_capture_flag
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py::test_video_click_flags
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py::test_physical_altgr_triggers_ctrl_alt_hover_combo
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py::test_global_shortcut_is_blocked_when_text_input_is_focused
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py::test_hover_hold_combo_tracks_while_text_input_is_focused
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py::test_hover_hold_can_switch_key_while_ctrl_remains_held_in_text_input
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py::test_hover_hold_ctrl_alt_combo_tracks_while_text_input_is_focused
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py::test_cached_app_foreground_blocks_subtitle_toggle_when_text_input_is_focused
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py::test_advanced_window_show_uses_topmost_no_activate
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py::test_hover_pause_toggles_app_timer_with_spacebar
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py::test_generic_anki_prompt_does_not_clear_pending_add_payload
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py::test_global_shortcut_is_blocked_when_advanced_entry_is_focused
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py::test_popup_translation_shortcut_works_when_popup_entry_is_focused
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py::test_popup_translation_release_checks_all_multi_bindings
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py::test_popup_translation_key_repeat_does_not_refire_while_held
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py::test_external_click_clears_stale_popup_hotkey_state
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py::test_plain_shift_hover_requires_no_ctrl_or_alt
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py::test_hover_hold_active_supports_configurable_modifier_and_key_combo
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_controller_flags.py::test_specific_hover_combo_wins_over_single_modifier_hover
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_playback_controller.py::test_hotkey_queue_preserves_event_timestamp
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_playback_controller.py::test_hotkey_dispatch_adds_popup_selection_to_anki
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_playback_controller.py::test_hotkey_dispatch_adds_popup_selection_to_anki_with_capture
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_playback_controller.py::test_release_seek_drops_existing_queued_seek_action_to_prevent_double_jump
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_voice_commands.py::test_disabled_voice_action_is_removed_from_grammar
+FAILED D:\Tobi\Programme\VSCode_projects\JapaneseSubtitles\dev\tests\model\test_voice_commands.py::test_capture_phrases_are_exact_and_support_indexed_positions
+38 failed, 408 passed, 1 warning in 13.74s

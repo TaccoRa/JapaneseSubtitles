@@ -7,6 +7,11 @@ import logging
 from typing import Callable, List, Optional, Tuple
 
 try:
+    from SubtitlePlayer.model.text_spacing import normalize_ruby_spacing
+except ImportError:
+    from model.text_spacing import normalize_ruby_spacing
+
+try:
     from SubtitlePlayer.furigana_splitter import (
         iter_number_counter_matches,
         iter_ordinal_number_matches,
@@ -155,7 +160,7 @@ def strip_html(text: str) -> str:
 
 
 def escape_text(text: str) -> str:
-    text = text or ""
+    text = normalize_ruby_spacing(text)
     text = HTML_BR_RE.sub("---newline---", text)
     text = text.replace("\n", " ")
     text = text.replace("\uff5e", "~")
@@ -537,7 +542,9 @@ class AddonRubyGenerator:
     def segments(self, text: str, split_kanji_compounds: bool | None = None) -> List[Segment]:
         self._ensure_open()
         split_flag = self.split_kanji_compounds if split_kanji_compounds is None else bool(split_kanji_compounds)
-        return self._segments_with_source_ruby(text, split_kanji_compounds=split_flag)
+        return self._segments_with_source_ruby(
+            normalize_ruby_spacing(text), split_kanji_compounds=split_flag
+        )
 
     def _generated_segments(
         self,
@@ -1040,9 +1047,10 @@ def bracket_text_to_segments(
     single_kanji_reader: SingleKanjiReader = None,
     split_kanji_compounds: bool = False,
 ) -> List[Segment]:
+    text = normalize_ruby_spacing(text)
     segments: List[Segment] = []
     last = 0
-    for m in BRACKET_RUBY_RE.finditer(text or ""):
+    for m in BRACKET_RUBY_RE.finditer(text):
         plain = text[last:m.start()]
         if plain:
             segments.append((plain, None))

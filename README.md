@@ -160,6 +160,35 @@ Advanced settings are grouped by area:
 - `ideas.txt`: project ideas and known issues.
 - `AI_CODEBASE_NOTES.md`: technical notes for future code work.
 
+## Voice, Hover, and Anki Capture
+
+Voice commands use locally installed Vosk models. Open **Advanced Settings > Voice** to download the English or German model, choose the recognition language, and edit command aliases. You can also say the configured language-switch command; it only switches after the requested offline model is installed.
+
+For voice lookup, add, capture, and copy, the target is chosen in this order: selected popup text, persistent subtitle highlights, then the word directly under the pointer. The target is frozen when the command is accepted, so later pointer movement cannot change an Anki card being created.
+
+- `copy` copies the visible result, preferring a translation.
+- `copy kanji`, `copy kanji each`, `copy dictionary`, `copy dictionary together`, `copy translation`, and `copy translation each` select an explicit result type.
+- `dictionary together` looks up the complete selected expression. `translate each` labels every word with its ruby/reading.
+- `add highlight 8` extends the current highlight; `remove highlight 9` removes only that position. Repeated words in an add/capture batch are sent once.
+
+The optional activity indicator in the lower-right subtitle area spins while an add or capture is active. A capture remains active while Anki media is being checked and copied to exact-sentence cards; it shows a check for one second only once all configured media is ready. Saying `abort` stops unsent voice-batch work and pending app callbacks. It cannot retract a request already sent to Anki or the external player.
+
+## Annotations and Database Checks
+
+The Annotation tab can show local, Anki, and WaniKani status. The database/status voice command reports the selected text, reading, canonical lookup, direct status, component-word status, and individual kanji status.
+
+Canonical kana/katakana matching is deliberately conservative. It can recognize spelling variants such as `ようやく`/`漸く` and `マヌケ`/`間抜け` when the tokenizer and reading agree. It does not rewrite subtitle text or Anki fields, and it does not use an online "most common spelling" service.
+
+## Remote Search and Saved Maps
+
+Remote Search uses configurable GitHub-mirror query profiles, including Netflix, Amazon, and Hulu subtitle query terms. Hulu here is a search term for mirrored subtitle filenames; the app does not log in to or query Hulu itself.
+
+**Use Saved Search** loads the selected JSON episode map exactly as saved, including older cache formats or maps created with older provider settings. It does not perform a GitHub search. Use **Refresh** for that saved entry or **Refresh Current Anime** only when you explicitly want to rebuild the remote map and update its JSON.
+
+## OCR Regions and Hover Windows
+
+Selecting an OCR area to redraw now displays the stored box as a labelled translucent rectangle. Dragging creates its replacement; Escape keeps the saved region unchanged. Hover result windows wrap to the active monitor, do not need horizontal scrolling, and are kept above the subtitle overlay without taking keyboard focus.
+
 ## Useful Developer Commands
 
 Run model tests:

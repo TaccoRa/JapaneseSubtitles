@@ -1,167 +1,257 @@
+## AI Ideas
 
-AI Ideas:
-- Split `SubtitleManager` into smaller pieces: subtitle parsing/cleaning, remote GitHub search, episode cache/download, and geometry calculation. It currently owns too many workflows, which makes performance bugs harder to isolate.
-- Add cancellation tokens/generation checks to every background worker path: auto ruby, remote downloads, episode preparation, OCR, and Anki stroke sync. Some already have generation checks; make it consistent.
-- Split `requirements.txt` into runtime and dev requirements later. The current file mixes app dependencies, benchmarks, Selenium experiments, and pytest.
-- Make remote search cache files versioned or schema-tagged. That will make it safer to change search heuristics without accidentally using stale cached JSON.
-- Consider a lightweight task queue abstraction for background work so throttling and shutdown behavior are handled in one place. This is mainly maintainability/shutdown safety, not a guaranteed performance improvement.
-- SubtitleManager has some extracted helpers/modules, but it still owns parsing/cleaning, remote search, episode maps, downloads, ruby, and geometry.
-- Add a small Anki preview/test area in Advanced Settings that shows effective tags and lookup form for a sample selected word plus sentence.
-- Add a Performance tab "Copy diagnostics bundle" button that includes current subtitle file, episode, debug state, cache counts, and queue sizes.
-- Add a local-config cleanup/migration action that removes stale keys from `config.local.json`.
-- Add tests for multiple occurrences in one subtitle sentence, e.g. selecting `勉強` when only one occurrence is used as `勉強した`.
-- Add a compact Anki failure details popup showing whether failure came from AnkiConnect, model fields, translation, or duplicate/media routing.
-Subtitle difficulty heatmap, Review queue from episode (unknown words)
+- Split `SubtitleManager` into smaller components for subtitle parsing/cleaning,
+  remote GitHub search, episode caching/downloading, and geometry calculation. It
+  currently owns too many workflows, which makes performance bugs harder to isolate.
+- Add cancellation tokens or generation checks to every background worker path:
+  automatic ruby generation, remote downloads, episode preparation, OCR, and Anki
+  stroke synchronization. Some already have generation checks; make this consistent.
+- Split `requirements.txt` into runtime and development requirements later. The
+  current file mixes app dependencies, benchmarks, Selenium experiments, and pytest.
+- Add versions or schema tags to remote search cache files. This will make it safer
+  to change search heuristics without accidentally reusing stale cached JSON.
+- Consider a lightweight task queue abstraction for background work so throttling
+  and shutdown behavior are handled in one place. This is mainly for maintainability
+  and shutdown safety, not a guaranteed performance improvement.
+- `SubtitleManager` has some extracted helpers/modules, but it still owns parsing,
+  cleaning, remote search, episode maps, downloads, ruby generation, and geometry.
+- Add a small Anki preview/test area in Advanced Settings that shows the effective
+  tags and lookup form for a sample selected word and sentence.
+- Add a `Copy diagnostics bundle` button to the Performance tab. Include the current
+  subtitle file, episode, debug state, cache counts, and queue sizes.
+- Add a local-config cleanup/migration action that removes stale keys from
+  `config.local.json`.
+- Add tests for multiple occurrences in one subtitle sentence, for example selecting
+  `勉強` when only one occurrence is used as `勉強した`.
+- Add a compact Anki failure-details popup showing whether a failure came from
+  AnkiConnect, model fields, translation, duplicates, or media routing.
+- Add a subtitle difficulty heatmap and an episode review queue for unknown words.
 
-To Do:
-when i go into tooltip and then fast back into the word the hover overlay is then behind the subtitle window and not visivle anymore. 
+## To Do
 
 
-words like ２つ should also have a ruby futatsu
+- Investigate the bug where unrelated application windows are moved by certain voice
+  commands. It is not yet clear which commands cause it.
+- When moving from a tooltip quickly back to its word, the hover overlay sometimes
+  moves behind the subtitle window and is no longer visible.
 
-at one point apparently the lines showing in the subtitle window changed. It should be like this: ruby1
-Line1
-Line2
-Ruby2
- if there is only one line in the subtitles it should be at line2 if there are two it should be line1 and line2. The ruby1 should alway be the rubies of line1 and same for 2. 
-add name recognition with san and kun and so on. 
-普通 is in the category ignored why?
-when selecting kanji is the whitespace cleaned, when the user for example misselected whitespace before or after the kanji?
-add a setting option so that when inisde subtitle window with the pointer the control window does not appear only when using the hotkeys to make it appear.
-Counter of how many words i added this session or this day. 
-option to remove the subtitle handle in phone mode
-In Annotation tab: show counts for unknown, learning, young, mature, due today, suspended.
-between m1 and m2 there can never be a conflict in shortcuts.
-（ジャックの 雄たけびが 続く）was not hidden. Also （ヘリコプターの プロペラ 音が 続く）
-持ってるな is correctly annotated in popup but not in the subttiel window why?持つ is in the word database 
-when show controls when subtitle is hovered is turned off then the hotkey to show the subtitle window and the control window should work like this. IF none is shown show both, if only one of them is shown show the other one as well. if both are shown hide only the control window. 
+## Bugs
 
-Check if sound and image copy is valid.
-when adding a card and then clicking outside the app and then wanting to add another card the hotkey to add does not work until i focus inside the app so clicking subtitle window or settings window.
-Suddenly when adding new cards it is not automatically annotated even tough it is in the word database?
-Only for certain words it worked: for example in this sentence: その 少年を 殺さず
-監視 観察してほしい i added: 少年, 殺さず, 監視 and 観察 and only 観察 was marked right away after adding. 
-我々 is not marked even tough it is in the word database?
-Also when i have the popup open and select a word and to the ctrl+c hotkey then go to vscode and paste it there then go back to the popup and select the next word and want to copy it it doesnt work because it loses focus i guess?
-in this sentence: いや
-全てが 一瞬のことだったからな
-全て and 一瞬 is in the word list but not marked? 
-to click the hotkey to add another card again i need to click on the focus of the subtitle window when i clicked outside the app after adding the first word. Why? The hotkey shoudl still work because i select a text in the popup and then the hotkey does nothing until i clicked inside the app again.
-still issues with annotations the popup is again right and different then the subtitle in this sentence たった１人 同じ 思いを
-分かり 合える 人だったのに. 合える is not maked. Or 分かり 合える is wrongly marked in the popup? Are the new rules also for the popup?
+- `Remove remaining non-speaker modes` does not correctly delete the complete line
+  containing a match. This may already be implemented and needs verification.
+- Selecting at the beginning of a sentence can select the entire remainder of the
+  line.
+- After switching from remote to local and then back to remote, the source flag may
+  remain wrong and continue searching in `subs`.
+- The subtitle window can obstruct the main window, especially its minimize and
+  titlebar buttons.
+- After changing automatic ruby handling, verify that words such as `とうとう` are
+  still handled correctly.
+- Some windows, such as the anime search window, need to size themselves to their
+  required content.
+- Show a result/status message when OCR `Read Now` cannot set the detected time.
 
-- make an option to before adding, open a small anki style window, which shows the exact Front, Back, sentence, audio, image, tags. Useful for catching bad ruby or wrong dictionary form.
-- make Better hover layers
-Separate hover modes:
-normal hover: ruby
-Shift: dictionary
-Ctrl: Anki/database status
-Alt: sentence translation
-- Add a fast forward option with 0.1 increments of speed and a hotkey to toggle it.
-- Add profiles to have multiple users and saved settings which can be imported and exported.
-- Make rubies copyable in popup. Need a design because sometimes plain text, dictionary text, and ruby text should copy differently.
-- Automatically find OCR timebox, maybe with image recognition / machine learning.
-- If OCR works well, jump/sync to the current video time when collecting Anki cards.
-- Implement season/episode search in the settings search bar.
-- Add HTML tag handling inside subtitle files as an optional mode.
+## Do Not Implement For Now
 
-Bugs:
-- Remove remaining non-speaker modes is not correcting for deleting the line it is in (maybe implemented).
-- When selecting the beginning of the sentence, the whole line to the right is selected.
-- When switching from remote to local and then back to remote, the flag may not be set and it still searches in `subs`.
-- The subtitle window can obstruct using the main window; currently mostly the minimize/titlebar buttons are affected.
-- Changed auto ruby handling: check if words like `toutou` are still correct.
-- Some windows like the search button window need to autosize.
-- Add result/status if "Read Now" set-time did not work.
+- When the Advanced Settings window is not fully visible, change its geometry again
+  to fit everything. The previous behavior was awkward; reconsider this later.
+- Change skip-button values from seconds to milliseconds. This would be too clumsy.
+- Resize the subtitle window width for every current subtitle. This may cause visible
+  flashing.
 
-Dont do:
-- If advanced window is not fully visible, have scroller and adjust size. Weird format, maybe later.
-- Change seconds to milliseconds with certain skip buttons. Too clunky.
-- Change subtitle width to fit current subtitle. Maybe flashes.
+## Added
 
-Added:
-The subtitle dragging window should only be visible when phone mode is on. Currently it is also visible when not in phone mode. 
-- Add optional toggles for automatic grammar marker tags (`する-Verb`, `い-Adj`, `な-Adj`) in case a deck does not want them.
-- Add a word database which can be imported and exported to show the words you already know. Make a new tab with Annotation and one area is my word database where you can brows your wrods then beneath you can import or export words. These words will then be marked with (tbdl) if option is ticked on ("Mark words?"). Then next to it is the anki word database where you can configure target word and/or sentence fields to collect your known words from anki. Then another area with wanikani word database where an api token is needed (with button, open popup to insert the token). Then again for the anki area there is an option to Colorize subtitles based on known words, then there should be an option for specific level of words from anki for example >21 days (which can be modified) to not show the rubies for these words. Make an option to only show annotations on hover and highlight words on hover. Make the user choose the Anki decks and word and sentence fields. Also ask the user how to treat suspended Anki cards as dropdown(Normal, Mature, Young, Graduated, Learning Unknown). Also the styling should be optional so background underline overline outline thickness and so on choose color for mature young graduated learning unknown uncollected and the alpha and so on.
-- Add an option to auto pause/trigger the spacebar to pause the background video as well, when hovering over the subtitle window with the mouse.
-- Add a raster lock for the subtitle window that when it is near the middle of the screen it should snap to it also optional. (maybe later move the window with arrow keys?)
-- Add a settings search/filter box for Advanced Settings tabs instead of scrolling or resizing the window.
-- Replace remaining `print(...)` debug output with module loggers now that logging setup exists.
-- when adding a new anki card it should also be added automatically to the word database
-- Optional ruby detection.
-- Add extra function for searching movies.
-- Add filter when searching cached/saved remote searches.
-- Advanced Settings Performance tab is available only while `DEBUGGING` is enabled with Ctrl+Shift+D; pressing it again hides the tab.
-- Performance tab reports slider timing, subtitle render timing, episode switch timing, renderer cache/timing, auto-ruby stats, OCR duration, and queue sizes.
-- Logging setup exists with runtime debug toggle and rotating log file support.
-- ConfigManager now writes local/runtime changes to `config.local.json` over tracked `config.json` defaults.
-- Anki custom tags can be set in Advanced Settings > Anki > Tags; no default `subtitleplayer` tag is added.
-- Anki now adds grammar marker tags from sentence context: `する-Verb`, `い-Adj`, and `な-Adj`.
-- Ctrl+A selects all text in popup.
-- Hovering over kanji supports inline glossary and/or translation.
-- X1 button text disappears if pressed again and reappears; same for button in control window.
-- There is a space before kanji ruby segments in Anki where needed.
-- Kanji ruby splitting can be enabled if needed.
-- Duplicate English definition entries are deduped case-insensitively, e.g. `house` / `House`.
-- Audio padding variable is available in Advanced Settings.
+- Words such as `２つ` receive the combined ruby `ふたつ`.
+- Subtitle lines use this layout: `Ruby 1`, `Line 1`, `Line 2`, `Ruby 2`. A one-line
+  subtitle occupies `Line 2`; a two-line subtitle occupies `Line 1` and `Line 2`.
+  Each ruby line belongs to its corresponding subtitle line.
+- Added name recognition for suffixes such as `さん` and `くん`.
+- Investigated why `普通` appeared in the ignored category.
+- Trim whitespace when the user accidentally selects whitespace before or after a
+  word or kanji.
+- Added an option that prevents the control window from appearing when the pointer
+  is inside the subtitle window; it can still be shown with hotkeys.
+- Added counters for words added during the current session or day.
+- Added an option to remove the subtitle handle in phone mode.
+- The Annotation tab shows counts for unknown, learning, young, mature, due today,
+  and suspended words.
+- M1 and M2 shortcuts are treated as separate modes and cannot conflict.
+- Parenthetical sound descriptions such as `（ジャックの 雄たけびが 続く）` and
+  `（ヘリコプターの プロペラ 音が 続く）` are hidden by subtitle cleaning.
+- Investigated why `持ってるな` was annotated correctly in the popup but not in the
+  subtitle window when `持つ` was in the Word Database.
+- When `Show controls when subtitle is hovered` is disabled, the visibility hotkey
+  behaves as follows: if neither window is visible, show both; if only one is
+  visible, show the other; if both are visible, hide only the control window.
+- Checked whether Sound and Image copying is valid.
+- Improved add-card hotkeys after clicking outside the app and then returning to the
+  popup or subtitle window.
+- Newly added cards are automatically annotated after being inserted into the Word
+  Database. Reported examples included `少年`, `殺さず`, `監視`, and `観察` in
+  `その 少年を 殺さず / 監視 観察してほしい`, where initially only `観察` was
+  marked immediately.
+- Investigated why `我々` was not marked even though it existed in the Word Database.
+- Improved copying from the popup after copying one selection to another application
+  and returning to select the next word.
+- Investigated why `全て` and `一瞬` were not marked in
+  `いや / 全てが 一瞬のことだったからな` despite existing in the Word Database.
+- Improved the add hotkey so it remains usable after selecting popup text and
+  temporarily focusing an external application.
+- Unified annotation behavior for cases such as
+  `たった１人 同じ 思いを / 分かり 合える 人だったのに`, where popup and
+  subtitle annotation previously disagreed about `合える` or `分かり 合える`.
+- Added an optional Anki-style preview before adding a card. It shows the exact Front,
+  Back, sentence, audio, image, and tags so bad ruby or a wrong dictionary form can be
+  caught before insertion.
+- Added separate hover layers: normal ruby, Shift dictionary, Ctrl Anki/database
+  status, and Alt sentence translation.
+- Added fast-forward speed control in `0.1` increments and configurable hotkeys.
+- Added profiles for multiple users and settings, including import and export.
+- Made popup rubies selectable and copyable while keeping plain text, dictionary
+  text, and ruby text behavior distinct.
+- Added groundwork for automatically locating the OCR time box, potentially using
+  image recognition or machine learning.
+- Added OCR/video synchronization support so the detected video time can be used
+  while collecting Anki cards.
+- Added season/episode search to the settings search bar.
+- Added optional handling for HTML tags inside subtitle files.
+- The subtitle dragging window is visible only while phone mode is enabled.
+- Added optional automatic grammar-marker tags: `する-Verb`, `い-Adj`, and `な-Adj`.
+- Added a Word Database that can be imported/exported and used for subtitle
+  annotations. It supports Anki and WaniKani sources, configurable Anki decks/fields,
+  known-word coloring, mature thresholds, suspended-card handling, ruby visibility,
+  hover-only annotations, and configurable styles for unknown, learning, young,
+  graduated, mature, and uncollected words.
+- Added an option to pause the background video with Space when the pointer hovers
+  over the subtitle window.
+- Added an optional horizontal center snap for the subtitle window.
+- Added a search/filter box for Advanced Settings tabs.
+- Replaced many direct debug `print(...)` calls with module loggers after introducing
+  centralized logging.
+- Newly added Anki cards are automatically added to the Word Database.
+- Added optional ruby detection.
+- Added an additional movie-search function.
+- Added filtering for cached/saved remote searches.
+- The Advanced Settings Performance tab is available only when `DEBUGGING` is
+  enabled with Ctrl+Shift+D; pressing it again hides the tab.
+- The Performance tab reports slider timing, subtitle render timing, episode-switch
+  timing, renderer caches/timing, automatic-ruby statistics, OCR duration, and queue
+  sizes.
+- Logging supports a runtime debug toggle and rotating log files.
+- `ConfigManager` writes local/runtime changes to `config.local.json` over the
+  tracked defaults in `config.json`.
+- Custom Anki tags can be configured in Advanced Settings > Anki > Tags; no default
+  `subtitleplayer` tag is added.
+- Anki adds grammar marker tags from sentence context: `する-Verb`, `い-Adj`, and
+  `な-Adj`.
+- Ctrl+A selects all text in the popup.
+- Hovering over kanji supports an inline glossary and/or translation.
+- X1 button text can be hidden and shown again, matching the control-window button.
+- Spaces are inserted before kanji ruby segments in Anki where needed.
+- Kanji ruby splitting can be enabled when needed.
+- Duplicate English definitions are deduplicated case-insensitively, for example
+  `house` and `House`.
+- Audio padding is configurable in Advanced Settings.
 - X2/M3 mode has an Advanced Settings indicator/toggle.
-- OCR box changes take effect at runtime.
-- OCR hiding only affects windows that are actually inside OCR boxes.
-- Adjusting offset also shifts the runtime position.
-- Invalid string in control window no longer resets number unexpectedly.
+- OCR box changes take effect immediately at runtime.
+- OCR hiding affects only windows that are actually inside OCR boxes.
+- Adjusting the offset also shifts the runtime position.
+- Invalid text in the control-window time entry no longer unexpectedly resets the
+  value.
 - Advanced Settings no longer blocks the main settings window.
 - Multiple OCR boxes across multiple screens are supported.
-- Clear OCR area is not needed after region selection changes.
-- Warning/wait flow exists if Anki is not connected.
-- Spacebar and arrow key listener exists.
-- Settings button can change defaults such as start time, offset, skip, phone mode, etc.
-- Last used offset, phone mode, window geometry, and session state are remembered.
+- A separate `Clear OCR area` action is no longer needed after region-selection
+  changes.
+- A warning/wait flow appears when Anki is not connected.
+- Spacebar and arrow-key listeners are available.
+- Settings can change defaults such as start time, offset, skip, phone mode, and
+  related playback behavior.
+- The last used offset, phone mode, window geometry, and session state are remembered.
 - Anki integration through AnkiConnect is available.
-- Episode entry has a dropdown.
-- Right-click subtitle overlay opens the copy popup.
-- Startup/download splash/info exists.
-- Button to search new anime exists.
-- Anime name and season/episode can be shown in title/window context.
-- Remote season subtitles can be downloaded and cached from a GitHub subtitle mirror.
-- Kanji can be shown with ruby above.
-- Control window has a button to show the settings window.
-- Control window/time entry resizes for longer than 1 hour and movie-sized time strings.
-- Phone mode default can be configured.
+- The episode entry has a dropdown.
+- Right-clicking the subtitle overlay opens the copy popup.
+- Startup/download splash information is available.
+- A button for searching for a new anime is available.
+- Anime name and season/episode information can be shown in the title/window context.
+- Remote seasonal subtitles can be downloaded and cached from a GitHub subtitle
+  mirror.
+- Kanji can be displayed with ruby above them.
+- The control window has a button to show the settings window.
+- The control window/time entry expands for durations longer than one hour and
+  movie-sized timestamps.
+- The default phone-mode state can be configured.
 
-Fixed:
-- Unhandled Tk callback/background-thread errors now show a message box with the log path instead of only printing or failing silently.
-- Annotation matcher handles purpose forms like `俺を 殺しに` from `殺す` without re-enabling broad derived-noun matching like `動き` from `動く`.
-- Exact annotation phrases can bridge subtitle spaces, so a database entry like `分かり合える` can win over a partial `分かる` match in `分かり 合える`.
-- Spaced verb tails no longer make the whole spaced phrase known from the first verb alone.
-- Kana/non-kanji exact phrases such as `だから` are covered by phrase annotation even when the tokenizer splits them.
-- Popup Ctrl+C and popup add hotkeys are more robust after focus changes or a missed key-release event.
-- Database-level checks confirm current entries for `普通`, `我々`, `全て`, `一瞬`, `少年`, `殺さず`, `監視`, and `観察して` match the active annotation provider.
-- Pressing pause/play does not sync perfectly with the video. The app timer seems faster or starts earlier.
-- Still double click to get entry focus. When i am outside of the advanced window in a different window then my app and then want to write inside the adv window it doesnt let me and the focus is still ont the extern window. 
-- Selecting only a suru-capable stem now checks the subtitle sentence, e.g. selected `勉強` in `私は勉強した` becomes `勉強する` with `する-Verb`.
-- Selecting a suru-capable noun used as a noun, e.g. `勉強は楽しい`, stays as `勉強` without `する-Verb`.
-- Hovering over the titlebar/X area of the settings or advanced settings window now hides the phone-mode subtitle handle.
-- Moving the subtitle window in phone mode also moves the small handle simultaneously.
-- Removed/handled an extra unused window.
-- Numpad hotkeys no longer jump while typing inside entries.
-- Ruby display fixed for a Hitoribocchi line around 7 / 4:57.
-- Default skip is saved.
-- Advanced settings no longer switches through tabs unexpectedly.
-- Advanced Settings Apply Now no longer resets changed offset/skip entries to defaults.
-- Pressing skip from an unchanged focused time entry keeps the prior value.
+## Fixed
+
+- Unhandled Tk callback and background-thread errors now show a message box with the
+  log path instead of only printing or failing silently.
+- The annotation matcher handles purpose forms such as `俺を 殺しに` from `殺す`
+  without re-enabling broad derived-noun matching such as `動き` from `動く`.
+- Exact annotation phrases can bridge subtitle spaces, so a database entry such as
+  `分かり合える` can win over a partial `分かる` match in `分かり 合える`.
+- Spaced verb tails no longer make an entire phrase known from the first verb alone.
+- Exact kana/non-kanji phrases such as `だから` are covered by phrase annotation
+  even when the tokenizer splits them.
+- Popup Ctrl+C and popup add hotkeys are more robust after focus changes or missed
+  key-release events.
+- Database-level checks confirm that entries for `普通`, `我々`, `全て`, `一瞬`,
+  `少年`, `殺さず`, `監視`, and `観察して` match the active annotation provider.
+- Improved synchronization between pause/play and the background video. Further
+  verification may still be needed if the app timer starts early or runs faster.
+- Fixed Advanced Settings entry focus so entries no longer require an extra click
+  after focusing another window.
+- Selecting a `する`-capable stem checks sentence context: selecting `勉強` in
+  `私は勉強した` becomes `勉強する` with `する-Verb`.
+- A `する`-capable noun used as a noun, such as `勉強は楽しい`, remains `勉強`
+  without the `する-Verb` tag.
+- Hovering over the titlebar/close area of Settings or Advanced Settings hides the
+  phone-mode subtitle handle.
+- Moving the subtitle window in phone mode also moves its small handle.
+- Removed or handled an extra unused window.
+- Numpad hotkeys no longer fire while typing inside entries.
+- Fixed ruby display for a Hitoribocchi subtitle near episode 7 at 04:57.
+- The default skip value is saved.
+- Advanced Settings no longer switches tabs unexpectedly.
+- `Apply Now` no longer resets changed offset/skip entries to defaults.
+- Pressing skip from an unchanged focused time entry keeps the previous value.
 - Newly added local SRT files can be found during runtime.
-- Decreasing from the first episode no longer picks the last cached episode.
-- Episode number updates only if an episode is found.
-- Avoid creating season folder without finding season.
-- Fixed wrong episode when turning off / changing episode state.
-- Slider duration is updated correctly when offset or movie mode changes.
+- Decreasing from the first episode no longer selects the last cached episode.
+- The episode number changes only after an episode is found.
+- Season folders are not created unless a season is found.
+- Fixed incorrect episode state when disabling or changing the selected episode.
+- Slider duration updates correctly when offset or movie mode changes.
 - New SRT selection updates the available SRT list.
-- Changing to movie no longer keeps the max slider value from the previous episode.
-- Subtitle window size recalculates after changing files.
-- Selecting SRT after remote session is more reliable.
+- Switching to movie mode no longer retains the previous episode's maximum slider
+  value.
+- Subtitle window size is recalculated after changing files.
+- Selecting an SRT after a remote session is more reliable.
 - GitHub SRT search was corrected.
-- SRT button cannot be opened twice in a row while already open.
-- If no `.srt` is found, the app does not reset to default slider position/state.
-- Movie/non-Japanese subtitle width is handled better.
-- Phone mode settings button issue fixed.
-- Large/negative offset updates the slider correctly.
+- The SRT selection window cannot be opened twice while it is already open.
+- If no `.srt` is found, the app does not reset to the default slider position/state.
+- Movie and non-Japanese subtitle widths are handled better.
+- Fixed the phone-mode settings-button issue.
+- Large or negative offsets update the slider correctly.
+
+## Additional Suggestions
+
+- Add an `Undo last card` action that can safely remove the most recently added Anki
+  note and its local Word Database entry before continuing playback.
+- Add an episode vocabulary timeline showing where unknown, learning, and due words
+  occur. Clicking a marker would seek directly to that subtitle.
+- Add an adaptive pause mode that pauses only when a cue contains unknown or learning
+  words, with a configurable delay before continuing.
+- Add a three-cue Anki context option that includes the previous, current, and next
+  subtitle while keeping the current cue visually emphasized.
+- Add an offline dictionary cache manager with size information, last-used dates,
+  and an option to prefetch dictionary entries for the current episode.
+- Add per-anime presets for subtitle cleaning, Anki deck/tags, capture timing, voice
+  target, and display style in addition to the existing offset memory.
+- Add a subtitle-quality scan that reports overlapping cues, unusually long lines,
+  malformed timestamps, encoding problems, and likely missing dialogue.
+- Add a review-aware display mode that can dim mature words, emphasize due/learning
+  words, and optionally pause only on words due for review.
+- Add a session bookmark list for interesting subtitle moments, including timestamp,
+  selected words, note status, and an optional comment.
+- Add a lightweight shadowing mode that loops one cue, records the microphone, and
+  plays source audio and the recording back-to-back without requiring online speech
+  scoring.

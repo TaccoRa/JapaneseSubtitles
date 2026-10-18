@@ -1,10 +1,14 @@
 """Anki integration helper for note creation, wait dialogs, and success UI."""
 
 import logging
+import os
+import shutil
+import subprocess
 import threading
 import time
 import tkinter as tk
 from typing import Any
+from model.capture_session import CaptureSession, FrozenActionTarget
 from utils import (
     dispatch_to_tk,
     focus_window_by_title,
@@ -37,6 +41,136 @@ class AnkiController(_ControllerProxy):
 
     def __init__(self, controller: Any) -> None:
         super().__init__(controller)
+        # These are deliberately owned by the Anki controller rather than the
+        # broad SubtitleController.  A capture operation is correlated by its
+        # immutable sentence target, never by whichever Anki note is newest.
+        self._capture_sessions: dict[str, CaptureSession] = {}
+        self._capture_session_lock = threading.RLock()
+        self._latest_capture_session_id = ""
+        self._last_subtitleplayer_added_card: dict[str, Any] | None = None
+        self._action_feedback_generation = 0
+        self._action_feedback_tokens: dict[int, int] = {}
+
+    def _freeze_action_target(
+        self,
+        *,
+        selected_text: str,
+        subtitle_text: str,
+        cue_snapshot=None,
+        selection_spans=None,
+        initiator: str = "anki",
+    ) -> FrozenActionTarget:
+        subtitle = str(subtitle_text or "")
+        if not subtitle and cue_snapshot is not None:
+            subtitle = str(getattr(cue_snapshot, "plain_text", "") or "")
+        sentence_key = ""
+        try:
+            sentence_key = self.anki.normalize_capture_sentence_key(subtitle)
+        except Exception:
+            sentence_key = " ".join(subtitle.split())
+        return FrozenActionTarget.create(
+            selected_text=selected_text,
+            subtitle_text=subtitle,
+            sentence_key=sentence_key,
+            initiator=initiator,
+            cue_snapshot=cue_snapshot,
+            selection_spans=selection_spans,
+        )
+
+    def _new_capture_session(
+        self,
+        target: FrozenActionTarget,
+        *,
+        capture_only: bool,
+        early_capture: bool,
+        pause_lease=None,
+        interaction_owner: str | None = None,
+    ) -> CaptureSession:
+        session = CaptureSession(
+            target=target,
+            capture_only=bool(capture_only),
+            early_capture=bool(early_capture),
+            pause_lease=pause_lease,
+            interaction_owner=str(interaction_owner or target.initiator or "ui"),
+            action_feedback_key=id(target),
+        )
+        if target.sentence_key:
+            try:
+                session.baseline_media = self.anki.snapshot_exact_sentence_media(target.subtitle_text)
+            except Exception:
+                logger.debug("Failed to snapshot exact-sentence media before capture", exc_info=True)
+        with self._capture_session_lock:
+            self._capture_sessions[session.id] = session
+            self._latest_capture_session_id = session.id
+        return session
+
+    def _begin_action_feedback(self, target: FrozenActionTarget, *, force: bool = False) -> None:
+        """Show progress for non-voice Anki work; voice owns its own generation."""
+        if not force and str(target.initiator or "").strip().lower() == "voice":
+            return
+        self._action_feedback_generation += 1
+        generation = self._action_feedback_generation
+        self._action_feedback_tokens[id(target)] = generation
+        setter = getattr(getattr(self.controller, "renderer", None), "set_voice_action_indicator", None)
+        if callable(setter):
+            setter("working")
+
+    def _finish_action_feedback_key(self, key: int | None, succeeded: bool) -> None:
+        if key is None:
+            return
+        generation = self._action_feedback_tokens.pop(int(key), None)
+        if generation is None or generation != self._action_feedback_generation:
+            return
+        setter = getattr(getattr(self.controller, "renderer", None), "set_voice_action_indicator", None)
+        if callable(setter):
+            setter("success" if succeeded else "idle")
+
+    def _finish_action_feedback(self, target: FrozenActionTarget | None, succeeded: bool) -> None:
+        self._finish_action_feedback_key(id(target) if target is not None else None, succeeded)
+
+    def cancel_capture_sessions(self, *, interaction_owner: str = "voice", reason: str = "aborted") -> int:
+        """Stop app-controlled capture follow-up without retracting external requests."""
+        owner = str(interaction_owner or "voice").strip().lower()
+        cancelled: list[CaptureSession] = []
+        with self._capture_session_lock:
+            for session in self._capture_sessions.values():
+                if session.cancelled or str(session.interaction_owner or "").strip().lower() != owner:
+                    continue
+                session.cancel(reason)
+                cancelled.append(session)
+        for session in cancelled:
+            self._finish_action_feedback_key(session.action_feedback_key, False)
+            release = getattr(self.controller, "release_anki_pause_lease", None)
+            if callable(release):
+                try:
+                    release(session.pause_lease, resume=False)
+                except Exception:
+                    logger.debug("Failed to release cancelled capture pause lease", exc_info=True)
+        return len(cancelled)
+
+    def _capture_session_is_latest(self, session: CaptureSession | None) -> bool:
+        if session is None:
+            return False
+        with self._capture_session_lock:
+            return bool(not session.cancelled and session.id == self._latest_capture_session_id)
+
+    def _record_subtitleplayer_added_card(self, note_id: int, target: FrozenActionTarget) -> None:
+        try:
+            note_id = int(note_id)
+        except Exception:
+            return
+        if note_id <= 0 or not target.sentence_key:
+            return
+        self._last_subtitleplayer_added_card = {"note_id": note_id, "target": target}
+
+    def _acquire_pause_lease(self, target: FrozenActionTarget):
+        acquire = getattr(self.controller, "acquire_anki_pause_lease", None)
+        if callable(acquire):
+            try:
+                return acquire(target)
+            except Exception:
+                logger.debug("Failed to acquire Anki playback pause lease", exc_info=True)
+        return None
 
     def _current_anki_anime_name(self) -> str:
             manager = getattr(self, "sub_manager", None)
@@ -56,24 +190,140 @@ class AnkiController(_ControllerProxy):
                 or ""
             ).strip()
 
+    def _resolve_anki_executable(self) -> tuple[str, str]:
+            configured = os.path.expandvars(
+                os.path.expanduser(str(self.config.get("ANKI_EXECUTABLE_PATH") or "").strip())
+            )
+            if configured:
+                path = os.path.abspath(configured)
+                if os.path.isfile(path):
+                    return path, ""
+                return "", f"Configured Anki executable was not found: {path}"
+
+            candidates = [shutil.which("anki.exe"), shutil.which("anki")]
+            local_app_data = os.environ.get("LOCALAPPDATA") or ""
+            program_files = os.environ.get("ProgramFiles") or ""
+            program_files_x86 = os.environ.get("ProgramFiles(x86)") or ""
+            candidates.extend(
+                os.path.join(base, *parts)
+                for base, parts in (
+                    (local_app_data, ("Programs", "Anki", "anki.exe")),
+                    (program_files, ("Anki", "anki.exe")),
+                    (program_files_x86, ("Anki", "anki.exe")),
+                )
+                if base
+            )
+            for candidate in candidates:
+                if candidate and os.path.isfile(candidate):
+                    return os.path.abspath(candidate), ""
+            return "", "Anki executable was not found. Select it in Advanced Settings > Anki."
+
+    @staticmethod
+    def _anki_process_is_running(executable: str) -> bool:
+            if os.name != "nt":
+                return False
+            process_name = os.path.basename(str(executable or "").strip())
+            if not process_name:
+                return False
+            try:
+                result = subprocess.run(
+                    ["tasklist", "/FI", f"IMAGENAME eq {process_name}", "/FO", "CSV", "/NH"],
+                    capture_output=True,
+                    text=True,
+                    timeout=3,
+                    check=False,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                )
+                return process_name.casefold() in str(result.stdout or "").casefold()
+            except Exception:
+                logger.debug("Failed to inspect whether Anki is already running", exc_info=True)
+                return False
+
+    def _launch_anki_automatically(self) -> tuple[bool, str]:
+            executable, error = self._resolve_anki_executable()
+            if not executable:
+                return False, error
+            if self._anki_process_is_running(executable):
+                return True, "Anki is already running; waiting for AnkiConnect..."
+
+            now = time.monotonic()
+            previous_request = float(getattr(self.controller, "_anki_auto_launch_requested_at", 0.0) or 0.0)
+            if now - previous_request < 30.0:
+                return True, "Anki startup was already requested; waiting for AnkiConnect..."
+            try:
+                subprocess.Popen(
+                    [executable],
+                    cwd=os.path.dirname(executable) or None,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    close_fds=True,
+                )
+            except Exception as exc:
+                logger.exception("Failed to start Anki executable %s", executable)
+                return False, f"Could not start Anki: {exc}"
+            self.controller._anki_auto_launch_requested_at = now
+            logger.info("Started Anki automatically: %s", executable)
+            return True, "Anki started; waiting for AnkiConnect..."
+
+    def start_anki_with_app_if_enabled(self) -> None:
+            if self.config.get("ANKI_ENABLED") is False:
+                return
+            if not bool(self.config.get("ANKI_START_WITH_APP") or False):
+                return
+
+            def worker() -> None:
+                try:
+                    if self.anki.ping():
+                        return
+                except Exception:
+                    pass
+                launched, message = self._launch_anki_automatically()
+                if launched:
+                    logger.info("Anki startup setting: %s", message)
+                else:
+                    logger.warning("Anki startup setting failed: %s", message)
+
+            threading.Thread(target=worker, daemon=True, name="anki-startup").start()
+
     def _add_selection_to_anki(
         self,
         selected_text: str,
         subtitle_text: str = "",
         post_add_capture: bool = False,
+        on_complete=None,
+        cue_snapshot=None,
+        selection_spans=None,
+        initiator: str = "anki",
     ) -> None:
             selected = (selected_text or "").strip()
             if not selected:
                 logger.debug("Add Selection To Anki skipped because no text is selected")
+                if callable(on_complete):
+                    on_complete(False, None)
                 return
 
-            subtitle = subtitle_text or ""
+            action_target = self._freeze_action_target(
+                selected_text=selected,
+                subtitle_text=subtitle_text,
+                cue_snapshot=cue_snapshot,
+                selection_spans=selection_spans,
+                initiator=initiator,
+            )
+            self._begin_action_feedback(action_target)
+            subtitle = action_target.subtitle_text
+            pause_lease = self._acquire_pause_lease(action_target)
             if not self.anki.ping():
                 logger.info("AnkiConnect not reachable; showing wait dialog")
                 self._show_anki_wait_dialog(
                     selected_text=selected,
                     subtitle_text=subtitle,
                     post_add_capture=bool(post_add_capture),
+                    on_add_complete=on_complete,
+                    cue_snapshot=cue_snapshot,
+                    selection_spans=selection_spans,
+                    action_target=action_target,
+                    pause_lease=pause_lease,
                 )
                 return
 
@@ -81,6 +331,11 @@ class AnkiController(_ControllerProxy):
                 selected_text=selected,
                 subtitle_text=subtitle,
                 post_add_capture=bool(post_add_capture),
+                on_complete=on_complete,
+                cue_snapshot=cue_snapshot,
+                selection_spans=selection_spans,
+                action_target=action_target,
+                pause_lease=pause_lease,
             )
 
     def _start_anki_add_worker(
@@ -88,6 +343,11 @@ class AnkiController(_ControllerProxy):
         selected_text: str,
         subtitle_text: str = "",
         post_add_capture: bool = False,
+        on_complete=None,
+        cue_snapshot=None,
+        selection_spans=None,
+        action_target: FrozenActionTarget | None = None,
+        pause_lease=None,
     ) -> None:
             selected = (selected_text or "").strip()
             if not selected:
@@ -98,12 +358,22 @@ class AnkiController(_ControllerProxy):
                     selected_text=selected,
                     subtitle_text=subtitle_text,
                     post_add_capture=bool(post_add_capture),
+                    on_complete=on_complete,
+                    cue_snapshot=cue_snapshot,
+                    selection_spans=selection_spans,
+                    action_target=action_target,
+                    pause_lease=pause_lease,
                 )
                 return
             self._start_anki_commit_worker(
                 selected_text=selected,
                 subtitle_text=subtitle_text,
                 post_add_capture=bool(post_add_capture),
+                on_complete=on_complete,
+                cue_snapshot=cue_snapshot,
+                selection_spans=selection_spans,
+                action_target=action_target,
+                pause_lease=pause_lease,
             )
 
     def _start_anki_preview_worker(
@@ -111,6 +381,11 @@ class AnkiController(_ControllerProxy):
         selected_text: str,
         subtitle_text: str = "",
         post_add_capture: bool = False,
+        on_complete=None,
+        cue_snapshot=None,
+        selection_spans=None,
+        action_target: FrozenActionTarget | None = None,
+        pause_lease=None,
     ) -> None:
             selected = (selected_text or "").strip()
             if not selected:
@@ -128,9 +403,11 @@ class AnkiController(_ControllerProxy):
                         raise RuntimeError("AnkiConnect not reachable.")
                     prepared = self.anki.prepare_note_from_selection(
                         selection_text=selected,
-                        subtitle_text=subtitle_text,
+                        subtitle_text=(action_target.subtitle_text if action_target is not None else subtitle_text),
                         anime_name=anime_name,
                         copy_existing_media=not bool(post_add_capture),
+                        cue_snapshot=(action_target.cue_snapshot if action_target is not None else cue_snapshot),
+                        selection_spans=(action_target.selection_spans if action_target is not None else selection_spans),
                     )
                     dispatch_to_tk(
                         self.settings.root,
@@ -139,6 +416,9 @@ class AnkiController(_ControllerProxy):
                         selected,
                         subtitle_text,
                         post_add_capture=bool(post_add_capture),
+                        on_complete=on_complete,
+                        action_target=action_target,
+                        pause_lease=pause_lease,
                     )
                 except Exception as e:
                     logger.exception("Anki preview preparation failed: %s", e)
@@ -146,6 +426,9 @@ class AnkiController(_ControllerProxy):
                         dispatch_to_tk(self.settings.root, self.popup.mark_anki_failure)
                     except Exception:
                         pass
+                    self._finish_action_feedback(action_target, False)
+                    if callable(on_complete):
+                        dispatch_to_tk(self.settings.root, on_complete, False, None)
                 finally:
                     dispatch_to_tk(self.settings.root, self._set_busy_cursor, False)
 
@@ -160,11 +443,23 @@ class AnkiController(_ControllerProxy):
         subtitle_text: str = "",
         prepared: dict | None = None,
         post_add_capture: bool = False,
+        on_complete=None,
+        cue_snapshot=None,
+        selection_spans=None,
+        action_target: FrozenActionTarget | None = None,
+        pause_lease=None,
     ) -> None:
             selected = (selected_text or "").strip()
             if not selected:
                 logger.debug("Add Selection To Anki skipped because no text is selected")
                 return
+            action_target = action_target or self._freeze_action_target(
+                selected_text=selected,
+                subtitle_text=subtitle_text,
+                cue_snapshot=cue_snapshot,
+                selection_spans=selection_spans,
+            )
+            subtitle_text = action_target.subtitle_text
             anime_name = self._current_anki_anime_name()
             self._set_busy_cursor(True)
             try:
@@ -173,11 +468,26 @@ class AnkiController(_ControllerProxy):
                 pass
             capture_delay_ms = self._post_add_capture_delay_ms() if post_add_capture else None
             early_capture = post_add_capture and capture_delay_ms is not None and capture_delay_ms < 0
+            capture_session = (
+                self._new_capture_session(
+                    action_target,
+                    capture_only=False,
+                    early_capture=bool(early_capture),
+                    pause_lease=pause_lease,
+                )
+                if post_add_capture
+                else None
+            )
             if early_capture:
-                self._schedule_post_add_external_capture_hotkey(abs(int(capture_delay_ms)))
+                self._schedule_post_add_external_capture_hotkey(
+                    abs(int(capture_delay_ms)),
+                    session=capture_session,
+                )
 
             def worker():
                 started = time.perf_counter()
+                completion_result = None
+                completion_success = False
                 try:
                     if not self.anki.ping():
                         raise RuntimeError("AnkiConnect not reachable.")
@@ -188,15 +498,53 @@ class AnkiController(_ControllerProxy):
                             subtitle_text=subtitle_text,
                             anime_name=anime_name,
                             copy_existing_media=not bool(post_add_capture),
+                            cue_snapshot=action_target.cue_snapshot,
+                            selection_spans=action_target.selection_spans,
                         )
                     else:
                         result = self.anki.commit_prepared_note(prepared)
+                    completion_result = result
                     try:
                         added_note_id = int(result.get("note_id") or 0)
                     except Exception:
                         added_note_id = 0
                     if added_note_id > 0:
+                        self.controller._latest_added_anki_note_id = added_note_id
+                        self._record_subtitleplayer_added_card(added_note_id, action_target)
+                        completion_success = True
                         dispatch_to_tk(self.settings.root, self._record_successful_anki_add)
+                        if not post_add_capture:
+                            try:
+                                media_result = self.anki.copy_existing_sentence_media_to_note(added_note_id)
+                                if str((media_result or {}).get("reason") or "") == "copied":
+                                    logger.info(
+                                        "Reconciled existing exact-sentence media onto new note %s: %s",
+                                        added_note_id,
+                                        sorted(((media_result or {}).get("copied") or {}).keys()),
+                                    )
+                            except Exception:
+                                logger.debug(
+                                    "Could not reconcile existing sentence media for new note %s",
+                                    added_note_id,
+                                    exc_info=True,
+                                )
+                        if capture_session is not None:
+                            capture_session.set_target_note(added_note_id)
+                            capture_session.phase = "adding"
+                            # An early capture may have populated an older
+                            # exact-sentence card already.  Reconcile that
+                            # state immediately when the new card appears.
+                            try:
+                                self.anki.reconcile_exact_sentence_media(
+                                    added_note_id,
+                                    baseline=capture_session.baseline_media,
+                                )
+                            except Exception:
+                                logger.debug(
+                                    "Could not reconcile early exact-sentence media for note %s",
+                                    added_note_id,
+                                    exc_info=True,
+                                )
                     annotation_entries = self._annotation_entries_for_added_anki_note(result)
 
                     elapsed = time.perf_counter() - started
@@ -221,18 +569,28 @@ class AnkiController(_ControllerProxy):
                         dispatch_to_tk(self.settings.root, self.popup.mark_anki_warning)
                     else:
                         dispatch_to_tk(self.settings.root, self.popup.mark_anki_success)
-                        self._schedule_auto_jump_after_anki()
-                    if post_add_capture and result.get("note_id"):
-                        try:
-                            note_id = int(result.get("note_id") or 0)
-                        except Exception:
-                            note_id = 0
+                        if (
+                            not post_add_capture
+                            and not bool(getattr(self.controller, "_voice_anki_batch_running", False))
+                        ):
+                            self._schedule_auto_jump_after_anki()
+                    if post_add_capture and added_note_id > 0:
+                        note_id = added_note_id
                         if note_id > 0:
-                            if early_capture:
-                                self._schedule_post_add_capture_media_copy(note_id)
+                            if capture_session is not None and capture_session.phase == "failed":
+                                result["capture_delivery_failed"] = True
+                            elif early_capture:
+                                self._schedule_post_add_capture_media_copy(
+                                    note_id,
+                                    session=capture_session,
+                                )
                             else:
                                 delay_ms = 0 if capture_delay_ms is None else max(0, int(capture_delay_ms))
-                                self._schedule_post_add_external_capture_hotkey(delay_ms, note_id=note_id)
+                                self._schedule_post_add_external_capture_hotkey(
+                                    delay_ms,
+                                    note_id=note_id,
+                                    session=capture_session,
+                                )
                 except Exception as e:
                     logger.exception("Anki add failed: %s", e)
                     try:
@@ -240,7 +598,20 @@ class AnkiController(_ControllerProxy):
                     except Exception:
                         pass
                 finally:
-                    dispatch_to_tk(self.settings.root, self._set_busy_cursor, False)
+                    def finish() -> None:
+                        self._set_busy_cursor(False)
+                        if capture_session is None or not completion_success:
+                            release = getattr(self.controller, "release_anki_pause_lease", None)
+                            if callable(release):
+                                release(pause_lease, resume=False)
+                        if capture_session is None:
+                            self._finish_action_feedback(action_target, bool(completion_success))
+                        elif not completion_success:
+                            self._finish_action_feedback_key(capture_session.action_feedback_key, False)
+                        if callable(on_complete):
+                            on_complete(bool(completion_success), completion_result)
+
+                    dispatch_to_tk(self.settings.root, finish)
 
             threading.Thread(target=worker, daemon=True).start()
 
@@ -250,10 +621,19 @@ class AnkiController(_ControllerProxy):
         selected: str,
         subtitle_text: str = "",
         post_add_capture: bool = False,
+        on_complete=None,
+        action_target: FrozenActionTarget | None = None,
+        pause_lease=None,
     ) -> None:
             note = prepared.get("note") if isinstance(prepared, dict) else None
             if not isinstance(note, dict):
                 logger.debug("Anki preview skipped because prepared note is invalid")
+                self._finish_action_feedback(action_target, False)
+                release = getattr(self.controller, "release_anki_pause_lease", None)
+                if callable(release):
+                    release(pause_lease, resume=False)
+                if callable(on_complete):
+                    on_complete(False, None)
                 return
             fields = note.get("fields")
             if not isinstance(fields, dict):
@@ -379,6 +759,9 @@ class AnkiController(_ControllerProxy):
                     subtitle_text=subtitle_text,
                     prepared=prepared,
                     post_add_capture=bool(post_add_capture),
+                    on_complete=on_complete,
+                    action_target=action_target,
+                    pause_lease=pause_lease,
                 )
 
             def _cancel() -> None:
@@ -386,6 +769,12 @@ class AnkiController(_ControllerProxy):
                     win.destroy()
                 except Exception:
                     pass
+                self._finish_action_feedback(action_target, False)
+                release = getattr(self.controller, "release_anki_pause_lease", None)
+                if callable(release):
+                    release(pause_lease, resume=False)
+                if callable(on_complete):
+                    on_complete(False, None)
 
             tk.Button(btn_row, text="Confirm Add", width=14, command=_confirm).pack(side="right")
             tk.Button(btn_row, text="Cancel", width=10, command=_cancel).pack(side="right", padx=(0, 8))
@@ -415,6 +804,8 @@ class AnkiController(_ControllerProxy):
                     self.controller._anki_preview_window = None
 
             win.bind("<Destroy>", _clear_preview_reference, add="+")
+            win.protocol("WM_DELETE_WINDOW", _cancel)
+            win.bind("<Escape>", lambda _event: _cancel())
 
     def _post_add_capture_delay_ms(self) -> int | None:
             raw = self.config.get("POST_ADD_CAPTURE_DELAY_MS")
@@ -443,64 +834,202 @@ class AnkiController(_ControllerProxy):
     def _post_add_capture_hotkey(self) -> str:
             return str(self.config.get("POST_ADD_CAPTURE_EXTERNAL_HOTKEY") or "ctrl+shift+y").strip()
 
-    def _schedule_post_add_external_capture_hotkey(self, delay_ms: int = 0, *, note_id: int | None = None) -> None:
+    def _schedule_post_add_external_capture_hotkey(
+        self,
+        delay_ms: int = 0,
+        *,
+        note_id: int | None = None,
+        session: CaptureSession | None = None,
+    ) -> None:
             delay_ms = max(0, int(delay_ms or 0))
 
             def _run() -> None:
-                self._run_post_add_external_capture(note_id)
+                if session is not None and session.cancelled:
+                    return
+                sent = self._run_post_add_external_capture(note_id, session=session)
+                if sent or session is None:
+                    return
+                session.phase = "failed"
+                self._finish_action_feedback_key(session.action_feedback_key, False)
+                release = getattr(self.controller, "release_anki_pause_lease", None)
+                if callable(release):
+                    release(session.pause_lease, resume=False)
+                try:
+                    parsed_note_id = int(note_id or session.target_note_id or 0)
+                except Exception:
+                    parsed_note_id = 0
+                if parsed_note_id > 0:
+                    hotkeys = getattr(self.controller, "hotkey_controller", None)
+                    notify = getattr(hotkeys, "notify_capture_media_finished", None)
+                    if callable(notify):
+                        notify(parsed_note_id, False)
 
             try:
                 dispatch_to_tk(self.settings.root, _run, delay_ms=delay_ms)
             except Exception:
                 _run()
 
-    def _run_post_add_external_capture(self, note_id: int | None = None) -> bool:
+    def _run_post_add_external_capture(
+        self,
+        note_id: int | None = None,
+        *,
+        capture_only: bool = False,
+        session: CaptureSession | None = None,
+    ) -> bool:
+            if session is not None:
+                if session.cancelled:
+                    return False
+                capture_only = bool(session.capture_only)
+                if note_id is None:
+                    note_id = session.target_note_id
             target_title = self._post_add_capture_target_title()
             external_hotkey = self._post_add_capture_hotkey()
             note_label = note_id if note_id is not None else "pending note"
             if not external_hotkey:
                 logger.warning("Post-add capture skipped for %s because external hotkey is empty", note_label)
                 return False
-            if target_title and not focus_window_by_title(target_title):
-                logger.warning(
-                    "Post-add capture skipped for %s because target window was not found/focused: %s",
-                    note_label,
-                    target_title,
-                )
-                return False
-            try:
-                self._latest_post_add_capture_window_hwnd = int(get_foreground_root_hwnd() or 0)
-            except Exception:
-                self._latest_post_add_capture_window_hwnd = 0
-            suppress = getattr(self.controller, "_suppress_external_hotkey_events", None)
-            if callable(suppress):
-                suppress(external_hotkey, 1)
-            if not send_global_hotkey(external_hotkey):
-                logger.warning("Post-add capture failed to send hotkey %s for %s", external_hotkey, note_label)
-                return False
-            jump_to_end = getattr(getattr(self.controller, "playback", None), "on_jump_sub_end", None)
-            if callable(jump_to_end):
-                jump_to_end()
+            command_service = getattr(self.controller, "video_commands", None)
+            if command_service is not None:
+                delivery = command_service.deliver("capture")
+                if not delivery.ok:
+                    logger.warning(
+                        "Post-add capture could not deliver to the shared video target for %s: %s",
+                        note_label,
+                        delivery.reason,
+                    )
+                    return False
+                try:
+                    self._latest_post_add_capture_window_hwnd = int((delivery.target or {}).get("hwnd") or 0)
+                except Exception:
+                    self._latest_post_add_capture_window_hwnd = 0
+            else:
+                # Compatibility path for controller/test doubles that have not
+                # yet constructed the shared video-command service.
+                if target_title and not focus_window_by_title(target_title):
+                    logger.warning(
+                        "Post-add capture skipped for %s because target window was not found/focused: %s",
+                        note_label,
+                        target_title,
+                    )
+                    return False
+                try:
+                    self._latest_post_add_capture_window_hwnd = int(get_foreground_root_hwnd() or 0)
+                except Exception:
+                    self._latest_post_add_capture_window_hwnd = 0
+                suppress = getattr(self.controller, "_suppress_external_hotkey_events", None)
+                if callable(suppress):
+                    suppress(external_hotkey, 1)
+                if not send_global_hotkey(external_hotkey):
+                    logger.warning("Post-add capture failed to send hotkey %s for %s", external_hotkey, note_label)
+                    return False
             logger.info("Post-add capture hotkey %s sent for %s", external_hotkey, note_label)
+            if session is not None:
+                session.phase = "capture_sent"
+                session.dispatched_monotonic = time.monotonic()
             if note_id is not None:
                 try:
                     note_id_int = int(note_id)
                 except Exception:
                     note_id_int = 0
                 if note_id_int > 0:
-                    self._schedule_post_add_capture_media_copy(note_id_int)
+                    self._schedule_post_add_capture_media_copy(
+                        note_id_int,
+                        capture_only=bool(capture_only),
+                        session=session,
+                    )
             return True
 
-    def trigger_external_capture_only(self) -> bool:
-            """Run the configured external capture without creating an Anki note."""
-            return bool(self._run_post_add_external_capture(None))
+    def trigger_external_capture_only(
+        self,
+        *,
+        use_capture_only_resume: bool = True,
+        interaction_owner: str = "ui",
+    ) -> dict[str, Any]:
+            """Capture for the last card created by this SubtitlePlayer run.
 
-    def _schedule_post_add_capture_media_copy(self, note_id: int) -> None:
+            Falling back to a deck-wide "newest" note is unsafe: another Anki
+            action can win that race.  The in-memory record also supplies the
+            exact sentence key needed for reverse media reconciliation.
+            """
+            record = dict(self._last_subtitleplayer_added_card or {})
+            try:
+                source_note_id = int(record.get("note_id") or 0)
+            except Exception:
+                source_note_id = 0
+            target = record.get("target")
+            if source_note_id <= 0 or not isinstance(target, FrozenActionTarget):
+                message = "Capture-only needs a card added by SubtitlePlayer since this launch. Add a card first."
+                report = getattr(self.controller, "_report_voice_status", None)
+                if callable(report):
+                    report("error", message)
+                return {
+                    "accepted": False,
+                    "queued": False,
+                    "source_note_id": 0,
+                    "reason": "no_current_run_target",
+                }
+
+            owner = str(interaction_owner or "ui").strip().lower() or "ui"
+            if owner != "voice":
+                self._begin_action_feedback(target, force=True)
+            pause_lease = self._acquire_pause_lease(target)
+            session = self._new_capture_session(
+                target,
+                capture_only=bool(use_capture_only_resume),
+                early_capture=False,
+                pause_lease=pause_lease,
+                interaction_owner=owner,
+            )
+            session.set_target_note(source_note_id)
+            sent = bool(
+                self._run_post_add_external_capture(
+                    source_note_id,
+                    capture_only=bool(use_capture_only_resume),
+                    session=session,
+                )
+            )
+            if sent:
+                report = getattr(self.controller, "_report_voice_status", None)
+                if callable(report):
+                    report(
+                        "working",
+                        f"Capture sent for note {source_note_id}; checking exact-sentence cards for media.",
+                    )
+            else:
+                self._finish_action_feedback_key(session.action_feedback_key, False)
+                release = getattr(self.controller, "release_anki_pause_lease", None)
+                if callable(release):
+                    release(session.pause_lease, resume=False)
+            return {
+                "accepted": sent,
+                "queued": False,
+                "source_note_id": source_note_id,
+                "session_id": session.id,
+                "reason": "sent" if sent else "capture_delivery_failed",
+            }
+
+    def _schedule_post_add_capture_media_copy(
+        self,
+        note_id: int,
+        *,
+        capture_only: bool = False,
+        session: CaptureSession | None = None,
+    ) -> None:
             try:
                 note_id = int(note_id)
             except Exception:
                 return
             self._latest_post_add_capture_note_id = note_id
+            if session is not None:
+                session.set_target_note(note_id)
+                session.phase = "media_polling"
+            try:
+                hotkeys = getattr(self.controller, "hotkey_controller", None)
+                register = getattr(hotkeys, "register_capture_feedback", None)
+                if callable(register):
+                    register(note_id)
+            except Exception:
+                logger.debug("Failed to register capture feedback for note %s", note_id, exc_info=True)
             delay_ms = self._post_add_capture_media_copy_delay_ms()
             logger.info(
                 "Anki media copy-back scheduled for source note %s; first check in %d ms",
@@ -509,14 +1038,107 @@ class AnkiController(_ControllerProxy):
             )
 
             def _start_worker() -> None:
-                self._start_post_add_capture_media_copy_worker(note_id)
+                self._start_post_add_capture_media_copy_worker(
+                    note_id,
+                    capture_only=bool(capture_only),
+                    session=session,
+                )
 
             try:
                 dispatch_to_tk(self.settings.root, _start_worker, delay_ms=delay_ms)
             except Exception:
                 _start_worker()
 
-    def _start_post_add_capture_media_copy_worker(self, note_id: int) -> None:
+    def _finish_capture_after_media_ready(
+        self,
+        note_id: int,
+        *,
+        capture_only: bool,
+        session: CaptureSession | None = None,
+    ) -> None:
+            """Jump at media completion, then optionally resume synchronized playback."""
+            try:
+                note_id = int(note_id)
+            except Exception:
+                return
+            if session is not None and session.cancelled:
+                return
+            if session is not None:
+                session.phase = "completed"
+                self._finish_action_feedback_key(session.action_feedback_key, True)
+            try:
+                hotkeys = getattr(self.controller, "hotkey_controller", None)
+                notify = getattr(hotkeys, "notify_capture_media_finished", None)
+                if callable(notify):
+                    notify(note_id, True)
+            except Exception:
+                logger.debug("Failed to complete capture feedback for note %s", note_id, exc_info=True)
+            latest_note_id = int(getattr(self.controller, "_latest_post_add_capture_note_id", 0) or 0)
+            if (session is not None and not self._capture_session_is_latest(session)) or (
+                session is None and note_id != latest_note_id
+            ):
+                logger.debug("Skipping delayed capture jump for superseded note %s", note_id)
+                release = getattr(self.controller, "release_anki_pause_lease", None)
+                if callable(release) and session is not None:
+                    release(session.pause_lease, resume=False)
+                return
+
+            jump_to_end = getattr(getattr(self.controller, "playback", None), "on_jump_sub_end", None)
+            if not callable(jump_to_end):
+                logger.warning("Capture media is ready for note %s, but subtitle-end jump is unavailable", note_id)
+                release = getattr(self.controller, "release_anki_pause_lease", None)
+                if callable(release) and session is not None:
+                    release(session.pause_lease, resume=False)
+                return
+            try:
+                jump_to_end()
+            except Exception:
+                logger.exception("Failed to jump after capture media became ready for note %s", note_id)
+                release = getattr(self.controller, "release_anki_pause_lease", None)
+                if callable(release) and session is not None:
+                    release(session.pause_lease, resume=False)
+                return
+
+            logger.info("Capture media ready for note %s; jumped to subtitle end", note_id)
+            resume_key = (
+                "CAPTURE_ONLY_RESUME_PLAYBACK"
+                if capture_only
+                else "POST_ADD_CAPTURE_RESUME_PLAYBACK"
+            )
+            if bool(self.config.get(resume_key) or False):
+                self.controller.resume_video_and_subtitles_after_capture(note_id, session=session)
+            else:
+                release = getattr(self.controller, "release_anki_pause_lease", None)
+                if callable(release) and session is not None:
+                    release(session.pause_lease, resume=False)
+
+    def _start_post_add_capture_media_copy_worker(
+        self,
+        note_id: int,
+        *,
+        capture_only: bool = False,
+        session: CaptureSession | None = None,
+    ) -> None:
+            def notify_finished(succeeded: bool) -> None:
+                if session is not None and session.cancelled:
+                    return
+                try:
+                    hotkeys = getattr(self.controller, "hotkey_controller", None)
+                    notify = getattr(hotkeys, "notify_capture_media_finished", None)
+                    if callable(notify):
+                        dispatch_to_tk(self.settings.root, notify, note_id, bool(succeeded))
+                except Exception:
+                    logger.debug("Failed to report capture media completion for note %s", note_id, exc_info=True)
+                if not succeeded and session is not None:
+                    session.phase = "timeout" if session.phase == "media_polling" else "failed"
+                    self._finish_action_feedback_key(session.action_feedback_key, False)
+                    release = getattr(self.controller, "release_anki_pause_lease", None)
+                    if callable(release):
+                        try:
+                            dispatch_to_tk(self.settings.root, release, session.pause_lease, resume=False)
+                        except Exception:
+                            release(session.pause_lease, resume=False)
+
             def worker() -> None:
                 last_result = None
                 retry_reasons = {
@@ -531,7 +1153,7 @@ class AnkiController(_ControllerProxy):
                 started = time.monotonic()
                 attempt = 0
                 last_available_fields: tuple[str, ...] = ()
-                resume_requested = False
+                media_ready_handled = False
                 logger.debug(
                     "Anki media copy-back polling started for source note %s; interval=%d ms timeout=%.0f s",
                     note_id,
@@ -541,14 +1163,17 @@ class AnkiController(_ControllerProxy):
                 while True:
                     if bool(getattr(self.controller, "_shutting_down", False)):
                         return
+                    if session is not None and session.cancelled:
+                        return
                     attempt += 1
                     try:
-                        last_result = self.anki.copy_captured_sentence_media_to_previous_note(
+                        last_result = self.anki.reconcile_exact_sentence_media(
                             note_id,
-                            allow_partial_source_media=True,
+                            baseline=(session.baseline_media if session is not None else None),
                         )
                     except Exception:
                         logger.exception("Post-capture media copy failed for note %s", note_id)
+                        notify_finished(False)
                         return
 
                     reason = str((last_result or {}).get("reason") or "")
@@ -590,16 +1215,17 @@ class AnkiController(_ControllerProxy):
                         )
 
                     if (
-                        not resume_requested
+                        not media_ready_handled
                         and available_fields
                         and not missing_fields
-                        and bool(self.config.get("POST_ADD_CAPTURE_RESUME_PLAYBACK") or False)
                     ):
-                        resume_requested = True
+                        media_ready_handled = True
                         dispatch_to_tk(
                             self.settings.root,
-                            self.controller.resume_video_and_subtitles_after_capture,
+                            self._finish_capture_after_media_ready,
                             note_id,
+                            capture_only=bool(capture_only),
+                            session=session,
                         )
 
                     partial_result = bool(available_fields) and bool(missing_fields)
@@ -613,6 +1239,7 @@ class AnkiController(_ControllerProxy):
                             missing_fields or "unknown",
                             reason or "unknown",
                         )
+                        notify_finished(False)
                         return
 
                     wait_sec = min(poll_interval_ms / 1000.0, max(0.0, timeout_sec - elapsed))
@@ -622,6 +1249,8 @@ class AnkiController(_ControllerProxy):
                             return
                     else:
                         time.sleep(wait_sec)
+                    if session is not None and session.cancelled:
+                        return
 
                 if reason == "target_already_has_media":
                     logger.info(
@@ -629,13 +1258,15 @@ class AnkiController(_ControllerProxy):
                         note_id,
                         len(target_note_ids),
                     )
-                elif reason == "previous_same_sentence_missing":
+                elif reason == "same_sentence_missing":
                     logger.debug(
-                        "Anki media copy-back finished for source note %s; no previous same-sentence note needs updating",
+                        "Anki media copy-back finished for source note %s; no other exact-sentence note needs updating",
                         note_id,
                     )
                 elif reason != "copied":
                     logger.warning("Anki media copy-back stopped for source note %s: %s", note_id, reason or "unknown")
+                if not media_ready_handled:
+                    notify_finished(False)
 
             threading.Thread(target=worker, daemon=True).start()
 
@@ -783,8 +1414,14 @@ class AnkiController(_ControllerProxy):
         subtitle_text: str = "",
         on_ready=None,
         post_add_capture: bool = False,
+        on_add_complete=None,
+        cue_snapshot=None,
+        selection_spans=None,
+        action_target: FrozenActionTarget | None = None,
+        pause_lease=None,
     ) -> None:
             selected = (selected_text or "").strip()
+            auto_start = bool(self.config.get("ANKI_AUTO_START") or False)
 
             existing = getattr(self, "_anki_wait_window", None)
             if existing is not None:
@@ -794,6 +1431,11 @@ class AnkiController(_ControllerProxy):
                             "selected_text": selected,
                             "subtitle_text": subtitle_text,
                             "post_add_capture": bool(post_add_capture),
+                            "on_complete": on_add_complete,
+                            "cue_snapshot": cue_snapshot,
+                            "selection_spans": tuple(selection_spans or ()),
+                            "action_target": action_target,
+                            "pause_lease": pause_lease,
                         }
                     existing.deiconify()
                     existing.lift()
@@ -805,6 +1447,11 @@ class AnkiController(_ControllerProxy):
                     "selected_text": selected,
                     "subtitle_text": subtitle_text,
                     "post_add_capture": bool(post_add_capture),
+                    "on_complete": on_add_complete,
+                    "cue_snapshot": cue_snapshot,
+                    "selection_spans": tuple(selection_spans or ()),
+                    "action_target": action_target,
+                    "pause_lease": pause_lease,
                 }
             else:
                 self._pending_anki_payload = None
@@ -824,7 +1471,11 @@ class AnkiController(_ControllerProxy):
                 body,
                 text=(
                     "AnkiConnect is not reachable.\n"
-                    "Please open Anki, then press the button below."
+                    + (
+                        "SubtitlePlayer will start Anki and continue automatically."
+                        if auto_start
+                        else "Please open Anki, then press the button below."
+                    )
                 ),
                 justify="left",
                 anchor="w",
@@ -836,7 +1487,7 @@ class AnkiController(_ControllerProxy):
 
             btn_row = tk.Frame(body)
             btn_row.pack(fill="x", pady=(10, 0))
-            wait_state = {"running": False}
+            wait_state = {"running": False, "completed": False}
             closed_event = threading.Event()
 
             def _set_status(text: str) -> None:
@@ -844,12 +1495,12 @@ class AnkiController(_ControllerProxy):
                 if status is not None:
                     status.set(text)
 
-            def _begin_wait_for_anki() -> None:
+            def _begin_wait_for_anki(status_text: str = "Waiting for AnkiConnect...") -> None:
                 if wait_state["running"]:
                     return
                 wait_state["running"] = True
                 open_btn.configure(state="disabled")
-                _set_status("Waiting for AnkiConnect...")
+                _set_status(status_text)
 
                 def wait_worker():
                     while not self._shutting_down and not closed_event.is_set():
@@ -859,18 +1510,25 @@ class AnkiController(_ControllerProxy):
                             def _finish():
                                 if closed_event.is_set():
                                     return
+                                wait_state["completed"] = True
+                                self._pending_anki_payload = None
                                 if win.winfo_exists():
                                     win.destroy()
-                                if callable(on_ready):
-                                    on_ready()
-                                    return
                                 payload_selected = (payload.get("selected_text", "") or "").strip()
                                 if payload_selected:
                                     self._start_anki_add_worker(
                                         selected_text=payload_selected,
                                         subtitle_text=payload.get("subtitle_text", ""),
                                         post_add_capture=bool(payload.get("post_add_capture")),
+                                        on_complete=payload.get("on_complete"),
+                                        cue_snapshot=payload.get("cue_snapshot"),
+                                        selection_spans=payload.get("selection_spans"),
+                                        action_target=payload.get("action_target"),
+                                        pause_lease=payload.get("pause_lease"),
                                     )
+                                    return
+                                if callable(on_ready):
+                                    on_ready()
 
                             try:
                                 dispatch_to_tk(self.settings.root, _finish)
@@ -893,11 +1551,42 @@ class AnkiController(_ControllerProxy):
                 self._anki_wait_window = None
                 self._anki_wait_status_var = None
                 self._anki_wait_thread = None
+                if not wait_state.get("completed"):
+                    payload = dict(self._pending_anki_payload or {})
+                    target = payload.get("action_target")
+                    self._finish_action_feedback(target if isinstance(target, FrozenActionTarget) else None, False)
+                    release = getattr(self.controller, "release_anki_pause_lease", None)
+                    if callable(release):
+                        release(payload.get("pause_lease"), resume=False)
+                    callback = payload.get("on_complete")
+                    if callable(callback):
+                        callback(False, None)
+                self._pending_anki_payload = None
 
             win.bind("<Destroy>", _on_destroy)
             win.bind("<Escape>", lambda _e: win.destroy())
 
             self._center_anki_wait_window(win, parent)
+
+            if auto_start:
+                open_btn.configure(state="disabled")
+                _set_status("Starting Anki...")
+
+                def launch_worker() -> None:
+                    launched, message = self._launch_anki_automatically()
+
+                    def finish_launch() -> None:
+                        if closed_event.is_set() or not win.winfo_exists():
+                            return
+                        if launched:
+                            _begin_wait_for_anki(message)
+                        else:
+                            open_btn.configure(state="normal")
+                            _set_status(message)
+
+                    dispatch_to_tk(self.settings.root, finish_launch)
+
+                threading.Thread(target=launch_worker, daemon=True, name="anki-auto-start").start()
 
     @staticmethod
     def _centered_position_on_monitor(

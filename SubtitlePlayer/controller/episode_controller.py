@@ -290,6 +290,24 @@ class EpisodeController(_ControllerProxy):
                     cfg["EPISODE_TIME_POSITIONS"] = positions
                 logger.debug("Failed to persist episode resume position", exc_info=True)
 
+    def remember_current_anime_episode(self) -> None:
+            """Record the successfully loaded episode in local and active-profile state."""
+            recorder = getattr(self.sub_manager, "record_current_anime_episode_progress", None)
+            if not callable(recorder):
+                return
+            try:
+                progress = recorder()
+                current = getattr(self.sub_manager, "get_anime_episode_progress", None)
+                if callable(current) and current() is None:
+                    return
+                if not isinstance(progress, dict):
+                    return
+                persist_profile = getattr(self.settings, "persist_active_profile_fields", None)
+                if callable(persist_profile):
+                    persist_profile({"ANIME_EPISODE_PROGRESS": progress})
+            except Exception:
+                logger.debug("Failed to remember current anime episode", exc_info=True)
+
     def restore_startup_time_and_mode(self) -> None:
             self._startup_resume_play = False
             try:
@@ -485,6 +503,7 @@ class EpisodeController(_ControllerProxy):
                 self.sub_manager.schedule_episode_preload_around_current()
             except Exception:
                 pass
+            self.remember_current_anime_episode()
 
     def update_max_width(self) -> None:
             # Recompute content width + padding
@@ -517,10 +536,24 @@ class EpisodeController(_ControllerProxy):
                             pass
             if idx is None or idx < 0:
                 # nothing to draw
+                self.current_cue_snapshot = None
                 self.renderer.canvas.delete("all")
                 return
 
-            _, _, top_segments, bottom_segments = self.sub_manager.display_data[idx]
+            clean, start_time, top_segments, bottom_segments = self.sub_manager.display_data[idx]
+            navigation = getattr(self.controller, "subtitle_navigation", None)
+            snapshot_builder = getattr(navigation, "_build_cue_snapshot", None)
+            snapshot = (
+                snapshot_builder(idx, clean, start_time, top_segments, bottom_segments)
+                if callable(snapshot_builder)
+                else None
+            )
+            self.current_cue_snapshot = snapshot
             # render freshly using updated overlay/canvas
             self.renderer.canvas.delete("all")
-            self.renderer.render_subtitle(top_segments, bottom_segments, self.overlay)
+            self.renderer.render_subtitle(
+                top_segments,
+                bottom_segments,
+                self.overlay,
+                cue_snapshot=snapshot,
+            )

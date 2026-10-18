@@ -9,6 +9,8 @@ class _Config:
         defaults = {
             "SHIFT_HOVER_KANJI_DICTIONARY": False,
             "SUBTITLE_FONT_SIZE": 20,
+            "HOVER_LAYER_DELAY_MS": 0,
+            "SUBTITLE_HOVER_CLEAR_DELAY_MS": 0,
         }
         defaults.update(self.values)
         return defaults.get(key)
@@ -43,6 +45,14 @@ class _Canvas:
         self.lines = []
         self.deleted = []
         self.itemconfigs = []
+        self.bindings = {}
+        self.after_jobs = {}
+        self.after_history = {}
+        self._after_counter = 0
+        self.pointer_x = 100
+        self.pointer_y = 25
+        self.width = 300
+        self.height = 80
 
     def create_text(self, *args, **kwargs):
         self.texts.append((args, kwargs))
@@ -61,6 +71,48 @@ class _Canvas:
 
     def tag_lower(self, *args, **kwargs):
         pass
+
+    def tag_raise(self, *args, **kwargs):
+        pass
+
+    def bind(self, sequence, callback, add=None):
+        self.bindings[sequence] = callback
+        return sequence
+
+    def unbind(self, sequence):
+        self.bindings.pop(sequence, None)
+
+    def after(self, _delay, callback):
+        self._after_counter += 1
+        job = f"after-{self._after_counter}"
+        self.after_jobs[job] = callback
+        self.after_history[job] = callback
+        return job
+
+    def after_cancel(self, job):
+        self.after_jobs.pop(job, None)
+
+    def run_after(self, job):
+        callback = self.after_jobs.pop(job)
+        callback()
+
+    def winfo_pointerx(self):
+        return self.pointer_x
+
+    def winfo_pointery(self):
+        return self.pointer_y
+
+    def winfo_rootx(self):
+        return 0
+
+    def winfo_rooty(self):
+        return 0
+
+    def winfo_width(self):
+        return self.width
+
+    def winfo_height(self):
+        return self.height
 
 
 def _renderer(config=None):
@@ -238,7 +290,7 @@ def test_renderer_hover_modifier_priority_alt_ctrl_shift():
 
 
 def test_renderer_normal_hover_draws_annotation_ruby_even_when_annotation_hover_ruby_disabled():
-    renderer = _renderer()
+    renderer = _renderer(_Config({"HOVER_DEFAULT_RUBY": True}))
     renderer.hover_ruby_enabled = True
     meta = {
         "annotation": True,
@@ -273,7 +325,7 @@ def test_renderer_shift_hover_calls_dictionary_only_when_enabled_and_shift_curre
     renderer._on_hover_motion(_Event(state=0x0001))
 
     assert dictionary_calls == ["\u5207\u308b"]
-    assert shown_texts == ["dictionary"]
+    assert shown_texts == ["Dictionary: dictionary"]
 
 
 def test_renderer_shift_dictionary_uses_hovered_word_not_full_sentence():
@@ -306,3 +358,100 @@ def test_renderer_shift_dictionary_uses_hovered_word_not_full_sentence():
     renderer._on_hover_motion(_Event(x=(x1 + x2) / 2, y=(y1 + y2) / 2, state=0x0001))
 
     assert dictionary_calls == ["\u65e9\u3044"]
+
+
+def _hover_word(base, x1, x2, start):
+    return {
+        "base": base,
+        "lookup": base,
+        "bbox": (x1, 10, x2, 30),
+        "line_position": "first",
+        "sentence_lookup": "\u4e00\u4e8c",
+        "char_start": start,
+        "char_end": start + 1,
+    }
+
+
+def test_voice_highlight_redraw_cannot_show_a_stale_hover_for_another_word():
+    renderer = _renderer(
+        _Config(
+            {
+                "HOVER_DEFAULT_RUBY": False,
+                "HOVER_DEFAULT_DICTIONARY": True,
+                "HOVER_LAYER_DELAY_MS": 100,
+            }
+        )
+    )
+    first = _hover_word("\u4e00", 0, 20, 0)
+    second = _hover_word("\u4e8c", 30, 50, 1)
+    renderer._word_regions = [first, second]
+    shown = []
+    renderer._draw_word_highlight = lambda _region: None
+    renderer._show_hover_layers = lambda region, _layers: shown.append(region["base"])
+
+    assert renderer.highlight_subtitle_words_for_voice([1])["ok"] is True
+    renderer._on_hover_motion(_Event(x=10, y=20))
+    stale_job = renderer._hover_layer_job
+    stale_callback = renderer.canvas.after_history[stale_job]
+    active_before_redraw = renderer._hover_active_region
+
+    assert renderer.modify_subtitle_word_highlights_for_voice([2], add=True)["ok"] is True
+    assert renderer._hover_active_region == active_before_redraw
+    renderer._on_hover_motion(_Event(x=40, y=20))
+    current_job = renderer._hover_layer_job
+
+    # Tk can have already dequeued a cancelled callback.  It must not show the
+    # first word after a later voice-highlight redraw and movement to word two.
+    stale_callback()
+    assert shown == []
+    renderer.canvas.run_after(current_job)
+    assert shown == ["\u4e8c"]
+
+
+def test_stale_hover_clear_cannot_hide_a_newer_hover_region():
+    renderer = _renderer(_Config({"HOVER_DEFAULT_RUBY": False, "HOVER_DEFAULT_DICTIONARY": True}))
+    first = _hover_word("\u4e00", 0, 20, 0)
+    second = _hover_word("\u4e8c", 30, 50, 1)
+    renderer._word_regions = [first, second]
+    renderer._draw_word_highlight = lambda _region: None
+    renderer._show_hover_layers = lambda _region, _layers: None
+
+    renderer._on_hover_motion(_Event(x=10, y=20))
+    renderer._schedule_hover_clear(delay_ms=100)
+    stale_clear = renderer.canvas.after_history[renderer._hover_clear_job]
+
+    renderer._on_hover_motion(_Event(x=40, y=20))
+    active_second = renderer._hover_active_region
+    renderer.canvas.pointer_x = 200
+    renderer.canvas.pointer_y = 70
+    stale_clear()
+
+    assert renderer._hover_active_region == active_second
+
+
+def test_overlay_drag_suspends_hover_until_fresh_mouse_motion():
+    renderer = _renderer(_Config({"HOVER_DEFAULT_RUBY": False, "HOVER_DEFAULT_DICTIONARY": True}))
+    first = _hover_word("\u4e00", 0, 20, 0)
+    second = _hover_word("\u4e8c", 30, 50, 1)
+    renderer._word_regions = [first, second]
+    shown = []
+    renderer._draw_word_highlight = lambda _region: None
+    renderer._show_hover_layers = lambda region, _layers: shown.append(region["base"])
+
+    renderer._on_hover_motion(_Event(x=10, y=20))
+    assert shown == ["\u4e00"]
+
+    renderer.suspend_hover_for_overlay_drag()
+    assert renderer._hover_suspended is True
+    assert renderer._hover_active_region is None
+    renderer._on_hover_motion(_Event(x=40, y=20))
+    assert shown == ["\u4e00"]
+
+    renderer.resume_hover_after_overlay_drag()
+    renderer.canvas.pointer_x = 40
+    renderer.canvas.pointer_y = 20
+    renderer.refresh_hover_display()
+    assert shown == ["\u4e00"]
+
+    renderer._on_hover_motion(_Event(x=40, y=20))
+    assert shown == ["\u4e00", "\u4e8c"]

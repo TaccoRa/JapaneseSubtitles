@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 import SubtitlePlayer.controller.anki_controller as anki_controller_module
 from SubtitlePlayer.controller.anki_controller import AnkiController
+from SubtitlePlayer.model.capture_session import FrozenActionTarget
 
 
 def test_anki_add_result_prints_plain_status_lines(capsys):
@@ -74,3 +75,43 @@ def test_post_add_external_capture_focuses_target_and_sends_hotkey(monkeypatch):
         ("hotkey", "ctrl+shift+y"),
         ("jump", "subtitle_end"),
     ]
+
+
+def test_voice_abort_cancels_only_voice_capture_follow_up_work():
+    releases = []
+    controller = SimpleNamespace(
+        anki=SimpleNamespace(snapshot_exact_sentence_media=lambda _sentence: {}),
+        renderer=SimpleNamespace(set_voice_action_indicator=lambda _state: None),
+        release_anki_pause_lease=lambda lease, resume=False: releases.append((lease, resume)),
+    )
+    anki_controller = AnkiController(controller)
+    voice_target = FrozenActionTarget.create(
+        selected_text="語",
+        subtitle_text="文です",
+        sentence_key="文です",
+        initiator="voice",
+    )
+    ui_target = FrozenActionTarget.create(
+        selected_text="別",
+        subtitle_text="別の文です",
+        sentence_key="別の文です",
+        initiator="anki",
+    )
+    voice_session = anki_controller._new_capture_session(
+        voice_target,
+        capture_only=False,
+        early_capture=False,
+        pause_lease="voice-lease",
+    )
+    ui_session = anki_controller._new_capture_session(
+        ui_target,
+        capture_only=False,
+        early_capture=False,
+        pause_lease="ui-lease",
+    )
+
+    assert anki_controller.cancel_capture_sessions(interaction_owner="voice", reason="voice_abort") == 1
+    assert voice_session.cancelled is True
+    assert voice_session.phase == "cancelled"
+    assert ui_session.cancelled is False
+    assert releases == [("voice-lease", False)]

@@ -829,15 +829,37 @@ class VoiceCommandService:
         if previous is not None and fired_at - float(previous) < max(0.0, float(cooldown_sec)):
             return False
         last_fired[action_base] = fired_at
+        action_specs = list(VOICE_ACTIONS.values())
         action_label = next(
             (
                 str(spec.get("label") or action_base)
-                for spec in VOICE_ACTIONS.values()
-                if action_base == str(spec.get("dispatch") or "")
-                or action_base.startswith(str(spec.get("dispatch") or "") + "_")
+                for spec in action_specs
+                if action_base in {
+                    str(spec.get("dispatch") or ""),
+                    str(spec.get("indexed_dispatch") or ""),
+                }
             ),
-            "Combined command" if action_base == "voice_sequence" else action_base,
+            "",
         )
+        if not action_label:
+            action_label = next(
+                (
+                    str(spec.get("label") or action_base)
+                    for spec in action_specs
+                    if any(
+                        action_base.startswith(candidate + "_")
+                        for candidate in (
+                            str(spec.get("dispatch") or ""),
+                            str(spec.get("indexed_dispatch") or ""),
+                        )
+                        if candidate
+                    )
+                ),
+                {
+                    "voice_sequence": "Combined command",
+                    "voice_hover_layers": "Combined hover",
+                }.get(action_base, action_base),
+            )
         self._emit_status(
             "recognized",
             f'Recognized "{phrase}" -> {action_label}' + (f" x{repeat_count}." if repeat_count > 1 else "."),

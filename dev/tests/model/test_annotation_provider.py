@@ -677,3 +677,47 @@ def test_exact_compound_phrase_across_subtitle_space_wins_over_partial_base_verb
     assert len(segments[0]) == 3
     assert segments[0][0] == line
     assert segments[0][2]["status"] == "anki_unknown"
+
+
+def test_canonical_kana_and_katakana_forms_match_only_compatible_lexical_entries(tmp_path):
+    provider, db = _provider(tmp_path)
+    db.upsert(WordEntry(surface="漸く", reading="ようやく"), save=False)
+    db.upsert(WordEntry(surface="間抜け", reading="まぬけ"), save=False)
+    db.upsert(WordEntry(surface="旨い", reading="うまい"), save=False)
+    db.save()
+    provider.refresh()
+
+    adverb = provider.match_token(
+        {
+            "surface": "ようやく",
+            "lookup": "漸く",
+            "orth_base": "ようやく",
+            "reading": "ようやく",
+            "pos1": "副詞",
+            "c_form": "*",
+        }
+    )
+    katakana = provider.match_token(
+        {
+            "surface": "マヌケ",
+            "lookup": "間抜け",
+            "orth_base": "マヌケ",
+            "reading": "マヌケ",
+            "pos1": "名詞",
+            "c_form": "*",
+        }
+    )
+    incompatible = provider.match_token(
+        {
+            "surface": "うまく",
+            "lookup": "旨い",
+            "orth_base": "うまく",
+            "reading": "うまく",
+            "pos1": "形容詞",
+            "c_form": "連用形",
+        }
+    )
+
+    assert adverb is not None and adverb.match_reason == "canonical_orthography"
+    assert katakana is not None and katakana.match_reason == "canonical_orthography"
+    assert incompatible is None

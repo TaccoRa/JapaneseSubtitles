@@ -22,6 +22,7 @@ from tkinter import font as tkFont
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from model.config_manager import ConfigManager
+from model.cue_snapshot import CueSnapshot
 from model.hover_layers import (
     choose_hover_region,
     clean_hover_translation,
@@ -40,7 +41,7 @@ WrappedLines = Tuple[Tuple[Segment, ...], ...]
 
 class SubtitleRenderer:
     _HOVER_TEXT_MAX_WIDTH_PX = 1000
-    _HOVER_TEXT_PAD_X = 12
+    _HOVER_TEXT_PAD_X = 36
     _HOVER_TEXT_PAD_Y = 8
     _HOVER_TEXT_HEADINGS = ("Dictionary:", "Status:", "Translation:")
 
@@ -55,15 +56,31 @@ class SubtitleRenderer:
         self._hover_active_translation_key: tuple[str, str] | None = None
         self._translation_hover_cache: dict[tuple[str, str], str] = {}
         self._translation_hover_pending: set[tuple[str, str]] = set()
+        self._voice_translation_each_generation = 0
+        # Hover callbacks run later on Tk's event queue.  Keep a cue generation
+        # as well as a local interaction generation so an old leave/delay cannot
+        # clear or redraw the tooltip for a newer cue/word.
+        self._hover_cue_generation = 0
+        self._hover_generation = 0
+        self._hover_suspended = False
+        self._hover_requires_fresh_motion = False
+        self._hover_drag_overlay = None
         self._hover_layer_job = None
         self._hover_clear_job = None
         self._hover_status_highlights: set[tuple[float, float, float, float]] = set()
         self._status_selected_regions: list[dict] = []
+        self._voice_selected_word_keys: list[tuple] = []
+        self._voice_action_indicator_job = None
+        self._voice_action_indicator_hide_job = None
+        self._voice_action_indicator_generation = 0
+        self._voice_action_indicator_phase = 0
+        self._voice_action_indicator_state = "idle"
         self._hover_click_bind_id = None
         self._hover_text_window: tk.Toplevel | None = None
         self._hover_text_label: tk.Text | None = None
         self._hover_text_current: str = ""
         self._hover_text_size: tuple[int, int] = (1, 1)
+        self._hover_copy_values: dict[str, str] = {}
         self._dictionary_lookup: Callable[[str], str] | None = None
         self._translation_lookup: Callable[..., str] | None = None
         self._translation_provider_callback: Callable[[], str] | None = None
@@ -71,6 +88,7 @@ class SubtitleRenderer:
         self._shift_state_callback: Callable[[], bool] | None = None
         self._hover_mode_callback: Callable[[], str] | None = None
         self._annotation_provider = None
+        self._cue_snapshot: CueSnapshot | None = None
 
         self.font: Optional[tkFont.Font] = None
         self.ruby_font: Optional[tkFont.Font] = None
@@ -122,19 +140,33 @@ class SubtitleRenderer:
             "render_count": 0,
         }
 
-    def render_subtitle(self, top_segments, bottom_segments, overlay: SubtitleOverlayUI, preview: bool = False) -> None:
+    def render_subtitle(
+        self,
+        top_segments,
+        bottom_segments,
+        overlay: SubtitleOverlayUI,
+        preview: bool = False,
+        cue_snapshot: CueSnapshot | None = None,
+    ) -> None:
         start = time.perf_counter()
         preview = bool(preview)
         if self._timing_enabled:
             self._timing_data["render_count"] += 1
 
         try:
+            self._bind_overlay_drag_callbacks(overlay)
+            # A render replaces hit regions.  Any queued hover work for the old
+            # regions must not be allowed to act on the newly rendered canvas.
+            self._hover_cue_generation += 1
+            self._clear_hover_ruby()
+            self._status_selected_regions.clear()
             self._refresh_fonts_if_needed()
 
             self._hover_regions = []
             self._word_regions = []
             self._hover_active_region = None
             self._hover_active_mode = None
+            self._cue_snapshot = cue_snapshot
 
             base_height = int(self.ruby_height * 2 + self.line_height * 2)
             y_ruby_top = self.ruby_height // 2
@@ -146,8 +178,12 @@ class SubtitleRenderer:
                 self._layout_cache.clear()
                 self._last_overlay_width = int(overlay.max_w)
 
-            render_top_segments = self._prepare_annotation_segments(top_segments)
-            render_bottom_segments = self._prepare_annotation_segments(bottom_segments)
+            if cue_snapshot is not None:
+                render_top_segments = cue_snapshot.renderer_segments("first", annotated=True)
+                render_bottom_segments = cue_snapshot.renderer_segments("second", annotated=True)
+            else:
+                render_top_segments = self._prepare_annotation_segments(top_segments)
+                render_bottom_segments = self._prepare_annotation_segments(bottom_segments)
 
             layout_cache_key = (
                 self._freeze_segments(render_top_segments),
@@ -186,6 +222,7 @@ class SubtitleRenderer:
                 else:
                     self._delete_all_canvas_items()
                     self._clear_preview_render_cache(delete_items=False)
+                    self._voice_selected_word_keys.clear()
                 self._finish_hover_bindings(preview=preview)
                 return
 
@@ -227,6 +264,8 @@ class SubtitleRenderer:
                 self._render_subtitle_lines(lines, y_ruby_top, y_base1, overlay, preview=preview)
             finally:
                 self._current_render_tags = ()
+            if not preview:
+                self._restore_voice_word_highlights()
             if preview and preview_cache_key is not None and preview_tag:
                 self._store_preview_render(preview_cache_key, preview_tag)
             self._finish_hover_bindings(preview=preview)
@@ -260,6 +299,9 @@ class SubtitleRenderer:
                         str(meta.get("ruby_group_id") or ""),
                         str(meta.get("ruby_group_base") or ""),
                         str(meta.get("ruby_group_ruby") or ""),
+                        int(meta.get("_cue_line_index", -1)),
+                        int(meta.get("_cue_start", -1)),
+                        int(meta.get("_cue_end", -1)),
                     )
                 )
             else:
@@ -588,6 +630,9 @@ class SubtitleRenderer:
                         "end": line_col + len(base or ""),
                         "base": base or "",
                         "base_left": base_left,
+                        "cue_line_index": meta.get("_cue_line_index"),
+                        "cue_start": meta.get("_cue_start"),
+                        "cue_end": meta.get("_cue_end"),
                     }
                 )
                 line_col += len(base or "")
@@ -672,7 +717,12 @@ class SubtitleRenderer:
                         "char_end": text_end,
                         "line_position": line_position,
                         "annotation": True,
+                        "status": str(meta.get("status") or ""),
+                        "source": str(meta.get("source") or ""),
                         "annotation_text": str(meta.get("annotation_text") or ""),
+                        "annotation_meaning": str(meta.get("annotation_meaning") or ""),
+                        "annotation_match_reason": str(meta.get("annotation_match_reason") or ""),
+                        "annotation_matched_key": str(meta.get("annotation_matched_key") or ""),
                         "hover_highlight": bool(meta.get("hover_highlight", True)),
                         "show_ruby_on_hover": show_ruby_on_hover,
                     }
@@ -981,11 +1031,21 @@ class SubtitleRenderer:
                     _flush()
                     continue
 
+                source_cursor = 0
                 for chunk in self._split_text_to_fit(base, limit):
                     chunk_w = self._measure_text(self.font, chunk)
                     if cur and (cur_w + chunk_w) > limit:
                         _flush()
-                    cur.append(self._make_segment(chunk, None, meta))
+                    chunk_meta = dict(meta)
+                    if "_cue_start" in chunk_meta:
+                        local_start = base.find(chunk, source_cursor)
+                        if local_start < 0:
+                            local_start = source_cursor
+                        source_cursor = local_start + len(chunk)
+                        source_start = int(chunk_meta.get("_cue_start") or 0) + local_start
+                        chunk_meta["_cue_start"] = source_start
+                        chunk_meta["_cue_end"] = source_start + len(chunk)
+                    cur.append(self._make_segment(chunk, None, chunk_meta))
                     cur_w += chunk_w
 
             _flush()
@@ -1221,7 +1281,36 @@ class SubtitleRenderer:
     ) -> None:
         if not line_text:
             return
-        tokens = self._tokenize_words(line_text)
+        tokens: list[dict[str, Any]] = []
+        source_coordinates = False
+        used_snapshot = False
+        snapshot_line = None
+        snapshot = getattr(self, "_cue_snapshot", None)
+        line_indexes = {
+            int(segment.get("cue_line_index"))
+            for segment in segment_meta
+            if segment.get("cue_line_index") is not None
+        }
+        source_ranges = [
+            (int(segment.get("cue_start")), int(segment.get("cue_end")))
+            for segment in segment_meta
+            if segment.get("cue_start") is not None and segment.get("cue_end") is not None
+        ]
+        if snapshot is not None and len(line_indexes) == 1 and source_ranges:
+            snapshot_line = snapshot.line(next(iter(line_indexes)))
+            if snapshot_line is not None:
+                used_snapshot = True
+                source_start = min(start for start, _end in source_ranges)
+                source_end = max(end for _start, end in source_ranges)
+                tokens = [
+                    token.as_mapping()
+                    for token in snapshot_line.tokens
+                    if token.start >= source_start and token.end <= source_end
+                ]
+                source_coordinates = True
+        if not used_snapshot:
+            tokens = self._tokenize_words(line_text)
+            source_coordinates = False
         if not tokens:
             return
 
@@ -1240,8 +1329,12 @@ class SubtitleRenderer:
             x1 = None
             x2 = None
             for segment in segment_meta:
-                seg_start = int(segment.get("start") or 0)
-                seg_end = int(segment.get("end") or 0)
+                if source_coordinates:
+                    seg_start = int(segment.get("cue_start") or 0)
+                    seg_end = int(segment.get("cue_end") or seg_start)
+                else:
+                    seg_start = int(segment.get("start") or 0)
+                    seg_end = int(segment.get("end") or 0)
                 if end <= seg_start or start >= seg_end:
                     continue
                 base = str(segment.get("base") or "")
@@ -1257,7 +1350,8 @@ class SubtitleRenderer:
 
             if x1 is None or x2 is None or x2 <= x1:
                 continue
-            self._word_regions.append(
+            region = dict(token)
+            region.update(
                 {
                     "bbox": (
                         x1,
@@ -1271,8 +1365,10 @@ class SubtitleRenderer:
                     "char_end": end,
                     "compound": bool(token.get("compound")),
                     "orth_base": str(token.get("orth_base") or "").strip(),
-                    "sentence_lookup": line_text,
-                    "ruby": str(token.get("reading") or "").strip(),
+                    "sentence_lookup": snapshot_line.text if snapshot_line is not None else line_text,
+                    "cue_text": snapshot.plain_text if snapshot is not None else line_text,
+                    "ruby": str(token.get("ruby") or token.get("reading") or "").strip(),
+                    "reading": str(token.get("reading") or "").strip(),
                     "pos1": str(token.get("pos1") or ""),
                     "pos2": str(token.get("pos2") or ""),
                     "c_type": str(token.get("c_type") or ""),
@@ -1282,6 +1378,7 @@ class SubtitleRenderer:
                     "line_position": line_position,
                 }
             )
+            self._word_regions.append(region)
 
     def _tokenize_words(self, text: str) -> List[dict[str, Any]]:
         callback = getattr(self, "_word_tokenizer", None)
@@ -1411,7 +1508,95 @@ class SubtitleRenderer:
             except Exception:
                 pass
 
+    @staticmethod
+    def _hover_region_key(region: dict | None) -> tuple | None:
+        """Return a stable identity for a rendered hover region.
+
+        Object ids are convenient while a canvas is unchanged, but a delayed
+        callback can survive a redraw.  The rendered cue/span/bounds identity is
+        stable enough to distinguish repeated word surfaces in one subtitle.
+        """
+        if not isinstance(region, dict):
+            return None
+        try:
+            bbox = tuple(round(float(value), 3) for value in tuple(region.get("bbox") or ())[:4])
+        except Exception:
+            bbox = ()
+        return (
+            str(region.get("line_position") or ""),
+            str(region.get("sentence_lookup") or ""),
+            region.get("line_index"),
+            region.get("cue_line_index"),
+            region.get("cue_start"),
+            region.get("cue_end"),
+            int(region.get("char_start") or 0),
+            int(region.get("char_end") or 0),
+            str(region.get("base") or ""),
+            str(region.get("lookup") or ""),
+            bbox,
+        )
+
+    @classmethod
+    def _hover_target_key(cls, ruby_hit: dict | None, layer_hit: dict | None) -> tuple:
+        return (cls._hover_region_key(ruby_hit), cls._hover_region_key(layer_hit))
+
+    def _advance_hover_generation(self) -> int:
+        self._hover_generation += 1
+        return self._hover_generation
+
+    def _bind_overlay_drag_callbacks(self, overlay: SubtitleOverlayUI | None) -> None:
+        """Attach hover suppression once an overlay becomes available.
+
+        The renderer is constructed from the canvas, so the overlay is first
+        available here rather than in ``__init__``.  Older/test overlays simply
+        do not expose this optional binding.
+        """
+        if overlay is self._hover_drag_overlay:
+            return
+        self._hover_drag_overlay = overlay
+        bind_callbacks = getattr(overlay, "bind_drag_callbacks", None)
+        if callable(bind_callbacks):
+            try:
+                bind_callbacks(self.suspend_hover_for_overlay_drag, self.resume_hover_after_overlay_drag)
+            except Exception:
+                logger.debug("Failed to bind subtitle-overlay drag callbacks", exc_info=True)
+        try:
+            self.set_hover_suspended(bool(getattr(overlay, "is_dragging", False)))
+        except Exception:
+            pass
+
+    def set_hover_suspended(self, suspended: bool) -> None:
+        """Suspend transient hover UI until a real subsequent mouse movement.
+
+        Dragging moves the window below a stationary pointer, which can produce
+        synthetic canvas motion/refresh events.  Hiding and invalidating hover
+        state here prevents those events from opening a tooltip mid-drag.
+        """
+        suspended = bool(suspended)
+        if suspended == self._hover_suspended:
+            return
+        self._hover_suspended = suspended
+        self._hover_requires_fresh_motion = True
+        self._advance_hover_generation()
+        if suspended:
+            self._clear_hover_ruby()
+
+    def suspend_hover_for_overlay_drag(self) -> None:
+        self.set_hover_suspended(True)
+
+    def resume_hover_after_overlay_drag(self) -> None:
+        self.set_hover_suspended(False)
+
     def _on_hover_motion(self, event) -> None:
+        self._handle_hover_motion(event, actual_motion=True)
+
+    def _handle_hover_motion(self, event, *, actual_motion: bool) -> None:
+        if self._hover_suspended:
+            return
+        if self._hover_requires_fresh_motion:
+            if not actual_motion:
+                return
+            self._hover_requires_fresh_motion = False
         try:
             ctrl_held = bool(int(getattr(event, "state", 0) or 0) & 0x0004)
         except Exception:
@@ -1424,6 +1609,7 @@ class SubtitleRenderer:
             self._cancel_hover_clear()
             selection_key = self._status_selection_key()
             if self._hover_active_region != selection_key or self._hover_active_mode != "multi_selection":
+                self._advance_hover_generation()
                 self._cancel_hover_layer_job()
                 self.canvas.delete("hover_ruby")
                 self.canvas.delete("hover_word_highlight")
@@ -1444,7 +1630,7 @@ class SubtitleRenderer:
             if any(layer != "ruby" for layer in layers)
             else None
         )
-        active_key = (id(ruby_hit) if ruby_hit is not None else 0, id(layer_hit) if layer_hit is not None else 0)
+        active_key = self._hover_target_key(ruby_hit, layer_hit)
 
         if ruby_hit is None and layer_hit is None:
             self._cancel_hover_layer_job()
@@ -1457,6 +1643,7 @@ class SubtitleRenderer:
             return
 
         previous_mode = self._hover_active_mode
+        self._advance_hover_generation()
         self._cancel_hover_layer_job()
         try:
             self.canvas.delete("hover_ruby")
@@ -1542,14 +1729,15 @@ class SubtitleRenderer:
 
         layers = hover_layers(self.config, self._hover_active_mode or "ruby")
         layer_hit = word_hit if any(layer != "ruby" for layer in layers) else None
-        active_key = (
-            id(ruby_hit) if ruby_hit is not None else 0,
-            id(layer_hit) if layer_hit is not None else 0,
-        )
-        return active_key != (0, 0) and active_key == self._hover_active_region
+        active_key = self._hover_target_key(ruby_hit, layer_hit)
+        return active_key != (None, None) and active_key == self._hover_active_region
 
     def _schedule_hover_clear(self, _event=None, delay_ms: int | None = None) -> None:
         self._cancel_hover_clear()
+        cue_generation = self._hover_cue_generation
+        hover_generation = self._hover_generation
+        active_key = self._hover_active_region
+        active_mode = self._hover_active_mode
         if delay_ms is None:
             try:
                 value = self.config.get("SUBTITLE_HOVER_CLEAR_DELAY_MS")
@@ -1561,6 +1749,14 @@ class SubtitleRenderer:
 
         def clear_if_outside() -> None:
             self._hover_clear_job = None
+            if (
+                self._hover_suspended
+                or cue_generation != self._hover_cue_generation
+                or hover_generation != self._hover_generation
+                or active_key != self._hover_active_region
+                or active_mode != self._hover_active_mode
+            ):
+                return
             if self._pointer_inside_hover_target():
                 return
             self._clear_hover_ruby()
@@ -1571,10 +1767,20 @@ class SubtitleRenderer:
         non_ruby_layers = tuple(layer for layer in layers if layer != "ruby")
         if not non_ruby_layers:
             return
+        cue_generation = self._hover_cue_generation
+        hover_generation = self._hover_generation
+        region_key = self._hover_region_key(region)
 
         def show() -> None:
             self._hover_layer_job = None
-            if self._hover_active_region != active_key or self._hover_active_mode != mode:
+            if (
+                self._hover_suspended
+                or cue_generation != self._hover_cue_generation
+                or hover_generation != self._hover_generation
+                or self._hover_active_region != active_key
+                or self._hover_active_mode != mode
+                or self._hover_region_key(region) != region_key
+            ):
                 return
             logger.debug(
                 "Subtitle hover layers mode=%s layers=%s lookup=%r",
@@ -1658,6 +1864,36 @@ class SubtitleRenderer:
         boxes = sorted(tuple(float(value) for value in item.get("bbox", ())) for item in self._status_selected_regions)
         return ("multi_selection", tuple(boxes))
 
+    @staticmethod
+    def _region_with_combined_hover_anchor(region: dict, regions: list[dict]) -> dict:
+        """Anchor one hover window over the horizontal extent of selected words."""
+        anchor = dict(region or {})
+        valid_regions = []
+        for item in regions or []:
+            try:
+                box = tuple(float(value) for value in item["bbox"])
+            except Exception:
+                continue
+            if len(box) == 4:
+                valid_regions.append((item, box))
+        if not valid_regions:
+            return anchor
+
+        upper_line = [
+            box
+            for item, box in valid_regions
+            if str(item.get("line_position") or "") == "first"
+        ]
+        vertical_boxes = upper_line or [box for _item, box in valid_regions]
+        anchor["hover_anchor_bbox"] = (
+            min(box[0] for _item, box in valid_regions),
+            min(box[1] for box in vertical_boxes),
+            max(box[2] for _item, box in valid_regions),
+            max(box[3] for box in vertical_boxes),
+        )
+        anchor["hover_anchor_above"] = True
+        return anchor
+
     def _show_selected_status_regions(self, anchor_region: dict) -> None:
         ordered = sorted(
             self._status_selected_regions,
@@ -1666,7 +1902,7 @@ class SubtitleRenderer:
         phrase = " ".join(str(item.get("base") or "").strip() for item in ordered).strip()
         if not phrase:
             return
-        anchor = dict(anchor_region)
+        anchor = self._region_with_combined_hover_anchor(anchor_region, ordered)
         anchor["base"] = phrase
         anchor["lookup"] = phrase
         status_parts = []
@@ -1747,6 +1983,7 @@ class SubtitleRenderer:
             pass
 
     def _clear_hover_ruby(self, _event=None) -> None:
+        self._advance_hover_generation()
         self._cancel_hover_clear()
         self._cancel_hover_layer_job()
         try:
@@ -1760,6 +1997,7 @@ class SubtitleRenderer:
         self._hover_active_region = None
         self._hover_active_mode = None
         self._hover_active_translation_key = None
+        self._hover_copy_values.clear()
 
     def _shift_hover_dictionary_enabled(self) -> bool:
         try:
@@ -1866,15 +2104,36 @@ class SubtitleRenderer:
         if multi_status:
             return multi_status
         provider = getattr(self, "_annotation_provider", None)
+        if bool(region.get("database_check")) and provider is not None:
+            describe = getattr(provider, "describe_selection", None)
+            if callable(describe):
+                try:
+                    text = str(region.get("base") or region.get("lookup") or "").strip()
+                    tokens = region.get("cue_tokens")
+                    if tokens is None and region.get("cue_token") is not None:
+                        tokens = (region.get("cue_token"),)
+                    return str(describe(text, tokens=tokens) or "").strip()
+                except Exception:
+                    logger.debug("Failed to build database diagnostic hover text", exc_info=True)
         parts = []
         if bool(region.get("annotation")):
             status = str(region.get("status") or "").replace("_", " ").strip()
             source = str(region.get("source") or "").strip()
             if status:
                 parts.append(status if not source else f"{status} ({source})")
+            reason = str(region.get("annotation_match_reason") or "").replace("_", " ").strip()
+            matched_key = str(region.get("annotation_matched_key") or "").strip()
+            if reason:
+                parts.append(f"via {reason}" + (f" [{matched_key}]" if matched_key else ""))
             text = str(region.get("annotation_text") or "").strip()
             if text:
                 parts.append(text)
+            elif bool(self.config.get("ANNOTATION_SHOW_MEANING_ON_HOVER") or False):
+                meaning = str(region.get("annotation_meaning") or "").strip()
+                if meaning:
+                    parts.append(meaning)
+        elif region.get("cue_token") is not None:
+            pass
         elif provider is not None:
             token = {
                 "surface": str(region.get("base") or "").strip(),
@@ -1902,9 +2161,15 @@ class SubtitleRenderer:
 
     def _show_hover_layers(self, region: dict, layers: tuple[str, ...]) -> None:
         parts: list[tuple[str, str]] = []
-        if "dictionary" in layers:
+        if "dictionary_together" in layers:
             parts.append(("dictionary", self._hover_dictionary_text(region) or "No dictionary entry"))
-        if "translation" in layers:
+        elif "dictionary" in layers:
+            dictionary_text = str(region.get("multi_dictionary_text") or "").strip()
+            parts.append(("dictionary", dictionary_text or self._hover_dictionary_text(region) or "No dictionary entry"))
+        if "translation_each" in layers:
+            translation_text = str(region.get("multi_translation_text") or "").strip()
+            parts.append(("translation", translation_text or "No translation"))
+        elif "translation" in layers:
             query = str(region.get("base") or region.get("lookup") or "").strip()
             provider = self._translation_provider()
             cache_key = (provider, query)
@@ -1924,7 +2189,16 @@ class SubtitleRenderer:
             if query and cached is None and cache_key not in self._translation_hover_pending:
                 self._start_layer_translation(region, layers, cache_key, query, provider)
         if "status" in layers:
-            parts.append(("status", self._hover_status_text(region) or "Not in database"))
+            status_region = dict(region)
+            if bool(region.get("database_check")):
+                status_region["database_check"] = True
+            parts.append(("status", self._hover_status_text(status_region) or "Not in database"))
+        self._hover_copy_values = {
+            name: str(value or "").strip()
+            for name, value in parts
+            if str(value or "").strip()
+            not in {"Translating...", "No translation", "No dictionary entry", "Not in database"}
+        }
         text = combine_hover_text(parts)
         if text:
             self._show_hover_text(region, text)
@@ -1936,6 +2210,9 @@ class SubtitleRenderer:
             return
         self._translation_hover_pending.add(cache_key)
         active_key = self._hover_active_region
+        cue_generation = self._hover_cue_generation
+        hover_generation = self._hover_generation
+        region_key = self._hover_region_key(region)
         logger.debug("Subtitle hover translation requested provider=%s query=%r", provider, query)
 
         def worker() -> None:
@@ -1967,7 +2244,14 @@ class SubtitleRenderer:
                     )
                 if len(self._translation_hover_cache) > 256:
                     self._translation_hover_cache.pop(next(iter(self._translation_hover_cache)), None)
-                if self._hover_active_region != active_key or self._hover_active_translation_key != cache_key:
+                if (
+                    self._hover_suspended
+                    or cue_generation != self._hover_cue_generation
+                    or hover_generation != self._hover_generation
+                    or self._hover_active_region != active_key
+                    or self._hover_active_translation_key != cache_key
+                    or self._hover_region_key(region) != region_key
+                ):
                     return
                 self._show_hover_layers(region, layers)
 
@@ -1976,6 +2260,8 @@ class SubtitleRenderer:
         threading.Thread(target=worker, daemon=True).start()
 
     def _show_hover_text(self, region: dict, text: str) -> None:
+        if self._hover_suspended:
+            return
         label_text = str(text or "").strip()
         if not label_text:
             return
@@ -1997,7 +2283,7 @@ class SubtitleRenderer:
                 bg="black",
                 fg=self.color,
                 bd=0,
-                padx=6,
+                padx=self._HOVER_TEXT_PAD_X // 2,
                 pady=3,
                 relief="flat",
                 highlightthickness=0,
@@ -2029,7 +2315,8 @@ class SubtitleRenderer:
                 family = self.font.actual("family") if self.font else "Arial"
                 body_font = tkFont.Font(family=family, size=font_size, weight="normal")
                 heading_font = tkFont.Font(family=family, size=font_size, weight="bold")
-                content_width = self._HOVER_TEXT_MAX_WIDTH_PX - self._HOVER_TEXT_PAD_X
+                max_width_px = self._hover_max_width_px()
+                content_width = max_width_px - self._HOVER_TEXT_PAD_X
                 lines = self._wrap_hover_text_lines(
                     label_text,
                     body_font,
@@ -2042,8 +2329,8 @@ class SubtitleRenderer:
                     for line in lines
                 )
                 width_px = min(
-                    self._HOVER_TEXT_MAX_WIDTH_PX,
-                    measured_line_width + self._HOVER_TEXT_PAD_X,
+                    max_width_px,
+                    measured_line_width + 2*self._HOVER_TEXT_PAD_X,
                 )
                 line_height = max(
                     1,
@@ -2062,12 +2349,45 @@ class SubtitleRenderer:
                 )
                 self._hover_text_label.delete("1.0", "end")
                 self._hover_text_label.insert("1.0", display_text)
+                self._hover_text_label.xview_moveto(0)
+                self._hover_text_label.yview_moveto(0)
                 self._hover_text_label.tag_configure("heading", font=heading_font)
+                self._hover_text_label.tag_configure("dictionary_entry", font=heading_font)
+                in_dictionary_section = False
                 for line_no, line in enumerate(lines, start=1):
                     for heading in self._HOVER_TEXT_HEADINGS:
                         if line.startswith(heading):
                             self._hover_text_label.tag_add("heading", f"{line_no}.0", f"{line_no}.{len(heading)}")
+                            in_dictionary_section = heading == "Dictionary:"
                             break
+                    if not in_dictionary_section:
+                        continue
+                    entry_start = len("Dictionary:") if line.startswith("Dictionary:") else 0
+                    while entry_start < len(line) and line[entry_start].isspace():
+                        entry_start += 1
+                    separator_positions = [
+                        position
+                        for position in (line.find("—", entry_start), line.find("–", entry_start))
+                        if position > entry_start
+                    ]
+                    hyphen_match = re.search(r"\s-\s", line[entry_start:])
+                    if hyphen_match is not None:
+                        separator_positions.append(entry_start + hyphen_match.start())
+                    if not separator_positions:
+                        continue
+                    entry_end = min(separator_positions)
+                    entry_text = line[entry_start:entry_end].strip()
+                    if entry_text and any(
+                        0x3000 <= ord(char) <= 0x30FF
+                        or 0x3400 <= ord(char) <= 0x9FFF
+                        or 0xF900 <= ord(char) <= 0xFAFF
+                        for char in entry_text
+                    ):
+                        self._hover_text_label.tag_add(
+                            "dictionary_entry",
+                            f"{line_no}.{entry_start}",
+                            f"{line_no}.{entry_end}",
+                        )
                 self._hover_text_label.configure(state="disabled")
                 self._hover_text_current = label_text
         except Exception:
@@ -2086,14 +2406,17 @@ class SubtitleRenderer:
             pass
 
         try:
-            x1, y1, x2, y2 = region["bbox"]
+            anchor_bbox = region.get("hover_anchor_bbox") or region["bbox"]
+            x1, y1, x2, y2 = (float(value) for value in anchor_bbox)
             measured_w, measured_h = self._hover_text_size
             hover_w = max(1, int(measured_w or 1))
             hover_h = max(1, int(measured_h or 1))
             canvas_x = int(self.canvas.winfo_rootx())
             canvas_y = int(self.canvas.winfo_rooty())
             desired_x = int(canvas_x + ((x1 + x2) / 2) - (hover_w / 2))
-            if str(region.get("line_position") or "second") == "first":
+            if bool(region.get("hover_anchor_above")):
+                desired_y = int(canvas_y + y1 - hover_h - 8)
+            elif str(region.get("line_position") or "second") == "first":
                 desired_y = int(canvas_y + y2 + 8)
             else:
                 desired_y = int(canvas_y + y1 - hover_h - 8)
@@ -2103,23 +2426,57 @@ class SubtitleRenderer:
         desired_x, desired_y = self._clamp_hover_position(desired_x, desired_y, hover_w, hover_h)
         try:
             self._hover_text_window.geometry(f"{hover_w}x{hover_h}+{desired_x}+{desired_y}")
-            show_window_no_activate(self._hover_text_window)
+            self._raise_hover_text_window()
         except Exception:
             pass
 
     def _keep_hover_text_visible(self, _event=None) -> None:
         self._cancel_hover_clear()
         self._cancel_hover_layer_job()
+        self._raise_hover_text_window()
+
+    def _raise_hover_text_window(self) -> None:
+        """Reassert hover z-order without focusing the overlay or tooltip."""
+        win = self._hover_text_window
+        if win is None or self._hover_suspended or self._hover_requires_fresh_motion:
+            return
+        generation = int(self._hover_generation)
+        try:
+            if not win.winfo_exists():
+                return
+            show_window_no_activate(win)
+            win.lift()
+        except Exception:
+            return
+
+        def reassert() -> None:
+            if generation != int(self._hover_generation):
+                return
+            if self._hover_suspended or self._hover_requires_fresh_motion or win is not self._hover_text_window:
+                return
+            try:
+                if win.winfo_exists() and str(win.state() or "") != "withdrawn":
+                    show_window_no_activate(win)
+                    win.lift()
+            except Exception:
+                pass
+
+        try:
+            self.canvas.after_idle(reassert)
+        except Exception:
+            pass
 
     def ensure_hover_text_on_top(self) -> None:
         """Restore a visible hover window after the subtitle window is raised."""
+        if self._hover_suspended or self._hover_requires_fresh_motion:
+            return
         win = self._hover_text_window
         if win is None:
             return
         try:
             if not win.winfo_exists() or str(win.state()) == "withdrawn":
                 return
-            show_window_no_activate(win)
+            self._raise_hover_text_window()
         except Exception:
             pass
 
@@ -2219,26 +2576,57 @@ class SubtitleRenderer:
 
     def hovered_subtitle_word_for_anki(self) -> str:
         """Return the exact visible subtitle token currently under the pointer."""
+        return str(self.hovered_subtitle_target_for_anki().get("text") or "")
+
+    def subtitle_target_at_pointer_for_anki(self) -> dict:
+        """Hit-test the canvas at the live pointer location for an Anki action.
+
+        This intentionally does not consult the delayed hover-panel state.  A
+        recognizer callback can arrive after the panel has been redrawn or
+        hidden, while the pointer still identifies the word the user chose.
+        """
         try:
             x = int(self.canvas.winfo_pointerx() - self.canvas.winfo_rootx())
             y = int(self.canvas.winfo_pointery() - self.canvas.winfo_rooty())
             width = int(self.canvas.winfo_width())
             height = int(self.canvas.winfo_height())
         except Exception:
-            return ""
+            return {"text": "", "snapshot": None, "spans": ()}
         if x < 0 or y < 0 or x >= width or y >= height:
-            return ""
+            return {"text": "", "snapshot": None, "spans": ()}
 
         ruby_hit = self._region_at_point(self._hover_regions, x, y)
         word_hit = self._region_at_point(self._word_regions, x, y, anchor=ruby_hit)
         region = word_hit or ruby_hit
         if not isinstance(region, dict):
-            return ""
-        return str(region.get("base") or "").strip()
+            return {"text": "", "snapshot": None, "spans": ()}
+        line_index = region.get("line_index")
+        spans = ()
+        if line_index is not None:
+            spans = (
+                (
+                    int(line_index),
+                    int(region.get("char_start") or 0),
+                    int(region.get("char_end") or 0),
+                ),
+            )
+        return {
+            "text": str(region.get("base") or "").strip(),
+            "snapshot": getattr(self, "_cue_snapshot", None),
+            "spans": spans,
+            "token": region.get("cue_token"),
+        }
+
+    def hovered_subtitle_target_for_anki(self) -> dict:
+        """Compatibility name for the live pointer Anki target."""
+        return self.subtitle_target_at_pointer_for_anki()
 
     def subtitle_words_for_anki(self) -> List[str]:
         """Return visible base tokens in sentence order, excluding overlapping compounds."""
-        words: List[str] = []
+        return [str(region.get("base") or "").strip() for region in self._subtitle_word_regions_for_anki()]
+
+    def _subtitle_word_regions_for_anki(self) -> List[dict]:
+        regions: List[dict] = []
         seen = set()
         for region in self._word_regions:
             if not isinstance(region, dict) or bool(region.get("compound")):
@@ -2256,8 +2644,686 @@ class SubtitleRenderer:
             if marker in seen:
                 continue
             seen.add(marker)
-            words.append(surface)
-        return words
+            regions.append(region)
+        return regions
+
+    def _subtitle_word_region_at_position_for_voice(self, position: int) -> dict:
+        regions = self._subtitle_word_regions_for_anki()
+        word_count = len(regions)
+        try:
+            position = int(position)
+        except Exception:
+            position = 0
+        index = position - 1 if position > 0 else word_count + position
+        if word_count <= 0:
+            return {"ok": False, "reason": "no_words", "word_count": 0}
+        if position == 0 or index < 0 or index >= word_count:
+            return {
+                "ok": False,
+                "reason": "out_of_range",
+                "position": position,
+                "word_count": word_count,
+            }
+        region = regions[index]
+        return {
+            "ok": True,
+            "region": region,
+            "word": str(region.get("base") or "").strip(),
+            "index": index + 1,
+            "word_count": word_count,
+        }
+
+    def subtitle_word_at_position_for_voice(self, position: int) -> dict:
+        """Resolve a subtitle token by 1-based or end-relative position without highlighting it."""
+        result = self._subtitle_word_region_at_position_for_voice(position)
+        region = result.pop("region", None)
+        if isinstance(region, dict):
+            line_index = region.get("line_index")
+            result["snapshot"] = getattr(self, "_cue_snapshot", None)
+            result["token"] = region.get("cue_token")
+            result["spans"] = (
+                (
+                    int(line_index),
+                    int(region.get("char_start") or 0),
+                    int(region.get("char_end") or 0),
+                ),
+            ) if line_index is not None else ()
+        return result
+
+    def show_indexed_subtitle_word_layers_for_voice(self, position: int, layers) -> dict:
+        """Show hover information for an indexed subtitle token without persisting a highlight."""
+        result = self._subtitle_word_region_at_position_for_voice(position)
+        if not bool(result.get("ok")):
+            result.pop("region", None)
+            return result
+
+        layer_order = ("dictionary", "dictionary_together", "translation", "status")
+        requested = tuple(layer for layer in layer_order if layer in set(layers or ()))
+        if not requested:
+            return {
+                "ok": False,
+                "reason": "no_layers",
+                "word_count": int(result.get("word_count") or 0),
+            }
+
+        region = dict(result.pop("region"))
+        if "status" in requested:
+            region["database_check"] = True
+            if region.get("cue_token") is not None:
+                region["cue_tokens"] = (region.get("cue_token"),)
+        region = self._region_with_combined_hover_anchor(region, [region])
+        active_key = (
+            "voice_indexed_word",
+            self._voice_word_region_key(region),
+            requested,
+        )
+        self._cancel_hover_clear()
+        self._cancel_hover_layer_job()
+        self._hover_active_region = active_key
+        self._hover_active_mode = "voice_indexed_word"
+        self._hover_active_translation_key = None
+        self._show_hover_layers(region, requested)
+        result["layers"] = list(requested)
+        return result
+
+    def show_hovered_subtitle_layers_for_voice(self, layers) -> dict:
+        """Show voice lookup layers for the subtitle token under the pointer."""
+        try:
+            x = int(self.canvas.winfo_pointerx() - self.canvas.winfo_rootx())
+            y = int(self.canvas.winfo_pointery() - self.canvas.winfo_rooty())
+        except Exception:
+            return {"ok": False, "reason": "no_hover", "words": []}
+        try:
+            width = int(self.canvas.winfo_width())
+            height = int(self.canvas.winfo_height())
+            if x < 0 or y < 0 or x >= width or y >= height:
+                return {"ok": False, "reason": "no_hover", "words": []}
+        except Exception:
+            return {"ok": False, "reason": "no_hover", "words": []}
+        ruby_hit = self._region_at_point(self._hover_regions, x, y)
+        region = self._region_at_point(self._word_regions, x, y, anchor=ruby_hit) or ruby_hit
+        if not isinstance(region, dict):
+            return {"ok": False, "reason": "no_hover", "words": []}
+
+        layer_order = ("dictionary", "dictionary_together", "translation", "status")
+        requested = tuple(layer for layer in layer_order if layer in set(layers or ()))
+        if not requested:
+            return {"ok": False, "reason": "no_layers", "words": []}
+
+        region = dict(region)
+        if "status" in requested:
+            region["database_check"] = True
+            if region.get("cue_token") is not None:
+                region["cue_tokens"] = (region.get("cue_token"),)
+        region = self._region_with_combined_hover_anchor(region, [region])
+        active_key = ("voice_hovered_word", self._voice_word_region_key(region), requested)
+        self._cancel_hover_clear()
+        self._cancel_hover_layer_job()
+        self._hover_active_region = active_key
+        self._hover_active_mode = "voice_hovered_word"
+        self._hover_active_translation_key = None
+        self._show_hover_layers(region, requested)
+        return {
+            "ok": True,
+            "layers": list(requested),
+            "words": [str(region.get("base") or "").strip()],
+        }
+
+    @staticmethod
+    def _voice_word_region_key(region: dict) -> tuple:
+        return (
+            str(region.get("line_position") or ""),
+            str(region.get("sentence_lookup") or ""),
+            int(region.get("char_start") or 0),
+            int(region.get("char_end") or 0),
+            str(region.get("base") or "").strip(),
+        )
+
+    def _selected_voice_word_regions(self) -> list[tuple[int, dict]]:
+        if not self._voice_selected_word_keys:
+            return []
+        selected_keys = set(self._voice_selected_word_keys)
+        selected = [
+            (index, region)
+            for index, region in enumerate(self._subtitle_word_regions_for_anki())
+            if self._voice_word_region_key(region) in selected_keys
+        ]
+        if len(selected) != len(selected_keys):
+            self._voice_selected_word_keys = [
+                self._voice_word_region_key(region)
+                for _index, region in selected
+            ]
+        return selected
+
+    def _draw_voice_word_highlights(self, regions: list[dict]) -> None:
+        self.canvas.delete("voice_word_highlight")
+        for region in regions:
+            x1, y1, x2, y2 = region["bbox"]
+            self.canvas.create_rectangle(
+                x1 - 5,
+                y1 + 1,
+                x2 + 5,
+                y2 - 1,
+                fill="",
+                outline="#7ed0ff",
+                width=3,
+                tags=("voice_word_highlight",),
+            )
+        self.canvas.tag_raise("voice_word_highlight")
+
+    def _voice_action_indicator_enabled(self) -> bool:
+        try:
+            return self.config.get("VOICE_ACTION_INDICATOR_ENABLED") is not False
+        except Exception:
+            return True
+
+    def _cancel_voice_action_indicator_jobs(self) -> None:
+        for attr in ("_voice_action_indicator_job", "_voice_action_indicator_hide_job"):
+            job = getattr(self, attr, None)
+            if job is not None:
+                try:
+                    self.canvas.after_cancel(job)
+                except Exception:
+                    pass
+            setattr(self, attr, None)
+
+    def _voice_action_indicator_center(self) -> tuple[int, int]:
+        try:
+            width = max(1, int(self.canvas.winfo_width() or self.canvas.winfo_reqwidth()))
+            height = max(1, int(self.canvas.winfo_height() or self.canvas.winfo_reqheight()))
+        except Exception:
+            width, height = 100, 60
+        return max(14, width - 18), max(14, height - 18)
+
+    def _draw_voice_action_indicator(self) -> None:
+        try:
+            self.canvas.delete("voice_action_indicator")
+            x, y = self._voice_action_indicator_center()
+            if self._voice_action_indicator_state == "working":
+                radius = 8
+                self.canvas.create_arc(
+                    x - radius,
+                    y - radius,
+                    x + radius,
+                    y + radius,
+                    start=int(self._voice_action_indicator_phase),
+                    extent=255,
+                    style="arc",
+                    outline="#7ed0ff",
+                    width=3,
+                    tags=("voice_action_indicator",),
+                )
+            elif self._voice_action_indicator_state == "success":
+                self.canvas.create_text(
+                    x,
+                    y,
+                    text="\u2713",
+                    fill="#62d68a",
+                    font=("Arial", 14, "bold"),
+                    tags=("voice_action_indicator",),
+                )
+            self.canvas.tag_raise("voice_action_indicator")
+        except Exception:
+            pass
+
+    def set_voice_action_indicator(self, state: str) -> None:
+        """Show a spinner, a one-second success check, or clear action feedback."""
+        self._voice_action_indicator_generation += 1
+        generation = self._voice_action_indicator_generation
+        self._cancel_voice_action_indicator_jobs()
+        normalized = str(state or "idle").strip().lower()
+        if not self._voice_action_indicator_enabled() or normalized not in {"working", "success"}:
+            self._voice_action_indicator_state = "idle"
+            try:
+                self.canvas.delete("voice_action_indicator")
+            except Exception:
+                pass
+            return
+
+        self._voice_action_indicator_state = normalized
+        if normalized == "working":
+            self._voice_action_indicator_phase = 0
+
+            def animate() -> None:
+                if generation != self._voice_action_indicator_generation:
+                    return
+                self._voice_action_indicator_phase = (self._voice_action_indicator_phase - 32) % 360
+                self._draw_voice_action_indicator()
+                try:
+                    self._voice_action_indicator_job = self.canvas.after(80, animate)
+                except Exception:
+                    self._voice_action_indicator_job = None
+
+            animate()
+            return
+
+        self._draw_voice_action_indicator()
+
+        def clear_success() -> None:
+            if generation == self._voice_action_indicator_generation:
+                self.set_voice_action_indicator("idle")
+
+        try:
+            self._voice_action_indicator_hide_job = self.canvas.after(1000, clear_success)
+        except Exception:
+            self._voice_action_indicator_hide_job = None
+
+    def abort_voice_action_feedback(self) -> None:
+        self._voice_translation_each_generation += 1
+        self._advance_hover_generation()
+        self._cancel_hover_layer_job()
+        self._hover_active_region = None
+        self._hover_active_mode = None
+        self._hover_active_translation_key = None
+        self._hide_hover_text_window()
+        self.set_voice_action_indicator("idle")
+
+    def _restore_voice_word_highlights(self) -> None:
+        try:
+            selected = self._selected_voice_word_regions()
+            if not selected:
+                self._voice_selected_word_keys.clear()
+            self._draw_voice_word_highlights([region for _index, region in selected])
+        except Exception:
+            logger.exception("Failed to restore voice subtitle-word highlights")
+
+    def highlight_subtitle_words_for_voice(self, positions: list[int]) -> dict:
+        """Replace the voice selection with 1-based or end-relative token positions."""
+        regions = self._subtitle_word_regions_for_anki()
+        word_count = len(regions)
+        if word_count <= 0:
+            return {"ok": False, "reason": "no_words", "word_count": 0}
+
+        selected_indexes: list[int] = []
+        for raw_position in positions or []:
+            position = int(raw_position)
+            index = position - 1 if position > 0 else word_count + position
+            if index < 0 or index >= word_count:
+                return {
+                    "ok": False,
+                    "reason": "out_of_range",
+                    "word_count": word_count,
+                    "position": position,
+                }
+            if index not in selected_indexes:
+                selected_indexes.append(index)
+        if not selected_indexes:
+            return {"ok": False, "reason": "empty", "word_count": word_count}
+
+        selected_indexes.sort()
+        selected_regions = [regions[index] for index in selected_indexes]
+        self._voice_selected_word_keys = [self._voice_word_region_key(region) for region in selected_regions]
+        try:
+            self._draw_voice_word_highlights(selected_regions)
+        except Exception:
+            logger.exception("Failed to draw voice subtitle-word highlights")
+            return {"ok": False, "reason": "draw_failed", "word_count": word_count}
+        words = [str(region.get("base") or "").strip() for region in selected_regions]
+        return {
+            "ok": True,
+            "words": words,
+            "indexes": [index + 1 for index in selected_indexes],
+            "word_count": word_count,
+        }
+
+    def highlight_subtitle_word_for_voice(self, position: int) -> dict:
+        """Highlight one selectable subtitle token by a 1-based or end-relative position."""
+        result = self.highlight_subtitle_words_for_voice([int(position)])
+        if result.get("ok"):
+            result["word"] = result["words"][0]
+            result["index"] = result["indexes"][0]
+        return result
+
+    def modify_subtitle_word_highlights_for_voice(self, positions: list[int], *, add: bool) -> dict:
+        """Add or remove indexed tokens without replacing the current voice selection."""
+        regions = self._subtitle_word_regions_for_anki()
+        word_count = len(regions)
+        if word_count <= 0:
+            return {"ok": False, "reason": "no_words", "word_count": 0}
+
+        target_indexes: list[int] = []
+        for raw_position in positions or []:
+            position = int(raw_position)
+            index = position - 1 if position > 0 else word_count + position
+            if index < 0 or index >= word_count:
+                return {
+                    "ok": False,
+                    "reason": "out_of_range",
+                    "word_count": word_count,
+                    "position": position,
+                }
+            if index not in target_indexes:
+                target_indexes.append(index)
+        if not target_indexes:
+            return {"ok": False, "reason": "empty", "word_count": word_count}
+
+        current_keys = list(self._voice_selected_word_keys)
+        target_keys = [self._voice_word_region_key(regions[index]) for index in target_indexes]
+        if add:
+            for key in target_keys:
+                if key not in current_keys:
+                    current_keys.append(key)
+        else:
+            removed = set(target_keys)
+            current_keys = [key for key in current_keys if key not in removed]
+        changed = current_keys != self._voice_selected_word_keys
+        self._voice_selected_word_keys = current_keys
+
+        selected = self._selected_voice_word_regions()
+        self._draw_voice_word_highlights([region for _index, region in selected])
+        if not selected and self._hover_active_mode == "voice_highlight":
+            self._clear_hover_ruby()
+        return {
+            "ok": True,
+            "changed": changed,
+            "operation": "add" if add else "remove",
+            "indexes": [index + 1 for index in target_indexes],
+            "words": [str(regions[index].get("base") or "").strip() for index in target_indexes],
+            "selected_count": len(selected),
+            "word_count": word_count,
+        }
+
+    def _populate_multi_voice_layer_text(
+        self,
+        anchor: dict,
+        regions: list[dict],
+        words: list[str],
+        layers: tuple[str, ...],
+    ) -> None:
+        if len(regions) <= 1:
+            return
+        if "dictionary" in layers:
+            dictionary_parts = []
+            for word, region in zip(words, regions):
+                result = self._hover_dictionary_text(region).lstrip("| ").strip()
+                dictionary_parts.append(result or f"{word} — No dictionary entry")
+            anchor["multi_dictionary_text"] = "\n".join(dictionary_parts)
+        if "status" in layers:
+            status_parts = []
+            for word, region in zip(words, regions):
+                result = self._hover_status_text(region) or "Not in database"
+                status_parts.append(f"{word}: {result}" if word else result)
+            anchor["multi_status_text"] = "\n".join(status_parts)
+
+    def show_voice_highlight_layers(self, layers) -> dict:
+        """Show requested hover layers for the current voice-highlighted words."""
+        layer_order = ("dictionary", "dictionary_together", "translation", "status")
+        requested = tuple(layer for layer in layer_order if layer in set(layers or ()))
+        if not requested:
+            return {"ok": False, "reason": "no_layers", "words": []}
+
+        selected = self._selected_voice_word_regions()
+        if not selected:
+            return {"ok": False, "reason": "no_highlight", "words": []}
+
+        regions = [region for _index, region in selected]
+        words = [str(region.get("base") or "").strip() for region in regions]
+        anchor = self._region_with_combined_hover_anchor(regions[-1], regions)
+        selection = self.highlighted_subtitle_selection_for_anki()
+        phrase = str(selection.get("text") or "").strip() or " ".join(words).strip()
+        if len(regions) > 1 and phrase:
+            anchor["base"] = phrase
+            anchor["lookup"] = phrase
+        if "status" in requested:
+            anchor["database_check"] = True
+            anchor["cue_tokens"] = tuple(
+                region.get("cue_token")
+                for region in regions
+                if region.get("cue_token") is not None
+            )
+
+        multi_layers = tuple(layer for layer in requested if not (layer == "status" and bool(anchor.get("database_check"))))
+        self._populate_multi_voice_layer_text(anchor, regions, words, multi_layers)
+
+        active_key = (
+            "voice_highlight",
+            tuple(self._voice_word_region_key(region) for region in regions),
+            requested,
+        )
+        self._cancel_hover_clear()
+        self._cancel_hover_layer_job()
+        self._hover_active_region = active_key
+        self._hover_active_mode = "voice_highlight"
+        self._hover_active_translation_key = None
+        self._show_hover_layers(anchor, requested)
+        return {"ok": True, "layers": list(requested), "words": words}
+
+    def show_voice_highlight_translations_individually(self, layers=()) -> dict:
+        """Show per-word translations, optionally combined with other hover layers."""
+        requested_set = {str(layer or "").strip() for layer in (layers or ())}
+        requested_set.discard("translation")
+        requested_set.add("translation_each")
+        requested = tuple(
+            layer
+            for layer in ("dictionary", "dictionary_together", "translation_each", "status")
+            if layer in requested_set
+        )
+        selected = self._selected_voice_word_regions()
+        if not selected:
+            return {"ok": False, "reason": "no_highlight", "words": []}
+
+        lookup = getattr(self, "_translation_lookup", None)
+        if not callable(lookup):
+            return {"ok": False, "reason": "unavailable", "words": []}
+
+        regions = [region for _index, region in selected]
+        words = [str(region.get("base") or "").strip() for region in regions]
+        provider = self._translation_provider()
+        entries = [
+            (
+                self._voice_word_label(region),
+                str(region.get("base") or region.get("lookup") or "").strip(),
+            )
+            for region in regions
+        ]
+        entries = [(word, query) for word, query in entries if word and query]
+        if not entries:
+            return {"ok": False, "reason": "unavailable", "words": words}
+
+        if not hasattr(self, "_translation_hover_cache"):
+            self._translation_hover_cache = {}
+        self._voice_translation_each_generation = int(
+            getattr(self, "_voice_translation_each_generation", 0) or 0
+        ) + 1
+        generation = self._voice_translation_each_generation
+        active_key = (
+            "voice_highlight_translation_each",
+            tuple(self._voice_word_region_key(region) for region in regions),
+            requested,
+        )
+        anchor = self._region_with_combined_hover_anchor(regions[-1], regions)
+        selection = self.highlighted_subtitle_selection_for_anki()
+        phrase = str(selection.get("text") or "").strip() or " ".join(words).strip()
+        if len(regions) > 1 and phrase:
+            anchor["base"] = phrase
+            anchor["lookup"] = phrase
+        if "status" in requested:
+            anchor["database_check"] = True
+            anchor["cue_tokens"] = tuple(
+                region.get("cue_token")
+                for region in regions
+                if region.get("cue_token") is not None
+            )
+        multi_layers = tuple(layer for layer in requested if not (layer == "status" and bool(anchor.get("database_check"))))
+        self._populate_multi_voice_layer_text(anchor, regions, words, multi_layers)
+
+        def render_current() -> None:
+            if generation != self._voice_translation_each_generation:
+                return
+            if self._hover_active_region != active_key:
+                return
+            lines = []
+            for word, query in entries:
+                cache_key = (provider, query)
+                if cache_key not in self._translation_hover_cache:
+                    translation = "Translating..."
+                else:
+                    translation = str(self._translation_hover_cache.get(cache_key) or "No translation")
+                lines.append(f"{word} — {translation}")
+            anchor["multi_translation_text"] = "\n".join(lines)
+            self._show_hover_layers(anchor, requested)
+
+        self._cancel_hover_clear()
+        self._cancel_hover_layer_job()
+        self._hover_active_region = active_key
+        self._hover_active_mode = "voice_highlight"
+        self._hover_active_translation_key = None
+        render_current()
+
+        missing = []
+        missing_keys = set()
+        for _word, query in entries:
+            cache_key = (provider, query)
+            if cache_key in self._translation_hover_cache or cache_key in missing_keys:
+                continue
+            missing.append((query, cache_key))
+            missing_keys.add(cache_key)
+        if missing:
+            def worker() -> None:
+                for query, cache_key in missing:
+                    try:
+                        value = clean_hover_translation(query, str(lookup(query, provider=provider) or ""))
+                    except TypeError:
+                        try:
+                            value = clean_hover_translation(query, str(lookup(query) or ""))
+                        except Exception:
+                            value = ""
+                    except Exception:
+                        value = ""
+
+                    def apply_result(key=cache_key, translated=value) -> None:
+                        if generation != self._voice_translation_each_generation:
+                            return
+                        self._translation_hover_cache[key] = translated
+                        if len(self._translation_hover_cache) > 256:
+                            self._translation_hover_cache.pop(next(iter(self._translation_hover_cache)), None)
+                        render_current()
+
+                    dispatch_to_tk(self.canvas, apply_result)
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        return {"ok": True, "layers": list(requested), "words": words}
+
+    def clear_voice_word_highlights(self) -> int:
+        count = len(self._voice_selected_word_keys)
+        self._voice_selected_word_keys.clear()
+        try:
+            self.canvas.delete("voice_word_highlight")
+        except Exception:
+            pass
+        if self._hover_active_mode == "voice_highlight":
+            self._clear_hover_ruby()
+        return count
+
+    def highlighted_subtitle_selection_for_anki(self) -> dict:
+        """Return selected token surfaces and a sentence-faithful combined selection."""
+        selected = self._selected_voice_word_regions()
+        if not selected:
+            return {"text": "", "words": [], "indexes": []}
+
+        groups: list[list[tuple[int, dict]]] = []
+        for item in selected:
+            if not groups:
+                groups.append([item])
+                continue
+            previous_index, previous = groups[-1][-1]
+            index, region = item
+            same_line = (
+                str(previous.get("line_position") or "") == str(region.get("line_position") or "")
+                and str(previous.get("sentence_lookup") or "") == str(region.get("sentence_lookup") or "")
+            )
+            if same_line and index == previous_index + 1:
+                groups[-1].append(item)
+            else:
+                groups.append([item])
+
+        group_texts: list[str] = []
+        for group in groups:
+            first = group[0][1]
+            last = group[-1][1]
+            source = str(first.get("sentence_lookup") or "")
+            start = int(first.get("char_start") or 0)
+            end = int(last.get("char_end") or start)
+            text = source[start:end].strip() if source and end > start else ""
+            if not text:
+                text = "".join(str(region.get("base") or "") for _index, region in group).strip()
+            if text:
+                group_texts.append(text)
+
+        return {
+            "text": " ".join(group_texts).strip(),
+            "words": [str(region.get("base") or "").strip() for _index, region in selected],
+            "indexes": [index + 1 for index, _region in selected],
+            "spans": tuple(
+                (
+                    int(region.get("line_index")),
+                    int(region.get("char_start") or 0),
+                    int(region.get("char_end") or 0),
+                )
+                for _index, region in selected
+                if region.get("line_index") is not None
+            ),
+            "snapshot": getattr(self, "_cue_snapshot", None),
+        }
+
+    @staticmethod
+    def _voice_word_label(region: dict) -> str:
+        word = str(region.get("base") or "").strip()
+        ruby = str(region.get("ruby") or "").strip()
+        if ruby and ruby != word:
+            return f"{word} [{ruby}]"
+        return word
+
+    def voice_copy_text(self, kind: str = "active") -> dict:
+        """Resolve explicit voice-copy targets without depending on pointer location."""
+        normalized = str(kind or "active").strip().lower()
+        if normalized == "active":
+            for name in ("translation", "dictionary", "status"):
+                value = str(self._hover_copy_values.get(name) or "").strip()
+                if value:
+                    return {"ok": True, "text": value, "kind": name}
+            return {"ok": False, "reason": "no_active_result"}
+
+        selected = self._selected_voice_word_regions()
+        if not selected:
+            return {"ok": False, "reason": "no_highlight"}
+        regions = [region for _index, region in selected]
+        words = [str(region.get("base") or "").strip() for region in regions]
+        selection = self.highlighted_subtitle_selection_for_anki()
+        phrase = str(selection.get("text") or "").strip() or " ".join(words).strip()
+
+        if normalized == "kanji":
+            return {"ok": bool(phrase), "text": phrase, "kind": normalized}
+        if normalized == "kanji_each":
+            text = "\n".join(word for word in words if word)
+            return {"ok": bool(text), "text": text, "kind": normalized}
+        if normalized == "dictionary":
+            values = [self._hover_dictionary_text(region) for region in regions]
+            text = "\n".join(value for value in values if value)
+            return {"ok": bool(text), "text": text, "kind": normalized, "reason": "no_dictionary" if not text else ""}
+        if normalized == "dictionary_together":
+            anchor = dict(regions[-1])
+            anchor["base"] = phrase
+            anchor["lookup"] = phrase
+            text = self._hover_dictionary_text(anchor)
+            return {"ok": bool(text), "text": text, "kind": normalized, "reason": "no_dictionary" if not text else ""}
+
+        provider = self._translation_provider()
+        if normalized == "translation":
+            text = str(self._translation_hover_cache.get((provider, phrase)) or "").strip()
+            return {"ok": bool(text), "text": text, "kind": normalized, "reason": "translation_not_ready" if not text else ""}
+        if normalized == "translation_each":
+            lines = []
+            for region in regions:
+                query = str(region.get("base") or region.get("lookup") or "").strip()
+                translated = str(self._translation_hover_cache.get((provider, query)) or "").strip()
+                if not translated:
+                    return {"ok": False, "reason": "translation_not_ready", "kind": normalized}
+                lines.append(f"{self._voice_word_label(region)} - {translated}")
+            text = "\n".join(lines)
+            return {"ok": bool(text), "text": text, "kind": normalized}
+        return {"ok": False, "reason": "unsupported", "kind": normalized}
 
     @classmethod
     def _measure_hover_line(
@@ -2315,17 +3381,18 @@ class SubtitleRenderer:
 
     def _clamp_hover_position(self, x: int, y: int, w: int, h: int) -> tuple[int, int]:
         try:
-            pointer_x = int(self.canvas.winfo_pointerx())
-            pointer_y = int(self.canvas.winfo_pointery())
+            anchor_x = int(self.canvas.winfo_rootx()) + max(1, int(self.canvas.winfo_width())) // 2
+            anchor_y = int(self.canvas.winfo_rooty()) + max(1, int(self.canvas.winfo_height())) // 2
             rects = list(get_monitor_rects(self.canvas) or [])
         except Exception:
-            pointer_x = pointer_y = 0
+            anchor_x = int(x) + max(1, int(w)) // 2
+            anchor_y = int(y) + max(1, int(h)) // 2
             rects = []
 
         monitor = None
         for rect in rects:
             rx, ry, rw, rh = rect
-            if rx <= pointer_x < rx + rw and ry <= pointer_y < ry + rh:
+            if rx <= anchor_x < rx + rw and ry <= anchor_y < ry + rh:
                 monitor = rect
                 break
         if monitor is None and rects:
@@ -2340,6 +3407,19 @@ class SubtitleRenderer:
         max_x = rx + max(0, rw - w)
         max_y = ry + max(0, rh - h)
         return max(rx, min(int(x), max_x)), max(ry, min(int(y), max_y))
+
+    def _hover_max_width_px(self) -> int:
+        """Keep hover text readable on the monitor that owns the overlay."""
+        try:
+            anchor_x = int(self.canvas.winfo_rootx()) + max(1, int(self.canvas.winfo_width())) // 2
+            anchor_y = int(self.canvas.winfo_rooty()) + max(1, int(self.canvas.winfo_height())) // 2
+            rects = list(get_monitor_rects(self.canvas) or [])
+            for x, y, width, height in rects:
+                if x <= anchor_x < x + width and y <= anchor_y < y + height:
+                    return max(160, min(self._HOVER_TEXT_MAX_WIDTH_PX, int(width) - 32))
+        except Exception:
+            pass
+        return self._HOVER_TEXT_MAX_WIDTH_PX
 
     def _hide_hover_text_window(self) -> None:
         win = self._hover_text_window
@@ -2365,6 +3445,8 @@ class SubtitleRenderer:
                 pass
 
     def refresh_hover_display(self) -> None:
+        if self._hover_suspended or self._hover_requires_fresh_motion:
+            return
         try:
             x = int(self.canvas.winfo_pointerx() - self.canvas.winfo_rootx())
             y = int(self.canvas.winfo_pointery() - self.canvas.winfo_rooty())
@@ -2378,9 +3460,13 @@ class SubtitleRenderer:
                 return
         except Exception:
             pass
+        self._advance_hover_generation()
         self._hover_active_region = None
         self._hover_active_mode = None
-        self._on_hover_motion(type("_SubtitleHoverMotion", (), {"x": x, "y": y})())
+        self._handle_hover_motion(
+            type("_SubtitleHoverMotion", (), {"x": x, "y": y})(),
+            actual_motion=False,
+        )
 
     def bind_dictionary_lookup(self, callback) -> None:
         self._dictionary_lookup = callback
@@ -2407,6 +3493,14 @@ class SubtitleRenderer:
         self._annotation_segment_cache.clear()
         self._clear_preview_render_cache(delete_items=True)
 
+    def clear_cue_snapshot(self) -> None:
+        self._hover_cue_generation += 1
+        self._clear_hover_ruby()
+        self._cue_snapshot = None
+        self._hover_regions = []
+        self._word_regions = []
+        self._voice_selected_word_keys.clear()
+
     @staticmethod
     def _contains_kanji(text: str) -> bool:
         for ch in text or "":
@@ -2431,9 +3525,12 @@ class SubtitleRenderer:
         """
         Switch the renderer to a different canvas (after overlay update).
         """
+        self._hover_cue_generation += 1
+        self._clear_hover_ruby()
         self.destroy_hover_windows()
         if canvas is not self.canvas:
             self._clear_preview_render_cache(delete_items=True)
+            self._hover_drag_overlay = None
         self.canvas = canvas
 
 

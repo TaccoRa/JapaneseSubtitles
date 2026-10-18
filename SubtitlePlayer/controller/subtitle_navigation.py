@@ -205,6 +205,9 @@ class SubtitleNavigationController(_ControllerProxy):
     def _copy_text_for_display_index(self, idx: int | None) -> str:
         if idx is None:
             return ""
+        snapshot = getattr(self, "current_cue_snapshot", None)
+        if snapshot is not None and int(getattr(snapshot, "cue_index", -1)) == int(idx):
+            return str(snapshot.inline_ruby_text or snapshot.plain_text)
         try:
             clean, _, top, bottom = self.sub_manager.display_data[int(idx)]
         except Exception:
@@ -251,11 +254,48 @@ class SubtitleNavigationController(_ControllerProxy):
             idx = self._display_index_at_time(sub_t)
         if idx is None:
             return []
+        snapshot = getattr(self, "current_cue_snapshot", None)
+        if snapshot is not None and int(getattr(snapshot, "cue_index", -1)) == int(idx):
+            return snapshot.legacy_line_segments(annotated=False)
         try:
             _clean, _start, top, bottom = self.sub_manager.display_data[int(idx)]
         except Exception:
             return []
         return [list(segments) for segments in (top, bottom) if segments]
+
+    def _build_cue_snapshot(self, idx: int, clean, start_time, top, bottom):
+        builder = getattr(self, "cue_snapshot_builder", None)
+        if builder is None:
+            return None
+        end_time = float(start_time or 0.0)
+        try:
+            end_times = self._display_end_times()
+            if 0 <= int(idx) < len(end_times):
+                end_time = float(end_times[int(idx)])
+        except Exception:
+            pass
+        provider = getattr(self, "annotation_provider", None)
+        try:
+            if not bool(self._annotation_is_enabled()):
+                provider = None
+        except Exception:
+            provider = None
+        try:
+            return builder.build(
+                cue_index=int(idx),
+                start_time=float(start_time or 0.0),
+                end_time=end_time,
+                clean_text=str(clean or ""),
+                top_segments=top,
+                bottom_segments=bottom,
+                annotation_provider=provider,
+            )
+        except Exception:
+            logger.exception("Failed to build immutable cue snapshot for subtitle %s", idx)
+            return None
+
+    def cue_snapshot_for_current_subtitle(self):
+        return getattr(self, "current_cue_snapshot", None)
 
     def _slider_preview_needs_render(self, value: float) -> bool:
         try:
@@ -311,7 +351,7 @@ class SubtitleNavigationController(_ControllerProxy):
             self._reset_canvas()
             return
 
-        clean, _, top, bottom = self.sub_manager.display_data[idx]
+        clean, start_time, top, bottom = self.sub_manager.display_data[idx]
         copy_text = self.segments_to_copy_text(top, bottom) or clean
         self.last_subtitle_raw = copy_text
 
@@ -356,7 +396,7 @@ class SubtitleNavigationController(_ControllerProxy):
         if allow_auto_ruby:
             self.sub_manager.ensure_auto_ruby_for_index(idx)
 
-            clean, _, top, bottom = self.sub_manager.display_data[idx]
+            clean, start_time, top, bottom = self.sub_manager.display_data[idx]
             copy_text = self.segments_to_copy_text(top, bottom) or clean
             self.last_subtitle_raw = copy_text
         elif schedule_auto_ruby and self._subtitle_needs_auto_ruby(idx):
@@ -374,7 +414,15 @@ class SubtitleNavigationController(_ControllerProxy):
         self.last_rendered_index = idx
         self.subtitle_deleted = False
 
-        self.renderer.render_subtitle(top, bottom, self.overlay, preview=preview)
+        snapshot = self._build_cue_snapshot(idx, clean, start_time, top, bottom)
+        self.current_cue_snapshot = snapshot
+        self.renderer.render_subtitle(
+            top,
+            bottom,
+            self.overlay,
+            preview=preview,
+            cue_snapshot=snapshot,
+        )
         try:
             self._record_perf_sample("subtitle_render", (time.perf_counter() - render_start) * 1000.0)
         except Exception:
@@ -483,6 +531,10 @@ class SubtitleNavigationController(_ControllerProxy):
         return "\n".join(lines)
     
     def _reset_canvas(self):
+        self.current_cue_snapshot = None
+        clear_snapshot = getattr(self.renderer, "clear_cue_snapshot", None)
+        if callable(clear_snapshot):
+            clear_snapshot()
         if self.subtitle_deleted and self.last_rendered_index is None and not self.last_subtitle_text:
             return
         self.renderer.canvas.delete("all")

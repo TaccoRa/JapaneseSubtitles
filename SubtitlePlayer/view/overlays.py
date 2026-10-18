@@ -12,19 +12,29 @@ class LoadingOverlay:
     """
     Simple modal "loading" overlay that blocks UI interaction (grab_set).
     """
-    def __init__(self, root: tk.Tk, text: str = "Loading...", modal: bool = True, anchor_window: Optional[tk.Misc] = None, y_offset: int = 0) -> None:
+    def __init__(
+        self,
+        root: tk.Tk,
+        text: str = "Loading...",
+        modal: bool = True,
+        anchor_window: Optional[tk.Misc] = None,
+        y_offset: int = 0,
+        topmost: bool = True,
+    ) -> None:
         self.root = root
         self.anchor_window = anchor_window
         self.y_offset = int(y_offset or 0)
+        self.topmost = bool(topmost)
         self._anchor_prev_topmost = None
+        self._progress = None
 
         self._win = tk.Toplevel(root)
         self._win.overrideredirect(True)
-        self._win.attributes("-topmost", True)
+        self._win.attributes("-topmost", self.topmost)
         if modal:
             self._win.grab_set()
 
-        if self.anchor_window is not None:
+        if self.anchor_window is not None and self.topmost:
             try:
                 self._anchor_prev_topmost = bool(self.anchor_window.attributes("-topmost"))
             except Exception:
@@ -43,6 +53,7 @@ class LoadingOverlay:
 
         # A looping 0..100 progress bar (not tied to actual progress).
         pb = ttk.Progressbar(frame, mode="determinate", maximum=15, value=0, length=240)
+        self._progress = pb
         pb.pack(padx=20, pady=(0, 16))
         try:
             pb.start(50)
@@ -60,11 +71,18 @@ class LoadingOverlay:
         try:
             # Ensure overlay is above the anchor window.
             self._win.lift()
-            self._win.attributes("-topmost", True)
+            self._win.attributes("-topmost", self.topmost)
         except Exception:
             pass
 
     def close(self) -> None:
+        progress = getattr(self, "_progress", None)
+        self._progress = None
+        if progress is not None:
+            try:
+                progress.stop()
+            except Exception:
+                pass
         if not getattr(self, "_win", None):
             return
         try:
@@ -87,6 +105,12 @@ class LoadingOverlay:
         """Temporarily hide the overlay (e.g. while a modal dialog is shown)."""
         if not getattr(self, "_win", None):
             return
+        progress = getattr(self, "_progress", None)
+        if progress is not None:
+            try:
+                progress.stop()
+            except Exception:
+                pass
         try:
             self._win.withdraw()
         except Exception:
@@ -99,9 +123,15 @@ class LoadingOverlay:
         try:
             self._win.deiconify()
             self._win.lift()
-            self._win.attributes("-topmost", True)
+            self._win.attributes("-topmost", self.topmost)
         except Exception:
             pass
+        progress = getattr(self, "_progress", None)
+        if progress is not None:
+            try:
+                progress.start(50)
+            except Exception:
+                pass
 
 def _center_toplevel(
     win: tk.Toplevel,

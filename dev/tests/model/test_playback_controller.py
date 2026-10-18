@@ -476,3 +476,25 @@ def test_quick_tap_seek_uses_key_down_time_when_enqueued_on_release(monkeypatch)
     action, event_time = controller._input_actions.get_nowait()
     assert action == "go_back"
     assert event_time == pytest.approx(20.0)
+
+
+def test_release_seek_drops_existing_queued_seek_action_to_prevent_double_jump():
+    controller = SimpleNamespace(
+        _input_actions=queue.Queue(),
+        _pending_seek_delta=0.0,
+        _repeat_lock=threading.Lock(),
+        _held_repeat_next_fire={},
+        _held_repeat_fired=set(),
+        _held_repeat_press_time={},
+        _repeat_initial_delay_sec=0.22,
+        _shutting_down=False,
+        config=SimpleNamespace(get=lambda _key: False),
+        settings=SimpleNamespace(_last_skip_value=5.0),
+    )
+    hotkeys = HotkeyController(controller)
+
+    controller._input_actions.put_nowait(("go_back", None))
+    hotkeys._release_repeat_actions({"go_back"})
+
+    queued_actions = [item[0] if isinstance(item, tuple) else item for item in list(controller._input_actions.queue)]
+    assert queued_actions == ["go_back"]

@@ -1,617 +1,2798 @@
 {
-  "last search": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:ass in:path Shokugeki no Souma s06 Amazon",
+  "schema_version": 3,
+  "anime_query": "Shokugeki no Souma",
+  "last_search": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:srt in:path \"Shokugeki no Souma\"",
+  "last search": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:srt in:path \"Shokugeki no Souma\"",
   "repo": "Ajatt-Tools/kitsunekko-mirror",
-  "created_at": "2026-04-16T19:45:50.237917Z",
-  "stop_reason": null,
+  "created_at": "2026-09-08T19:34:23.597393Z",
+  "stop_reason": "fallback_unseasoned_search",
   "rate_info": {
     "limit": "10",
     "remaining": "1",
-    "reset": "1776368806",
+    "reset": "1788896120",
     "retry_after": null
   },
-  "result_count": 86,
+  "search_plan_fingerprint": "30f730cf39aa7bc51f8bddcd99b845957e328b33394d5564e870d47ef9bf4e26",
+  "search_plan": {
+    "profiles": [
+      {
+        "id": "netflix",
+        "label": "Netflix",
+        "enabled": true,
+        "template": "{show} s{season02} Netflix",
+        "rank": 0
+      },
+      {
+        "id": "amazon",
+        "label": "Amazon",
+        "enabled": true,
+        "template": "{show} s{season02} Amazon",
+        "rank": 1
+      },
+      {
+        "id": "hulu",
+        "label": "Hulu",
+        "enabled": true,
+        "template": "{show} s{season02} Hulu",
+        "rank": 2
+      }
+    ],
+    "generic_enabled": false,
+    "unseasoned_enabled": true
+  },
+  "executed_queries": [
+    {
+      "profile_id": "netflix",
+      "profile_label": "Netflix",
+      "rank": 0,
+      "phrase": "Shokugeki no Souma s01 Netflix",
+      "season": 1,
+      "fallback_kind": "provider",
+      "is_seasonal": true,
+      "extension": "srt",
+      "github_query": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:srt in:path \"Shokugeki no Souma s01 Netflix\""
+    },
+    {
+      "profile_id": "netflix",
+      "profile_label": "Netflix",
+      "rank": 0,
+      "phrase": "Shokugeki no Souma s01 Netflix",
+      "season": 1,
+      "fallback_kind": "provider",
+      "is_seasonal": true,
+      "extension": "ass",
+      "github_query": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:ass in:path \"Shokugeki no Souma s01 Netflix\""
+    },
+    {
+      "profile_id": "amazon",
+      "profile_label": "Amazon",
+      "rank": 1,
+      "phrase": "Shokugeki no Souma s01 Amazon",
+      "season": 1,
+      "fallback_kind": "provider",
+      "is_seasonal": true,
+      "extension": "srt",
+      "github_query": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:srt in:path \"Shokugeki no Souma s01 Amazon\""
+    },
+    {
+      "profile_id": "amazon",
+      "profile_label": "Amazon",
+      "rank": 1,
+      "phrase": "Shokugeki no Souma s01 Amazon",
+      "season": 1,
+      "fallback_kind": "provider",
+      "is_seasonal": true,
+      "extension": "ass",
+      "github_query": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:ass in:path \"Shokugeki no Souma s01 Amazon\""
+    },
+    {
+      "profile_id": "hulu",
+      "profile_label": "Hulu",
+      "rank": 2,
+      "phrase": "Shokugeki no Souma s01 Hulu",
+      "season": 1,
+      "fallback_kind": "provider",
+      "is_seasonal": true,
+      "extension": "srt",
+      "github_query": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:srt in:path \"Shokugeki no Souma s01 Hulu\""
+    },
+    {
+      "profile_id": "hulu",
+      "profile_label": "Hulu",
+      "rank": 2,
+      "phrase": "Shokugeki no Souma s01 Hulu",
+      "season": 1,
+      "fallback_kind": "provider",
+      "is_seasonal": true,
+      "extension": "ass",
+      "github_query": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:ass in:path \"Shokugeki no Souma s01 Hulu\""
+    },
+    {
+      "profile_id": "unseasoned",
+      "profile_label": "Unseasoned fallback",
+      "rank": 3,
+      "phrase": "Shokugeki no Souma",
+      "season": 1,
+      "fallback_kind": "unseasoned",
+      "is_seasonal": false,
+      "extension": "srt",
+      "github_query": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:srt in:path \"Shokugeki no Souma\""
+    }
+  ],
+  "result_count": 243,
   "items": [
+    {
+      "name": "Shokugeki no Souma - E01 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E01 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 01 [720p].v2.ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 01 [720p].v2.ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 01 [BD][720p-AAC][A9B8EE73].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 01 [BD][720p-AAC][A9B8EE73].srt",
+      "season": null,
+      "episode": null,
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 01 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 01 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
     {
       "name": "食戟のソーマ.S01E01.果て無き荒野.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E01.果て無き荒野.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 1,
-      "global": 1
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E01 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E01 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 1,
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 01 (BD 720p) (FFF) (21D286CA)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 01 (BD 720p) (FFF) (21D286CA)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma Ni no Sara - 01 (BD 720p) (FFF)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/Shokugeki no Souma Ni no Sara - 01 (BD 720p) (FFF)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E02 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E02 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 02 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 02 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 02 [BD][720p-AAC][BB10C43F].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 02 [BD][720p-AAC][BB10C43F].srt",
+      "season": null,
+      "episode": null,
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 02 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 02 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E02.神の舌（ゴッドタン）.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E02.神の舌（ゴッドタン）.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 2,
-      "global": 2
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E02 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E02 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 2,
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 02 (BD 720p) (FFF) (A35F5A98)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 02 (BD 720p) (FFF) (A35F5A98)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma Ni no Sara - 02 (BD 720p) (FFF)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/Shokugeki no Souma Ni no Sara - 02 (BD 720p) (FFF)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E03 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E03 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 3,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 03 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 03 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 3,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 03 [BD][720p-AAC][37E87C7E].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 03 [BD][720p-AAC][37E87C7E].srt",
+      "season": null,
+      "episode": null,
+      "global": 3,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 03 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 03 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 3,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E03.その料理人は笑わない.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E03.その料理人は笑わない.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 3,
-      "global": 3
+      "global": 3,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 03 (BD 720p) (FFF) (B0FE1180)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 03 (BD 720p) (FFF) (B0FE1180)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 3,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E03 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E03 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 3,
+      "global": 3,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma Ni no Sara - 03 (BD 720p) (FFF)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/Shokugeki no Souma Ni no Sara - 03 (BD 720p) (FFF)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 3,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E04 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E04 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 4,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 04 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 04 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 4,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 04 [BD][720p-AAC][96FB3E29].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 04 [BD][720p-AAC][96FB3E29].srt",
+      "season": null,
+      "episode": null,
+      "global": 4,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 04 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 04 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 4,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 04 (BD 720p) (FFF) (D250BDFB)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 04 (BD 720p) (FFF) (D250BDFB)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 4,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E04.極星のマリア.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E04.極星のマリア.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 4,
-      "global": 4
+      "global": 4,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E04 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E04 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 4,
+      "global": 4,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma Ni no Sara - 04 (BD 720p) (FFF)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/Shokugeki no Souma Ni no Sara - 04 (BD 720p) (FFF)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 4,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E05 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E05 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 5,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 05 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 05 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 5,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 05 [BD][720p-AAC][C95E2577].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 05 [BD][720p-AAC][C95E2577].srt",
+      "season": null,
+      "episode": null,
+      "global": 5,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 05 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 05 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 5,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E05.氷の女王と春の嵐.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E05.氷の女王と春の嵐.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 5,
-      "global": 5
+      "global": 5,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E05 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E05 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 5,
+      "global": 5,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 05 (BD 720p) (FFF) (D1A80290)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 05 (BD 720p) (FFF) (D1A80290)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 5,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma Ni no Sara - 05 (BD 720p) (FFF)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/Shokugeki no Souma Ni no Sara - 05 (BD 720p) (FFF)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 5,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E06 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E06 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 6,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 06 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 06 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 6,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 06 [BD][720p-AAC][145DE8A5].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 06 [BD][720p-AAC][145DE8A5].srt",
+      "season": null,
+      "episode": null,
+      "global": 6,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 06 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 06 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 6,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E06.肉の侵略者.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E06.肉の侵略者.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 6,
-      "global": 6
+      "global": 6,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E06 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E06 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 6,
+      "global": 6,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 06 (BD 720p) (FFF) (5EFEF011)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 06 (BD 720p) (FFF) (5EFEF011)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 6,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma Ni no Sara - 06 (BD 720p) (FFF)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/Shokugeki no Souma Ni no Sara - 06 (BD 720p) (FFF)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 6,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E07 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E07 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 7,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 07 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 07 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 7,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 07 [BD][720p-AAC][A0845C02].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 07 [BD][720p-AAC][A0845C02].srt",
+      "season": null,
+      "episode": null,
+      "global": 7,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 07 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 07 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 7,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E07.静かなる丼、雄弁な丼.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E07.静かなる丼、雄弁な丼.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 7,
-      "global": 7
+      "global": 7,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E07 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E07 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 7,
+      "global": 7,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 07 (BD 720p) (FFF) (D473CC55)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 07 (BD 720p) (FFF) (D473CC55)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 7,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma Ni no Sara - 07 (BD 720p) (FFF)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/Shokugeki no Souma Ni no Sara - 07 (BD 720p) (FFF)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 7,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E08 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E08 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 08 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 08 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 08 [BD][720p-AAC][5D9F82E5].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 08 [BD][720p-AAC][5D9F82E5].srt",
+      "season": null,
+      "episode": null,
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 08 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 08 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E08.発想と創造の協奏曲.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E08.発想と創造の協奏曲.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 8,
-      "global": 8
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E08 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E08 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 8,
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 08 (BD 720p) (FFF) (387B4D6A)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 08 (BD 720p) (FFF) (387B4D6A)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma Ni no Sara - 08 (BD 720p) (FFF)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/Shokugeki no Souma Ni no Sara - 08 (BD 720p) (FFF)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 14 (BD 720p) (FFF) (E8A14638)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 14 (BD 720p) (FFF) (E8A14638)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E09 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E09 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 9,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 09 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 09 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 9,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 09 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 09 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 9,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E09.山を彩る衣.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E09.山を彩る衣.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 9,
-      "global": 9
+      "global": 9,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E09 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E09 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 9,
+      "global": 9,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 09 (BD 720p) (FFF) (E77273C8)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 09 (BD 720p) (FFF) (E77273C8)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 9,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma Ni no Sara - 09 (BD 720p) (FFF)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/Shokugeki no Souma Ni no Sara - 09 (BD 720p) (FFF)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 9,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E10 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E10 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 10,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 10 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 10 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 10,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 10 [BD][720p-AAC][B6ED3AAB].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 10 [BD][720p-AAC][B6ED3AAB].srt",
+      "season": null,
+      "episode": null,
+      "global": 10,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 10 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 10 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 10,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 10 (BD 720p) (FFF) (BA66DFE1)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 10 (BD 720p) (FFF) (BA66DFE1)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 10,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E10.至上のルセット.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E10.至上のルセット.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 10,
-      "global": 10
+      "global": 10,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E10 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E10 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 10,
+      "global": 10,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma Ni no Sara - 10 (BD 720p) (FFF)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/Shokugeki no Souma Ni no Sara - 10 (BD 720p) (FFF)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 10,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E11 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E11 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 11,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 11 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 11 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 11,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 11 [BD][720p-AAC][76D1990B].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 11 [BD][720p-AAC][76D1990B].srt",
+      "season": null,
+      "episode": null,
+      "global": 11,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 11 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 11 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 11,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 11 (BD 720p) (FFF) (3E6A5FD2)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 11 (BD 720p) (FFF) (3E6A5FD2)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 11,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E11.東から来た魔術師.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E11.東から来た魔術師.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 11,
-      "global": 11
+      "global": 11,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E11 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E11 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 11,
+      "global": 11,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma Ni no Sara - 11 (BD 720p) (FFF)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/Shokugeki no Souma Ni no Sara - 11 (BD 720p) (FFF)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 11,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E12 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E12 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 12,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 12 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 12 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 12,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 12 [BD][720p-AAC][0138D976].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 12 [BD][720p-AAC][0138D976].srt",
+      "season": null,
+      "episode": null,
+      "global": 12,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 12 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 12 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 12,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E12.ひと皿の記憶.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E12.ひと皿の記憶.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 12,
-      "global": 12
+      "global": 12,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E12 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E12 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 12,
+      "global": 12,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 12 (BD 720p) (FFF) (ED5EDD75)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 12 (BD 720p) (FFF) (ED5EDD75)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 12,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma Ni no Sara - 12 (BD 720p) (FFF)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/Shokugeki no Souma Ni no Sara - 12 (BD 720p) (FFF)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 12,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E13 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E13 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 13,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 13 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 13 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 13,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 13 [BD][720p-AAC][0842FC39].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 13 [BD][720p-AAC][0842FC39].srt",
+      "season": null,
+      "episode": null,
+      "global": 13,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 13 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 13 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 13,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 13 (BD 720p) (FFF) (B30F7265)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 13 (BD 720p) (FFF) (B30F7265)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 13,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma Ni no Sara - 13 (BD 720p) (FFF)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/Shokugeki no Souma Ni no Sara - 13 (BD 720p) (FFF)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 13,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E13.夜明け前の卵たち.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E13.夜明け前の卵たち.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 13,
-      "global": 13
+      "global": 13,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E13 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E13 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 13,
+      "global": 13,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E14 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E14 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 14,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 14 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 14 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 14,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 14 [BD][720p-AAC][34587BB4].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 14 [BD][720p-AAC][34587BB4].srt",
+      "season": null,
+      "episode": null,
+      "global": 14,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 14 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 14 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 14,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E14.メタモルフォーゼ.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E14.メタモルフォーゼ.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 14,
-      "global": 14
+      "global": 14,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E14 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E14 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 14,
+      "global": 14,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E15 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E15 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 15,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 15 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 15 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 15,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 15 [BD][720p-AAC][4D61A4D3].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 15 [BD][720p-AAC][4D61A4D3].srt",
+      "season": null,
+      "episode": null,
+      "global": 15,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 15 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 15 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 15,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E15.「修羅」と呼ばれた男.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E15.「修羅」と呼ばれた男.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 15,
-      "global": 15
+      "global": 15,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 15 (BD 720p) (FFF) (B4D0FC80)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 15 (BD 720p) (FFF) (B4D0FC80)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 15,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E15 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E15 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 15,
+      "global": 15,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E16 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E16 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 16,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 16 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 16 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 16,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E16 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E16 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 16,
+      "global": 16,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 16 [BD][720p-AAC][0468534C].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 16 [BD][720p-AAC][0468534C].srt",
+      "season": null,
+      "episode": null,
+      "global": 16,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 16 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 16 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 16,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 16 (BD 720p) (FFF) (58F26ED9)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 16 (BD 720p) (FFF) (58F26ED9)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 16,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E16.万里を駆ける料理人.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E16.万里を駆ける料理人.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 16,
-      "global": 16
+      "global": 16,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E17 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E17 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 17,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 17 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 17 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 17,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 17 [BD][720p-AAC][72163957].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 17 [BD][720p-AAC][72163957].srt",
+      "season": null,
+      "episode": null,
+      "global": 17,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 17 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 17 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 17,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E17.官能の唐揚げ.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E17.官能の唐揚げ.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 17,
-      "global": 17
+      "global": 17,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E17 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E17 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 17,
+      "global": 17,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 17 (BD 720p) (FFF) (4BADA47D)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 17 (BD 720p) (FFF) (4BADA47D)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 17,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E18 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E18 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 18,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 18 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 18 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 18,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 18 [BD][720p-AAC][FB06AF0C].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 18 [BD][720p-AAC][FB06AF0C].srt",
+      "season": null,
+      "episode": null,
+      "global": 18,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 18 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 18 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 18,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E18.青春の唐揚げ.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E18.青春の唐揚げ.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 18,
-      "global": 18
+      "global": 18,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E18 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E18 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 18,
+      "global": 18,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E19 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E19 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 19,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 19 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 19 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 19,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 19 [BD][720p-AAC][83C234A2].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 19 [BD][720p-AAC][83C234A2].srt",
+      "season": null,
+      "episode": null,
+      "global": 19,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 19 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 19 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 19,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E19.選ばれし者.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E19.選ばれし者.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 19,
-      "global": 19
+      "global": 19,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E19 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E19 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 19,
+      "global": 19,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 19 (BD 720p) (FFF) (BB7D088A)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 19 (BD 720p) (FFF) (BB7D088A)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 19,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E20 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E20 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 20,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 20 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 20 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 20,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 20 [BD][720p-AAC][7B02A79B].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 20 [BD][720p-AAC][7B02A79B].srt",
+      "season": null,
+      "episode": null,
+      "global": 20,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 20 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 20 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 20,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E20 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E20 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 20,
+      "global": 20,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 20 (BD 720p) (FFF) (E69120F3)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 20 (BD 720p) (FFF) (E69120F3)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 20,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E20.龍は臥し、空へ昇る.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E20.龍は臥し、空へ昇る.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 20,
-      "global": 20
+      "global": 20,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E21 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E21 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 21,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 21 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 21 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 21,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 21 [BD][720p-AAC][128F4604].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 21 [BD][720p-AAC][128F4604].srt",
+      "season": null,
+      "episode": null,
+      "global": 21,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 21 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 21 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 21,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E21.未知なる既知.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E21.未知なる既知.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 21,
-      "global": 21
+      "global": 21,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E21 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E21 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 21,
+      "global": 21,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 21 (BD 720p) (FFF) (8DCE7084)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 21 (BD 720p) (FFF) (8DCE7084)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 21,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E22 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E22 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 22,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 22 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 22 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 22,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 22 [BD][720p-AAC][B8886E47].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 22 [BD][720p-AAC][B8886E47].srt",
+      "season": null,
+      "episode": null,
+      "global": 22,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 22 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 22 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 22,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E22.日常を越えるもの.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E22.日常を越えるもの.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 22,
-      "global": 22
+      "global": 22,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 22 (BD 720p) (FFF) (278E56E9)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 22 (BD 720p) (FFF) (278E56E9)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 22,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E22 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E22 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 22,
+      "global": 22,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E23 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E23 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 23,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 23 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 23 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 23,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 23 [BD][720p-AAC][5A3C35EC].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 23 [BD][720p-AAC][5A3C35EC].srt",
+      "season": null,
+      "episode": null,
+      "global": 23,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 23 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 23 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 23,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E23 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E23 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 23,
+      "global": 23,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 23 (BD 720p) (FFF) (526D7820)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 23 (BD 720p) (FFF) (526D7820)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 23,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E23.華開く個の競演.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E23.華開く個の競演.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 23,
-      "global": 23
+      "global": 23,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - E24 [TV].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - E24 [TV].srt",
+      "season": null,
+      "episode": null,
+      "global": 24,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[HorribleSubs] Shokugeki no Soma - 24 [720p].ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[HorribleSubs] Shokugeki no Soma - 24 [720p].ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 24,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 24 [BD][720p-AAC][8E435F19].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 24 [BD][720p-AAC][8E435F19].srt",
+      "season": null,
+      "episode": null,
+      "global": 24,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Cleo]Shokugeki no Souma - 24 (Dual Audio 10bit BD1080p x265).srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Cleo]Shokugeki no Souma - 24 (Dual Audio 10bit BD1080p x265).srt",
+      "season": null,
+      "episode": null,
+      "global": 24,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S01E24.戦士たちの宴.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma/食戟のソーマ.S01E24.戦士たちの宴.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 24,
-      "global": 24
+      "global": 24,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Sokudo] Food Wars S01E24 [1080p BD AV1][dual audio].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[Sokudo] Food Wars S01E24 [1080p BD AV1][dual audio].srt",
+      "season": 1,
+      "episode": 24,
+      "global": 24,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 24 (BD 720p) (FFF) (A8297315)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 24 (BD 720p) (FFF) (A8297315)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 24,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S02E01.その箱に詰めるもの.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/食戟のソーマ.S02E01.その箱に詰めるもの.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 1,
-      "global": 25
+      "global": 25,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S02E02.交錯する光と影.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/食戟のソーマ.S02E02.交錯する光と影.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 2,
-      "global": 26
+      "global": 26,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S02E03.『玉』の世代.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/食戟のソーマ.S02E03.『玉』の世代.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 3,
-      "global": 27
+      "global": 27,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S02E04.追跡者.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/食戟のソーマ.S02E04.追跡者.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 4,
-      "global": 28
+      "global": 28,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S02E05.一口目の秘密.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/食戟のソーマ.S02E05.一口目の秘密.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 5,
-      "global": 29
+      "global": 29,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S02E06.朝はまた来る.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/食戟のソーマ.S02E06.朝はまた来る.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 6,
-      "global": 30
+      "global": 30,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S02E07.喰らいあう獣.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/食戟のソーマ.S02E07.喰らいあう獣.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 7,
-      "global": 31
+      "global": 31,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S02E08.旬を巡る戦い.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/食戟のソーマ.S02E08.旬を巡る戦い.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 8,
-      "global": 32
+      "global": 32,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S02E09.秋を告げる刀.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/食戟のソーマ.S02E09.秋を告げる刀.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 9,
-      "global": 33
+      "global": 33,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S02E10.新たなる『玉』.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/食戟のソーマ.S02E10.新たなる『玉』.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 10,
-      "global": 34
+      "global": 34,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S02E11.スタジエール.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/食戟のソーマ.S02E11.スタジエール.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 11,
-      "global": 35
+      "global": 35,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S02E12.魔術師再び.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/食戟のソーマ.S02E12.魔術師再び.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 12,
-      "global": 36
+      "global": 36,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S02E13.威風堂々.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Ni no Sara/食戟のソーマ.S02E13.威風堂々.WEBRip.Netflix.ja[cc].srt",
       "season": 2,
       "episode": 13,
-      "global": 37
+      "global": 37,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E01.十傑に挑む.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara/食戟のソーマ.S03E01.十傑に挑む.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 1,
-      "global": 38
+      "global": 38,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E02.『麻』と『辣』.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara/食戟のソーマ.S03E02.『麻』と『辣』.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 2,
-      "global": 39
+      "global": 39,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E03.月饗祭.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara/食戟のソーマ.S03E03.月饗祭.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 3,
-      "global": 40
+      "global": 40,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E04.若き獅子たちの群れ.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara/食戟のソーマ.S03E04.若き獅子たちの群れ.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 4,
-      "global": 41
+      "global": 41,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E05.翳りゆく食卓.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara/食戟のソーマ.S03E05.翳りゆく食卓.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 5,
-      "global": 42
+      "global": 42,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E06.囚われの女王.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara/食戟のソーマ.S03E06.囚われの女王.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 6,
-      "global": 43
+      "global": 43,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E07.崩れゆく学園.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara/食戟のソーマ.S03E07.崩れゆく学園.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 7,
-      "global": 44
+      "global": 44,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E08.錬金術師（アルキミスタ）.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara/食戟のソーマ.S03E08.錬金術師（アルキミスタ）.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 8,
-      "global": 45
+      "global": 45,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E09.残党狩り.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara/食戟のソーマ.S03E09.残党狩り.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 9,
-      "global": 46
+      "global": 46,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E10.鮭は踊る.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara/食戟のソーマ.S03E10.鮭は踊る.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 10,
-      "global": 47
+      "global": 47,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E11.食卓の白騎士（ターフェル・ヴァイスリッター）.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara/食戟のソーマ.S03E11.食卓の白騎士（ターフェル・ヴァイスリッター）.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 11,
-      "global": 48
+      "global": 48,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E12.頂を目指す者.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara/食戟のソーマ.S03E12.頂を目指す者.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 12,
-      "global": 49
+      "global": 49,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E13.進級試験.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara - Tootsuki Ressha-hen/食戟のソーマ.S03E13.進級試験.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 13,
-      "global": 50
+      "global": 50,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E14.遠月列車は行く.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara - Tootsuki Ressha-hen/食戟のソーマ.S03E14.遠月列車は行く.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 14,
-      "global": 51
+      "global": 51,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E15.立ち上がる女騎士（ジャンヌ・ダルク）.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara - Tootsuki Ressha-hen/食戟のソーマ.S03E15.立ち上がる女騎士（ジャンヌ・ダルク）.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 15,
-      "global": 52
+      "global": 52,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E16.リベンジ・マッチ.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara - Tootsuki Ressha-hen/食戟のソーマ.S03E16.リベンジ・マッチ.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 16,
-      "global": 53
+      "global": 53,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E17.旨味の綱渡り.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara - Tootsuki Ressha-hen/食戟のソーマ.S03E17.旨味の綱渡り.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 17,
-      "global": 54
+      "global": 54,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E18.誰が為に.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara - Tootsuki Ressha-hen/食戟のソーマ.S03E18.誰が為に.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 18,
-      "global": 55
+      "global": 55,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E19.宣戦布告.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara - Tootsuki Ressha-hen/食戟のソーマ.S03E19.宣戦布告.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 19,
-      "global": 56
+      "global": 56,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E20.えりなの研鑽.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara - Tootsuki Ressha-hen/食戟のソーマ.S03E20.えりなの研鑽.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 20,
-      "global": 57
+      "global": 57,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E21.荒野を拓く者.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara - Tootsuki Ressha-hen/食戟のソーマ.S03E21.荒野を拓く者.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 21,
-      "global": 58
+      "global": 58,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E22.決戦の地へ.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara - Tootsuki Ressha-hen/食戟のソーマ.S03E22.決戦の地へ.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 22,
-      "global": 59
+      "global": 59,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E23.極星寮を背負って.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara - Tootsuki Ressha-hen/食戟のソーマ.S03E23.極星寮を背負って.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 23,
-      "global": 60
+      "global": 60,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S03E24.強者たる所以.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. San no Sara - Tootsuki Ressha-hen/食戟のソーマ.S03E24.強者たる所以.WEBRip.Netflix.ja[cc].srt",
       "season": 3,
       "episode": 24,
-      "global": 61
+      "global": 61,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S04E01.守りたいもの.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Shin no Sara/食戟のソーマ.S04E01.守りたいもの.WEBRip.Netflix.ja[cc].srt",
       "season": 4,
       "episode": 1,
-      "global": 62
+      "global": 62,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S04E02.ストロボ、輝く.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Shin no Sara/食戟のソーマ.S04E02.ストロボ、輝く.WEBRip.Netflix.ja[cc].srt",
       "season": 4,
       "episode": 2,
-      "global": 63
+      "global": 63,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S04E03.希望の連帯.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Shin no Sara/食戟のソーマ.S04E03.希望の連帯.WEBRip.Netflix.ja[cc].srt",
       "season": 4,
       "episode": 3,
-      "global": 64
+      "global": 64,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S04E04.勝利をねらえ!.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Shin no Sara/食戟のソーマ.S04E04.勝利をねらえ!.WEBRip.Netflix.ja[cc].srt",
       "season": 4,
       "episode": 4,
-      "global": 65
+      "global": 65,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S04E05.終わったぜ、お前.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Shin no Sara/食戟のソーマ.S04E05.終わったぜ、お前.WEBRip.Netflix.ja[cc].srt",
       "season": 4,
       "episode": 5,
-      "global": 66
+      "global": 66,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S04E06.一本の刃.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Shin no Sara/食戟のソーマ.S04E06.一本の刃.WEBRip.Netflix.ja[cc].srt",
       "season": 4,
       "episode": 6,
-      "global": 67
+      "global": 67,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S04E07.ふたりの女王.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Shin no Sara/食戟のソーマ.S04E07.ふたりの女王.WEBRip.Netflix.ja[cc].srt",
       "season": 4,
       "episode": 7,
-      "global": 68
+      "global": 68,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S04E08.君の横顔.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Shin no Sara/食戟のソーマ.S04E08.君の横顔.WEBRip.Netflix.ja[cc].srt",
       "season": 4,
       "episode": 8,
-      "global": 69
+      "global": 69,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S04E09.一席と二席.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Shin no Sara/食戟のソーマ.S04E09.一席と二席.WEBRip.Netflix.ja[cc].srt",
       "season": 4,
       "episode": 9,
-      "global": 70
+      "global": 70,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S04E10.必殺料理の作り方.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Shin no Sara/食戟のソーマ.S04E10.必殺料理の作り方.WEBRip.Netflix.ja[cc].srt",
       "season": 4,
       "episode": 10,
-      "global": 71
+      "global": 71,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S04E11.希望の唄.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Shin no Sara/食戟のソーマ.S04E11.希望の唄.WEBRip.Netflix.ja[cc].srt",
       "season": 4,
       "episode": 11,
-      "global": 72
+      "global": 72,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S04E12.新生『遠月十傑』.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Shin no Sara/食戟のソーマ.S04E12.新生『遠月十傑』.WEBRip.Netflix.ja[cc].srt",
       "season": 4,
       "episode": 12,
-      "global": 73
+      "global": 73,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S05E01.学期末試験.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Gou no Sara/食戟のソーマ.S05E01.学期末試験.WEBRip.Netflix.ja[cc].srt",
       "season": 5,
       "episode": 1,
-      "global": 74
+      "global": 74,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S05E02.青の前哨戦.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Gou no Sara/食戟のソーマ.S05E02.青の前哨戦.WEBRip.Netflix.ja[cc].srt",
       "season": 5,
       "episode": 2,
-      "global": 75
+      "global": 75,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S05E03.真夜中の料理人(ノワール).WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Gou no Sara/食戟のソーマ.S05E03.真夜中の料理人(ノワール).WEBRip.Netflix.ja[cc].srt",
       "season": 5,
       "episode": 3,
-      "global": 76
+      "global": 76,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S05E04.最後の晩餐.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Gou no Sara/食戟のソーマ.S05E04.最後の晩餐.WEBRip.Netflix.ja[cc].srt",
       "season": 5,
       "episode": 4,
-      "global": 77
+      "global": 77,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S05E05.コンビニの戦い.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Gou no Sara/食戟のソーマ.S05E05.コンビニの戦い.WEBRip.Netflix.ja[cc].srt",
       "season": 5,
       "episode": 5,
-      "global": 78
+      "global": 78,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S05E06.真夏のクリスマス.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Gou no Sara/食戟のソーマ.S05E06.真夏のクリスマス.WEBRip.Netflix.ja[cc].srt",
       "season": 5,
       "episode": 6,
-      "global": 79
+      "global": 79,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S05E07.交差する刃(クロスナイブズ).WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Gou no Sara/食戟のソーマ.S05E07.交差する刃(クロスナイブズ).WEBRip.Netflix.ja[cc].srt",
       "season": 5,
       "episode": 7,
-      "global": 80
+      "global": 80,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S05E08.欠けた半月.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Gou no Sara/食戟のソーマ.S05E08.欠けた半月.WEBRip.Netflix.ja[cc].srt",
       "season": 5,
       "episode": 8,
-      "global": 81
+      "global": 81,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S05E09.神の舌の絶望.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Gou no Sara/食戟のソーマ.S05E09.神の舌の絶望.WEBRip.Netflix.ja[cc].srt",
       "season": 5,
       "episode": 9,
-      "global": 82
+      "global": 82,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S05E10.親父越え.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Gou no Sara/食戟のソーマ.S05E10.親父越え.WEBRip.Netflix.ja[cc].srt",
       "season": 5,
       "episode": 10,
-      "global": 83
+      "global": 83,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S05E11.失敗の味.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Gou no Sara/食戟のソーマ.S05E11.失敗の味.WEBRip.Netflix.ja[cc].srt",
       "season": 5,
       "episode": 11,
-      "global": 84
+      "global": 84,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S05E12.極上の石たち.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Gou no Sara/食戟のソーマ.S05E12.極上の石たち.WEBRip.Netflix.ja[cc].srt",
       "season": 5,
       "episode": 12,
-      "global": 85
+      "global": 85,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "食戟のソーマ.S05E13.食戟のソーマ.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Shokugeki no Souma. Gou no Sara/食戟のソーマ.S05E13.食戟のソーマ.WEBRip.Netflix.ja[cc].srt",
       "season": 5,
       "episode": 13,
-      "global": 86
+      "global": 86,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Shokugeki no Souma - 18 (BD 720p) (FFF) (E402EDB2)(Hi10).ja.srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/Shokugeki no Souma - 18 (BD 720p) (FFF) (E402EDB2)(Hi10).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 402,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[FFF] Shokugeki no Souma - 09 [BD][720p-AAC][E3616C40].srt",
+      "path": "subtitles/anime_tv/Shokugeki no Souma/[FFF] Shokugeki no Souma - 09 [BD][720p-AAC][E3616C40].srt",
+      "season": null,
+      "episode": null,
+      "global": null,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     }
   ],
   "sxexx_to_gxx": {

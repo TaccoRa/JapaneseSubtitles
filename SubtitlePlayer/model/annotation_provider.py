@@ -6,7 +6,7 @@ import logging
 import re
 import time
 import unicodedata
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Callable, Iterable, List, Optional
 
 from model.annotation_styles import (
@@ -106,6 +106,8 @@ class AnnotationMatch:
     reading: str = ""
     meaning: str = ""
     notes: str = ""
+    match_reason: str = ""
+    matched_key: str = ""
 
 
 def _config_bool(config, key: str, default: bool = False) -> bool:
@@ -266,11 +268,12 @@ class AnnotationProvider:
         self._add_candidate_key(keys, surface)
         if _config_bool(self.config, "ANNOTATION_MATCH_READING", False):
             self._add_candidate_key(keys, reading)
-        match = self._first_enabled_match(keys, reading)
+        match = self._first_enabled_match(keys, reading, match_reason="surface")
         if match is not None:
             return match
 
         keys = []
+        canonical_lookup = False
         if bool(token.get("honorific_name")):
             for value in token.get("honorific_base_candidates") or [lookup]:
                 self._add_candidate_key(keys, str(value or ""))
@@ -281,12 +284,22 @@ class AnnotationProvider:
             self._add_candidate_key(keys, lookup)
             for value in self._orthographic_lookup_candidates(token, lookup):
                 self._add_candidate_key(keys, value)
-        match = self._first_enabled_match(keys, "")
+        elif (
+            normalize_word(surface) != normalize_word(lookup)
+            and self._allow_canonical_kana_lookup_candidate(token, surface, lookup)
+        ):
+            canonical_lookup = True
+            self._add_candidate_key(keys, lookup)
+        match = self._first_enabled_match(
+            keys,
+            reading if canonical_lookup else "",
+            match_reason="canonical_orthography" if canonical_lookup else "lookup",
+        )
         if match is not None:
             return match
 
         keys = self._fallback_candidate_keys_for_token(token, surface, lookup, reading)
-        match = self._first_enabled_match(keys, "")
+        match = self._first_enabled_match(keys, "", match_reason="fallback")
         if match is not None:
             return match
 
@@ -300,6 +313,7 @@ class AnnotationProvider:
                 surface=surface,
                 normalized=normalize_word(lookup or surface),
                 reading=reading,
+                match_reason="honorific_name",
             )
 
         uncollected_style = self._style_for_status("uncollected")
@@ -310,21 +324,151 @@ class AnnotationProvider:
                 surface=surface,
                 normalized=normalize_word(lookup or surface),
                 reading=reading,
+                match_reason="uncollected",
             )
         return None
 
-    def _first_enabled_match(self, keys: list[str], reading: str) -> AnnotationMatch | None:
-        candidates: list[AnnotationMatch] = []
-        for key in keys:
-            candidates.extend(self._index.get(key, []))
+    def describe_selection(
+        self,
+        text: str,
+        tokens: Iterable[Any] | None = None,
+    ) -> str:
+        selected = unicodedata.normalize("NFKC", str(text or "")).strip()
+        token_dicts = [self._token_to_mapping(token) for token in (tokens or ()) if token is not None]
+        token_dicts = [token for token in token_dicts if str(token.get("surface") or "").strip()]
+        reading = "".join(str(token.get("reading") or "").strip() for token in token_dicts)
+        canonical = ""
+        if len(token_dicts) == 1:
+            canonical = str(token_dicts[0].get("lookup") or token_dicts[0].get("surface") or "").strip()
+        elif token_dicts:
+            canonical = " ".join(
+                str(token.get("lookup") or token.get("surface") or "").strip()
+                for token in token_dicts
+                if not bool(token.get("compound"))
+            ).strip()
 
-        for match in sorted(candidates, key=lambda item: STATUS_PRIORITY.get(item.status, 90)):
+        direct = None
+        if len(token_dicts) == 1:
+            try:
+                direct = self.match_token(token_dicts[0])
+            except Exception:
+                direct = None
+        if direct is None and selected:
+            direct = self._first_enabled_match(
+                [normalize_word(selected)],
+                reading,
+                match_reason="surface",
+            )
+
+        lines = [f"Selected: {selected or '<empty>'}"]
+        if reading:
+            lines.append(f"Reading: {reading}")
+        if canonical and normalize_word(canonical) != normalize_word(selected):
+            lines.append(f"Lookup: {canonical}")
+
+        if direct is not None:
+            reason = str(direct.match_reason or "direct").replace("_", " ")
+            source = str(direct.source or "").strip()
+            status = str(direct.status or "").replace("_", " ").strip()
+            label = status if not source else f"{status} ({source})"
+            matched = str(direct.surface or direct.matched_key or "").strip()
+            lines.append(f"Direct database: {label} via {reason}" + (f" [{matched}]" if matched else ""))
+            if direct.meaning:
+                lines.append(f"Meaning: {direct.meaning}")
+        else:
+            lines.append("Direct database: not found")
+
+        component_lines = []
+        seen_components = set()
+        for token in token_dicts:
+            if bool(token.get("compound")):
+                continue
+            word = str(token.get("surface") or "").strip()
+            if not word:
+                continue
+            key = (int(token.get("line_index") or 0), int(token.get("start") or 0), int(token.get("end") or 0), word)
+            if key in seen_components:
+                continue
+            seen_components.add(key)
+            try:
+                match = self.match_token(token)
+            except Exception:
+                match = None
+            if match is None:
+                component_lines.append(f"{word}: not in database")
+            else:
+                status = str(match.status or "").replace("_", " ")
+                reason = str(match.match_reason or "direct").replace("_", " ")
+                source = str(match.source or "").strip()
+                label = status if not source else f"{status} ({source})"
+                component_lines.append(f"{word}: {label} via {reason}")
+        if component_lines:
+            lines.append("Components:")
+            lines.extend(component_lines)
+
+        kanji_lines = []
+        seen_kanji = set()
+        for char in selected:
+            if char in seen_kanji or not self._contains_cjk(char):
+                continue
+            seen_kanji.add(char)
+            match = self._first_enabled_match([normalize_word(char)], "", match_reason="kanji")
+            if match is None:
+                kanji_lines.append(f"{char}: not in database")
+            else:
+                status = str(match.status or "").replace("_", " ")
+                source = str(match.source or "").strip()
+                label = status if not source else f"{status} ({source})"
+                kanji_lines.append(f"{char}: {label}")
+        if kanji_lines:
+            lines.append("Kanji:")
+            lines.extend(kanji_lines)
+
+        return "\n".join(lines)
+
+    @staticmethod
+    def _token_to_mapping(token: Any) -> dict[str, Any]:
+        if isinstance(token, dict):
+            return dict(token)
+        mapper = getattr(token, "as_mapping", None)
+        if callable(mapper):
+            try:
+                return dict(mapper())
+            except Exception:
+                return {}
+        return {
+            "surface": str(getattr(token, "surface", "") or ""),
+            "lookup": str(getattr(token, "dictionary_lookup_key", "") or getattr(token, "lemma", "") or ""),
+            "reading": str(getattr(token, "reading", "") or ""),
+            "start": int(getattr(token, "start", 0) or 0),
+            "end": int(getattr(token, "end", 0) or 0),
+            "line_index": int(getattr(token, "line_index", 0) or 0),
+            "pos1": str(getattr(token, "pos1", "") or ""),
+            "pos2": str(getattr(token, "pos2", "") or ""),
+            "c_type": str(getattr(token, "conjugation_type", "") or ""),
+            "c_form": str(getattr(token, "conjugation_form", "") or ""),
+            "orth_base": str(getattr(token, "orthographic_base", "") or ""),
+            "compound": bool(getattr(token, "compound", False)),
+        }
+
+    def _first_enabled_match(
+        self,
+        keys: list[str],
+        reading: str,
+        *,
+        match_reason: str = "",
+    ) -> AnnotationMatch | None:
+        candidates: list[tuple[str, AnnotationMatch]] = []
+        for key in keys:
+            candidates.extend((key, match) for match in self._index.get(key, []))
+
+        for key, match in sorted(candidates, key=lambda item: STATUS_PRIORITY.get(item[1].status, 90)):
             if not self._reading_compatible(reading, match.reading):
                 continue
             if match.status == "ignored":
-                return match
+                return replace(match, match_reason=match.match_reason or match_reason, matched_key=key)
             if self.source_enabled(match.source):
-                return match
+                return replace(match, match_reason=match.match_reason or match_reason, matched_key=key)
         return None
 
     @staticmethod
@@ -398,6 +542,31 @@ class AnnotationProvider:
         if AnnotationProvider._is_kana_only(surface):
             return False
         if isinstance(token, dict) and str(token.get("pos1") or "") == "\u540d\u8a5e":
+            return False
+        return True
+
+    def _allow_canonical_kana_lookup_candidate(
+        self,
+        token: dict[str, Any] | None,
+        surface: str,
+        lookup: str,
+    ) -> bool:
+        if not _config_bool(self.config, "ANNOTATION_MATCH_CANONICAL_KANA_FORMS", True):
+            return False
+        if not isinstance(token, dict):
+            return False
+        if normalize_word(surface) == normalize_word(lookup):
+            return False
+        if not self._is_kana_only(surface):
+            return False
+        orth_base = str(token.get("orth_base") or "").strip()
+        if not orth_base or normalize_word(orth_base) != normalize_word(surface):
+            return False
+        c_form = str(token.get("c_form") or "").strip()
+        if c_form and c_form != "*":
+            return False
+        pos1 = str(token.get("pos1") or "")
+        if pos1 in {"\u52d5\u8a5e", "\u5f62\u5bb9\u8a5e"}:
             return False
         return True
 
@@ -534,18 +703,51 @@ class AnnotationProvider:
         *,
         hover_only: bool | None = None,
     ):
+        annotated, _tokens, _intervals = self.analyze_segments(
+            segments,
+            tokenizer,
+            hover_only=hover_only,
+        )
+        return annotated
+
+    def analyze_segments(
+        self,
+        segments,
+        tokenizer: Callable[[str], List[dict[str, Any]]] | None = None,
+        *,
+        source_tokens: list[dict[str, Any]] | None = None,
+        hover_only: bool | None = None,
+    ) -> tuple[Any, list[dict[str, Any]], list[tuple[int, int, AnnotationMatch]]]:
+        """Return annotated segments and the exact token/interval analysis used for them."""
         if not segments or not self.enabled():
-            return segments
+            return segments, list(source_tokens or []), []
 
         started = time.perf_counter()
         line_text = "".join(_segment_base(segment) for segment in segments)
         if not line_text:
-            return segments
-        tokens = self._tokens_for_line(line_text, tokenizer)
+            return segments, list(source_tokens or []), []
+        if source_tokens is None:
+            tokens = self._tokens_for_line(line_text, tokenizer)
+        else:
+            tokens = []
+            for item in source_tokens:
+                try:
+                    start = int(item.get("start"))
+                    end = int(item.get("end"))
+                except Exception:
+                    continue
+                if start < 0 or end <= start or end > len(line_text):
+                    continue
+                token = dict(item)
+                token.setdefault("surface", line_text[start:end])
+                token["start"] = start
+                token["end"] = end
+                tokens.append(token)
+            tokens = self._expand_annotation_tokens(line_text, tokens)
         tokens = self._merge_annotation_tokens(tokens, self._ruby_segment_tokens(segments))
         intervals = self._matched_intervals(tokens, line_text=line_text)
         if not intervals:
-            return segments
+            return segments, tokens, []
 
         output = []
         cursor = 0
@@ -594,7 +796,7 @@ class AnnotationProvider:
             len(line_text),
             len(intervals),
         )
-        return output
+        return output, tokens, intervals
 
     def _tokens_for_line(self, line_text: str, tokenizer) -> list[dict[str, Any]]:
         if callable(tokenizer):
@@ -1255,6 +1457,10 @@ class AnnotationProvider:
             "normal_style_visible": not only_hover,
             "hover_highlight": _config_bool(self.config, "ANNOTATION_HIGHLIGHT_ON_HOVER", True),
             "annotation_text": ": ".join(label_parts),
+            "annotation_meaning": match.meaning,
+            "annotation_notes": match.notes,
+            "annotation_match_reason": match.match_reason,
+            "annotation_matched_key": match.matched_key,
             "hide_ruby": bool(hide_ruby),
             "hidden_ruby": ruby if hide_ruby and ruby else "",
             "show_ruby_on_hover": _config_bool(self.config, "ANNOTATION_SHOW_RUBY_ON_HOVER", True),

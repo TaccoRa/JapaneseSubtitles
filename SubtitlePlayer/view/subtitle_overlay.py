@@ -51,6 +51,9 @@ class SubtitleOverlayUI:
         self.on_sub_window_enter = lambda _ev=None: None
         self.on_sub_window_leave = lambda _ev=None: None
         self.on_handle_enter = lambda _ev=None: None
+        self._drag_active = False
+        self.on_drag_start = lambda: None
+        self.on_drag_end = lambda: None
 
         self.build_overlay()
 
@@ -104,6 +107,38 @@ class SubtitleOverlayUI:
     def bind_sub_window_enter(self, cb): self.on_sub_window_enter = cb
     def bind_sub_window_leave(self, cb): self.on_sub_window_leave = cb
     def bind_sub_handle_enter(self, cb): self.on_handle_enter = cb
+
+    @property
+    def is_dragging(self) -> bool:
+        return bool(self._drag_active)
+
+    def bind_drag_callbacks(self, on_start=None, on_end=None) -> None:
+        """Bind callbacks for either subtitle-overlay drag handle.
+
+        The renderer uses this to suppress synthetic hover events while the
+        window moves underneath the pointer.  The callbacks intentionally take
+        no arguments; geometry persistence remains handled by ``on_release``.
+        """
+        self.on_drag_start = on_start if callable(on_start) else (lambda: None)
+        self.on_drag_end = on_end if callable(on_end) else (lambda: None)
+
+    def _on_drag_start(self) -> None:
+        if self._drag_active:
+            return
+        self._drag_active = True
+        try:
+            self.on_drag_start()
+        except Exception:
+            logger.debug("Subtitle-overlay drag-start callback failed", exc_info=True)
+
+    def _on_drag_end(self) -> None:
+        if not self._drag_active:
+            return
+        self._drag_active = False
+        try:
+            self.on_drag_end()
+        except Exception:
+            logger.debug("Subtitle-overlay drag-end callback failed", exc_info=True)
 
     def update_geometry(self, new_w, new_h):
         """Resize overlay window and internal canvas to the new width/height (integers)."""
@@ -160,6 +195,8 @@ class SubtitleOverlayUI:
             self.sub_window,
             sync_windows=sync_windows,
             on_release=self._save_center_position,
+            on_start=self._on_drag_start,
+            on_end=self._on_drag_end,
         )
 
     def show_handle(self):
@@ -189,10 +226,14 @@ class SubtitleOverlayUI:
         self.subtitle_handle.bind("<Enter>", lambda ev: self.on_handle_enter(ev))
         make_draggable(self.subtitle_handle, self.sub_window,
                        sync_windows=[self.subtitle_handle],
-                       on_release=self._save_center_position)
+                       on_release=self._save_center_position,
+                       on_start=self._on_drag_start,
+                       on_end=self._on_drag_end)
         make_draggable(self.sub_window, self.sub_window,
                        sync_windows=[self.subtitle_handle], 
-                       on_release=self._save_center_position)
+                       on_release=self._save_center_position,
+                       on_start=self._on_drag_start,
+                       on_end=self._on_drag_end)
         if self._start_hidden:
             self.subtitle_handle.withdraw()
         else:

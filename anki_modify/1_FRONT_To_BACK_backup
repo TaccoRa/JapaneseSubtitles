@@ -1,0 +1,812 @@
+<!-- ===== FRONT TEMPLATE ===== -->
+<span class="kanji">
+  {{furigana:Front}}
+  {{#Sound}}
+    <span class="sound">{{Sound}}</span>
+  {{/Sound}}
+</span>
+
+{{#SentenceJA}}
+  <span class="sentenceJA">{{furigana:SentenceJA}}</span>
+{{/SentenceJA}}
+
+<script src="stroke_auto_runtime.js"></script>
+
+<script>
+(function () {
+  function buildFlatMapping(container) {
+    let flat = "";
+    const mapping = [];
+    function walk(node) {
+      if (!node) return;
+      if (node.nodeType === 3) {
+        for (let i = 0; i < node.nodeValue.length; i++) {
+          mapping.push({ node: node, offset: i });
+          flat += node.nodeValue.charAt(i);
+        }
+      } else if (node.nodeType === 1) {
+        const tag = node.tagName.toLowerCase();
+        if (tag === "rt") return;
+        if (tag === "ruby") {
+          Array.from(node.childNodes).forEach(function (c) {
+            if (c.nodeType === 1 && c.tagName && c.tagName.toLowerCase() === "rt") return;
+            walk(c);
+          });
+        } else {
+          Array.from(node.childNodes).forEach(walk);
+        }
+      }
+    }
+    walk(container);
+    return { flat: flat, mapping: mapping };
+  }
+
+  function rangesByNode(mapping, rangesList) {
+    const nodeMap = new Map();
+    rangesList.forEach(function (pair) {
+      const start = pair[0];
+      const end = pair[1];
+      for (let i = start; i < end; i++) {
+        const m = mapping[i];
+        if (!m) continue;
+        const node = m.node;
+        const idx = m.offset;
+        if (!nodeMap.has(node)) nodeMap.set(node, []);
+        const arr = nodeMap.get(node);
+        const last = arr.length ? arr[arr.length - 1] : null;
+        if (last && last[1] === idx) last[1] = idx + 1;
+        else arr.push([idx, idx + 1]);
+      }
+    });
+    return nodeMap;
+  }
+
+  function wrapRanges(nodeMap) {
+    nodeMap.forEach(function (ranges, node) {
+      const txt = node.nodeValue || "";
+      const frag = document.createDocumentFragment();
+      let last = 0;
+      ranges.forEach(function (pair) {
+        const s = pair[0];
+        const e = pair[1];
+        if (s > last) frag.appendChild(document.createTextNode(txt.slice(last, s)));
+        const span = document.createElement("span");
+        span.className = "highlight";
+        span.textContent = txt.slice(s, e);
+        frag.appendChild(span);
+        last = e;
+      });
+      if (last < txt.length) frag.appendChild(document.createTextNode(txt.slice(last)));
+      node.parentNode.replaceChild(frag, node);
+    });
+  }
+
+  function highlightExactExpressionInSentence(sentenceEl, expression) {
+    if (!sentenceEl || !expression) return false;
+    const built = buildFlatMapping(sentenceEl);
+    const flat = built.flat;
+    const mapping = built.mapping;
+    if (!flat) return false;
+    const ranges = [];
+    let pos = 0;
+    while (true) {
+      const idx = flat.indexOf(expression, pos);
+      if (idx === -1) break;
+      ranges.push([idx, idx + expression.length]);
+      pos = idx + expression.length;
+    }
+    if (!ranges.length) return false;
+    wrapRanges(rangesByNode(mapping, ranges));
+    return true;
+  }
+
+  function getMainExpression(kanjiEl) {
+    if (!kanjiEl) return "";
+    const clone = kanjiEl.cloneNode(true);
+    clone.querySelectorAll("rt").forEach(function (rt) { rt.remove(); });
+    return (clone.textContent || "").replace(/\[[^\]]*]/g, "").replace(/\s+/g, "").trim();
+  }
+
+  function bindRubyTapOnce() {
+    if (window.__rubyTapFixBound) return;
+    window.__rubyTapFixBound = true;
+    let lastTapAt = 0;
+    function onRubyTap(e) {
+      const ruby = e.target && e.target.closest ? e.target.closest("ruby") : null;
+      if (!ruby) return;
+      const now = Date.now();
+      if (e.type === "click" && now - lastTapAt < 300) return;
+      if (e.type !== "click") lastTapAt = now;
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+      ruby.classList.toggle("show");
+    }
+    if (window.PointerEvent) {
+      document.addEventListener("pointerdown", onRubyTap, true);
+    } else {
+      document.addEventListener("touchstart", onRubyTap, true);
+    }
+    document.addEventListener("click", onRubyTap, true);
+  }
+
+  function runFront() {
+    bindRubyTapOnce();
+
+    const kanjiEl = document.querySelector(".kanji");
+    if (kanjiEl) {
+      const mainExpression = getMainExpression(kanjiEl);
+      if (mainExpression) {
+        document.querySelectorAll(".sentenceJA").forEach(function (s) {
+          highlightExactExpressionInSentence(s, mainExpression);
+        });
+      }
+    }
+
+  }
+
+  if (typeof onUpdateHook !== "undefined") onUpdateHook.push(runFront);
+  if (typeof onShownHook !== "undefined") onShownHook.push(runFront);
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", runFront);
+  } else {
+    runFront();
+  }
+  setTimeout(runFront, 0);
+  setTimeout(runFront, 120);
+})();
+</script>
+
+
+<script>
+(function () {
+  const DEFAULT_MIN_STROKE_SIZE = 80;
+  const DEFAULT_MAX_STROKE_SIZE = 160;
+  const DEFAULT_MIN_IMAGE_SIZE = 120;
+  const DEFAULT_MAX_IMAGE_SIZE = 640;
+
+  function numberValue(value, fallback) {
+    const n = parseFloat(value);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function layoutLimits(card) {
+    const style = getComputedStyle(card || document.documentElement);
+    const strokeMin = Math.max(1, numberValue(
+      style.getPropertyValue("--stroke-tile-min"),
+      DEFAULT_MIN_STROKE_SIZE
+    ));
+    const strokeMax = Math.max(strokeMin, numberValue(
+      style.getPropertyValue("--stroke-tile-max"),
+      DEFAULT_MAX_STROKE_SIZE
+    ));
+    const imageMin = Math.max(1, numberValue(
+      style.getPropertyValue("--card-image-min"),
+      DEFAULT_MIN_IMAGE_SIZE
+    ));
+    const imageMax = Math.max(imageMin, numberValue(
+      style.getPropertyValue("--card-image-max"),
+      DEFAULT_MAX_IMAGE_SIZE
+    ));
+    return {
+      strokeMin: strokeMin,
+      strokeMax: strokeMax,
+      imageMin: imageMin,
+      imageMax: imageMax
+    };
+  }
+
+  function describeStrokeRow(row) {
+    const count = row.querySelectorAll(".stroke-order-media").length;
+    if (!count) return null;
+
+    const cols = count === 1 ? 1 : 2;
+    const gridRows = Math.ceil(count / 2);
+    const style = getComputedStyle(row);
+    const gapX = numberValue(style.columnGap || style.gap, 0);
+    const gapY = numberValue(style.rowGap || style.gap, gapX);
+    const rect = row.getBoundingClientRect();
+    const width = row.clientWidth || rect.width;
+    const widthLimit = width > 0
+      ? Math.max(1, (width - gapX * (cols - 1)) / cols)
+      : 0;
+
+    return {
+      row: row,
+      count: count,
+      cols: cols,
+      gridRows: gridRows,
+      gapX: gapX,
+      gapY: gapY,
+      widthLimit: widthLimit
+    };
+  }
+
+  function applyLayout(card, rows, strokeSize, imageSize) {
+    rows.forEach(function (info) {
+      const height = Math.ceil(
+        strokeSize * info.gridRows + info.gapY * (info.gridRows - 1)
+      );
+      info.row.style.setProperty("--stroke-cols", String(info.cols));
+      info.row.style.setProperty("--stroke-size", strokeSize + "px");
+      info.row.style.height = height + "px";
+      info.row.style.flex = "0 0 " + height + "px";
+      info.row.setAttribute("data-stroke-count", String(info.count));
+    });
+
+    card.querySelectorAll(".anki-card-image").forEach(function (frame) {
+      frame.style.width = imageSize + "px";
+      frame.style.height = imageSize + "px";
+      frame.style.flex = "0 0 " + imageSize + "px";
+    });
+  }
+
+  function cardFits(card) {
+    const height = card.clientHeight || card.getBoundingClientRect().height;
+    return height > 0 && card.scrollHeight <= height + 1;
+  }
+
+  function fitCard(card) {
+    const rows = Array.from(card.querySelectorAll(".stroke-order-row"))
+      .map(describeStrokeRow)
+      .filter(Boolean);
+    const imageFrames = card.querySelectorAll(".anki-card-image");
+    if (!rows.length && !imageFrames.length) return;
+
+    const limits = layoutLimits(card);
+    const cardWidth = card.clientWidth || card.getBoundingClientRect().width;
+    const widthLimit = rows.length
+      ? Math.min.apply(null, rows.map(function (info) { return info.widthLimit; }))
+      : limits.strokeMax;
+    if (!cardWidth || (rows.length && (!Number.isFinite(widthLimit) || widthLimit <= 0))) {
+      return;
+    }
+
+    const strokeUpper = Math.max(
+      limits.strokeMin,
+      Math.floor(Math.min(limits.strokeMax, widthLimit))
+    );
+    const imageUpper = Math.max(
+      limits.imageMin,
+      Math.floor(Math.min(limits.imageMax, cardWidth))
+    );
+
+    function between(minimum, maximum, step) {
+      return Math.round(minimum + (maximum - minimum) * step / 1000);
+    }
+
+    function applyStep(step) {
+      applyLayout(
+        card,
+        rows,
+        between(limits.strokeMin, strokeUpper, step),
+        between(limits.imageMin, imageUpper, step)
+      );
+    }
+
+    let best = 0;
+    applyStep(best);
+    if (cardFits(card)) {
+      let low = 0;
+      let high = 1000;
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        applyStep(mid);
+        if (cardFits(card)) {
+          best = mid;
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
+      }
+    }
+    applyStep(best);
+  }
+
+  function fitStrokeRows() {
+    document.querySelectorAll(".card").forEach(fitCard);
+  }
+
+  function scheduleFitStrokeRow() {
+    requestAnimationFrame(function () {
+      fitStrokeRows();
+      requestAnimationFrame(fitStrokeRows);
+    });
+  }
+
+  window.ankiStrokeLayout = {
+    fit: fitStrokeRows,
+    schedule: scheduleFitStrokeRow
+  };
+
+  function initStrokeFront() {
+    if (!window.strokeAutoInit) return false;
+    window.strokeAutoInit({
+      prefix: "stroke_",
+      autoplay: 0,
+      idleFinal: 1,
+      maxKanji: 0
+    });
+    return true;
+  }
+
+  function runStrokeFront() {
+    if (!initStrokeFront()) {
+      for (let i = 1; i <= 60; i++) {
+        setTimeout(function () {
+          if (initStrokeFront()) scheduleFitStrokeRow();
+        }, i * 50);
+      }
+      return;
+    }
+    scheduleFitStrokeRow();
+  }
+
+  if (typeof onUpdateHook !== "undefined") onUpdateHook.push(runStrokeFront);
+  if (typeof onShownHook !== "undefined") onShownHook.push(runStrokeFront);
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", runStrokeFront);
+  } else {
+    runStrokeFront();
+  }
+
+  setTimeout(scheduleFitStrokeRow, 0);
+  setTimeout(scheduleFitStrokeRow, 60);
+  setTimeout(scheduleFitStrokeRow, 180);
+  setTimeout(scheduleFitStrokeRow, 400);
+
+  if (!window.__strokeResizeBound) {
+    window.__strokeResizeBound = true;
+    window.addEventListener("resize", function () {
+      if (window.ankiStrokeLayout) window.ankiStrokeLayout.schedule();
+    });
+    window.addEventListener("orientationchange", function () {
+      if (window.ankiStrokeLayout) window.ankiStrokeLayout.schedule();
+    });
+  }
+
+  if (!window.__strokeImageLoadBound) {
+    window.__strokeImageLoadBound = true;
+    document.addEventListener("load", function (event) {
+      const target = event.target;
+      if (target && target.matches && target.matches(".anki-card-image img")) {
+        if (window.ankiStrokeLayout) window.ankiStrokeLayout.schedule();
+      }
+    }, true);
+  }
+})();
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- ===== BACK TEMPLATE ===== -->
+<div id="answer" class="answer-scroll-anchor"></div>
+{{FrontSide}}
+<hr class="answer-divider">
+
+{{#Back}}
+  <span class="transl">{{Back}}</span><br>
+{{/Back}}
+
+{{#SentenceDE}}
+  <span class="sentenceDE">{{SentenceDE}}</span><br>
+{{/SentenceDE}}
+
+{{#Image}}
+  <div class="anki-card-image">{{Image}}</div>
+{{/Image}}
+
+<script src="stroke_auto_runtime.js"></script>
+
+<script>
+(function () {
+  function buildFlatMapping(container) {
+    let flat = "";
+    const mapping = [];
+    function walk(node) {
+      if (!node) return;
+      if (node.nodeType === 3) {
+        for (let i = 0; i < node.nodeValue.length; i++) {
+          mapping.push({ node: node, offset: i });
+          flat += node.nodeValue.charAt(i);
+        }
+      } else if (node.nodeType === 1) {
+        const tag = node.tagName.toLowerCase();
+        if (tag === "rt") return;
+        if (tag === "ruby") {
+          Array.from(node.childNodes).forEach(function (c) {
+            if (c.nodeType === 1 && c.tagName && c.tagName.toLowerCase() === "rt") return;
+            walk(c);
+          });
+        } else {
+          Array.from(node.childNodes).forEach(walk);
+        }
+      }
+    }
+    walk(container);
+    return { flat: flat, mapping: mapping };
+  }
+
+  function rangesByNode(mapping, rangesList) {
+    const nodeMap = new Map();
+    rangesList.forEach(function (pair) {
+      const start = pair[0];
+      const end = pair[1];
+      for (let i = start; i < end; i++) {
+        const m = mapping[i];
+        if (!m) continue;
+        const node = m.node;
+        const idx = m.offset;
+        if (!nodeMap.has(node)) nodeMap.set(node, []);
+        const arr = nodeMap.get(node);
+        const last = arr.length ? arr[arr.length - 1] : null;
+        if (last && last[1] === idx) last[1] = idx + 1;
+        else arr.push([idx, idx + 1]);
+      }
+    });
+    return nodeMap;
+  }
+
+  function wrapRanges(nodeMap) {
+    nodeMap.forEach(function (ranges, node) {
+      const txt = node.nodeValue || "";
+      const frag = document.createDocumentFragment();
+      let last = 0;
+      ranges.forEach(function (pair) {
+        const s = pair[0];
+        const e = pair[1];
+        if (s > last) frag.appendChild(document.createTextNode(txt.slice(last, s)));
+        const span = document.createElement("span");
+        span.className = "highlight";
+        span.textContent = txt.slice(s, e);
+        frag.appendChild(span);
+        last = e;
+      });
+      if (last < txt.length) frag.appendChild(document.createTextNode(txt.slice(last)));
+      node.parentNode.replaceChild(frag, node);
+    });
+  }
+
+  function highlightExactExpressionInSentence(sentenceEl, expression) {
+    if (!sentenceEl || !expression) return false;
+    const built = buildFlatMapping(sentenceEl);
+    const flat = built.flat;
+    const mapping = built.mapping;
+    if (!flat) return false;
+    const ranges = [];
+    let pos = 0;
+    while (true) {
+      const idx = flat.indexOf(expression, pos);
+      if (idx === -1) break;
+      ranges.push([idx, idx + expression.length]);
+      pos = idx + expression.length;
+    }
+    if (!ranges.length) return false;
+    wrapRanges(rangesByNode(mapping, ranges));
+    return true;
+  }
+
+  function getMainExpression(kanjiEl) {
+    if (!kanjiEl) return "";
+    const clone = kanjiEl.cloneNode(true);
+    clone.querySelectorAll("rt").forEach(function (rt) { rt.remove(); });
+    return (clone.textContent || "").replace(/\[[^\]]*]/g, "").replace(/\s+/g, "").trim();
+  }
+
+  function bindRubyTapOnce() {
+    if (window.__rubyTapFixBound) return;
+    window.__rubyTapFixBound = true;
+    let lastTapAt = 0;
+    function onRubyTap(e) {
+      const ruby = e.target && e.target.closest ? e.target.closest("ruby") : null;
+      if (!ruby) return;
+      const now = Date.now();
+      if (e.type === "click" && now - lastTapAt < 300) return;
+      if (e.type !== "click") lastTapAt = now;
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+      ruby.classList.toggle("show");
+    }
+    if (window.PointerEvent) {
+      document.addEventListener("pointerdown", onRubyTap, true);
+    } else {
+      document.addEventListener("touchstart", onRubyTap, true);
+    }
+    document.addEventListener("click", onRubyTap, true);
+  }
+
+  function initStrokeAuto() {
+    if (!window.strokeAutoInit) return false;
+    window.strokeAutoInit({
+      prefix: "stroke_",
+      autoplay: 1,
+      idleFinal: 1,
+      maxKanji: 0
+    });
+    return true;
+  }
+
+  function runBack() {
+    bindRubyTapOnce();
+
+    const kanjiEl = document.querySelector(".kanji");
+    if (kanjiEl) {
+      const mainExpression = getMainExpression(kanjiEl);
+      if (mainExpression) {
+        document.querySelectorAll(".sentenceDE").forEach(function (s) {
+          const hadMatch = highlightExactExpressionInSentence(s, mainExpression);
+          if (hadMatch) {
+            s.querySelectorAll("ruby").forEach(function (ruby) {
+              if (ruby.querySelector(".highlight")) ruby.classList.add("show");
+            });
+          }
+        });
+      }
+      kanjiEl.querySelectorAll("ruby").forEach(function (ruby) {
+        ruby.classList.add("show");
+      });
+    }
+
+    if (!initStrokeAuto()) {
+      for (let i = 1; i <= 60; i++) {
+        setTimeout(initStrokeAuto, i * 50);
+      }
+    }
+
+    if (window.ankiStrokeLayout) window.ankiStrokeLayout.schedule();
+  }
+
+  if (typeof onUpdateHook !== "undefined") onUpdateHook.push(runBack);
+  if (typeof onShownHook !== "undefined") onShownHook.push(runBack);
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", runBack);
+  } else {
+    runBack();
+  }
+  setTimeout(runBack, 0);
+  setTimeout(runBack, 120);
+})();
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- ===== STYLING ===== -->
+.card {
+  font-family: arial;
+  font-size: 35px;
+  text-align: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+/* CARD 1: Front -> Back. Change only these four values for this direction. */
+.card1 {
+  --stroke-tile-min: 80px;
+  --stroke-tile-max: 160px;
+  --card-image-min: 120px;
+  --card-image-max: 640px;
+}
+
+/* CARD 2: Back -> Front. Change only these four values for this direction. */
+.card2 {
+  --stroke-tile-min: 70px;
+  --stroke-tile-max: 130px;
+  --card-image-min: 100px;
+  --card-image-max: 360px;
+}
+
+.answer-scroll-anchor {
+  display: block;
+  flex: 0 0 auto;
+  height: 0;
+  overflow: hidden;
+}
+
+.answer-divider {
+  flex: 0 0 auto;
+}
+
+.anki-card-image {
+  display: flex;
+  flex: 0 0 var(--card-image-min);
+  width: var(--card-image-min);
+  height: var(--card-image-min);
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  margin: 0.5em auto;
+}
+
+.anki-card-image img {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain;
+}
+
+.card2-front_margin {
+  padding-top: 1em;
+  box-sizing: border-box;
+  width: 100%;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.card-question-text {
+  display: block;
+  flex: 0 0 auto;
+}
+
+.kanji {
+  display: block;
+  flex: 0 0 auto;
+  font-size: 1.6em;
+  font-weight: 600;
+  line-height: 1.15;
+  white-space: nowrap;
+  min-height: 1.15em;
+}
+
+.kanji .sound {
+  display: inline-block;
+  font-size: 0.55em;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.sentenceJA {
+  display: block;
+  flex: 0 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 0.9em;
+  line-height: 1.25;
+  color: black;
+}
+
+.sentenceDE { font-size: 0.8em; color: black }
+
+.night_mode .sentenceJA,
+.night_mode .sentenceDE,
+.nightMode .sentenceJA,
+.nightMode .sentenceDE {
+  color: white;
+}
+
+ruby rt {
+  visibility: hidden;
+  opacity: 0;
+  font-size: 0.55em;
+  transition: opacity 0.5s ease;
+  line-height: 0.5;
+}
+
+ruby.show rt {
+  visibility: visible;
+  opacity: 1;
+}
+
+ruby {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.highlight {
+  color: #ffcc33;
+  font-weight: bold;
+}
+
+ruby:has(.highlight) rt {
+  color: #ffcc33;
+  font-weight: 700;
+}
+
+.kanji .highlight { 
+  color: inherit; 
+  background: none; 
+  padding: 0; 
+  border-radius: 0; 
+}
+
+
+.stroke-order-row {
+  --stroke-cols: 2;
+  --stroke-size: var(--stroke-tile-max);
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(var(--stroke-cols), var(--stroke-size));
+  grid-auto-rows: var(--stroke-size);
+  gap: 0;
+  justify-content: center;
+  align-content: center;
+  justify-items: center;
+  align-items: center;
+  overflow: visible;
+  margin: 0.5em 0;
+}
+
+.stroke-order-media {
+
+  width: var(--stroke-size);
+  height: var(--stroke-size);
+  aspect-ratio: 1 / 1;
+
+  overflow: hidden;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  contain: paint;
+  -webkit-tap-highlight-color: transparent;
+
+  --stroke-speed: 2.0;
+  --stroke-gap: 0;
+  --stroke-brush: 1;
+  --stroke-backward: 0;
+  --stroke-autoplay: 0;
+  --stroke-idle-final: 1;
+
+  --stroke-bg: #52514f;
+  --stroke-line: #060503;
+  --stroke-brush-fill: #e53935;
+  --stroke-brush-stroke: #555;
+
+  --stroke-grid: 1;
+  --stroke-grid-color: #50463a;
+  --stroke-grid-width: 2;
+  --stroke-grid-border-width: 2;
+  --stroke-grid-border-color: #50463a;
+  --stroke-grid-dash: 3 2;
+  --stroke-grid-center-hole: 2;
+  --stroke-grid-opacity: 1;
+
+  position: relative;
+}
+
+.stroke-order-row > .stroke-order-media:last-child:nth-child(odd):not(:only-child) {
+  grid-column: 1 / -1;
+  justify-self: center;
+}

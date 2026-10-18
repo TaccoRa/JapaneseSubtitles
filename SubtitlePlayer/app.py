@@ -61,12 +61,16 @@ class SubtitlePlayerApp:
             self._startup_check_job = self.root.after(50, self._check_startup_worker)
             self.root.mainloop()
             logger.info("SubtitlePlayer main loop exited normally (closing=%s)", self._closing)
+        except KeyboardInterrupt:
+            logger.info("SubtitlePlayer shutdown requested by KeyboardInterrupt")
+            self._on_close()
         except Exception as exc:
             logger.critical("SubtitlePlayer terminated because of an unhandled error", exc_info=True)
             self._show_error_message_once("SubtitlePlayer stopped", f"{type(exc).__name__}: {exc}")
             raise
         finally:
             self._closing = True
+            self._close_startup_overlay()
             self._close_crash_diagnostics()
 
     def _load_config(self):
@@ -143,6 +147,13 @@ class SubtitlePlayerApp:
         self._show_error_message_once("Unexpected app error", f"{exc_type.__name__}: {exc}")
 
     def _report_tk_callback_exception(self, exc_type, exc, tb) -> None:
+        if exc_type is KeyboardInterrupt:
+            logger.info("Tkinter callback interrupted; shutting down SubtitlePlayer")
+            self._on_close()
+            return
+        if self._startup_overlay is not None:
+            self._abort_startup(exc, exc_info=(exc_type, exc, tb))
+            return
         logger.exception("Unhandled Tkinter callback exception", exc_info=(exc_type, exc, tb))
         self._show_error_message_once("Unexpected app error", f"{exc_type.__name__}: {exc}")
 
@@ -178,8 +189,14 @@ class SubtitlePlayerApp:
             messagebox.showerror(title, message, parent=self.root)
         except Exception:
             logger.debug("Failed to show error message", exc_info=True)
+
     def _show_startup_overlay(self):
-        self._startup_overlay = LoadingOverlay(self.root,text="Starting SubtitlePlayer...",modal=False)
+        self._startup_overlay = LoadingOverlay(
+            self.root,
+            text="Starting SubtitlePlayer...",
+            modal=False,
+            topmost=False,
+        )
         set_startup_overlay(self._startup_overlay)
 
     def _start_startup_worker(self):
@@ -220,17 +237,8 @@ class SubtitlePlayerApp:
         if self._closing:
             return
         if self._startup_error or not self._startup_result:
-            self._close_startup_overlay()
             error = self._startup_error or RuntimeError("Startup did not return a result.")
-            logger.error("Startup failed: %s", error, exc_info=self._startup_error_info)
-            try:
-                self.root.deiconify()
-                self.root.lift()
-            except Exception:
-                pass
-            self._show_error_message_once("SubtitlePlayer startup failed", f"{type(error).__name__}: {error}")
-            self._startup_error_info = None
-            self._destroy_root()
+            self._abort_startup(error, exc_info=self._startup_error_info)
             return
 
         self.sub_manager, self.total_duration = self._startup_result
@@ -239,23 +247,44 @@ class SubtitlePlayerApp:
     def _finish_startup_ui(self):
         if self._closing:
             return
-        self._build_ui()
-        self._build_renderer()
-        self._build_controller()
+        try:
+            self._build_ui()
+            self._build_renderer()
+            self._build_controller()
 
-        self._update_title()
-        self.root.deiconify()
+            self._update_title()
+            self.root.deiconify()
+            self._close_startup_overlay()
+            self.sub_overlay_ui.show()
+            self.controller.schedule_update()
+            if self._previous_run_unclean:
+                self.root.after(
+                    250,
+                    lambda: self._show_error_message_once(
+                        "Previous run ended unexpectedly",
+                        "The previous SubtitlePlayer run did not shut down normally. Native crash details, if available, were written to logs/native_crash.log.",
+                    ),
+                )
+        except KeyboardInterrupt:
+            logger.info("SubtitlePlayer startup interrupted; shutting down")
+            self._on_close()
+        except Exception as exc:
+            self._abort_startup(exc, exc_info=sys.exc_info())
+
+    def _abort_startup(self, error: BaseException, exc_info=None) -> None:
+        """Report a failed startup and tear down any partially built UI."""
+        if self._closing:
+            return
+        logger.error("Startup failed: %s", error, exc_info=exc_info)
         self._close_startup_overlay()
-        self.sub_overlay_ui.show()
-        self.controller.schedule_update()
-        if self._previous_run_unclean:
-            self.root.after(
-                250,
-                lambda: self._show_error_message_once(
-                    "Previous run ended unexpectedly",
-                    "The previous SubtitlePlayer run did not shut down normally. Native crash details, if available, were written to logs/native_crash.log.",
-                ),
-            )
+        try:
+            self.root.deiconify()
+            self.root.lift()
+        except Exception:
+            pass
+        self._show_error_message_once("SubtitlePlayer startup failed", f"{type(error).__name__}: {error}")
+        self._startup_error_info = None
+        self._on_close()
 
     def _close_startup_overlay(self):
         if self._startup_overlay:
@@ -369,6 +398,7 @@ class SubtitlePlayerApp:
             except Exception:
                 pass
             self._startup_check_job = None
+        self._close_startup_overlay()
 
         try:
             if self.controller is not None:
@@ -398,7 +428,6 @@ class SubtitlePlayerApp:
                     win.destroy()
         except Exception:
             pass
-        self._close_startup_overlay()
         self._destroy_root()
 
     def _destroy_root(self):

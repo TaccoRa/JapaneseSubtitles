@@ -11,6 +11,7 @@ from typing import Any
 
 from model.voice_commands import (
     DEFAULT_WAKE_PREFIXES,
+    VOICE_ACTION_GROUPS,
     VOICE_ACTIONS,
     default_voice_commands,
     merge_voice_commands,
@@ -36,8 +37,56 @@ VOICE_CONFIG_KEYS = [
     "VOICE_PLAYBACK_BACK_HOTKEY",
     "VOICE_PLAYBACK_FORWARD_HOTKEY",
     "VOICE_REPEAT_HOTKEY_INTERVAL_MS",
+    "VOICE_COLLAPSED_SECTIONS",
+    "VOICE_HIGHLIGHT_AUTO_DICTIONARY",
+    "VOICE_HIGHLIGHT_AUTO_TRANSLATION",
+    "VOICE_HIGHLIGHT_AUTO_STATUS",
+    "VOICE_ACTION_INDICATOR_ENABLED",
     "VOICE_COMMANDS",
 ]
+
+
+class _VoiceTooltip:
+    def __init__(self, widget: tk.Widget, text: str) -> None:
+        self.widget = widget
+        self.text = str(text or "").strip()
+        self.window: tk.Toplevel | None = None
+        widget.bind("<Enter>", self._show, add="+")
+        widget.bind("<Leave>", self._hide, add="+")
+        widget.bind("<ButtonPress>", self._hide, add="+")
+
+    def _show(self, _event=None) -> None:
+        if self.window is not None or not self.text:
+            return
+        try:
+            win = tk.Toplevel(self.widget)
+            win.overrideredirect(True)
+            win.attributes("-topmost", True)
+            x = int(self.widget.winfo_rootx()) + 18
+            y = int(self.widget.winfo_rooty()) + int(self.widget.winfo_height()) + 5
+            tk.Label(
+                win,
+                text=self.text,
+                justify="left",
+                background="#ffffe0",
+                relief="solid",
+                borderwidth=1,
+                padx=6,
+                pady=4,
+                wraplength=460,
+            ).pack()
+            win.geometry(f"+{x}+{y}")
+            self.window = win
+        except Exception:
+            self.window = None
+
+    def _hide(self, _event=None) -> None:
+        win, self.window = self.window, None
+        if win is not None:
+            try:
+                win.destroy()
+            except Exception:
+                pass
 
 
 class VoiceTab:
@@ -59,6 +108,10 @@ class VoiceTab:
         self.playback_back_hotkey_var = tk.StringVar(value="left")
         self.playback_forward_hotkey_var = tk.StringVar(value="right")
         self.repeat_hotkey_interval_var = tk.StringVar(value="120")
+        self.highlight_dictionary_var = tk.BooleanVar(value=False)
+        self.highlight_translation_var = tk.BooleanVar(value=False)
+        self.highlight_status_var = tk.BooleanVar(value=False)
+        self.action_indicator_var = tk.BooleanVar(value=True)
         self.model_status_var = tk.StringVar(value="")
         self.monitor_var = tk.BooleanVar(value=True)
         self._device_mapping: dict[str, dict] = {}
@@ -80,6 +133,11 @@ class VoiceTab:
         self._mic_meter: tk.Canvas | None = None
         self._mic_meter_items: list[int] = []
         self._mic_meter_level = 0.0
+        self._collapsed_sections: dict[str, bool] = {}
+        self._section_bodies: dict[str, tk.Frame] = {}
+        self._section_toggles: dict[str, tk.Button] = {}
+        self._section_titles: dict[str, str] = {}
+        self._advanced_filter_trace_id: str | None = None
         self._destroyed = False
         self._register_tab_keys()
         self._build()
@@ -95,6 +153,13 @@ class VoiceTab:
                     self.ui._on_voice_stop_microphone_test()
                 except Exception:
                     pass
+            filter_var = getattr(self.ui, "_advanced_filter_var", None)
+            if filter_var is not None and self._advanced_filter_trace_id:
+                try:
+                    filter_var.trace_remove("write", self._advanced_filter_trace_id)
+                except Exception:
+                    pass
+                self._advanced_filter_trace_id = None
             self._destroyed = True
 
     def _alive(self) -> bool:
@@ -111,10 +176,29 @@ class VoiceTab:
             if key not in keys:
                 keys.append(key)
 
-    def _section(self, parent: tk.Widget, title: str) -> tuple[tk.LabelFrame, dict]:
-        section = tk.LabelFrame(parent, text=title, padx=10, pady=8)
+    def _section(
+        self,
+        parent: tk.Widget,
+        title: str,
+        *,
+        section_id: str,
+    ) -> tuple[tk.Frame, dict]:
+        section = tk.Frame(parent, borderwidth=1, relief="groove")
         pack_info = {"fill": "x", "pady": (0, 10)}
         section.pack(**pack_info)
+        toggle = tk.Button(
+            section,
+            text=f"- {title}",
+            anchor="w",
+            relief="flat",
+            borderwidth=0,
+            padx=8,
+            pady=5,
+            command=lambda current_id=section_id: self._toggle_section(current_id),
+        )
+        toggle.pack(fill="x")
+        body = tk.Frame(section, padx=10, pady=8)
+        body.pack(fill="x")
         info = {
             "parent": parent,
             "tab_id": self.tab_id,
@@ -124,7 +208,52 @@ class VoiceTab:
             "rows": [],
         }
         self.ui._advanced_filter_sections.append(info)
-        return section, info
+        self._collapsed_sections.setdefault(section_id, False)
+        self._section_bodies[section_id] = body
+        self._section_toggles[section_id] = toggle
+        self._section_titles[section_id] = title
+        return body, info
+
+    def _toggle_section(self, section_id: str) -> None:
+        if section_id not in self._section_bodies:
+            return
+        self._collapsed_sections[section_id] = not bool(self._collapsed_sections.get(section_id, False))
+        try:
+            self.ui.config.set("VOICE_COLLAPSED_SECTIONS", self._collapsed_section_values())
+        except Exception:
+            logger.debug("Failed to persist Voice collapsed-section state", exc_info=True)
+        self._apply_collapsed_section_states()
+
+    def _collapsed_section_values(self) -> dict[str, bool]:
+        return {
+            section_id: bool(self._collapsed_sections.get(section_id, False))
+            for section_id in self._section_bodies
+        }
+
+    def _apply_collapsed_section_states(self, *_args) -> None:
+        filter_var = getattr(self.ui, "_advanced_filter_var", None)
+        try:
+            filter_active = bool(str(filter_var.get() if filter_var is not None else "").strip())
+        except Exception:
+            filter_active = False
+        for section_id, body in self._section_bodies.items():
+            toggle = self._section_toggles.get(section_id)
+            title = self._section_titles.get(section_id, section_id)
+            if toggle is None:
+                continue
+            collapsed = bool(self._collapsed_sections.get(section_id, False)) and not filter_active
+            try:
+                toggle.configure(text=f"{'+' if collapsed else '-'} {title}")
+                if collapsed:
+                    body.pack_forget()
+                elif not body.winfo_manager():
+                    body.pack(fill="x")
+            except Exception:
+                continue
+        try:
+            self.ui.adv_settings._refresh_advanced_scroll_regions()
+        except Exception:
+            pass
 
     @staticmethod
     def _add_filter_row(info: dict, widgets: list[tk.Widget], text: str) -> None:
@@ -136,7 +265,7 @@ class VoiceTab:
         body.pack(fill="x", expand=True, anchor="n")
         body.grid_columnconfigure(0, weight=1)
 
-        recognition, recognition_info = self._section(body, "Recognition")
+        recognition, recognition_info = self._section(body, "Recognition", section_id="recognition")
         recognition.grid_columnconfigure(1, weight=1)
         enabled = tk.Checkbutton(recognition, text="Enable offline voice commands", variable=self.enabled_var)
         enabled.grid(row=0, column=0, sticky="w", pady=2)
@@ -248,7 +377,7 @@ class VoiceTab:
         self._mic_meter.bind("<Configure>", self._layout_microphone_meter, add="+")
         self._add_filter_row(recognition_info, [meter_label, self._mic_meter], "microphone input level volume meter bars")
 
-        playback, playback_info = self._section(body, "Video Playback")
+        playback, playback_info = self._section(body, "Video Playback", section_id="video_playback")
         playback.grid_columnconfigure(1, weight=1)
         window_label = tk.Label(playback, text="Available video window (current)")
         window_label.grid(row=0, column=0, sticky="w", pady=2)
@@ -310,38 +439,106 @@ class VoiceTab:
             "repeated hotkey interval delay pacing back forward milliseconds",
         )
 
-        commands, commands_info = self._section(body, "Commands")
-        commands.grid_columnconfigure(2, weight=1)
-        commands.grid_columnconfigure(3, weight=1)
-        tk.Label(commands, text="Enabled", font=("Arial", 9, "bold")).grid(row=0, column=0, sticky="w", padx=(0, 8))
-        tk.Label(commands, text="Action", font=("Arial", 9, "bold")).grid(row=0, column=1, sticky="w", padx=(0, 8))
-        tk.Label(commands, text="English aliases (; separated)", font=("Arial", 9, "bold")).grid(
-            row=0, column=2, sticky="w", padx=(0, 8)
+        highlighted, highlighted_info = self._section(
+            body,
+            "Highlighted Words",
+            section_id="highlighted_words",
         )
-        tk.Label(commands, text="German aliases (; separated)", font=("Arial", 9, "bold")).grid(
-            row=0, column=3, sticky="w"
+        automatic_label = tk.Label(highlighted, text="Show automatically after highlighting:")
+        automatic_label.grid(row=0, column=0, sticky="w", padx=(0, 12), pady=2)
+        auto_dictionary = tk.Checkbutton(
+            highlighted,
+            text="Dictionary",
+            variable=self.highlight_dictionary_var,
         )
-        for row, (action, spec) in enumerate(VOICE_ACTIONS.items(), start=1):
-            enabled_var = tk.BooleanVar(value=True)
-            en_var = tk.StringVar(value="; ".join(spec["en"]))
-            de_var = tk.StringVar(value="; ".join(spec["de"]))
-            self._command_vars[action] = {"enabled": enabled_var, "en": en_var, "de": de_var}
-            check = tk.Checkbutton(commands, variable=enabled_var)
-            check.grid(row=row, column=0, sticky="w", pady=2)
-            label = tk.Label(commands, text=str(spec["label"]), anchor="w", width=24)
-            label.grid(row=row, column=1, sticky="w", padx=(0, 8), pady=2)
-            en_entry = tk.Entry(commands, textvariable=en_var, width=32)
-            en_entry.grid(row=row, column=2, sticky="ew", padx=(0, 8), pady=2)
-            de_entry = tk.Entry(commands, textvariable=de_var, width=32)
-            de_entry.grid(row=row, column=3, sticky="ew", pady=2)
-            widgets = [check, label, en_entry, de_entry]
-            self._command_widgets[action] = widgets
-            self._command_entry_backgrounds[en_entry] = str(en_entry.cget("background"))
-            self._command_entry_backgrounds[de_entry] = str(de_entry.cget("background"))
-            search_text = f"{spec['label']} {action} {' '.join(spec['en'])} {' '.join(spec['de'])}"
-            self._add_filter_row(commands_info, widgets, search_text)
+        auto_dictionary.grid(row=0, column=1, sticky="w", padx=(0, 12), pady=2)
+        auto_translation = tk.Checkbutton(
+            highlighted,
+            text="Translation",
+            variable=self.highlight_translation_var,
+        )
+        auto_translation.grid(row=0, column=2, sticky="w", padx=(0, 12), pady=2)
+        auto_status = tk.Checkbutton(
+            highlighted,
+            text="Anki/database Status",
+            variable=self.highlight_status_var,
+        )
+        auto_status.grid(row=0, column=3, sticky="w", pady=2)
+        self._add_filter_row(
+            highlighted_info,
+            [automatic_label, auto_dictionary, auto_translation, auto_status],
+            "highlighted words automatic dictionary translation anki database status display",
+        )
+        action_indicator = tk.Checkbutton(
+            highlighted,
+            text="Show add/capture activity in subtitle window",
+            variable=self.action_indicator_var,
+        )
+        action_indicator.grid(row=1, column=0, columnspan=4, sticky="w", pady=(4, 2))
+        self._add_filter_row(
+            highlighted_info,
+            [action_indicator],
+            "add capture activity spinner wait success check subtitle window indicator",
+        )
 
-        status, status_info = self._section(body, "Status")
+        for group_name, group_actions in VOICE_ACTION_GROUPS.items():
+            group_id = "_".join(
+                part for part in "".join(
+                    character if character.isalnum() else " "
+                    for character in group_name.casefold()
+                ).split()
+            )
+            commands, commands_info = self._section(
+                body,
+                f"{group_name} Commands",
+                section_id=f"commands_{group_id}",
+            )
+            commands.grid_columnconfigure(2, weight=1)
+            commands.grid_columnconfigure(3, weight=1)
+            tk.Label(commands, text="Enabled", font=("Arial", 9, "bold")).grid(
+                row=0, column=0, sticky="w", padx=(0, 8)
+            )
+            tk.Label(commands, text="Action", font=("Arial", 9, "bold")).grid(
+                row=0, column=1, sticky="w", padx=(0, 8)
+            )
+            tk.Label(commands, text="English aliases (; separated)", font=("Arial", 9, "bold")).grid(
+                row=0, column=2, sticky="w", padx=(0, 8)
+            )
+            tk.Label(commands, text="German aliases (; separated)", font=("Arial", 9, "bold")).grid(
+                row=0, column=3, sticky="w"
+            )
+            row = 1
+            for action in group_actions:
+                spec = VOICE_ACTIONS.get(action)
+                if not isinstance(spec, dict):
+                    continue
+                enabled_var = tk.BooleanVar(value=True)
+                en_var = tk.StringVar(value="; ".join(spec["en"]))
+                de_var = tk.StringVar(value="; ".join(spec["de"]))
+                self._command_vars[action] = {"enabled": enabled_var, "en": en_var, "de": de_var}
+                check = tk.Checkbutton(commands, variable=enabled_var)
+                check.grid(row=row, column=0, sticky="w", pady=2)
+                label = tk.Label(commands, text=str(spec["label"]), anchor="w", width=28)
+                label.grid(row=row, column=1, sticky="w", padx=(0, 8), pady=2)
+                en_entry = tk.Entry(commands, textvariable=en_var, width=32)
+                en_entry.grid(row=row, column=2, sticky="ew", padx=(0, 8), pady=2)
+                de_entry = tk.Entry(commands, textvariable=de_var, width=32)
+                de_entry.grid(row=row, column=3, sticky="ew", pady=2)
+                widgets = [check, label, en_entry, de_entry]
+                self._command_widgets[action] = widgets
+                self._command_entry_backgrounds[en_entry] = str(en_entry.cget("background"))
+                self._command_entry_backgrounds[de_entry] = str(de_entry.cget("background"))
+                tooltip = str(spec.get("tooltip") or "").strip()
+                for widget in widgets:
+                    _VoiceTooltip(widget, tooltip)
+                search_text = (
+                    f"{group_name} {spec['label']} {action} {' '.join(spec['en'])} "
+                    f"{' '.join(spec['de'])} {tooltip}"
+                )
+                self._add_filter_row(commands_info, widgets, search_text)
+                row += 1
+
+        status, status_info = self._section(body, "Status", section_id="status")
         status_body = tk.Frame(status)
         status_body.pack(fill="both", expand=True)
         status_scroll = ttk.Scrollbar(status_body, orient="vertical")
@@ -368,6 +565,16 @@ class VoiceTab:
             [status_body],
             "status listening recognized model microphone error scroll history",
         )
+
+        filter_var = getattr(self.ui, "_advanced_filter_var", None)
+        if filter_var is not None:
+            try:
+                self._advanced_filter_trace_id = filter_var.trace_add(
+                    "write",
+                    self._apply_collapsed_section_states,
+                )
+            except Exception:
+                self._advanced_filter_trace_id = None
 
         try:
             body.update_idletasks()
@@ -420,6 +627,21 @@ class VoiceTab:
         except Exception:
             repeat_interval = 120
         self.repeat_hotkey_interval_var.set(str(max(40, min(1000, repeat_interval))))
+        configured_sections = self.ui.config.get("VOICE_COLLAPSED_SECTIONS")
+        configured_sections = configured_sections if isinstance(configured_sections, dict) else {}
+        self._collapsed_sections = {
+            section_id: bool(configured_sections.get(section_id, False))
+            for section_id in self._section_bodies
+        }
+        if "video_playback" not in configured_sections:
+            self._collapsed_sections["video_playback"] = bool(
+                self.ui.config.get("VOICE_VIDEO_PLAYBACK_COLLAPSED") or False
+            )
+        self._apply_collapsed_section_states()
+        self.highlight_dictionary_var.set(bool(self.ui.config.get("VOICE_HIGHLIGHT_AUTO_DICTIONARY") or False))
+        self.highlight_translation_var.set(bool(self.ui.config.get("VOICE_HIGHLIGHT_AUTO_TRANSLATION") or False))
+        self.highlight_status_var.set(bool(self.ui.config.get("VOICE_HIGHLIGHT_AUTO_STATUS") or False))
+        self.action_indicator_var.set(self.ui.config.get("VOICE_ACTION_INDICATOR_ENABLED") is not False)
         commands = merge_voice_commands(self.ui.config.get("VOICE_COMMANDS"))
         for action, values in commands.items():
             variables = self._command_vars[action]
@@ -492,6 +714,11 @@ class VoiceTab:
             "VOICE_PLAYBACK_BACK_HOTKEY": str(self.playback_back_hotkey_var.get() or "").strip(),
             "VOICE_PLAYBACK_FORWARD_HOTKEY": str(self.playback_forward_hotkey_var.get() or "").strip(),
             "VOICE_REPEAT_HOTKEY_INTERVAL_MS": repeat_interval,
+            "VOICE_COLLAPSED_SECTIONS": self._collapsed_section_values(),
+            "VOICE_HIGHLIGHT_AUTO_DICTIONARY": bool(self.highlight_dictionary_var.get()),
+            "VOICE_HIGHLIGHT_AUTO_TRANSLATION": bool(self.highlight_translation_var.get()),
+            "VOICE_HIGHLIGHT_AUTO_STATUS": bool(self.highlight_status_var.get()),
+            "VOICE_ACTION_INDICATOR_ENABLED": bool(self.action_indicator_var.get()),
             "VOICE_COMMANDS": commands,
         }
         if not values["VOICE_PLAYBACK_HOTKEY"]:
@@ -517,6 +744,12 @@ class VoiceTab:
         self.playback_back_hotkey_var.set("left")
         self.playback_forward_hotkey_var.set("right")
         self.repeat_hotkey_interval_var.set("120")
+        self._collapsed_sections = {section_id: False for section_id in self._section_bodies}
+        self._apply_collapsed_section_states()
+        self.highlight_dictionary_var.set(False)
+        self.highlight_translation_var.set(False)
+        self.highlight_status_var.set(False)
+        self.action_indicator_var.set(True)
         commands = default_voice_commands()
         for action, values in commands.items():
             variables = self._command_vars[action]

@@ -1,0 +1,5635 @@
+{
+  "applied": true,
+  "changes": [
+    {
+      "id": 1772380815457,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "あっぶねえ<br>掘[ほ]っておいてよかった"
+      },
+      "after": {
+        "SentenceJA": "あっぶねえ<br> 掘[ほ]っておいてよかった"
+      }
+    },
+    {
+      "id": 1780082702587,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "どうした?<br>殴[なぐ]り 返[かえ]せないのか？"
+      },
+      "after": {
+        "SentenceJA": "どうした?<br> 殴[なぐ]り 返[かえ]せないのか？"
+      }
+    },
+    {
+      "id": 1782673670081,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "いや 僕[ぼく]に 気付[きづ]いたらしく\n近[ちか]づいてきてる"
+      },
+      "after": {
+        "SentenceJA": "いや 僕[ぼく]に 気付[きづ]いたらしく\n 近[ちか]づいてきてる"
+      }
+    },
+    {
+      "id": 1782762104125,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "人間[にんげん]の 脳[のう]が 残[のこ]ってると 分[わ]かったら\n問答[もんどう] 無用[むよう]で 攻撃[こうげき]してきますよ"
+      },
+      "after": {
+        "SentenceJA": "人間[にんげん]の 脳[のう]が 残[のこ]ってると 分[わ]かったら\n 問答[もんどう] 無用[むよう]で 攻撃[こうげき]してきますよ"
+      }
+    },
+    {
+      "id": 1782762135608,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "人間[にんげん]の 脳[のう]が 残[のこ]ってると 分[わ]かったら\n問答[もんどう] 無用[むよう]で 攻撃[こうげき]してきますよ"
+      },
+      "after": {
+        "SentenceJA": "人間[にんげん]の 脳[のう]が 残[のこ]ってると 分[わ]かったら\n 問答[もんどう] 無用[むよう]で 攻撃[こうげき]してきますよ"
+      }
+    },
+    {
+      "id": 1782764565196,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "あっちは 人体[じんたい]の 潜在[せんざい] 能力[のうりょく]を\nギリギリ[ぎりぎり]まで 引[ひ]き 出[だ]せるらしい"
+      },
+      "after": {
+        "SentenceJA": "あっちは 人体[じんたい]の 潜在[せんざい] 能力[のうりょく]を\n ギリギリ[ぎりぎり]まで 引[ひ]き 出[だ]せるらしい"
+      }
+    },
+    {
+      "id": 1782764625295,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "あっちは 人体[じんたい]の 潜在[せんざい] 能力[のうりょく]を\nギリギリ[ぎりぎり]まで 引[ひ]き 出[だ]せるらしい"
+      },
+      "after": {
+        "SentenceJA": "あっちは 人体[じんたい]の 潜在[せんざい] 能力[のうりょく]を\n ギリギリ[ぎりぎり]まで 引[ひ]き 出[だ]せるらしい"
+      }
+    },
+    {
+      "id": 1782764640258,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "あっちは 人体[じんたい]の 潜在[せんざい] 能力[のうりょく]を\nギリギリ[ぎりぎり]まで 引[ひ]き 出[だ]せるらしい"
+      },
+      "after": {
+        "SentenceJA": "あっちは 人体[じんたい]の 潜在[せんざい] 能力[のうりょく]を\n ギリギリ[ぎりぎり]まで 引[ひ]き 出[だ]せるらしい"
+      }
+    },
+    {
+      "id": 1782849941239,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "おまけに\n呼吸[こきゅう]がめちゃくちゃすぎて"
+      },
+      "after": {
+        "SentenceJA": "おまけに\n 呼吸[こきゅう]がめちゃくちゃすぎて"
+      }
+    },
+    {
+      "id": 1782849962313,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "だがこの 女[おんな]の 攻撃[こうげき]も\n妙[みょう]に 単調[たんちょう]なんだよな"
+      },
+      "after": {
+        "SentenceJA": "だがこの 女[おんな]の 攻撃[こうげき]も\n 妙[みょう]に 単調[たんちょう]なんだよな"
+      }
+    },
+    {
+      "id": 1782849968127,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "だがこの 女[おんな]の 攻撃[こうげき]も\n妙[みょう]に 単調[たんちょう]なんだよな"
+      },
+      "after": {
+        "SentenceJA": "だがこの 女[おんな]の 攻撃[こうげき]も\n 妙[みょう]に 単調[たんちょう]なんだよな"
+      }
+    },
+    {
+      "id": 1782849982560,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "だがこの 女[おんな]の 攻撃[こうげき]も\n妙[みょう]に 単調[たんちょう]なんだよな"
+      },
+      "after": {
+        "SentenceJA": "だがこの 女[おんな]の 攻撃[こうげき]も\n 妙[みょう]に 単調[たんちょう]なんだよな"
+      }
+    },
+    {
+      "id": 1782850159237,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "もう 勝負[しょうぶ]がついた\n早[はや]く 始末[しまつ]されろ"
+      },
+      "after": {
+        "SentenceJA": "もう 勝負[しょうぶ]がついた\n 早[はや]く 始末[しまつ]されろ"
+      }
+    },
+    {
+      "id": 1782850234991,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "もう 勝負[しょうぶ]がついた\n早[はや]く 始末[しまつ]されろ"
+      },
+      "after": {
+        "SentenceJA": "もう 勝負[しょうぶ]がついた\n 早[はや]く 始末[しまつ]されろ"
+      }
+    },
+    {
+      "id": 1783119425293,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "そうか ものすごいスピード[すぴーど]で\n変形[へんけい]しながら 動[うご]いていたのか"
+      },
+      "after": {
+        "SentenceJA": "そうか ものすごいスピード[すぴーど]で\n 変形[へんけい]しながら 動[うご]いていたのか"
+      }
+    },
+    {
+      "id": 1783188863807,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "そうだ 来[こ]い\nバケモノ[ばけもの]はバケモノ[ばけもの]らしく！"
+      },
+      "after": {
+        "SentenceJA": "そうだ 来[こ]い\n バケモノ[ばけもの]はバケモノ[ばけもの]らしく！"
+      }
+    },
+    {
+      "id": 1783195158641,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "そうか ものすごいスピード[すぴーど]で\n変形[へんけい]しながら 動[うご]いていたのか"
+      },
+      "after": {
+        "SentenceJA": "そうか ものすごいスピード[すぴーど]で\n 変形[へんけい]しながら 動[うご]いていたのか"
+      }
+    },
+    {
+      "id": 1783195463841,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "たった１人[ひとり] 同[おな]じ 思[おも]いを\n分[わ]かり 合[あ]える 人[ひと]だったのに"
+      },
+      "after": {
+        "SentenceJA": "たった１人[ひとり] 同[おな]じ 思[おも]いを\n 分[わ]かり 合[あ]える 人[ひと]だったのに"
+      }
+    },
+    {
+      "id": 1783199444933,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "だからてめえの 触手[しょくしゅ]が\n突[つ]き 刺[さし]る 寸前[すんぜん]に"
+      },
+      "after": {
+        "SentenceJA": "だからてめえの 触手[しょくしゅ]が\n 突[つ]き 刺[さし]る 寸前[すんぜん]に"
+      }
+    },
+    {
+      "id": 1783200640099,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "だからてめえの 触手[しょくしゅ]が\n突[つ]き 刺[さし]る 寸前[すんぜん]に"
+      },
+      "after": {
+        "SentenceJA": "だからてめえの 触手[しょくしゅ]が\n 突[つ]き 刺[さし]る 寸前[すんぜん]に"
+      }
+    },
+    {
+      "id": 1783201688638,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "君[きみ]のボディー[ぼでぃー]の 年齢[ねんれい]は\n確[たし]か 10 代[だい] 後半[こうはん]だったな"
+      },
+      "after": {
+        "SentenceJA": "君[きみ]のボディー[ぼでぃー]の 年齢[ねんれい]は\n 確[たし]か 10 代[だい] 後半[こうはん]だったな"
+      }
+    },
+    {
+      "id": 1783201760475,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "君[きみ]のボディー[ぼでぃー]の 年齢[ねんれい]は\n確[たし]か 10 代[だい] 後半[こうはん]だったな"
+      },
+      "after": {
+        "SentenceJA": "君[きみ]のボディー[ぼでぃー]の 年齢[ねんれい]は\n 確[たし]か 10 代[だい] 後半[こうはん]だったな"
+      }
+    },
+    {
+      "id": 1783201903638,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "その 少年[しょうねん]を 殺[ころ]さず\n監視[かんし] 観察[かんさつ]してほしい"
+      },
+      "after": {
+        "SentenceJA": "その 少年[しょうねん]を 殺[ころ]さず\n 監視[かんし] 観察[かんさつ]してほしい"
+      }
+    },
+    {
+      "id": 1783201915679,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "その 少年[しょうねん]を 殺[ころ]さず\n監視[かんし] 観察[かんさつ]してほしい"
+      },
+      "after": {
+        "SentenceJA": "その 少年[しょうねん]を 殺[ころ]さず\n 監視[かんし] 観察[かんさつ]してほしい"
+      }
+    },
+    {
+      "id": 1783201921981,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "その 少年[しょうねん]を 殺[ころ]さず<br>監視[かんし] 観察[かんさつ]してほしい"
+      },
+      "after": {
+        "SentenceJA": "その 少年[しょうねん]を 殺[ころ]さず<br> 監視[かんし] 観察[かんさつ]してほしい"
+      }
+    },
+    {
+      "id": 1783201925632,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "その 少年[しょうねん]を 殺[ころ]さず\n監視[かんし] 観察[かんさつ]してほしい"
+      },
+      "after": {
+        "SentenceJA": "その 少年[しょうねん]を 殺[ころ]さず\n 監視[かんし] 観察[かんさつ]してほしい"
+      }
+    },
+    {
+      "id": 1783202182935,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "我々[われわれ]の 今後[こんご]の 可能[かのう] 性[せい]を 占[うらな]う 上[うえ]でも\n貴重[きちょう]な 資料[しりょう]だ"
+      },
+      "after": {
+        "SentenceJA": "我々[われわれ]の 今後[こんご]の 可能[かのう] 性[せい]を 占[うらな]う 上[うえ]でも\n 貴重[きちょう]な 資料[しりょう]だ"
+      }
+    },
+    {
+      "id": 1783202206542,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "我々[われわれ]の 今後[こんご]の 可能[かのう] 性[せい]を 占[うらな]う 上[うえ]でも\n貴重[きちょう]な 資料[しりょう]だ"
+      },
+      "after": {
+        "SentenceJA": "我々[われわれ]の 今後[こんご]の 可能[かのう] 性[せい]を 占[うらな]う 上[うえ]でも\n 貴重[きちょう]な 資料[しりょう]だ"
+      }
+    },
+    {
+      "id": 1783202211396,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "我々[われわれ]の 今後[こんご]の 可能[かのう] 性[せい]を 占[うらな]う 上[うえ]でも\n貴重[きちょう]な 資料[しりょう]だ"
+      },
+      "after": {
+        "SentenceJA": "我々[われわれ]の 今後[こんご]の 可能[かのう] 性[せい]を 占[うらな]う 上[うえ]でも\n 貴重[きちょう]な 資料[しりょう]だ"
+      }
+    },
+    {
+      "id": 1783202513027,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "用[よう]なら 短[みじか]めに 頼[たの]むよ\n人[ひと] 待[ま]ち 合[あ]わせてるんだ"
+      },
+      "after": {
+        "SentenceJA": "用[よう]なら 短[みじか]めに 頼[たの]むよ\n 人[ひと] 待[ま]ち 合[あ]わせてるんだ"
+      }
+    },
+    {
+      "id": 1783202529100,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "用[よう]なら 短[みじか]めに 頼[たの]むよ\n人[ひと] 待[ま]ち 合[あ]わせてるんだ"
+      },
+      "after": {
+        "SentenceJA": "用[よう]なら 短[みじか]めに 頼[たの]むよ\n 人[ひと] 待[ま]ち 合[あ]わせてるんだ"
+      }
+    },
+    {
+      "id": 1783202770201,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "今[いま] 校門[こうもん]の 所[ところ]で\n上条[かみじょう] 君[くん]たちに 聞[き]いて…あっ"
+      },
+      "after": {
+        "SentenceJA": "今[いま] 校門[こうもん]の 所[ところ]で\n 上条[かみじょう] 君[くん]たちに 聞[き]いて…あっ"
+      }
+    },
+    {
+      "id": 1783202855066,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "なあ 寄[よ]ってかない？\n俺[おれ] 腹[はら] 減[へ]っちゃって"
+      },
+      "after": {
+        "SentenceJA": "なあ 寄[よ]ってかない？\n 俺[おれ] 腹[はら] 減[へ]っちゃって"
+      }
+    },
+    {
+      "id": 1783202937006,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "親[おや]のケガ[けが]を 口実[こうじつ]に\n学校[がっこう] サボってただけだよ"
+      },
+      "after": {
+        "SentenceJA": "親[おや]のケガ[けが]を 口実[こうじつ]に\n 学校[がっこう] サボってただけだよ"
+      }
+    },
+    {
+      "id": 1783202950594,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "親[おや]のケガ[けが]を 口実[こうじつ]に\n学校[がっこう] サボってただけだよ"
+      },
+      "after": {
+        "SentenceJA": "親[おや]のケガ[けが]を 口実[こうじつ]に\n 学校[がっこう] サボってただけだよ"
+      }
+    },
+    {
+      "id": 1783203031415,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "あっ 感[かん]じる\n彼[かれ]が 近[ちか]づいてくる"
+      },
+      "after": {
+        "SentenceJA": "あっ 感[かん]じる\n 彼[かれ]が 近[ちか]づいてくる"
+      }
+    },
+    {
+      "id": 1783203205705,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "こういう 時[とき]は\n家政[かせい] 婦[ふ]さんを 雇[やと]うのがいいって"
+      },
+      "after": {
+        "SentenceJA": "こういう 時[とき]は\n 家政[かせい] 婦[ふ]さんを 雇[やと]うのがいいって"
+      }
+    },
+    {
+      "id": 1783203213233,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "こういう 時[とき]は\n家政[かせい] 婦[ふ]さんを 雇[やと]うのがいいって"
+      },
+      "after": {
+        "SentenceJA": "こういう 時[とき]は\n 家政[かせい] 婦[ふ]さんを 雇[やと]うのがいいって"
+      }
+    },
+    {
+      "id": 1783261248149,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "だからてめえの 触手[しょくしゅ]が\n突[つ]き 刺[さ]さる 寸前[すんぜん]に"
+      },
+      "after": {
+        "SentenceJA": "だからてめえの 触手[しょくしゅ]が\n 突[つ]き 刺[さ]さる 寸前[すんぜん]に"
+      }
+    },
+    {
+      "id": 1783262883560,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ここはマッシュ[まっしゅ]や\nフィン[ふぃん]が 所属[しょぞく]するア[あ]ドラ[どら] 寮[りょう]"
+      },
+      "after": {
+        "SentenceJA": "ここはマッシュ[まっしゅ]や\n フィン[ふぃん]が 所属[しょぞく]するア[あ]ドラ[どら] 寮[りょう]"
+      }
+    },
+    {
+      "id": 1783263673407,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ここはマッシュ[まっしゅ]や\nフィン[ふぃん]が 所属[しょぞく]するア[あ]ドラ[どら] 寮[りょう]"
+      },
+      "after": {
+        "SentenceJA": "ここはマッシュ[まっしゅ]や\n フィン[ふぃん]が 所属[しょぞく]するア[あ]ドラ[どら] 寮[りょう]"
+      }
+    },
+    {
+      "id": 1783263781742,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "銀[ぎん]の 級[きゅう] 硬貨[こうか]を ５枚[ごまい] 集[あつ]めると\n金[かね]になるのか"
+      },
+      "after": {
+        "SentenceJA": "銀[ぎん]の 級[きゅう] 硬貨[こうか]を ５枚[ごまい] 集[あつ]めると\n 金[かね]になるのか"
+      }
+    },
+    {
+      "id": 1783263796056,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "銀[ぎん]の 級[きゅう] 硬貨[こうか]を ５枚[ごまい] 集[あつ]めると\n金[かね]になるのか"
+      },
+      "after": {
+        "SentenceJA": "銀[ぎん]の 級[きゅう] 硬貨[こうか]を ５枚[ごまい] 集[あつ]めると\n 金[かね]になるのか"
+      }
+    },
+    {
+      "id": 1783263802550,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "銀[ぎん]の 級[きゅう] 硬貨[こうか]を ５枚[ごまい] 集[あつ]めると\n金[かね]になるのか"
+      },
+      "after": {
+        "SentenceJA": "銀[ぎん]の 級[きゅう] 硬貨[こうか]を ５枚[ごまい] 集[あつ]めると\n 金[かね]になるのか"
+      }
+    },
+    {
+      "id": 1783264061159,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "いや～ それにしても\n今日[きょう] 何[なん]もなくて 平和[へいわ]だ"
+      },
+      "after": {
+        "SentenceJA": "いや～ それにしても\n 今日[きょう] 何[なん]もなくて 平和[へいわ]だ"
+      }
+    },
+    {
+      "id": 1783264641116,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "こいつを 泣[な]きやませれば\n万能[ばんのう]に 使[つか]える 魔法[まほう] 薬[やく]の 素材[そざい]になる"
+      },
+      "after": {
+        "SentenceJA": "こいつを 泣[な]きやませれば\n 万能[ばんのう]に 使[つか]える 魔法[まほう] 薬[やく]の 素材[そざい]になる"
+      }
+    },
+    {
+      "id": 1783264662868,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "こいつを 泣[な]きやませれば\n万能[ばんのう]に 使[つか]える 魔法[まほう] 薬[やく]の 素材[そざい]になる"
+      },
+      "after": {
+        "SentenceJA": "こいつを 泣[な]きやませれば\n 万能[ばんのう]に 使[つか]える 魔法[まほう] 薬[やく]の 素材[そざい]になる"
+      }
+    },
+    {
+      "id": 1783264665654,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "こいつを 泣[な]きやませれば\n万能[ばんのう]に 使[つか]える 魔法[まほう] 薬[やく]の 素材[そざい]になる"
+      },
+      "after": {
+        "SentenceJA": "こいつを 泣[な]きやませれば\n 万能[ばんのう]に 使[つか]える 魔法[まほう] 薬[やく]の 素材[そざい]になる"
+      }
+    },
+    {
+      "id": 1783264787921,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "重心[じゅうしん]が 安定[あんてい]してないよ\n体幹[たいかん]がかなり 弱[よわ]いね"
+      },
+      "after": {
+        "SentenceJA": "重心[じゅうしん]が 安定[あんてい]してないよ\n 体幹[たいかん]がかなり 弱[よわ]いね"
+      }
+    },
+    {
+      "id": 1783264795072,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "重心[じゅうしん]が 安定[あんてい]してないよ<br>体幹[たいかん]がかなり 弱[よわ]いね"
+      },
+      "after": {
+        "SentenceJA": "重心[じゅうしん]が 安定[あんてい]してないよ<br> 体幹[たいかん]がかなり 弱[よわ]いね"
+      }
+    },
+    {
+      "id": 1783264800598,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "重心[じゅうしん]が 安定[あんてい]してないよ\n体幹[たいかん]がかなり 弱[よわ]いね"
+      },
+      "after": {
+        "SentenceJA": "重心[じゅうしん]が 安定[あんてい]してないよ\n 体幹[たいかん]がかなり 弱[よわ]いね"
+      }
+    },
+    {
+      "id": 1783265012430,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "めちゃくちゃ 凶暴[きょうぼう] 化[か]して\n大[おお]きくなっとる~！"
+      },
+      "after": {
+        "SentenceJA": "めちゃくちゃ 凶暴[きょうぼう] 化[か]して\n 大[おお]きくなっとる~！"
+      }
+    },
+    {
+      "id": 1783265254881,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "こいつを 眠[ねむ]らせると\n普通[ふつう]の 薬草[やくそう]になる"
+      },
+      "after": {
+        "SentenceJA": "こいつを 眠[ねむ]らせると\n 普通[ふつう]の 薬草[やくそう]になる"
+      }
+    },
+    {
+      "id": 1783265516615,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "お 前[まえ] 戦[たたか]うこと 以外[いがい]は\n引[ひ]くほど ポンコツ[ぽんこつ]だな"
+      },
+      "after": {
+        "SentenceJA": "お 前[まえ] 戦[たたか]うこと 以外[いがい]は\n 引[ひ]くほど ポンコツ[ぽんこつ]だな"
+      }
+    },
+    {
+      "id": 1783265535342,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "お 前[まえ] 戦[たたか]うこと 以外[いがい]は\n引[ひ]くほど ポンコツ[ぽんこつ]だな"
+      },
+      "after": {
+        "SentenceJA": "お 前[まえ] 戦[たたか]うこと 以外[いがい]は\n 引[ひ]くほど ポンコツ[ぽんこつ]だな"
+      }
+    },
+    {
+      "id": 1783265693222,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "俺[おれ]には 魔法[まほう] 局[きょく]に\n入[はい]らなければならない 理由[りゆう]がある"
+      },
+      "after": {
+        "SentenceJA": "俺[おれ]には 魔法[まほう] 局[きょく]に\n 入[はい]らなければならない 理由[りゆう]がある"
+      }
+    },
+    {
+      "id": 1783265738603,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "だが 仮[かり]にもお 前[まえ]は\n俺[おれ]と 互角[ごかく] 以上[いじょう]に 戦[たたか]った 男[おとこ]だ"
+      },
+      "after": {
+        "SentenceJA": "だが 仮[かり]にもお 前[まえ]は\n 俺[おれ]と 互角[ごかく] 以上[いじょう]に 戦[たたか]った 男[おとこ]だ"
+      }
+    },
+    {
+      "id": 1783265777568,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "だが 仮[かり]にもお 前[まえ]は\n俺[おれ]と 互角[ごかく] 以上[いじょう]に 戦[たたか]った 男[おとこ]だ"
+      },
+      "after": {
+        "SentenceJA": "だが 仮[かり]にもお 前[まえ]は\n 俺[おれ]と 互角[ごかく] 以上[いじょう]に 戦[たたか]った 男[おとこ]だ"
+      }
+    },
+    {
+      "id": 1783271348582,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "高潔[こうけつ]なる 血[ち]と<br>物言[ものい]いを 許[ゆる]さない 圧倒[あっとう] 的[てき]な 力[ちから]です"
+      },
+      "after": {
+        "SentenceJA": "高潔[こうけつ]なる 血[ち]と<br> 物言[ものい]いを 許[ゆる]さない 圧倒[あっとう] 的[てき]な 力[ちから]です"
+      }
+    },
+    {
+      "id": 1783271387136,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "高潔[こうけつ]なる 血[ち]と\n物言[ものい]いを 許[ゆる]さない 圧倒[あっとう] 的[てき]な 力[ちから]です"
+      },
+      "after": {
+        "SentenceJA": "高潔[こうけつ]なる 血[ち]と\n 物言[ものい]いを 許[ゆる]さない 圧倒[あっとう] 的[てき]な 力[ちから]です"
+      }
+    },
+    {
+      "id": 1783271398136,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "高潔[こうけつ]なる 血[ち]と\n物言[ものい]いを 許[ゆる]さない 圧倒[あっとう] 的[てき]な 力[ちから]です"
+      },
+      "after": {
+        "SentenceJA": "高潔[こうけつ]なる 血[ち]と\n 物言[ものい]いを 許[ゆる]さない 圧倒[あっとう] 的[てき]な 力[ちから]です"
+      }
+    },
+    {
+      "id": 1783271405602,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "高潔[こうけつ]なる 血[ち]と\n物言[ものい]いを 許[ゆる]さない 圧倒[あっとう] 的[てき]な 力[ちから]です"
+      },
+      "after": {
+        "SentenceJA": "高潔[こうけつ]なる 血[ち]と\n 物言[ものい]いを 許[ゆる]さない 圧倒[あっとう] 的[てき]な 力[ちから]です"
+      }
+    },
+    {
+      "id": 1783271871173,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "あっ… つか てめえだな？\n最近[さいきん] 話題[わだい]の キノコ[きのこ] 頭[あたま]っつうのは"
+      },
+      "after": {
+        "SentenceJA": "あっ… つか てめえだな？\n 最近[さいきん] 話題[わだい]の キノコ[きのこ] 頭[あたま]っつうのは"
+      }
+    },
+    {
+      "id": 1783271888823,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "あっ… つか てめえだな？\n最近[さいきん] 話題[わだい]の キノコ[きのこ] 頭[あたま]っつうのは"
+      },
+      "after": {
+        "SentenceJA": "あっ… つか てめえだな？\n 最近[さいきん] 話題[わだい]の キノコ[きのこ] 頭[あたま]っつうのは"
+      }
+    },
+    {
+      "id": 1783271907468,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "だが 今日[きょう]からてめえは\n名実[めいじつ]ともに 脇役[わきやく]だぜ"
+      },
+      "after": {
+        "SentenceJA": "だが 今日[きょう]からてめえは\n 名実[めいじつ]ともに 脇役[わきやく]だぜ"
+      }
+    },
+    {
+      "id": 1783272250862,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "マッシュ[まっしゅ] 君[きみ]は\n気[き]をつけてくださいね"
+      },
+      "after": {
+        "SentenceJA": "マッシュ[まっしゅ] 君[きみ]は\n 気[き]をつけてくださいね"
+      }
+    },
+    {
+      "id": 1783272494206,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "お 前[まえ]みたいな\n調律[ちょうりつ]を 乱[みだ]す 輩[やから]がいるからだ！"
+      },
+      "after": {
+        "SentenceJA": "お 前[まえ]みたいな\n 調律[ちょうりつ]を 乱[みだ]す 輩[やから]がいるからだ！"
+      }
+    },
+    {
+      "id": 1783272503365,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "お 前[まえ]みたいな\n調律[ちょうりつ]を 乱[みだ]す 輩[やから]がいるからだ！"
+      },
+      "after": {
+        "SentenceJA": "お 前[まえ]みたいな\n 調律[ちょうりつ]を 乱[みだ]す 輩[やから]がいるからだ！"
+      }
+    },
+    {
+      "id": 1783272508001,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "お 前[まえ]みたいな\n調律[ちょうりつ]を 乱[みだ]す 輩[やから]がいるからだ！"
+      },
+      "after": {
+        "SentenceJA": "お 前[まえ]みたいな\n 調律[ちょうりつ]を 乱[みだ]す 輩[やから]がいるからだ！"
+      }
+    },
+    {
+      "id": 1783272513708,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "お 前[まえ]みたいな\n調律[ちょうりつ]を 乱[みだ]す 輩[やから]がいるからだ！"
+      },
+      "after": {
+        "SentenceJA": "お 前[まえ]みたいな\n 調律[ちょうりつ]を 乱[みだ]す 輩[やから]がいるからだ！"
+      }
+    },
+    {
+      "id": 1783272532297,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "お 前[まえ]みたいな ヤツ[やつ]のせいで\n世界[せかい]は 少子[しょうし] 高齢[こうれい] 化[か]まっしぐらだよ！"
+      },
+      "after": {
+        "SentenceJA": "お 前[まえ]みたいな ヤツ[やつ]のせいで\n 世界[せかい]は 少子[しょうし] 高齢[こうれい] 化[か]まっしぐらだよ！"
+      }
+    },
+    {
+      "id": 1783272603617,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "俺[おれ]みたいな タイプ[たいぷ]は 無視[むし]されんのが\n一番[いちばん] 傷[きず]つくんだぞ！"
+      },
+      "after": {
+        "SentenceJA": "俺[おれ]みたいな タイプ[たいぷ]は 無視[むし]されんのが\n 一番[いちばん] 傷[きず]つくんだぞ！"
+      }
+    },
+    {
+      "id": 1783272654824,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "俺[おれ]みたいな タイプ[たいぷ]は 無視[むし]されんのが\n一番[いちばん] 傷[きず]つくんだぞ！"
+      },
+      "after": {
+        "SentenceJA": "俺[おれ]みたいな タイプ[たいぷ]は 無視[むし]されんのが\n 一番[いちばん] 傷[きず]つくんだぞ！"
+      }
+    },
+    {
+      "id": 1783273000225,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "中[なか]には 銀[ぎん]の 級[きゅう] 硬貨[こうか]に 相当[そうとう]する 強[つよ]さの\n森[もり] サソリ[さそり]がいる"
+      },
+      "after": {
+        "SentenceJA": "中[なか]には 銀[ぎん]の 級[きゅう] 硬貨[こうか]に 相当[そうとう]する 強[つよ]さの\n 森[もり] サソリ[さそり]がいる"
+      }
+    },
+    {
+      "id": 1783273092184,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "並[なみ]の 魔法[まほう] 使[つか]いじゃ\n十[じゅう] 中[ちゅう] 八[はち] 九[きゅう] 歯[は]が 立[たて]ない"
+      },
+      "after": {
+        "SentenceJA": "並[なみ]の 魔法[まほう] 使[つか]いじゃ\n 十[じゅう] 中[ちゅう] 八[はち] 九[きゅう] 歯[は]が 立[たて]ない"
+      }
+    },
+    {
+      "id": 1783273113668,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "並[なみ]の 魔法[まほう] 使[つか]いじゃ\n十[じゅう] 中[ちゅう] 八[はち] 九[きゅう] 歯[は]が 立[たて]ない"
+      },
+      "after": {
+        "SentenceJA": "並[なみ]の 魔法[まほう] 使[つか]いじゃ\n 十[じゅう] 中[ちゅう] 八[はち] 九[きゅう] 歯[は]が 立[たて]ない"
+      }
+    },
+    {
+      "id": 1783273170664,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "並[なみ]の 魔法[まほう] 使[つか]いじゃ\n十[じゅう] 中[ちゅう] 八[はち] 九[きゅう] 歯[は]が 立[たて]ない"
+      },
+      "after": {
+        "SentenceJA": "並[なみ]の 魔法[まほう] 使[つか]いじゃ\n 十[じゅう] 中[ちゅう] 八[はち] 九[きゅう] 歯[は]が 立[たて]ない"
+      }
+    },
+    {
+      "id": 1783273238951,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "が…それを 成[な]し 遂[と]げてこその\n我[わ]が イーストン[いーすとん]だ"
+      },
+      "after": {
+        "SentenceJA": "が…それを 成[な]し 遂[と]げてこその\n 我[わ]が イーストン[いーすとん]だ"
+      }
+    },
+    {
+      "id": 1783273297210,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "それでは 順次[じゅんじ]\n森[もり]へ 入[はい]っていくように"
+      },
+      "after": {
+        "SentenceJA": "それでは 順次[じゅんじ]\n 森[もり]へ 入[はい]っていくように"
+      }
+    },
+    {
+      "id": 1783273390986,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "自分[じぶん]がほかとは 違[ちが]う 存在[そんざい]だと\n勘違[かんちが]いしてやがる"
+      },
+      "after": {
+        "SentenceJA": "自分[じぶん]がほかとは 違[ちが]う 存在[そんざい]だと\n 勘違[かんちが]いしてやがる"
+      }
+    },
+    {
+      "id": 1783273408489,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "自分[じぶん]がほかとは 違[ちが]う 存在[そんざい]だと\n勘違[かんちが]いしてやがる"
+      },
+      "after": {
+        "SentenceJA": "自分[じぶん]がほかとは 違[ちが]う 存在[そんざい]だと\n 勘違[かんちが]いしてやがる"
+      }
+    },
+    {
+      "id": 1783273420610,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "無[む] 意識[いしき]のうちに\n他人[たにん]を 見下[みくだ]してるだろ？"
+      },
+      "after": {
+        "SentenceJA": "無[む] 意識[いしき]のうちに\n 他人[たにん]を 見下[みくだ]してるだろ？"
+      }
+    },
+    {
+      "id": 1783273443298,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "無[む] 意識[いしき]のうちに\n他人[たにん]を 見下[みくだ]してるだろ？"
+      },
+      "after": {
+        "SentenceJA": "無[む] 意識[いしき]のうちに\n 他人[たにん]を 見下[みくだ]してるだろ？"
+      }
+    },
+    {
+      "id": 1783273450530,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "無[む] 意識[いしき]のうちに\n他人[たにん]を 見下[みくだ]してるだろ？"
+      },
+      "after": {
+        "SentenceJA": "無[む] 意識[いしき]のうちに\n 他人[たにん]を 見下[みくだ]してるだろ？"
+      }
+    },
+    {
+      "id": 1783273522136,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "グッチャグチャ[ぐっちゃぐちゃ]に\n情[なさ]けない 顔[かお]にしてやりたいね"
+      },
+      "after": {
+        "SentenceJA": "グッチャグチャ[ぐっちゃぐちゃ]に\n 情[なさ]けない 顔[かお]にしてやりたいね"
+      }
+    },
+    {
+      "id": 1783273823821,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "自分[じぶん]の 気[き]に 食[く]わない 教師[きょうし] 生徒[せいと]<br>多数[たすう]に ケガ[けが]を 負[お]わせて"
+      },
+      "after": {
+        "SentenceJA": "自分[じぶん]の 気[き]に 食[く]わない 教師[きょうし] 生徒[せいと]<br> 多数[たすう]に ケガ[けが]を 負[お]わせて"
+      }
+    },
+    {
+      "id": 1783273868292,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "自分[じぶん]の 気[き]に 食[く]わない 教師[きょうし] 生徒[せいと]\n多数[たすう]に ケガ[けが]を 負[お]わせて"
+      },
+      "after": {
+        "SentenceJA": "自分[じぶん]の 気[き]に 食[く]わない 教師[きょうし] 生徒[せいと]\n 多数[たすう]に ケガ[けが]を 負[お]わせて"
+      }
+    },
+    {
+      "id": 1783274158915,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "だが 魔法[まほう] 使[つか]いとしての 実力[じつりょく]を\n考慮[こうりょ]され"
+      },
+      "after": {
+        "SentenceJA": "だが 魔法[まほう] 使[つか]いとしての 実力[じつりょく]を\n 考慮[こうりょ]され"
+      }
+    },
+    {
+      "id": 1783274169132,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "だが 魔法[まほう] 使[つか]いとしての 実力[じつりょく]を\n考慮[こうりょ]され"
+      },
+      "after": {
+        "SentenceJA": "だが 魔法[まほう] 使[つか]いとしての 実力[じつりょく]を\n 考慮[こうりょ]され"
+      }
+    },
+    {
+      "id": 1783274172873,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "だが 魔法[まほう] 使[つか]いとしての 実力[じつりょく]を\n考慮[こうりょ]され"
+      },
+      "after": {
+        "SentenceJA": "だが 魔法[まほう] 使[つか]いとしての 実力[じつりょく]を\n 考慮[こうりょ]され"
+      }
+    },
+    {
+      "id": 1783274438740,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "このまま ２人[ふたり]で 行動[こうどう]したほうが\n得策[とくさく]だろう"
+      },
+      "after": {
+        "SentenceJA": "このまま ２人[ふたり]で 行動[こうどう]したほうが\n 得策[とくさく]だろう"
+      }
+    },
+    {
+      "id": 1783274497010,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ボーッとしてたら\n１人[ひとり]になってしまった"
+      },
+      "after": {
+        "SentenceJA": "ボーッとしてたら\n １人[ひとり]になってしまった"
+      }
+    },
+    {
+      "id": 1783274532051,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "おらおらおら！\n出[で]てこいや クソ[くそ]サソリ[さそり]が！"
+      },
+      "after": {
+        "SentenceJA": "おらおらおら！\n 出[で]てこいや クソ[くそ]サソリ[さそり]が！"
+      }
+    },
+    {
+      "id": 1783274569085,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "今[いま]この 瞬間[しゅんかん] 君[きみ]のせいで\nムダ[むだ]に カロリー[かろりー]を 消費[しょうひ]した"
+      },
+      "after": {
+        "SentenceJA": "今[いま]この 瞬間[しゅんかん] 君[きみ]のせいで\n ムダ[むだ]に カロリー[かろりー]を 消費[しょうひ]した"
+      }
+    },
+    {
+      "id": 1783274631953,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "今[いま]この 瞬間[しゅんかん] 君[きみ]のせいで\nムダ[むだ]に カロリー[かろりー]を 消費[しょうひ]した"
+      },
+      "after": {
+        "SentenceJA": "今[いま]この 瞬間[しゅんかん] 君[きみ]のせいで\n ムダ[むだ]に カロリー[かろりー]を 消費[しょうひ]した"
+      }
+    },
+    {
+      "id": 1783274635008,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "今[いま]この 瞬間[しゅんかん] 君[きみ]のせいで\nムダ[むだ]に カロリー[かろりー]を 消費[しょうひ]した"
+      },
+      "after": {
+        "SentenceJA": "今[いま]この 瞬間[しゅんかん] 君[きみ]のせいで\n ムダ[むだ]に カロリー[かろりー]を 消費[しょうひ]した"
+      }
+    },
+    {
+      "id": 1783274638117,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "今[いま]この 瞬間[しゅんかん] 君[きみ]のせいで\nムダ[むだ]に カロリー[かろりー]を 消費[しょうひ]した"
+      },
+      "after": {
+        "SentenceJA": "今[いま]この 瞬間[しゅんかん] 君[きみ]のせいで\n ムダ[むだ]に カロリー[かろりー]を 消費[しょうひ]した"
+      }
+    },
+    {
+      "id": 1783274828824,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ここは あくまで<br>冷静[れいせい]に 対応[たいおう]するんだ 俺[おれ]！"
+      },
+      "after": {
+        "SentenceJA": "ここは あくまで<br> 冷静[れいせい]に 対応[たいおう]するんだ 俺[おれ]！"
+      }
+    },
+    {
+      "id": 1783274834990,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ここは あくまで\n冷静[れいせい]に 対応[たいおう]するんだ 俺[おれ]！"
+      },
+      "after": {
+        "SentenceJA": "ここは あくまで\n 冷静[れいせい]に 対応[たいおう]するんだ 俺[おれ]！"
+      }
+    },
+    {
+      "id": 1783274837977,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ここは あくまで\n冷静[れいせい]に 対応[たいおう]するんだ 俺[おれ]！"
+      },
+      "after": {
+        "SentenceJA": "ここは あくまで\n 冷静[れいせい]に 対応[たいおう]するんだ 俺[おれ]！"
+      }
+    },
+    {
+      "id": 1783275122768,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "先[さき]ほどは\n本当[ほんとう]にありがとうございました"
+      },
+      "after": {
+        "SentenceJA": "先[さき]ほどは\n 本当[ほんとう]にありがとうございました"
+      }
+    },
+    {
+      "id": 1783275416033,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "私[わたくし]に 一瞬[いっしゅん]でも 魅力[みりょく]を 感[かん]じた 者[もの]を\n恋[こい]に 落[お]とす"
+      },
+      "after": {
+        "SentenceJA": "私[わたくし]に 一瞬[いっしゅん]でも 魅力[みりょく]を 感[かん]じた 者[もの]を\n 恋[こい]に 落[お]とす"
+      }
+    },
+    {
+      "id": 1783275428200,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "私[わたくし]に 一瞬[いっしゅん]でも 魅力[みりょく]を 感[かん]じた 者[もの]を\n恋[こい]に 落[お]とす"
+      },
+      "after": {
+        "SentenceJA": "私[わたくし]に 一瞬[いっしゅん]でも 魅力[みりょく]を 感[かん]じた 者[もの]を\n 恋[こい]に 落[お]とす"
+      }
+    },
+    {
+      "id": 1783275712968,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "なんだ こいつ！\n私[わたくし]に 全[まった]く 魅力[みりょく]を 感[かん]じないのか？"
+      },
+      "after": {
+        "SentenceJA": "なんだ こいつ！\n 私[わたくし]に 全[まった]く 魅力[みりょく]を 感[かん]じないのか？"
+      }
+    },
+    {
+      "id": 1783276050946,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "てめえみてえな 勘違[かんちが]い 野郎[やろう]\n見[み]てっと 思[おも]い 知[し]らせたくなるな"
+      },
+      "after": {
+        "SentenceJA": "てめえみてえな 勘違[かんちが]い 野郎[やろう]\n 見[み]てっと 思[おも]い 知[し]らせたくなるな"
+      }
+    },
+    {
+      "id": 1783276062205,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "てめえみてえな 勘違[かんちが]い 野郎[やろう]\n見[み]てっと 思[おも]い 知[し]らせたくなるな"
+      },
+      "after": {
+        "SentenceJA": "てめえみてえな 勘違[かんちが]い 野郎[やろう]\n 見[み]てっと 思[おも]い 知[し]らせたくなるな"
+      }
+    },
+    {
+      "id": 1783276315228,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "てめえ 程度[ていど]の 魔力[まりょく]じゃ\n俺[おれ]の 魔法[まほう]は 突破[とっぱ]できねえ…"
+      },
+      "after": {
+        "SentenceJA": "てめえ 程度[ていど]の 魔力[まりょく]じゃ\n 俺[おれ]の 魔法[まほう]は 突破[とっぱ]できねえ…"
+      }
+    },
+    {
+      "id": 1783276623231,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "このままじゃ 面白[おもしろ]くねえって\n言[い]ってんだこの カス[かす]が"
+      },
+      "after": {
+        "SentenceJA": "このままじゃ 面白[おもしろ]くねえって\n 言[い]ってんだこの カス[かす]が"
+      }
+    },
+    {
+      "id": 1783276760216,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ダメ[だめ]よ！ そんなことをしたら\n大[だい] ケガ[けが]じゃ 済[す]まないわ！"
+      },
+      "after": {
+        "SentenceJA": "ダメ[だめ]よ！ そんなことをしたら\n 大[だい] ケガ[けが]じゃ 済[す]まないわ！"
+      }
+    },
+    {
+      "id": 1783277280341,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ご 褒美[ほうび]に 最後[さいご]の 一[いち] 発[はつ]は\n特大[とくだい]のやつをお 見舞[みま]いしてやるよ！"
+      },
+      "after": {
+        "SentenceJA": "ご 褒美[ほうび]に 最後[さいご]の 一[いち] 発[はつ]は\n 特大[とくだい]のやつをお 見舞[みま]いしてやるよ！"
+      }
+    },
+    {
+      "id": 1783277296091,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ご 褒美[ほうび]に 最後[さいご]の 一[いち] 発[はつ]は\n特大[とくだい]のやつをお 見舞[みま]いしてやるよ！"
+      },
+      "after": {
+        "SentenceJA": "ご 褒美[ほうび]に 最後[さいご]の 一[いち] 発[はつ]は\n 特大[とくだい]のやつをお 見舞[みま]いしてやるよ！"
+      }
+    },
+    {
+      "id": 1783277304080,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ご 褒美[ほうび]に 最後[さいご]の 一[いち] 発[はつ]は\n特大[とくだい]のやつをお 見舞[みま]いしてやるよ！"
+      },
+      "after": {
+        "SentenceJA": "ご 褒美[ほうび]に 最後[さいご]の 一[いち] 発[はつ]は\n 特大[とくだい]のやつをお 見舞[みま]いしてやるよ！"
+      }
+    },
+    {
+      "id": 1783277746406,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "つまるとこ<br>自分[じぶん]に 酔[よ]っちまってんのさ"
+      },
+      "after": {
+        "SentenceJA": "つまるとこ<br> 自分[じぶん]に 酔[よ]っちまってんのさ"
+      }
+    },
+    {
+      "id": 1783278115336,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "編入[へんにゅう] 試験[しけん]のとき\n先生[せんせい]をやっつけたくらいですし"
+      },
+      "after": {
+        "SentenceJA": "編入[へんにゅう] 試験[しけん]のとき\n 先生[せんせい]をやっつけたくらいですし"
+      }
+    },
+    {
+      "id": 1783278213352,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "マッシュ[まっしゅ]が 対峙[たいじ]してきたのは\n白[しろ]のほうだ"
+      },
+      "after": {
+        "SentenceJA": "マッシュ[まっしゅ]が 対峙[たいじ]してきたのは\n 白[しろ]のほうだ"
+      }
+    },
+    {
+      "id": 1783278238135,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "実際[じっさい]２ 年[ねん] 以上[いじょう]の 赤魔[あかま] 導師[どうし]は\n相当[そうとう] 強[つよ]い"
+      },
+      "after": {
+        "SentenceJA": "実際[じっさい]２ 年[ねん] 以上[いじょう]の 赤魔[あかま] 導師[どうし]は\n 相当[そうとう] 強[つよ]い"
+      }
+    },
+    {
+      "id": 1783278269522,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ヤツ[やつ]らの 中[なか]には\nマッシュ[まっしゅ]と 同等[どうとう] 以上[いじょう]の ヤツ[やつ]なんて"
+      },
+      "after": {
+        "SentenceJA": "ヤツ[やつ]らの 中[なか]には\n マッシュ[まっしゅ]と 同等[どうとう] 以上[いじょう]の ヤツ[やつ]なんて"
+      }
+    },
+    {
+      "id": 1783278320629,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "弱[よえ]えくせに いきがる\n偽善[ぎぜん] 野郎[やろう]がよ"
+      },
+      "after": {
+        "SentenceJA": "弱[よえ]えくせに いきがる\n 偽善[ぎぜん] 野郎[やろう]がよ"
+      }
+    },
+    {
+      "id": 1783278455062,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "あ… こいつのせいで\n服[ふく]がちょっと 燃[も]えちまってるよ"
+      },
+      "after": {
+        "SentenceJA": "あ… こいつのせいで\n 服[ふく]がちょっと 燃[も]えちまってるよ"
+      }
+    },
+    {
+      "id": 1783278864191,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "銀[ぎん]の 級[きゅう] 硬貨[こうか] 以上[いじょう]の\n巨大[きょだい] 森[もり] サソリ[さそり]も 存在[そんざい]したのか"
+      },
+      "after": {
+        "SentenceJA": "銀[ぎん]の 級[きゅう] 硬貨[こうか] 以上[いじょう]の\n 巨大[きょだい] 森[もり] サソリ[さそり]も 存在[そんざい]したのか"
+      }
+    },
+    {
+      "id": 1783278879781,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "銀[ぎん]の 級[きゅう] 硬貨[こうか] 以上[いじょう]の\n巨大[きょだい] 森[もり] サソリ[さそり]も 存在[そんざい]したのか"
+      },
+      "after": {
+        "SentenceJA": "銀[ぎん]の 級[きゅう] 硬貨[こうか] 以上[いじょう]の\n 巨大[きょだい] 森[もり] サソリ[さそり]も 存在[そんざい]したのか"
+      }
+    },
+    {
+      "id": 1783279048638,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ごめんなさい\n全部[ぜんぶ] 彼[かれ]の 指示[しじ]なんです"
+      },
+      "after": {
+        "SentenceJA": "ごめんなさい\n 全部[ぜんぶ] 彼[かれ]の 指示[しじ]なんです"
+      }
+    },
+    {
+      "id": 1783283478192,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "入学[にゅうがく] 早々[そうそう] かなり\n順調[じゅんちょう]なんじゃない？ マッシュ[まっしゅ] 君[きみ]"
+      },
+      "after": {
+        "SentenceJA": "入学[にゅうがく] 早々[そうそう] かなり\n 順調[じゅんちょう]なんじゃない？ マッシュ[まっしゅ] 君[きみ]"
+      }
+    },
+    {
+      "id": 1783283659240,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "レアン[れあん]の ヤツ[やつ]らが ア[あ]ドラ[どら]を 中心[ちゅうしん]に\n級[きゅう] 硬貨[こうか] 狩[か]りをしているらしい"
+      },
+      "after": {
+        "SentenceJA": "レアン[れあん]の ヤツ[やつ]らが ア[あ]ドラ[どら]を 中心[ちゅうしん]に\n 級[きゅう] 硬貨[こうか] 狩[か]りをしているらしい"
+      }
+    },
+    {
+      "id": 1783283957209,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "一応[いちおう] 寮[りょう] 分[わ]けは\n入学[にゅうがく]してすぐにあったけど…"
+      },
+      "after": {
+        "SentenceJA": "一応[いちおう] 寮[りょう] 分[わ]けは\n 入学[にゅうがく]してすぐにあったけど…"
+      }
+    },
+    {
+      "id": 1783284083678,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "諸君[しょくん]の 魔力[まりょく]から<br>思考[しこう] 思想[しそう]を 読[よ]み 取[と]り"
+      },
+      "after": {
+        "SentenceJA": "諸君[しょくん]の 魔力[まりょく]から<br> 思考[しこう] 思想[しそう]を 読[よ]み 取[と]り"
+      }
+    },
+    {
+      "id": 1783284092828,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "諸君[しょくん]の 魔力[まりょく]から\n思考[しこう] 思想[しそう]を 読[よ]み 取[と]り"
+      },
+      "after": {
+        "SentenceJA": "諸君[しょくん]の 魔力[まりょく]から\n 思考[しこう] 思想[しそう]を 読[よ]み 取[と]り"
+      }
+    },
+    {
+      "id": 1783284262530,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "我[われ] 校[こう]で 寮[りょう]の 選別[せんべつ]を 任[まか]され\nウン[うん] 百[ひゃく] 年[ねん]"
+      },
+      "after": {
+        "SentenceJA": "我[われ] 校[こう]で 寮[りょう]の 選別[せんべつ]を 任[まか]され\n ウン[うん] 百[ひゃく] 年[ねん]"
+      }
+    },
+    {
+      "id": 1783284279536,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "我[われ] 校[こう]で 寮[りょう]の 選別[せんべつ]を 任[まか]され\nウン[うん] 百[ひゃく] 年[ねん]"
+      },
+      "after": {
+        "SentenceJA": "我[われ] 校[こう]で 寮[りょう]の 選別[せんべつ]を 任[まか]され\n ウン[うん] 百[ひゃく] 年[ねん]"
+      }
+    },
+    {
+      "id": 1783284358974,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "級[きゅう] 硬貨[こうか]を 持[も]ってるお 前[まえ]は\nレア[れあ]ン[ん]との 接触[せっしょく]は 避[さ]け"
+      },
+      "after": {
+        "SentenceJA": "級[きゅう] 硬貨[こうか]を 持[も]ってるお 前[まえ]は\n レア[れあ]ン[ん]との 接触[せっしょく]は 避[さ]け"
+      }
+    },
+    {
+      "id": 1783284520434,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "まるで 僕[ぼく]が 彼[かれ]に 期待[きたい]してたような\n言[い]い 回[まわ]しだ"
+      },
+      "after": {
+        "SentenceJA": "まるで 僕[ぼく]が 彼[かれ]に 期待[きたい]してたような\n 言[い]い 回[まわ]しだ"
+      }
+    },
+    {
+      "id": 1783284624743,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "かわいそうに\n同情[どうじょう]するよ"
+      },
+      "after": {
+        "SentenceJA": "かわいそうに\n 同情[どうじょう]するよ"
+      }
+    },
+    {
+      "id": 1783284643693,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "己[おのれ]の 無[む] 価値[かち]さを 自覚[じかく]し\n生[い]きていくなど"
+      },
+      "after": {
+        "SentenceJA": "己[おのれ]の 無[む] 価値[かち]さを 自覚[じかく]し\n 生[い]きていくなど"
+      }
+    },
+    {
+      "id": 1783357296319,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "怪我[けが]をしていた 眞[ま] 白[しろ]ちゃんを 手当[てあて]したら<br>送[おく]って 行[い]ってって 言[い]われて…"
+      },
+      "after": {
+        "SentenceJA": "怪我[けが]をしていた 眞[ま] 白[しろ]ちゃんを 手当[てあて]したら<br> 送[おく]って 行[い]ってって 言[い]われて…"
+      }
+    },
+    {
+      "id": 1783439431777,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ミ[み]ギー[ぎー]の 細胞[さいぼう]が\n全身[ぜんしん]に 散[ち]らばってから⸺"
+      },
+      "after": {
+        "SentenceJA": "ミ[み]ギー[ぎー]の 細胞[さいぼう]が\n 全身[ぜんしん]に 散[ち]らばってから⸺"
+      }
+    },
+    {
+      "id": 1783439500658,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ミ[み]ギー[ぎー]の 細胞[さいぼう]が\n全身[ぜんしん]に 散[ち]らばってから⸺"
+      },
+      "after": {
+        "SentenceJA": "ミ[み]ギー[ぎー]の 細胞[さいぼう]が\n 全身[ぜんしん]に 散[ち]らばってから⸺"
+      }
+    },
+    {
+      "id": 1783538220842,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "そうなの びっくりでしょ\n続[つづ]いて 交通[こうつう] 情報[じょうほう]です"
+      },
+      "after": {
+        "SentenceJA": "そうなの びっくりでしょ\n 続[つづ]いて 交通[こうつう] 情報[じょうほう]です"
+      }
+    },
+    {
+      "id": 1783538396495,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "首都[しゅと] 高[こう]４ 号[ごう] 線[せん]は 事故[じこ]の 影響[えいきょう]で…\n豚[ぶた]め"
+      },
+      "after": {
+        "SentenceJA": "首都[しゅと] 高[こう]４ 号[ごう] 線[せん]は 事故[じこ]の 影響[えいきょう]で…\n 豚[ぶた]め"
+      }
+    },
+    {
+      "id": 1783540874722,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "君[きみ]は１つも 間違[まちが]っていない\n私[わたくし]からすればね"
+      },
+      "after": {
+        "SentenceJA": "君[きみ]は１つも 間違[まちが]っていない\n 私[わたくし]からすればね"
+      }
+    },
+    {
+      "id": 1783540957868,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "犬[いぬ]の 体[からだ]は 分解[ぶんかい]されて\n養分[ようぶん]になりこの 木[き]に 受[う]け 継[つ]がれる"
+      },
+      "after": {
+        "SentenceJA": "犬[いぬ]の 体[からだ]は 分解[ぶんかい]されて\n 養分[ようぶん]になりこの 木[き]に 受[う]け 継[つ]がれる"
+      }
+    },
+    {
+      "id": 1783541913603,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "確[たし]か 君[きみ]の クラス[くらす]と\n合同[ごうどう]でやるんだよね"
+      },
+      "after": {
+        "SentenceJA": "確[たし]か 君[きみ]の クラス[くらす]と\n 合同[ごうどう]でやるんだよね"
+      }
+    },
+    {
+      "id": 1783542129195,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "やればやるほど\n全身[ぜんしん]の 操縦[そうじゅう]がうまくなる"
+      },
+      "after": {
+        "SentenceJA": "やればやるほど\n 全身[ぜんしん]の 操縦[そうじゅう]がうまくなる"
+      }
+    },
+    {
+      "id": 1783542141370,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "やればやるほど\n全身[ぜんしん]の 操縦[そうじゅう]がうまくなる"
+      },
+      "after": {
+        "SentenceJA": "やればやるほど\n 全身[ぜんしん]の 操縦[そうじゅう]がうまくなる"
+      }
+    },
+    {
+      "id": 1783542167279,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "回[まわ]りくどいな 俺[おれ]を 油断[ゆだん]させてから\n殺[ころ]そうってのか？"
+      },
+      "after": {
+        "SentenceJA": "回[まわ]りくどいな 俺[おれ]を 油断[ゆだん]させてから\n 殺[ころ]そうってのか？"
+      }
+    },
+    {
+      "id": 1783542175610,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "回[まわ]りくどいな 俺[おれ]を 油断[ゆだん]させてから\n殺[ころ]そうってのか？"
+      },
+      "after": {
+        "SentenceJA": "回[まわ]りくどいな 俺[おれ]を 油断[ゆだん]させてから\n 殺[ころ]そうってのか？"
+      }
+    },
+    {
+      "id": 1783542236276,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "君[きみ]はもちろんこの 学校[がっこう]にいる\n君[きみ]の 周囲[しゅうい]の 人間[にんげん]にも"
+      },
+      "after": {
+        "SentenceJA": "君[きみ]はもちろんこの 学校[がっこう]にいる\n 君[きみ]の 周囲[しゅうい]の 人間[にんげん]にも"
+      }
+    },
+    {
+      "id": 1783543054827,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "まあ ともかく\n戦[たたか]いは 私[わたくし]も 好[この]まない"
+      },
+      "after": {
+        "SentenceJA": "まあ ともかく\n 戦[たたか]いは 私[わたくし]も 好[この]まない"
+      }
+    },
+    {
+      "id": 1783543069679,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "まあ ともかく\n戦[たたか]いは 私[わたくし]も 好[この]まない"
+      },
+      "after": {
+        "SentenceJA": "まあ ともかく\n 戦[たたか]いは 私[わたくし]も 好[この]まない"
+      }
+    },
+    {
+      "id": 1783543077206,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "まあ ともかく\n戦[たたか]いは 私[わたくし]も 好[この]まない"
+      },
+      "after": {
+        "SentenceJA": "まあ ともかく\n 戦[たたか]いは 私[わたくし]も 好[この]まない"
+      }
+    },
+    {
+      "id": 1783629835205,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "“ 道場[どうじょう]には ルール[るーる]があり\n規律[きりつ]があり 常識[じょうしき]がある”"
+      },
+      "after": {
+        "SentenceJA": "“ 道場[どうじょう]には ルール[るーる]があり\n 規律[きりつ]があり 常識[じょうしき]がある”"
+      }
+    },
+    {
+      "id": 1783629860071,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "“ 道場[どうじょう]には ルール[るーる]があり\n規律[きりつ]があり 常識[じょうしき]がある”"
+      },
+      "after": {
+        "SentenceJA": "“ 道場[どうじょう]には ルール[るーる]があり\n 規律[きりつ]があり 常識[じょうしき]がある”"
+      }
+    },
+    {
+      "id": 1783634171079,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "君[きみ]が 武蔵[むさし]に 会[あ]うことを\n望[のぞ]まぬ 男[おとこ]がいる"
+      },
+      "after": {
+        "SentenceJA": "君[きみ]が 武蔵[むさし]に 会[あ]うことを\n 望[のぞ]まぬ 男[おとこ]がいる"
+      }
+    },
+    {
+      "id": 1783698720972,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "“ ロシア[ろしあ]の ライオン[らいおん]”と 呼[よ]ばれた\n英雄[えいゆう] ハッケンシュミット[はっけんしゅみっと]"
+      },
+      "after": {
+        "SentenceJA": "“ ロシア[ろしあ]の ライオン[らいおん]”と 呼[よ]ばれた\n 英雄[えいゆう] ハッケンシュミット[はっけんしゅみっと]"
+      }
+    },
+    {
+      "id": 1783698722583,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "“ ロシア[ろしあ]の ライオン[らいおん]”と 呼[よ]ばれた\n英雄[えいゆう] ハッケンシュミット[はっけんしゅみっと]"
+      },
+      "after": {
+        "SentenceJA": "“ ロシア[ろしあ]の ライオン[らいおん]”と 呼[よ]ばれた\n 英雄[えいゆう] ハッケンシュミット[はっけんしゅみっと]"
+      }
+    },
+    {
+      "id": 1783698725985,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "“ ロシア[ろしあ]の ライオン[らいおん]”と 呼[よ]ばれた\n英雄[えいゆう] ハッケンシュミット[はっけんしゅみっと]"
+      },
+      "after": {
+        "SentenceJA": "“ ロシア[ろしあ]の ライオン[らいおん]”と 呼[よ]ばれた\n 英雄[えいゆう] ハッケンシュミット[はっけんしゅみっと]"
+      }
+    },
+    {
+      "id": 1783699759860,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "双方[そうほう] 共[とも]に 普段着[ふだんぎ]のまま\n公園[こうえん]を 散歩[さんぽ]する"
+      },
+      "after": {
+        "SentenceJA": "双方[そうほう] 共[とも]に 普段着[ふだんぎ]のまま\n 公園[こうえん]を 散歩[さんぽ]する"
+      }
+    },
+    {
+      "id": 1783699765428,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "双方[そうほう] 共[とも]に 普段着[ふだんぎ]のまま\n公園[こうえん]を 散歩[さんぽ]する"
+      },
+      "after": {
+        "SentenceJA": "双方[そうほう] 共[とも]に 普段着[ふだんぎ]のまま\n 公園[こうえん]を 散歩[さんぽ]する"
+      }
+    },
+    {
+      "id": 1783699815614,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "二人[ふたり]が 出会[であ]うその 時[とき]まで\n散歩[さんぽ]は 続[つづ]く"
+      },
+      "after": {
+        "SentenceJA": "二人[ふたり]が 出会[であ]うその 時[とき]まで\n 散歩[さんぽ]は 続[つづ]く"
+      }
+    },
+    {
+      "id": 1783699872357,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "この 場[ば]をわきまえぬ\n常識[じょうしき]を 欠[か]いた 前田[まえだ]の 申[もう]し 込[こ]みは"
+      },
+      "after": {
+        "SentenceJA": "この 場[ば]をわきまえぬ\n 常識[じょうしき]を 欠[か]いた 前田[まえだ]の 申[もう]し 込[こ]みは"
+      }
+    },
+    {
+      "id": 1783699878752,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "この 場[ば]をわきまえぬ\n常識[じょうしき]を 欠[か]いた 前田[まえだ]の 申[もう]し 込[こ]みは"
+      },
+      "after": {
+        "SentenceJA": "この 場[ば]をわきまえぬ\n 常識[じょうしき]を 欠[か]いた 前田[まえだ]の 申[もう]し 込[こ]みは"
+      }
+    },
+    {
+      "id": 1783699925711,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "この 場[ば]をわきまえぬ\n常識[じょうしき]を 欠[か]いた 前田[まえだ]の 申[もう]し 込[こ]みは"
+      },
+      "after": {
+        "SentenceJA": "この 場[ば]をわきまえぬ\n 常識[じょうしき]を 欠[か]いた 前田[まえだ]の 申[もう]し 込[こ]みは"
+      }
+    },
+    {
+      "id": 1783699927652,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "この 場[ば]をわきまえぬ\n常識[じょうしき]を 欠[か]いた 前田[まえだ]の 申[もう]し 込[こ]みは"
+      },
+      "after": {
+        "SentenceJA": "この 場[ば]をわきまえぬ\n 常識[じょうしき]を 欠[か]いた 前田[まえだ]の 申[もう]し 込[こ]みは"
+      }
+    },
+    {
+      "id": 1783705483726,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "いずれにしろ 相手[あいて]は\n選手[せんしゅ]でも 競技者[きょうぎしゃ]でもない"
+      },
+      "after": {
+        "SentenceJA": "いずれにしろ 相手[あいて]は\n 選手[せんしゅ]でも 競技者[きょうぎしゃ]でもない"
+      }
+    },
+    {
+      "id": 1783705835507,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ジャック[じゃっく]に 今[いま] 起[お]きている 事態[じたい]を\n一瞬[いっしゅん]で 骨身[ほねみ]に 染[し]みさせた"
+      },
+      "after": {
+        "SentenceJA": "ジャック[じゃっく]に 今[いま] 起[お]きている 事態[じたい]を\n 一瞬[いっしゅん]で 骨身[ほねみ]に 染[し]みさせた"
+      }
+    },
+    {
+      "id": 1783705837504,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ジャック[じゃっく]に 今[いま] 起[お]きている 事態[じたい]を\n一瞬[いっしゅん]で 骨身[ほねみ]に 染[し]みさせた"
+      },
+      "after": {
+        "SentenceJA": "ジャック[じゃっく]に 今[いま] 起[お]きている 事態[じたい]を\n 一瞬[いっしゅん]で 骨身[ほねみ]に 染[し]みさせた"
+      }
+    },
+    {
+      "id": 1783705843025,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ジャック[じゃっく]に 今[いま] 起[お]きている 事態[じたい]を\n一瞬[いっしゅん]で 骨身[ほねみ]に 染[し]みさせた"
+      },
+      "after": {
+        "SentenceJA": "ジャック[じゃっく]に 今[いま] 起[お]きている 事態[じたい]を\n 一瞬[いっしゅん]で 骨身[ほねみ]に 染[し]みさせた"
+      }
+    },
+    {
+      "id": 1783706086582,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "鍛[きた]え 込[こ]まれた 競技者[きょうぎしゃ]は\n武術家[ぶじゅつか]にとりいつだって 脅威[きょうい]"
+      },
+      "after": {
+        "SentenceJA": "鍛[きた]え 込[こ]まれた 競技者[きょうぎしゃ]は\n 武術家[ぶじゅつか]にとりいつだって 脅威[きょうい]"
+      }
+    },
+    {
+      "id": 1783706091145,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "鍛[きた]え 込[こ]まれた 競技者[きょうぎしゃ]は\n武術家[ぶじゅつか]にとりいつだって 脅威[きょうい]"
+      },
+      "after": {
+        "SentenceJA": "鍛[きた]え 込[こ]まれた 競技者[きょうぎしゃ]は\n 武術家[ぶじゅつか]にとりいつだって 脅威[きょうい]"
+      }
+    },
+    {
+      "id": 1783706094768,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "鍛[きた]え 込[こ]まれた 競技者[きょうぎしゃ]は\n武術家[ぶじゅつか]にとりいつだって 脅威[きょうい]"
+      },
+      "after": {
+        "SentenceJA": "鍛[きた]え 込[こ]まれた 競技者[きょうぎしゃ]は\n 武術家[ぶじゅつか]にとりいつだって 脅威[きょうい]"
+      }
+    },
+    {
+      "id": 1783706143849,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "たとえ 相手[あいて]が\n球技[きゅうぎ]の 選手[せんしゅ]だったとしても"
+      },
+      "after": {
+        "SentenceJA": "たとえ 相手[あいて]が\n 球技[きゅうぎ]の 選手[せんしゅ]だったとしても"
+      }
+    },
+    {
+      "id": 1783706164456,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "トップアスリート[とっぷあすりーと]を 制[せい]するのは\n至難[しなん]の 業[ごう]"
+      },
+      "after": {
+        "SentenceJA": "トップアスリート[とっぷあすりーと]を 制[せい]するのは\n 至難[しなん]の 業[ごう]"
+      }
+    },
+    {
+      "id": 1783706170859,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "トップアスリート[とっぷあすりーと]を 制[せい]するのは\n至難[しなん]の 業[ごう]"
+      },
+      "after": {
+        "SentenceJA": "トップアスリート[とっぷあすりーと]を 制[せい]するのは\n 至難[しなん]の 業[ごう]"
+      }
+    },
+    {
+      "id": 1783706175959,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "トップアスリート[とっぷあすりーと]を 制[せい]するのは\n至難[しなん]の 業[ごう]"
+      },
+      "after": {
+        "SentenceJA": "トップアスリート[とっぷあすりーと]を 制[せい]するのは\n 至難[しなん]の 業[ごう]"
+      }
+    },
+    {
+      "id": 1783706324987,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "圧倒的[あっとうてき]な 体力差[たいりょくさ]に\n押[お]し 切[き]られるだろう"
+      },
+      "after": {
+        "SentenceJA": "圧倒的[あっとうてき]な 体力差[たいりょくさ]に\n 押[お]し 切[き]られるだろう"
+      }
+    },
+    {
+      "id": 1783706402984,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "圧倒的[あっとうてき]な 体力差[たいりょくさ]に\n押[お]し 切[き]られるだろう"
+      },
+      "after": {
+        "SentenceJA": "圧倒的[あっとうてき]な 体力差[たいりょくさ]に\n 押[お]し 切[き]られるだろう"
+      }
+    },
+    {
+      "id": 1783706469366,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "超破格[ちょうはかく]の サイズ[さいず]を 自在[じざい]に 操[あやつ]る\nフィジカルモンスター[ふぃじかるもんすたー]だ"
+      },
+      "after": {
+        "SentenceJA": "超破格[ちょうはかく]の サイズ[さいず]を 自在[じざい]に 操[あやつ]る\n フィジカルモンスター[ふぃじかるもんすたー]だ"
+      }
+    },
+    {
+      "id": 1783706471274,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "超破格[ちょうはかく]の サイズ[さいず]を 自在[じざい]に 操[あやつ]る\nフィジカルモンスター[ふぃじかるもんすたー]だ"
+      },
+      "after": {
+        "SentenceJA": "超破格[ちょうはかく]の サイズ[さいず]を 自在[じざい]に 操[あやつ]る\n フィジカルモンスター[ふぃじかるもんすたー]だ"
+      }
+    },
+    {
+      "id": 1783706478370,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "超破格[ちょうはかく]の サイズ[さいず]を 自在[じざい]に 操[あやつ]る\nフィジカルモンスター[ふぃじかるもんすたー]だ"
+      },
+      "after": {
+        "SentenceJA": "超破格[ちょうはかく]の サイズ[さいず]を 自在[じざい]に 操[あやつ]る\n フィジカルモンスター[ふぃじかるもんすたー]だ"
+      }
+    },
+    {
+      "id": 1783706488068,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "超破格[ちょうはかく]の サイズ[さいず]を 自在[じざい]に 操[あやつ]る\nフィジカルモンスター[ふぃじかるもんすたー]だ"
+      },
+      "after": {
+        "SentenceJA": "超破格[ちょうはかく]の サイズ[さいず]を 自在[じざい]に 操[あやつ]る\n フィジカルモンスター[ふぃじかるもんすたー]だ"
+      }
+    },
+    {
+      "id": 1783706512494,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "なんだ？\n撮影[さつえい]？"
+      },
+      "after": {
+        "SentenceJA": "なんだ？\n 撮影[さつえい]？"
+      }
+    },
+    {
+      "id": 1783706710833,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "本来[ほんらい]の ジャック[じゃっく]なら 一瞬[いっしゅん]で\n骨[ほね]ごとかみちぎるはずだぜ"
+      },
+      "after": {
+        "SentenceJA": "本来[ほんらい]の ジャック[じゃっく]なら 一瞬[いっしゅん]で\n 骨[ほね]ごとかみちぎるはずだぜ"
+      }
+    },
+    {
+      "id": 1783706743100,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "本来[ほんらい]の ジャック[じゃっく]なら 一瞬[いっしゅん]で\n骨[ほね]ごとかみちぎるはずだぜ"
+      },
+      "after": {
+        "SentenceJA": "本来[ほんらい]の ジャック[じゃっく]なら 一瞬[いっしゅん]で\n 骨[ほね]ごとかみちぎるはずだぜ"
+      }
+    },
+    {
+      "id": 1783706785033,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "強力[きょうりょく]っちゃ 強力[きょうりょく]だが\n武[ぶ]ではないんだよなあ"
+      },
+      "after": {
+        "SentenceJA": "強力[きょうりょく]っちゃ 強力[きょうりょく]だが\n 武[ぶ]ではないんだよなあ"
+      }
+    },
+    {
+      "id": 1783706813135,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "強力[きょうりょく]っちゃ 強力[きょうりょく]だが\n武[ぶ]ではないんだよなあ"
+      },
+      "after": {
+        "SentenceJA": "強力[きょうりょく]っちゃ 強力[きょうりょく]だが\n 武[ぶ]ではないんだよなあ"
+      }
+    },
+    {
+      "id": 1783707254408,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "もはやせっかく 手[て]にした\n身長[しんちょう]の 意味[いみ]もない"
+      },
+      "after": {
+        "SentenceJA": "もはやせっかく 手[て]にした\n 身長[しんちょう]の 意味[いみ]もない"
+      }
+    },
+    {
+      "id": 1783709048936,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "カメラ[かめら]が 撮[と]った 映像[えいぞう]を 宙[ちゅう]を 飛[と]んで\n運[はこ]んできとるだけで…"
+      },
+      "after": {
+        "SentenceJA": "カメラ[かめら]が 撮[と]った 映像[えいぞう]を 宙[ちゅう]を 飛[と]んで\n 運[はこ]んできとるだけで…"
+      }
+    },
+    {
+      "id": 1783709632519,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ペット[ぺっと]たちにとり\n理想[りそう]の 楽園[らくえん]だった"
+      },
+      "after": {
+        "SentenceJA": "ペット[ぺっと]たちにとり\n 理想[りそう]の 楽園[らくえん]だった"
+      }
+    },
+    {
+      "id": 1783709633022,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ペット[ぺっと]たちにとり\n理想[りそう]の 楽園[らくえん]だった"
+      },
+      "after": {
+        "SentenceJA": "ペット[ぺっと]たちにとり\n 理想[りそう]の 楽園[らくえん]だった"
+      }
+    },
+    {
+      "id": 1783717449113,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "まあ 見[み]ても 見[み]んでも\n結果[けっか]は 一緒[いっしょ]じゃ"
+      },
+      "after": {
+        "SentenceJA": "まあ 見[み]ても 見[み]んでも\n 結果[けっか]は 一緒[いっしょ]じゃ"
+      }
+    },
+    {
+      "id": 1783776988065,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "モラウ[もらう]の“ 監獄[かんごく] ロック[ろっく]”が<br>緩衝材[かんしょうざい]となり 破壊[はかい]は 免[まぬが]れたものの"
+      },
+      "after": {
+        "SentenceJA": "モラウ[もらう]の“ 監獄[かんごく] ロック[ろっく]”が<br> 緩衝材[かんしょうざい]となり 破壊[はかい]は 免[まぬが]れたものの"
+      }
+    },
+    {
+      "id": 1783776995582,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "モラウ[もらう]の“ 監獄[かんごく] ロック[ろっく]”が\n緩衝材[かんしょうざい]となり 破壊[はかい]は 免[まぬが]れたものの"
+      },
+      "after": {
+        "SentenceJA": "モラウ[もらう]の“ 監獄[かんごく] ロック[ろっく]”が\n 緩衝材[かんしょうざい]となり 破壊[はかい]は 免[まぬが]れたものの"
+      }
+    },
+    {
+      "id": 1783777001343,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "モラウ[もらう]の“ 監獄[かんごく] ロック[ろっく]”が\n緩衝材[かんしょうざい]となり 破壊[はかい]は 免[まぬが]れたものの"
+      },
+      "after": {
+        "SentenceJA": "モラウ[もらう]の“ 監獄[かんごく] ロック[ろっく]”が\n 緩衝材[かんしょうざい]となり 破壊[はかい]は 免[まぬが]れたものの"
+      }
+    },
+    {
+      "id": 1783777013847,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "モラウ[もらう]の“ 監獄[かんごく] ロック[ろっく]”が\n緩衝材[かんしょうざい]となり 破壊[はかい]は 免[まぬが]れたものの"
+      },
+      "after": {
+        "SentenceJA": "モラウ[もらう]の“ 監獄[かんごく] ロック[ろっく]”が\n 緩衝材[かんしょうざい]となり 破壊[はかい]は 免[まぬが]れたものの"
+      }
+    },
+    {
+      "id": 1783782209141,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "キルア[きるあ]の“ 神速[しんそく]”は\n自身[じしん]の 肉体[にくたい]に 電気[でんき]の 負荷[ふか]をかけ"
+      },
+      "after": {
+        "SentenceJA": "キルア[きるあ]の“ 神速[しんそく]”は\n 自身[じしん]の 肉体[にくたい]に 電気[でんき]の 負荷[ふか]をかけ"
+      }
+    },
+    {
+      "id": 1783782241444,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "キルア[きるあ]の“ 神速[しんそく]”は\n自身[じしん]の 肉体[にくたい]に 電気[でんき]の 負荷[ふか]をかけ"
+      },
+      "after": {
+        "SentenceJA": "キルア[きるあ]の“ 神速[しんそく]”は\n 自身[じしん]の 肉体[にくたい]に 電気[でんき]の 負荷[ふか]をかけ"
+      }
+    },
+    {
+      "id": 1783782241848,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "キルア[きるあ]の“ 神速[しんそく]”は\n自身[じしん]の 肉体[にくたい]に 電気[でんき]の 負荷[ふか]をかけ"
+      },
+      "after": {
+        "SentenceJA": "キルア[きるあ]の“ 神速[しんそく]”は\n 自身[じしん]の 肉体[にくたい]に 電気[でんき]の 負荷[ふか]をかけ"
+      }
+    },
+    {
+      "id": 1783782422550,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "潜在能力[せんざいのうりょく]の 限界[げんかい]すら 超越[ちょうえつ]する 動[うご]きを\n強制[きょうせい]する 技[わざ]である"
+      },
+      "after": {
+        "SentenceJA": "潜在能力[せんざいのうりょく]の 限界[げんかい]すら 超越[ちょうえつ]する 動[うご]きを\n 強制[きょうせい]する 技[わざ]である"
+      }
+    },
+    {
+      "id": 1783782425363,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "潜在能力[せんざいのうりょく]の 限界[げんかい]すら 超越[ちょうえつ]する 動[うご]きを\n強制[きょうせい]する 技[わざ]である"
+      },
+      "after": {
+        "SentenceJA": "潜在能力[せんざいのうりょく]の 限界[げんかい]すら 超越[ちょうえつ]する 動[うご]きを\n 強制[きょうせい]する 技[わざ]である"
+      }
+    },
+    {
+      "id": 1783782443313,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "潜在能力[せんざいのうりょく]の 限界[げんかい]すら 超越[ちょうえつ]する 動[うご]きを\n強制[きょうせい]する 技[わざ]である"
+      },
+      "after": {
+        "SentenceJA": "潜在能力[せんざいのうりょく]の 限界[げんかい]すら 超越[ちょうえつ]する 動[うご]きを\n 強制[きょうせい]する 技[わざ]である"
+      }
+    },
+    {
+      "id": 1783782444658,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "潜在能力[せんざいのうりょく]の 限界[げんかい]すら 超越[ちょうえつ]する 動[うご]きを\n強制[きょうせい]する 技[わざ]である"
+      },
+      "after": {
+        "SentenceJA": "潜在能力[せんざいのうりょく]の 限界[げんかい]すら 超越[ちょうえつ]する 動[うご]きを\n 強制[きょうせい]する 技[わざ]である"
+      }
+    },
+    {
+      "id": 1783782520678,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "キルア[きるあ]は これを\n性質上[せいしつじょう] 大[おお]きく２つに 分[わ]けた"
+      },
+      "after": {
+        "SentenceJA": "キルア[きるあ]は これを\n 性質上[せいしつじょう] 大[おお]きく２つに 分[わ]けた"
+      }
+    },
+    {
+      "id": 1783782521846,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "キルア[きるあ]は これを\n性質上[せいしつじょう] 大[おお]きく２つに 分[わ]けた"
+      },
+      "after": {
+        "SentenceJA": "キルア[きるあ]は これを\n 性質上[せいしつじょう] 大[おお]きく２つに 分[わ]けた"
+      }
+    },
+    {
+      "id": 1783782556346,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "自分[じぶん]の 意志[いし]で\n肉体[にくたい]を 操作[そうさ]する—"
+      },
+      "after": {
+        "SentenceJA": "自分[じぶん]の 意志[いし]で\n 肉体[にくたい]を 操作[そうさ]する—"
+      }
+    },
+    {
+      "id": 1783782556379,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "自分[じぶん]の 意志[いし]で\n肉体[にくたい]を 操作[そうさ]する—"
+      },
+      "after": {
+        "SentenceJA": "自分[じぶん]の 意志[いし]で\n 肉体[にくたい]を 操作[そうさ]する—"
+      }
+    },
+    {
+      "id": 1783782805786,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "反射[はんしゃ]のみで 繰[く]り 出[だ]される\n限界[げんかい]を 超越[ちょうえつ]した 攻撃[こうげき]は—"
+      },
+      "after": {
+        "SentenceJA": "反射[はんしゃ]のみで 繰[く]り 出[だ]される\n 限界[げんかい]を 超越[ちょうえつ]した 攻撃[こうげき]は—"
+      }
+    },
+    {
+      "id": 1783782807596,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "反射[はんしゃ]のみで 繰[く]り 出[だ]される\n限界[げんかい]を 超越[ちょうえつ]した 攻撃[こうげき]は—"
+      },
+      "after": {
+        "SentenceJA": "反射[はんしゃ]のみで 繰[く]り 出[だ]される\n 限界[げんかい]を 超越[ちょうえつ]した 攻撃[こうげき]は—"
+      }
+    },
+    {
+      "id": 1783782914336,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "どいつもこいつも\n確実[かくじつ]に 俺[おれ]の 10分[じゅうふん]の１ 以下[いか]"
+      },
+      "after": {
+        "SentenceJA": "どいつもこいつも\n 確実[かくじつ]に 俺[おれ]の 10分[じゅうふん]の１ 以下[いか]"
+      }
+    },
+    {
+      "id": 1783782935331,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "どいつもこいつも\n確実[かくじつ]に 俺[おれ]の 10分[じゅうふん]の１ 以下[いか]"
+      },
+      "after": {
+        "SentenceJA": "どいつもこいつも\n 確実[かくじつ]に 俺[おれ]の 10分[じゅうふん]の１ 以下[いか]"
+      }
+    },
+    {
+      "id": 1783783097028,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "しまった<br>俺[おれ] 番号[ばんごう] 聞[き]いてねえや"
+      },
+      "after": {
+        "SentenceJA": "しまった<br> 俺[おれ] 番号[ばんごう] 聞[き]いてねえや"
+      }
+    },
+    {
+      "id": 1783783601854,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "やがて エレベーター[えれべーたー] 内[ない]に\n催眠[さいみん] ガス[がす]が 送[おく]り 込[こ]まれる"
+      },
+      "after": {
+        "SentenceJA": "やがて エレベーター[えれべーたー] 内[ない]に\n 催眠[さいみん] ガス[がす]が 送[おく]り 込[こ]まれる"
+      }
+    },
+    {
+      "id": 1783783610960,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "やがて エレベーター[えれべーたー] 内[ない]に\n催眠[さいみん] ガス[がす]が 送[おく]り 込[こ]まれる"
+      },
+      "after": {
+        "SentenceJA": "やがて エレベーター[えれべーたー] 内[ない]に\n 催眠[さいみん] ガス[がす]が 送[おく]り 込[こ]まれる"
+      }
+    },
+    {
+      "id": 1783783661034,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "これだと ヤツ[やつ]が 目覚[めざ]めても\nエレベーター[えれべーたー]に 閉[と]じ 込[こ]めておけるが"
+      },
+      "after": {
+        "SentenceJA": "これだと ヤツ[やつ]が 目覚[めざ]めても\n エレベーター[えれべーたー]に 閉[と]じ 込[こ]めておけるが"
+      }
+    },
+    {
+      "id": 1783783661723,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "これだと ヤツ[やつ]が 目覚[めざ]めても\nエレベーター[えれべーたー]に 閉[と]じ 込[こ]めておけるが"
+      },
+      "after": {
+        "SentenceJA": "これだと ヤツ[やつ]が 目覚[めざ]めても\n エレベーター[えれべーたー]に 閉[と]じ 込[こ]めておけるが"
+      }
+    },
+    {
+      "id": 1783783667068,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "これだと ヤツ[やつ]が 目覚[めざ]めても\nエレベーター[えれべーたー]に 閉[と]じ 込[こ]めておけるが"
+      },
+      "after": {
+        "SentenceJA": "これだと ヤツ[やつ]が 目覚[めざ]めても\n エレベーター[えれべーたー]に 閉[と]じ 込[こ]めておけるが"
+      }
+    },
+    {
+      "id": 1783821042057,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "そうですね\n以上[いじょう] 現場[げんば]からお 伝[つた]えしました"
+      },
+      "after": {
+        "SentenceJA": "そうですね\n 以上[いじょう] 現場[げんば]からお 伝[つた]えしました"
+      }
+    },
+    {
+      "id": 1783821126310,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "いやあ\n一刻[いっこく]も 早[はや]い 解決[かいけつ]を 望[のぞ]みますね"
+      },
+      "after": {
+        "SentenceJA": "いやあ\n 一刻[いっこく]も 早[はや]い 解決[かいけつ]を 望[のぞ]みますね"
+      }
+    },
+    {
+      "id": 1783821135749,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "いやあ\n一刻[いっこく]も 早[はや]い 解決[かいけつ]を 望[のぞ]みますね"
+      },
+      "after": {
+        "SentenceJA": "いやあ\n 一刻[いっこく]も 早[はや]い 解決[かいけつ]を 望[のぞ]みますね"
+      }
+    },
+    {
+      "id": 1783821176439,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "いやあ\n一刻[いっこく]も 早[はや]い 解決[かいけつ]を 望[のぞ]みますね"
+      },
+      "after": {
+        "SentenceJA": "いやあ\n 一刻[いっこく]も 早[はや]い 解決[かいけつ]を 望[のぞ]みますね"
+      }
+    },
+    {
+      "id": 1783821540077,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "もう ６時[ろくじ] 半[はん]になるわよ\n今日[きょう]は 塾[じゅく]の 日[ひ]でしょ？"
+      },
+      "after": {
+        "SentenceJA": "もう ６時[ろくじ] 半[はん]になるわよ\n 今日[きょう]は 塾[じゅく]の 日[ひ]でしょ？"
+      }
+    },
+    {
+      "id": 1783821893165,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "その ノート[のーと]の 落[お]とし 主[ぬし]\n死神[しにがみ]の リューク[りゅーく]だ"
+      },
+      "after": {
+        "SentenceJA": "その ノート[のーと]の 落[お]とし 主[ぬし]\n 死神[しにがみ]の リューク[りゅーく]だ"
+      }
+    },
+    {
+      "id": 1783862834116,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "僕[ぼく]はすでに 死神[しにがみ]の ノート[のーと]を\n現実[げんじつ]だと 疑[うたが]ってなかったが"
+      },
+      "after": {
+        "SentenceJA": "僕[ぼく]はすでに 死神[しにがみ]の ノート[のーと]を\n 現実[げんじつ]だと 疑[うたが]ってなかったが"
+      }
+    },
+    {
+      "id": 1783862885268,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "こうして いろんなことを\n直視[ちょくし]することで"
+      },
+      "after": {
+        "SentenceJA": "こうして いろんなことを\n 直視[ちょくし]することで"
+      }
+    },
+    {
+      "id": 1783862885738,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "こうして いろんなことを\n直視[ちょくし]することで"
+      },
+      "after": {
+        "SentenceJA": "こうして いろんなことを\n 直視[ちょくし]することで"
+      }
+    },
+    {
+      "id": 1783862943598,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "過去[かこ]に デスノート[ですのーと]が\n人間界[にんげんかい]に 出回[でまわ]った 話[はなし]は"
+      },
+      "after": {
+        "SentenceJA": "過去[かこ]に デスノート[ですのーと]が\n 人間界[にんげんかい]に 出回[でまわ]った 話[はなし]は"
+      }
+    },
+    {
+      "id": 1783862951042,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "過去[かこ]に デスノート[ですのーと]が\n人間界[にんげんかい]に 出回[でまわ]った 話[はなし]は"
+      },
+      "after": {
+        "SentenceJA": "過去[かこ]に デスノート[ですのーと]が\n 人間界[にんげんかい]に 出回[でまわ]った 話[はなし]は"
+      }
+    },
+    {
+      "id": 1783862956486,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "過去[かこ]に デスノート[ですのーと]が\n人間界[にんげんかい]に 出回[でまわ]った 話[はなし]は"
+      },
+      "after": {
+        "SentenceJA": "過去[かこ]に デスノート[ですのーと]が\n 人間界[にんげんかい]に 出回[でまわ]った 話[はなし]は"
+      }
+    },
+    {
+      "id": 1783864243409,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "人間界[にんげんかい]の 地[ち]に\n着[つ]いた 時点[じてん]で"
+      },
+      "after": {
+        "SentenceJA": "人間界[にんげんかい]の 地[ち]に\n 着[つ]いた 時点[じてん]で"
+      }
+    },
+    {
+      "id": 1783864246255,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "人間界[にんげんかい]の 地[ち]に\n着[つ]いた 時点[じてん]で"
+      },
+      "after": {
+        "SentenceJA": "人間界[にんげんかい]の 地[ち]に\n 着[つ]いた 時点[じてん]で"
+      }
+    },
+    {
+      "id": 1783886545155,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "周辺下水道[しゅうへんげすいどう]は 瞬[しばたた]く 間[あいだ]に\nクロロフォルム[くろろふぉるむ]で 満[み]たされた"
+      },
+      "after": {
+        "SentenceJA": "周辺下水道[しゅうへんげすいどう]は 瞬[しばたた]く 間[あいだ]に\n クロロフォルム[くろろふぉるむ]で 満[み]たされた"
+      }
+    },
+    {
+      "id": 1783886558521,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "周辺下水道[しゅうへんげすいどう]は 瞬[またた]く 間[ま]に<br>クロロフォルム[くろろふぉるむ]で 満[み]たされた"
+      },
+      "after": {
+        "SentenceJA": "周辺下水道[しゅうへんげすいどう]は 瞬[またた]く 間[ま]に<br> クロロフォルム[くろろふぉるむ]で 満[み]たされた"
+      }
+    },
+    {
+      "id": 1783886567707,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "周辺下水道[しゅうへんげすいどう]は 瞬[しばたた]く 間[あいだ]に\nクロロフォルム[くろろふぉるむ]で 満[み]たされた"
+      },
+      "after": {
+        "SentenceJA": "周辺下水道[しゅうへんげすいどう]は 瞬[しばたた]く 間[あいだ]に\n クロロフォルム[くろろふぉるむ]で 満[み]たされた"
+      }
+    },
+    {
+      "id": 1783886598401,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "周辺下水道[しゅうへんげすいどう]は 瞬[しばたた]く 間[あいだ]に\nクロロフォルム[くろろふぉるむ]で 満[み]たされた"
+      },
+      "after": {
+        "SentenceJA": "周辺下水道[しゅうへんげすいどう]は 瞬[しばたた]く 間[あいだ]に\n クロロフォルム[くろろふぉるむ]で 満[み]たされた"
+      }
+    },
+    {
+      "id": 1783886623877,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "おい 来[き]たぞ\n伏[ふ]せろ！"
+      },
+      "after": {
+        "SentenceJA": "おい 来[き]たぞ\n 伏[ふ]せろ！"
+      }
+    },
+    {
+      "id": 1784144472768,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "もう １匹[いっぴき]が\nモニター[もにたー] 室[しつ]で 見[み]てやがるんだな"
+      },
+      "after": {
+        "SentenceJA": "もう １匹[いっぴき]が\n モニター[もにたー] 室[しつ]で 見[み]てやがるんだな"
+      }
+    },
+    {
+      "id": 1784145717959,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "てめえの 仲間[なかま]<br>装甲車[そうこうしゃ]から 引[ひ]きずり 出[だ]して"
+      },
+      "after": {
+        "SentenceJA": "てめえの 仲間[なかま]<br> 装甲車[そうこうしゃ]から 引[ひ]きずり 出[だ]して"
+      }
+    },
+    {
+      "id": 1784145778705,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ワイヤー[わいやー] 伝[つた]いに<br>上[うえ]へ 登[のぼ]れたかもしれないのに"
+      },
+      "after": {
+        "SentenceJA": "ワイヤー[わいやー] 伝[つた]いに<br> 上[うえ]へ 登[のぼ]れたかもしれないのに"
+      }
+    },
+    {
+      "id": 1784145924754,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ワイヤー[わいやー] 伝[つた]いに\n上[うえ]へ 登[のぼ]れたかもしれないのに"
+      },
+      "after": {
+        "SentenceJA": "ワイヤー[わいやー] 伝[つた]いに\n 上[うえ]へ 登[のぼ]れたかもしれないのに"
+      }
+    },
+    {
+      "id": 1784221869325,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "タコ[たこ]の 俺[おれ]は\n数[すう] センチ[せんち]あれば 通[とお]れるのさ"
+      },
+      "after": {
+        "SentenceJA": "タコ[たこ]の 俺[おれ]は\n 数[すう] センチ[せんち]あれば 通[とお]れるのさ"
+      }
+    },
+    {
+      "id": 1784229726834,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "こいつを 操[あやつ]って\n地上[ちじょう]に 戻[もど]るほうがずっと 安全[あんぜん]"
+      },
+      "after": {
+        "SentenceJA": "こいつを 操[あやつ]って\n 地上[ちじょう]に 戻[もど]るほうがずっと 安全[あんぜん]"
+      }
+    },
+    {
+      "id": 1784229836951,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "イカルゴ[いかるご]が\n自[みずか]らの 心[こころ]の 弱[よわ]さを 嘆[なげ]いていたころ"
+      },
+      "after": {
+        "SentenceJA": "イカルゴ[いかるご]が\n 自[みずか]らの 心[こころ]の 弱[よわ]さを 嘆[なげ]いていたころ"
+      }
+    },
+    {
+      "id": 1784230215805,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "サナギ[さなぎ]の 中身[なかみ]はドロドロ[どろどろ]で\n生物[せいぶつ]の 体[てい]を 成[な]していないはず"
+      },
+      "after": {
+        "SentenceJA": "サナギ[さなぎ]の 中身[なかみ]はドロドロ[どろどろ]で\n 生物[せいぶつ]の 体[てい]を 成[な]していないはず"
+      }
+    },
+    {
+      "id": 1784230221338,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "サナギ[さなぎ]の 中身[なかみ]はドロドロ[どろどろ]で\n生物[せいぶつ]の 体[てい]を 成[な]していないはず"
+      },
+      "after": {
+        "SentenceJA": "サナギ[さなぎ]の 中身[なかみ]はドロドロ[どろどろ]で\n 生物[せいぶつ]の 体[てい]を 成[な]していないはず"
+      }
+    },
+    {
+      "id": 1784230226289,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "サナギ[さなぎ]の 中身[なかみ]はドロドロ[どろどろ]で\n生物[せいぶつ]の 体[てい]を 成[な]していないはず"
+      },
+      "after": {
+        "SentenceJA": "サナギ[さなぎ]の 中身[なかみ]はドロドロ[どろどろ]で\n 生物[せいぶつ]の 体[てい]を 成[な]していないはず"
+      }
+    },
+    {
+      "id": 1784230230782,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "サナギ[さなぎ]の 中身[なかみ]はドロドロ[どろどろ]で\n生物[せいぶつ]の 体[てい]を 成[な]していないはず"
+      },
+      "after": {
+        "SentenceJA": "サナギ[さなぎ]の 中身[なかみ]はドロドロ[どろどろ]で\n 生物[せいぶつ]の 体[てい]を 成[な]していないはず"
+      }
+    },
+    {
+      "id": 1784230284573,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ヤツ[やつ]が 今[いま] 形態[けいたい]を 変[か]えるために\n全[まった]く 無防備[むぼうび]の 状態[じょうたい]ならば—"
+      },
+      "after": {
+        "SentenceJA": "ヤツ[やつ]が 今[いま] 形態[けいたい]を 変[か]えるために\n 全[まった]く 無防備[むぼうび]の 状態[じょうたい]ならば—"
+      }
+    },
+    {
+      "id": 1784230290980,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ヤツ[やつ]が 今[いま] 形態[けいたい]を 変[か]えるために\n全[まった]く 無防備[むぼうび]の 状態[じょうたい]ならば—"
+      },
+      "after": {
+        "SentenceJA": "ヤツ[やつ]が 今[いま] 形態[けいたい]を 変[か]えるために\n 全[まった]く 無防備[むぼうび]の 状態[じょうたい]ならば—"
+      }
+    },
+    {
+      "id": 1784230297547,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ヤツ[やつ]が 今[いま] 形態[けいたい]を 変[か]えるために\n全[まった]く 無防備[むぼうび]の 状態[じょうたい]ならば—"
+      },
+      "after": {
+        "SentenceJA": "ヤツ[やつ]が 今[いま] 形態[けいたい]を 変[か]えるために\n 全[まった]く 無防備[むぼうび]の 状態[じょうたい]ならば—"
+      }
+    },
+    {
+      "id": 1784230890629,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "しかし 問題[もんだい]は\n俺[おれ]が 攻撃[こうげき]して 発動[はつどう]するワナ[わな]か…"
+      },
+      "after": {
+        "SentenceJA": "しかし 問題[もんだい]は\n 俺[おれ]が 攻撃[こうげき]して 発動[はつどう]するワナ[わな]か…"
+      }
+    },
+    {
+      "id": 1784231709866,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "初志[しょし]を 捨[す]て\n根拠[こんきょ]のない 答[こた]えに 身[み]を 投[とう]じると？"
+      },
+      "after": {
+        "SentenceJA": "初志[しょし]を 捨[す]て\n 根拠[こんきょ]のない 答[こた]えに 身[み]を 投[とう]じると？"
+      }
+    },
+    {
+      "id": 1784231710145,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "初志[しょし]を 捨[す]て\n根拠[こんきょ]のない 答[こた]えに 身[み]を 投[とう]じると？"
+      },
+      "after": {
+        "SentenceJA": "初志[しょし]を 捨[す]て\n 根拠[こんきょ]のない 答[こた]えに 身[み]を 投[とう]じると？"
+      }
+    },
+    {
+      "id": 1784231720020,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "初志[しょし]を 捨[す]て\n根拠[こんきょ]のない 答[こた]えに 身[み]を 投[とう]じると？"
+      },
+      "after": {
+        "SentenceJA": "初志[しょし]を 捨[す]て\n 根拠[こんきょ]のない 答[こた]えに 身[み]を 投[とう]じると？"
+      }
+    },
+    {
+      "id": 1784231724557,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "初志[しょし]を 捨[す]て\n根拠[こんきょ]のない 答[こた]えに 身[み]を 投[とう]じると？"
+      },
+      "after": {
+        "SentenceJA": "初志[しょし]を 捨[す]て\n 根拠[こんきょ]のない 答[こた]えに 身[み]を 投[とう]じると？"
+      }
+    },
+    {
+      "id": 1784234115415,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "こっちの 意図[いと]を 知[し]ったうえでの\n待機[たいき]ならそれがお 前[まえ]の 能力[のうりょく]…"
+      },
+      "after": {
+        "SentenceJA": "こっちの 意図[いと]を 知[し]ったうえでの\n 待機[たいき]ならそれがお 前[まえ]の 能力[のうりょく]…"
+      }
+    },
+    {
+      "id": 1784234121907,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "こっちの 意図[いと]を 知[し]ったうえでの\n待機[たいき]ならそれがお 前[まえ]の 能力[のうりょく]…"
+      },
+      "after": {
+        "SentenceJA": "こっちの 意図[いと]を 知[し]ったうえでの\n 待機[たいき]ならそれがお 前[まえ]の 能力[のうりょく]…"
+      }
+    },
+    {
+      "id": 1784234225687,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ダメ 押[お]しは 俺[おれ]が 煙管[きせる]を 構[かま]えて\n気[き]を 入[い]れた 瞬間[しゅんかん]の 反応[はんのう]のなさ"
+      },
+      "after": {
+        "SentenceJA": "ダメ 押[お]しは 俺[おれ]が 煙管[きせる]を 構[かま]えて\n 気[き]を 入[い]れた 瞬間[しゅんかん]の 反応[はんのう]のなさ"
+      }
+    },
+    {
+      "id": 1784234228200,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ダメ 押[お]しは 俺[おれ]が 煙管[きせる]を 構[かま]えて\n気[き]を 入[い]れた 瞬間[しゅんかん]の 反応[はんのう]のなさ"
+      },
+      "after": {
+        "SentenceJA": "ダメ 押[お]しは 俺[おれ]が 煙管[きせる]を 構[かま]えて\n 気[き]を 入[い]れた 瞬間[しゅんかん]の 反応[はんのう]のなさ"
+      }
+    },
+    {
+      "id": 1784328724552,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "実行[じっこう]するまでに<br>消費[しょうひ]すると 踏[ふ]んだ 時間[じかん]"
+      },
+      "after": {
+        "SentenceJA": "実行[じっこう]するまでに<br> 消費[しょうひ]すると 踏[ふ]んだ 時間[じかん]"
+      }
+    },
+    {
+      "id": 1784329153187,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "私[わたし]を 結界[けっかい]に 閉[と]じ 込[こ]めたのは<br>王[おう]との 分断[ぶんだん]のためでしょう？"
+      },
+      "after": {
+        "SentenceJA": "私[わたし]を 結界[けっかい]に 閉[と]じ 込[こ]めたのは<br> 王[おう]との 分断[ぶんだん]のためでしょう？"
+      }
+    },
+    {
+      "id": 1784329737750,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ひと 粒[つぶ]ひと 粒[つぶ]は<br>目[め]に 見[み]えねえわけだ"
+      },
+      "after": {
+        "SentenceJA": "ひと 粒[つぶ]ひと 粒[つぶ]は<br> 目[め]に 見[み]えねえわけだ"
+      }
+    },
+    {
+      "id": 1784329901869,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "正直[しょうじき] 私[わたし]は 困[こま]っていたのですよ<br>閉[と]じ 込[こ]められている 状況[じょうきょう]に"
+      },
+      "after": {
+        "SentenceJA": "正直[しょうじき] 私[わたし]は 困[こま]っていたのですよ<br> 閉[と]じ 込[こ]められている 状況[じょうきょう]に"
+      }
+    },
+    {
+      "id": 1784329989765,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "もっと 優秀[ゆうしゅう]な 兵士[へいし]だと<br>思[おも]っていました"
+      },
+      "after": {
+        "SentenceJA": "もっと 優秀[ゆうしゅう]な 兵士[へいし]だと<br> 思[おも]っていました"
+      }
+    },
+    {
+      "id": 1784372466192,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "あの 時点[じてん]での<br>サナギ[さなぎ]への 攻撃[こうげき]は ベスト[べすと]の 選択[せんたく]"
+      },
+      "after": {
+        "SentenceJA": "あの 時点[じてん]での<br> サナギ[さなぎ]への 攻撃[こうげき]は ベスト[べすと]の 選択[せんたく]"
+      }
+    },
+    {
+      "id": 1784372595453,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "いや 終[お]わったことを<br>考[かんが]えてる 時点[じてん]で ヤツ[やつ]の 術中[じゅっちゅう]！"
+      },
+      "after": {
+        "SentenceJA": "いや 終[お]わったことを<br> 考[かんが]えてる 時点[じてん]で ヤツ[やつ]の 術中[じゅっちゅう]！"
+      }
+    },
+    {
+      "id": 1784372616714,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "分散[ぶんさん]したヤツ[やつ]の<br>目的[もくてき]を 予想[よそう]し 阻止[そし]する"
+      },
+      "after": {
+        "SentenceJA": "分散[ぶんさん]したヤツ[やつ]の<br> 目的[もくてき]を 予想[よそう]し 阻止[そし]する"
+      }
+    },
+    {
+      "id": 1784372620743,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "分散[ぶんさん]したヤツ[やつ]の<br>目的[もくてき]を 予想[よそう]し 阻止[そし]する"
+      },
+      "after": {
+        "SentenceJA": "分散[ぶんさん]したヤツ[やつ]の<br> 目的[もくてき]を 予想[よそう]し 阻止[そし]する"
+      }
+    },
+    {
+      "id": 1784372623995,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "分散[ぶんさん]したヤツ[やつ]の<br>目的[もくてき]を 予想[よそう]し 阻止[そし]する"
+      },
+      "after": {
+        "SentenceJA": "分散[ぶんさん]したヤツ[やつ]の<br> 目的[もくてき]を 予想[よそう]し 阻止[そし]する"
+      }
+    },
+    {
+      "id": 1784372940880,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "これで ナックル[なっくる]を<br>全力[ぜんりょく]でサポート[さぽーと]する！"
+      },
+      "after": {
+        "SentenceJA": "これで ナックル[なっくる]を<br> 全力[ぜんりょく]でサポート[さぽーと]する！"
+      }
+    },
+    {
+      "id": 1784372940975,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "これで ナックル[なっくる]を<br>全力[ぜんりょく]でサポート[さぽーと]する！"
+      },
+      "after": {
+        "SentenceJA": "これで ナックル[なっくる]を<br> 全力[ぜんりょく]でサポート[さぽーと]する！"
+      }
+    },
+    {
+      "id": 1784394829546,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "私[わたし]も 女王[じょおう] 目指[めざ]して<br>旅[たび]しちゃおうっと！"
+      },
+      "after": {
+        "SentenceJA": "私[わたし]も 女王[じょおう] 目指[めざ]して<br> 旅[たび]しちゃおうっと！"
+      }
+    },
+    {
+      "id": 1784394903340,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "じゃ せめて<br>誰[だれ]か 呼[よ]んできてくれ"
+      },
+      "after": {
+        "SentenceJA": "じゃ せめて<br> 誰[だれ]か 呼[よ]んできてくれ"
+      }
+    },
+    {
+      "id": 1784395668915,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ボス[ぼす]が 消息不明[しょうそくふめい]で<br>王[おう]とは 直接[ちょくせつ]のつながりないし"
+      },
+      "after": {
+        "SentenceJA": "ボス[ぼす]が 消息不明[しょうそくふめい]で<br> 王[おう]とは 直接[ちょくせつ]のつながりないし"
+      }
+    },
+    {
+      "id": 1784395681660,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ボス[ぼす]が 消息不明[しょうそくふめい]で<br>王[おう]とは 直接[ちょくせつ]のつながりないし"
+      },
+      "after": {
+        "SentenceJA": "ボス[ぼす]が 消息不明[しょうそくふめい]で<br> 王[おう]とは 直接[ちょくせつ]のつながりないし"
+      }
+    },
+    {
+      "id": 1784395687515,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ボス[ぼす]が 消息不明[しょうそくふめい]で<br>王[おう]とは 直接[ちょくせつ]のつながりないし"
+      },
+      "after": {
+        "SentenceJA": "ボス[ぼす]が 消息不明[しょうそくふめい]で<br> 王[おう]とは 直接[ちょくせつ]のつながりないし"
+      }
+    },
+    {
+      "id": 1784396963945,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "恐[おそ]らく 蟻[あり]が 生物兵器[せいぶつへいき]という<br>絶好[ぜっこう]の 口実[こうじつ]になったんだ"
+      },
+      "after": {
+        "SentenceJA": "恐[おそ]らく 蟻[あり]が 生物兵器[せいぶつへいき]という<br> 絶好[ぜっこう]の 口実[こうじつ]になったんだ"
+      }
+    },
+    {
+      "id": 1784396970116,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "恐[おそ]らく 蟻[あり]が 生物兵器[せいぶつへいき]という<br>絶好[ぜっこう]の 口実[こうじつ]になったんだ"
+      },
+      "after": {
+        "SentenceJA": "恐[おそ]らく 蟻[あり]が 生物兵器[せいぶつへいき]という<br> 絶好[ぜっこう]の 口実[こうじつ]になったんだ"
+      }
+    },
+    {
+      "id": 1784396976563,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "恐[おそ]らく 蟻[あり]が 生物兵器[せいぶつへいき]という<br>絶好[ぜっこう]の 口実[こうじつ]になったんだ"
+      },
+      "after": {
+        "SentenceJA": "恐[おそ]らく 蟻[あり]が 生物兵器[せいぶつへいき]という<br> 絶好[ぜっこう]の 口実[こうじつ]になったんだ"
+      }
+    },
+    {
+      "id": 1784410108568,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "あとは 宮殿[きゅうでん]に 戻[もど]り<br>現状[げんじょう]を 把握[はあく]し 王[おう]のもとへ"
+      },
+      "after": {
+        "SentenceJA": "あとは 宮殿[きゅうでん]に 戻[もど]り<br> 現状[げんじょう]を 把握[はあく]し 王[おう]のもとへ"
+      }
+    },
+    {
+      "id": 1784410150873,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "あとは 宮殿[きゅうでん]に 戻[もど]り<br>現状[げんじょう]を 把握[はあく]し 王[おう]のもとへ"
+      },
+      "after": {
+        "SentenceJA": "あとは 宮殿[きゅうでん]に 戻[もど]り<br> 現状[げんじょう]を 把握[はあく]し 王[おう]のもとへ"
+      }
+    },
+    {
+      "id": 1784410191456,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "あとは 宮殿[きゅうでん]に 戻[もど]り<br>現状[げんじょう]を 把握[はあく]し 王[おう]のもとへ"
+      },
+      "after": {
+        "SentenceJA": "あとは 宮殿[きゅうでん]に 戻[もど]り<br> 現状[げんじょう]を 把握[はあく]し 王[おう]のもとへ"
+      }
+    },
+    {
+      "id": 1784410732632,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "自分[じぶん]の 体[からだ]を 最小[さいしょう]ナノ[なの]サイズ[さいず]まで<br>分解[ぶんかい]することができる 能力[のうりょく]である"
+      },
+      "after": {
+        "SentenceJA": "自分[じぶん]の 体[からだ]を 最小[さいしょう]ナノ[なの]サイズ[さいず]まで<br> 分解[ぶんかい]することができる 能力[のうりょく]である"
+      }
+    },
+    {
+      "id": 1784410837379,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "自身[じしん]をさまざまな 大[おお]きさ 数[すう]に<br>分割[ぶんかつ]することが 可能[かのう]で"
+      },
+      "after": {
+        "SentenceJA": "自身[じしん]をさまざまな 大[おお]きさ 数[すう]に<br> 分割[ぶんかつ]することが 可能[かのう]で"
+      }
+    },
+    {
+      "id": 1784410842790,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "自身[じしん]をさまざまな 大[おお]きさ 数[すう]に<br>分割[ぶんかつ]することが 可能[かのう]で"
+      },
+      "after": {
+        "SentenceJA": "自身[じしん]をさまざまな 大[おお]きさ 数[すう]に<br> 分割[ぶんかつ]することが 可能[かのう]で"
+      }
+    },
+    {
+      "id": 1784459668179,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "あなたが 結界[けっかい]を 解除[かいじょ]しなければ<br>私自身[わたくしじしん]は 脱出[だっしゅつ]できませんでした"
+      },
+      "after": {
+        "SentenceJA": "あなたが 結界[けっかい]を 解除[かいじょ]しなければ<br> 私自身[わたくしじしん]は 脱出[だっしゅつ]できませんでした"
+      }
+    },
+    {
+      "id": 1784459994419,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "あなたはもっと 慎重[しんちょう]に<br>迷[まよ]うべきだったのです"
+      },
+      "after": {
+        "SentenceJA": "あなたはもっと 慎重[しんちょう]に<br> 迷[まよ]うべきだったのです"
+      }
+    },
+    {
+      "id": 1784460071852,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "先[さき]ほどあなたに 吐露[とろ]した 作戦[さくせん]は<br>私[わたし]にとっていわば 決死[けっし]の 策[さく]"
+      },
+      "after": {
+        "SentenceJA": "先[さき]ほどあなたに 吐露[とろ]した 作戦[さくせん]は<br> 私[わたし]にとっていわば 決死[けっし]の 策[さく]"
+      }
+    },
+    {
+      "id": 1784460082775,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "先[さき]ほどあなたに 吐露[とろ]した 作戦[さくせん]は<br>私[わたし]にとっていわば 決死[けっし]の 策[さく]"
+      },
+      "after": {
+        "SentenceJA": "先[さき]ほどあなたに 吐露[とろ]した 作戦[さくせん]は<br> 私[わたし]にとっていわば 決死[けっし]の 策[さく]"
+      }
+    },
+    {
+      "id": 1784460089229,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "先[さき]ほどあなたに 吐露[とろ]した 作戦[さくせん]は<br>私[わたし]にとっていわば 決死[けっし]の 策[さく]"
+      },
+      "after": {
+        "SentenceJA": "先[さき]ほどあなたに 吐露[とろ]した 作戦[さくせん]は<br> 私[わたし]にとっていわば 決死[けっし]の 策[さく]"
+      }
+    },
+    {
+      "id": 1784463617611,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "あなたと 同等程度[どうとうていど]の<br>手[て]だれが 数人[すうにん]いれば—"
+      },
+      "after": {
+        "SentenceJA": "あなたと 同等程度[どうとうていど]の<br> 手[て]だれが 数人[すうにん]いれば—"
+      }
+    },
+    {
+      "id": 1784463618832,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "あなたと 同等程度[どうとうていど]の<br>手[て]だれが 数人[すうにん]いれば—"
+      },
+      "after": {
+        "SentenceJA": "あなたと 同等程度[どうとうていど]の<br> 手[て]だれが 数人[すうにん]いれば—"
+      }
+    },
+    {
+      "id": 1784466813596,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "苦[く]もなく<br>私自身[わたくしじしん]を 捜[さが]し 出[だ]したでしょう"
+      },
+      "after": {
+        "SentenceJA": "苦[く]もなく<br> 私自身[わたくしじしん]を 捜[さが]し 出[だ]したでしょう"
+      }
+    },
+    {
+      "id": 1784466849848,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "苦[く]もなく<br>私自身[わたくしじしん]を 捜[さが]し 出[だ]したでしょう"
+      },
+      "after": {
+        "SentenceJA": "苦[く]もなく<br> 私自身[わたくしじしん]を 捜[さが]し 出[だ]したでしょう"
+      }
+    },
+    {
+      "id": 1784467193317,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "それほどあなたの 感情図[かんじょうず]は<br>優[すぐ]れていたのです"
+      },
+      "after": {
+        "SentenceJA": "それほどあなたの 感情図[かんじょうず]は<br> 優[すぐ]れていたのです"
+      }
+    },
+    {
+      "id": 1784467194756,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "それほどあなたの 感情図[かんじょうず]は<br>優[すぐ]れていたのです"
+      },
+      "after": {
+        "SentenceJA": "それほどあなたの 感情図[かんじょうず]は<br> 優[すぐ]れていたのです"
+      }
+    },
+    {
+      "id": 1784467201908,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "それほどあなたの 感情図[かんじょうず]は<br>優[すぐ]れていたのです"
+      },
+      "after": {
+        "SentenceJA": "それほどあなたの 感情図[かんじょうず]は<br> 優[すぐ]れていたのです"
+      }
+    },
+    {
+      "id": 1784467212477,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "それほどあなたの 感情図[かんじょうず]は<br>優[すぐ]れていたのです"
+      },
+      "after": {
+        "SentenceJA": "それほどあなたの 感情図[かんじょうず]は<br> 優[すぐ]れていたのです"
+      }
+    },
+    {
+      "id": 1784467228157,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "直前[ちょくぜん]の 大爆発[だいばくはつ]で<br>心[こころ]がブレ[ぶれ]たのでしょう"
+      },
+      "after": {
+        "SentenceJA": "直前[ちょくぜん]の 大爆発[だいばくはつ]で<br> 心[こころ]がブレ[ぶれ]たのでしょう"
+      }
+    },
+    {
+      "id": 1784572017434,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "既[すで]に モラウ[もらう]が 万全[ばんぜん]の 体調[たいちょう]からは<br>遠[とお]い 状態[じょうたい]にあったのは 間違[まちが]いない"
+      },
+      "after": {
+        "SentenceJA": "既[すで]に モラウ[もらう]が 万全[ばんぜん]の 体調[たいちょう]からは<br> 遠[とお]い 状態[じょうたい]にあったのは 間違[まちが]いない"
+      }
+    },
+    {
+      "id": 1784572064805,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "そのモラウ[もらう]が 極度[きょくど]の 緊張状態[きんちょうじょうたい]の 中[なか]<br>プフ[ぷふ]との 神経戦[しんけいせん]に 臨[のぞ]み"
+      },
+      "after": {
+        "SentenceJA": "そのモラウ[もらう]が 極度[きょくど]の 緊張状態[きんちょうじょうたい]の 中[なか]<br> プフ[ぷふ]との 神経戦[しんけいせん]に 臨[のぞ]み"
+      }
+    },
+    {
+      "id": 1784572951915,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "そのモラウ[もらう]が 極度[きょくど]の 緊張状態[きんちょうじょうたい]の 中[なか]<br>プフ[ぷふ]との 神経戦[しんけいせん]に 臨[のぞ]み"
+      },
+      "after": {
+        "SentenceJA": "そのモラウ[もらう]が 極度[きょくど]の 緊張状態[きんちょうじょうたい]の 中[なか]<br> プフ[ぷふ]との 神経戦[しんけいせん]に 臨[のぞ]み"
+      }
+    },
+    {
+      "id": 1784572956195,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "そのモラウ[もらう]が 極度[きょくど]の 緊張状態[きんちょうじょうたい]の 中[なか]<br>プフ[ぷふ]との 神経戦[しんけいせん]に 臨[のぞ]み"
+      },
+      "after": {
+        "SentenceJA": "そのモラウ[もらう]が 極度[きょくど]の 緊張状態[きんちょうじょうたい]の 中[なか]<br> プフ[ぷふ]との 神経戦[しんけいせん]に 臨[のぞ]み"
+      }
+    },
+    {
+      "id": 1784572964475,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "そのモラウ[もらう]が 極度[きょくど]の 緊張状態[きんちょうじょうたい]の 中[なか]<br>プフ[ぷふ]との 神経戦[しんけいせん]に 臨[のぞ]み"
+      },
+      "after": {
+        "SentenceJA": "そのモラウ[もらう]が 極度[きょくど]の 緊張状態[きんちょうじょうたい]の 中[なか]<br> プフ[ぷふ]との 神経戦[しんけいせん]に 臨[のぞ]み"
+      }
+    },
+    {
+      "id": 1784572969270,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "そのモラウ[もらう]が 極度[きょくど]の 緊張状態[きんちょうじょうたい]の 中[なか]<br>プフ[ぷふ]との 神経戦[しんけいせん]に 臨[のぞ]み"
+      },
+      "after": {
+        "SentenceJA": "そのモラウ[もらう]が 極度[きょくど]の 緊張状態[きんちょうじょうたい]の 中[なか]<br> プフ[ぷふ]との 神経戦[しんけいせん]に 臨[のぞ]み"
+      }
+    },
+    {
+      "id": 1784572970355,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "そのモラウ[もらう]が 極度[きょくど]の 緊張状態[きんちょうじょうたい]の 中[なか]<br>プフ[ぷふ]との 神経戦[しんけいせん]に 臨[のぞ]み"
+      },
+      "after": {
+        "SentenceJA": "そのモラウ[もらう]が 極度[きょくど]の 緊張状態[きんちょうじょうたい]の 中[なか]<br> プフ[ぷふ]との 神経戦[しんけいせん]に 臨[のぞ]み"
+      }
+    },
+    {
+      "id": 1784573292569,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "そのモラウ[もらう]が 極度[きょくど]の 緊張状態[きんちょうじょうたい]の 中[なか]<br>プフ[ぷふ]との 神経戦[しんけいせん]に 臨[のぞ]み"
+      },
+      "after": {
+        "SentenceJA": "そのモラウ[もらう]が 極度[きょくど]の 緊張状態[きんちょうじょうたい]の 中[なか]<br> プフ[ぷふ]との 神経戦[しんけいせん]に 臨[のぞ]み"
+      }
+    },
+    {
+      "id": 1784574099293,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "疲労[ひろう]と 焦燥[しょうそう]から 早[はや]まった 判断[はんだん]に<br>身[み]を 委[ゆだ]ねたのも 確[たし]かである"
+      },
+      "after": {
+        "SentenceJA": "疲労[ひろう]と 焦燥[しょうそう]から 早[はや]まった 判断[はんだん]に<br> 身[み]を 委[ゆだ]ねたのも 確[たし]かである"
+      }
+    },
+    {
+      "id": 1784574107505,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "疲労[ひろう]と 焦燥[しょうそう]から 早[はや]まった 判断[はんだん]に<br>身[み]を 委[ゆだ]ねたのも 確[たし]かである"
+      },
+      "after": {
+        "SentenceJA": "疲労[ひろう]と 焦燥[しょうそう]から 早[はや]まった 判断[はんだん]に<br> 身[み]を 委[ゆだ]ねたのも 確[たし]かである"
+      }
+    },
+    {
+      "id": 1784574114512,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "疲労[ひろう]と 焦燥[しょうそう]から 早[はや]まった 判断[はんだん]に<br>身[み]を 委[ゆだ]ねたのも 確[たし]かである"
+      },
+      "after": {
+        "SentenceJA": "疲労[ひろう]と 焦燥[しょうそう]から 早[はや]まった 判断[はんだん]に<br> 身[み]を 委[ゆだ]ねたのも 確[たし]かである"
+      }
+    },
+    {
+      "id": 1784574122060,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "疲労[ひろう]と 焦燥[しょうそう]から 早[はや]まった 判断[はんだん]に<br>身[み]を 委[ゆだ]ねたのも 確[たし]かである"
+      },
+      "after": {
+        "SentenceJA": "疲労[ひろう]と 焦燥[しょうそう]から 早[はや]まった 判断[はんだん]に<br> 身[み]を 委[ゆだ]ねたのも 確[たし]かである"
+      }
+    },
+    {
+      "id": 1784574126426,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "疲労[ひろう]と 焦燥[しょうそう]から 早[はや]まった 判断[はんだん]に<br>身[み]を 委[ゆだ]ねたのも 確[たし]かである"
+      },
+      "after": {
+        "SentenceJA": "疲労[ひろう]と 焦燥[しょうそう]から 早[はや]まった 判断[はんだん]に<br> 身[み]を 委[ゆだ]ねたのも 確[たし]かである"
+      }
+    },
+    {
+      "id": 1784574170562,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "しかし<br>ユピー[ゆぴー]とナックル[なっくる]の 一騎打[いっきう]ちを 防[ふせ]ぎ"
+      },
+      "after": {
+        "SentenceJA": "しかし<br> ユピー[ゆぴー]とナックル[なっくる]の 一騎打[いっきう]ちを 防[ふせ]ぎ"
+      }
+    },
+    {
+      "id": 1784574191212,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "しかし<br>ユピー[ゆぴー]とナックル[なっくる]の 一騎打[いっきう]ちを 防[ふせ]ぎ"
+      },
+      "after": {
+        "SentenceJA": "しかし<br> ユピー[ゆぴー]とナックル[なっくる]の 一騎打[いっきう]ちを 防[ふせ]ぎ"
+      }
+    },
+    {
+      "id": 1784574238084,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "しかし<br>ユピー[ゆぴー]とナックル[なっくる]の 一騎打[いっきう]ちを 防[ふせ]ぎ"
+      },
+      "after": {
+        "SentenceJA": "しかし<br> ユピー[ゆぴー]とナックル[なっくる]の 一騎打[いっきう]ちを 防[ふせ]ぎ"
+      }
+    },
+    {
+      "id": 1784574318352,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "結果的[けっかてき]には“ 監獄[かんごく]ロック[ろっく]”を<br>解[と]くタイミング[たいみんぐ]として—"
+      },
+      "after": {
+        "SentenceJA": "結果的[けっかてき]には“ 監獄[かんごく]ロック[ろっく]”を<br> 解[と]くタイミング[たいみんぐ]として—"
+      }
+    },
+    {
+      "id": 1784574337385,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "唯一無二[ゆいいつむに]<br>絶妙[ぜつみょう]の 判断[はんだん]だったと 言[い]える"
+      },
+      "after": {
+        "SentenceJA": "唯一無二[ゆいいつむに]<br> 絶妙[ぜつみょう]の 判断[はんだん]だったと 言[い]える"
+      }
+    },
+    {
+      "id": 1784574375920,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "唯一無二[ゆいいつむに]<br>絶妙[ぜつみょう]の 判断[はんだん]だったと 言[い]える"
+      },
+      "after": {
+        "SentenceJA": "唯一無二[ゆいいつむに]<br> 絶妙[ぜつみょう]の 判断[はんだん]だったと 言[い]える"
+      }
+    },
+    {
+      "id": 1784574395294,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "それは 偶然[ぐうぜん]の 産物[さんぶつ]によってのみ<br>生[しょう]じたのではなく—"
+      },
+      "after": {
+        "SentenceJA": "それは 偶然[ぐうぜん]の 産物[さんぶつ]によってのみ<br> 生[しょう]じたのではなく—"
+      }
+    },
+    {
+      "id": 1784574429090,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "モラウ[もらう]のあまたの 経験[けいけん]にも<br>助[たす]けられたと 解釈[かいしゃく]するのが—"
+      },
+      "after": {
+        "SentenceJA": "モラウ[もらう]のあまたの 経験[けいけん]にも<br> 助[たす]けられたと 解釈[かいしゃく]するのが—"
+      }
+    },
+    {
+      "id": 1784574530709,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "実際[じっさい]に 目[ま]の 当[あ]たりにした 敵[てき]の 戦力[せんりょく]と<br>仲間[なかま]の 戦力[せんりょく]とをはかりにかけ"
+      },
+      "after": {
+        "SentenceJA": "実際[じっさい]に 目[ま]の 当[あ]たりにした 敵[てき]の 戦力[せんりょく]と<br> 仲間[なかま]の 戦力[せんりょく]とをはかりにかけ"
+      }
+    },
+    {
+      "id": 1784574534197,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "実際[じっさい]に 目[ま]の 当[あ]たりにした 敵[てき]の 戦力[せんりょく]と<br>仲間[なかま]の 戦力[せんりょく]とをはかりにかけ"
+      },
+      "after": {
+        "SentenceJA": "実際[じっさい]に 目[ま]の 当[あ]たりにした 敵[てき]の 戦力[せんりょく]と<br> 仲間[なかま]の 戦力[せんりょく]とをはかりにかけ"
+      }
+    },
+    {
+      "id": 1784574546400,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "実際[じっさい]に 目[ま]の 当[あ]たりにした 敵[てき]の 戦力[せんりょく]と<br>仲間[なかま]の 戦力[せんりょく]とをはかりにかけ"
+      },
+      "after": {
+        "SentenceJA": "実際[じっさい]に 目[ま]の 当[あ]たりにした 敵[てき]の 戦力[せんりょく]と<br> 仲間[なかま]の 戦力[せんりょく]とをはかりにかけ"
+      }
+    },
+    {
+      "id": 1784574571322,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "当初[とうしょ]の 読[よ]みが 甘[あま]すぎたことを<br>無意識下[むいしきか]では 感[かん]じていたのだ"
+      },
+      "after": {
+        "SentenceJA": "当初[とうしょ]の 読[よ]みが 甘[あま]すぎたことを<br> 無意識下[むいしきか]では 感[かん]じていたのだ"
+      }
+    },
+    {
+      "id": 1784574597209,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "当初[とうしょ]の 読[よ]みが 甘[あま]すぎたことを<br>無意識下[むいしきか]では 感[かん]じていたのだ"
+      },
+      "after": {
+        "SentenceJA": "当初[とうしょ]の 読[よ]みが 甘[あま]すぎたことを<br> 無意識下[むいしきか]では 感[かん]じていたのだ"
+      }
+    },
+    {
+      "id": 1784574795635,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "助[たす]けに 行[い]く 是非[ぜひ]との<br>葛藤[かっとう]からよけるため—"
+      },
+      "after": {
+        "SentenceJA": "助[たす]けに 行[い]く 是非[ぜひ]との<br> 葛藤[かっとう]からよけるため—"
+      }
+    },
+    {
+      "id": 1784574817571,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "理屈[りくつ]をサナギ[さなぎ]への 攻撃[こうげき]に<br>転嫁[てんか]したにすぎない"
+      },
+      "after": {
+        "SentenceJA": "理屈[りくつ]をサナギ[さなぎ]への 攻撃[こうげき]に<br> 転嫁[てんか]したにすぎない"
+      }
+    },
+    {
+      "id": 1784574835328,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "理屈[りくつ]をサナギ[さなぎ]への 攻撃[こうげき]に<br>転嫁[てんか]したにすぎない"
+      },
+      "after": {
+        "SentenceJA": "理屈[りくつ]をサナギ[さなぎ]への 攻撃[こうげき]に<br> 転嫁[てんか]したにすぎない"
+      }
+    },
+    {
+      "id": 1784575814126,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "しかしなぜそばの 敵[てき]は<br>ピトー[ぴとー]を 攻[せ]めない？"
+      },
+      "after": {
+        "SentenceJA": "しかしなぜそばの 敵[てき]は<br> ピトー[ぴとー]を 攻[せ]めない？"
+      }
+    },
+    {
+      "id": 1784577826784,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "あいつが シュート[しゅーと]を<br>連[つ]れ 去[さ]れるわけがねえんだった"
+      },
+      "after": {
+        "SentenceJA": "あいつが シュート[しゅーと]を<br> 連[つ]れ 去[さ]れるわけがねえんだった"
+      }
+    },
+    {
+      "id": 1784577925119,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "クソ[くそ]！<br>ビゼフ[びぜふ]は 俺[おれ]の 獲物[えもの]だぞ！"
+      },
+      "after": {
+        "SentenceJA": "クソ[くそ]！<br> ビゼフ[びぜふ]は 俺[おれ]の 獲物[えもの]だぞ！"
+      }
+    },
+    {
+      "id": 1784667486836,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "あなたが<br>声[こえ]を 発[はっ]しなければ—"
+      },
+      "after": {
+        "SentenceJA": "あなたが<br> 声[こえ]を 発[はっ]しなければ—"
+      }
+    },
+    {
+      "id": 1784667568884,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "コムギ[こむぎ]のほうへ<br>突[つ]っ 込[こ]んできた"
+      },
+      "after": {
+        "SentenceJA": "コムギ[こむぎ]のほうへ<br> 突[つ]っ 込[こ]んできた"
+      }
+    },
+    {
+      "id": 1784667602027,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "それがまるで 彼女[かのじょ]に<br>危害[きがい]を 及[およ]ぼすかのような 口[くち]ぶり…"
+      },
+      "after": {
+        "SentenceJA": "それがまるで 彼女[かのじょ]に<br> 危害[きがい]を 及[およ]ぼすかのような 口[くち]ぶり…"
+      }
+    },
+    {
+      "id": 1784667604905,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "それがまるで 彼女[かのじょ]に<br>危害[きがい]を 及[およ]ぼすかのような 口[くち]ぶり…"
+      },
+      "after": {
+        "SentenceJA": "それがまるで 彼女[かのじょ]に<br> 危害[きがい]を 及[およ]ぼすかのような 口[くち]ぶり…"
+      }
+    },
+    {
+      "id": 1784667730711,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "状況見[じょうきょうみ]て 撤退含[てったいふく]めて<br>ナックル[なっくる]と 決[き]めてくれ"
+      },
+      "after": {
+        "SentenceJA": "状況見[じょうきょうみ]て 撤退含[てったいふく]めて<br> ナックル[なっくる]と 決[き]めてくれ"
+      }
+    },
+    {
+      "id": 1784667730803,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "状況見[じょうきょうみ]て 撤退含[てったいふく]めて<br>ナックル[なっくる]と 決[き]めてくれ"
+      },
+      "after": {
+        "SentenceJA": "状況見[じょうきょうみ]て 撤退含[てったいふく]めて<br> ナックル[なっくる]と 決[き]めてくれ"
+      }
+    },
+    {
+      "id": 1784668151307,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "俺[おれ]には“カイト[かいと]”っつう<br>最強[さいきょう]の 呪文[じゅもん]があっからな"
+      },
+      "after": {
+        "SentenceJA": "俺[おれ]には“カイト[かいと]”っつう<br> 最強[さいきょう]の 呪文[じゅもん]があっからな"
+      }
+    },
+    {
+      "id": 1784668176895,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "俺[おれ]には“カイト[かいと]”っつう<br>最強[さいきょう]の 呪文[じゅもん]があっからな"
+      },
+      "after": {
+        "SentenceJA": "俺[おれ]には“カイト[かいと]”っつう<br> 最強[さいきょう]の 呪文[じゅもん]があっからな"
+      }
+    },
+    {
+      "id": 1784668685165,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "怒[いか]りだ…  怒[いか]りをためろ！<br>忘[わす]れる 前[まえ]に！"
+      },
+      "after": {
+        "SentenceJA": "怒[いか]りだ…  怒[いか]りをためろ！<br> 忘[わす]れる 前[まえ]に！"
+      }
+    },
+    {
+      "id": 1784668962496,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "なぜ 相反[そうはん]する 感情[かんじょう]が<br>同時[どうじ]に 成[な]り 立[た]つか"
+      },
+      "after": {
+        "SentenceJA": "なぜ 相反[そうはん]する 感情[かんじょう]が<br> 同時[どうじ]に 成[な]り 立[た]つか"
+      }
+    },
+    {
+      "id": 1784671834173,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "念能力[ねんのうりょく]の 使用[しよう]が<br>不可能[ふかのう]となる 瀬戸際[せとぎわ]まで 来[き]ていた"
+      },
+      "after": {
+        "SentenceJA": "念能力[ねんのうりょく]の 使用[しよう]が<br> 不可能[ふかのう]となる 瀬戸際[せとぎわ]まで 来[き]ていた"
+      }
+    },
+    {
+      "id": 1784671846432,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "念能力[ねんのうりょく]の 使用[しよう]が<br>不可能[ふかのう]となる 瀬戸際[せとぎわ]まで 来[き]ていた"
+      },
+      "after": {
+        "SentenceJA": "念能力[ねんのうりょく]の 使用[しよう]が<br> 不可能[ふかのう]となる 瀬戸際[せとぎわ]まで 来[き]ていた"
+      }
+    },
+    {
+      "id": 1784672418099,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ヤツ[やつ]は<br>俺[おれ]が 突[つ]き 刺[さ]そうとした 瞬間[しゅんかん]に…"
+      },
+      "after": {
+        "SentenceJA": "ヤツ[やつ]は<br> 俺[おれ]が 突[つ]き 刺[さ]そうとした 瞬間[しゅんかん]に…"
+      }
+    },
+    {
+      "id": 1784672459692,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "消[き]えたあとに 刺[さ]しても<br>傷[きず]つけられるはずがない"
+      },
+      "after": {
+        "SentenceJA": "消[き]えたあとに 刺[さ]しても<br> 傷[きず]つけられるはずがない"
+      }
+    },
+    {
+      "id": 1784672464096,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "消[き]えたあとに 刺[さ]しても<br>傷[きず]つけられるはずがない"
+      },
+      "after": {
+        "SentenceJA": "消[き]えたあとに 刺[さ]しても<br> 傷[きず]つけられるはずがない"
+      }
+    },
+    {
+      "id": 1784672842083,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ヤツ[やつ]がもう 一度剣[いちどけん]を 振[ふ]り 上[あ]げたら<br>俺[おれ]だけでも 逃[に]げなきゃ…"
+      },
+      "after": {
+        "SentenceJA": "ヤツ[やつ]がもう 一度剣[いちどけん]を 振[ふ]り 上[あ]げたら<br> 俺[おれ]だけでも 逃[に]げなきゃ…"
+      }
+    },
+    {
+      "id": 1784672893375,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "１ 秒[びょう]でも 長[なが]く<br>身[み]を 隠[かく]すことだろうが！"
+      },
+      "after": {
+        "SentenceJA": "１ 秒[びょう]でも 長[なが]く<br> 身[み]を 隠[かく]すことだろうが！"
+      }
+    },
+    {
+      "id": 1784673353998,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "駆除[くじょ]する 標的[ひょうてき]としては<br>見[み]れないッス[っす]"
+      },
+      "after": {
+        "SentenceJA": "駆除[くじょ]する 標的[ひょうてき]としては<br> 見[み]れないッス[っす]"
+      }
+    },
+    {
+      "id": 1784673382630,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "駆除[くじょ]する 標的[ひょうてき]としては<br>見[み]れないッス[っす]"
+      },
+      "after": {
+        "SentenceJA": "駆除[くじょ]する 標的[ひょうてき]としては<br> 見[み]れないッス[っす]"
+      }
+    },
+    {
+      "id": 1784673417179,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "こっちの 真剣[しんけん]を<br>くんでくれたんス[す]よ"
+      },
+      "after": {
+        "SentenceJA": "こっちの 真剣[しんけん]を<br> くんでくれたんス[す]よ"
+      }
+    },
+    {
+      "id": 1784673454826,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "王[おう]がタクト[たくと]を 振[ふ]れば<br>ヤツ[やつ]らは 悪魔[あくま]にでもなるさ"
+      },
+      "after": {
+        "SentenceJA": "王[おう]がタクト[たくと]を 振[ふ]れば<br> ヤツ[やつ]らは 悪魔[あくま]にでもなるさ"
+      }
+    },
+    {
+      "id": 1784673459504,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "王[おう]がタクト[たくと]を 振[ふ]れば<br>ヤツ[やつ]らは 悪魔[あくま]にでもなるさ"
+      },
+      "after": {
+        "SentenceJA": "王[おう]がタクト[たくと]を 振[ふ]れば<br> ヤツ[やつ]らは 悪魔[あくま]にでもなるさ"
+      }
+    },
+    {
+      "id": 1784673845279,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "戦局[せんきょく]が 読[よ]めぬほど<br>凡庸[ぼんよう]な 指[し] 手[て]には 見[み]えぬ"
+      },
+      "after": {
+        "SentenceJA": "戦局[せんきょく]が 読[よ]めぬほど<br> 凡庸[ぼんよう]な 指[し] 手[て]には 見[み]えぬ"
+      }
+    },
+    {
+      "id": 1784673850395,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "戦局[せんきょく]が 読[よ]めぬほど<br>凡庸[ぼんよう]な 指[し] 手[て]には 見[み]えぬ"
+      },
+      "after": {
+        "SentenceJA": "戦局[せんきょく]が 読[よ]めぬほど<br> 凡庸[ぼんよう]な 指[し] 手[て]には 見[み]えぬ"
+      }
+    },
+    {
+      "id": 1784673867634,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "余[よ]はこの 世[よ]を 統[す]べるため<br>生[なま]を 受[う]け—"
+      },
+      "after": {
+        "SentenceJA": "余[よ]はこの 世[よ]を 統[す]べるため<br> 生[なま]を 受[う]け—"
+      }
+    },
+    {
+      "id": 1784673870919,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "余[よ]はこの 世[よ]を 統[す]べるため<br>生[なま]を 受[う]け—"
+      },
+      "after": {
+        "SentenceJA": "余[よ]はこの 世[よ]を 統[す]べるため<br> 生[なま]を 受[う]け—"
+      }
+    },
+    {
+      "id": 1784673903494,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "家畜以上[かちくいじょう]の 感情[かんじょう]を<br>持[も]ちえなかったが…"
+      },
+      "after": {
+        "SentenceJA": "家畜以上[かちくいじょう]の 感情[かんじょう]を<br> 持[も]ちえなかったが…"
+      }
+    },
+    {
+      "id": 1784751137612,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "そいつは 立場上[たちばじょう]<br>聞[き]けねえ 相談[そうだん]だわなぁ"
+      },
+      "after": {
+        "SentenceJA": "そいつは 立場上[たちばじょう]<br> 聞[き]けねえ 相談[そうだん]だわなぁ"
+      }
+    },
+    {
+      "id": 1784751267448,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ここで 何[なに]が 起[お]きたかを 説明[せつめい]するよう<br>ピトー[ぴとー]に 迫[せま]っていた"
+      },
+      "after": {
+        "SentenceJA": "ここで 何[なに]が 起[お]きたかを 説明[せつめい]するよう<br> ピトー[ぴとー]に 迫[せま]っていた"
+      }
+    },
+    {
+      "id": 1784751413693,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "襲撃直後[しゅうげきちょくご] つまり<br>プフ[ぷふ]と 別[わか]れた 時点[じてん]から 語[かた]り 始[はじ]めた"
+      },
+      "after": {
+        "SentenceJA": "襲撃直後[しゅうげきちょくご] つまり<br> プフ[ぷふ]と 別[わか]れた 時点[じてん]から 語[かた]り 始[はじ]めた"
+      }
+    },
+    {
+      "id": 1784751415270,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "襲撃直後[しゅうげきちょくご] つまり<br>プフ[ぷふ]と 別[わか]れた 時点[じてん]から 語[かた]り 始[はじ]めた"
+      },
+      "after": {
+        "SentenceJA": "襲撃直後[しゅうげきちょくご] つまり<br> プフ[ぷふ]と 別[わか]れた 時点[じてん]から 語[かた]り 始[はじ]めた"
+      }
+    },
+    {
+      "id": 1784751489774,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "あの 状況[じょうきょう]を<br>言葉[ことば]で 忠実[ちゅうじつ]に 再現[さいげん]するすべを—"
+      },
+      "after": {
+        "SentenceJA": "あの 状況[じょうきょう]を<br> 言葉[ことば]で 忠実[ちゅうじつ]に 再現[さいげん]するすべを—"
+      }
+    },
+    {
+      "id": 1784752012805,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "国境[こっきょう]という<br>縄張[なわば]りに 似[に]た 仕切[しき]りがあろう"
+      },
+      "after": {
+        "SentenceJA": "国境[こっきょう]という<br> 縄張[なわば]りに 似[に]た 仕切[しき]りがあろう"
+      }
+    },
+    {
+      "id": 1784752014269,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "国境[こっきょう]という<br>縄張[なわば]りに 似[に]た 仕切[しき]りがあろう"
+      },
+      "after": {
+        "SentenceJA": "国境[こっきょう]という<br> 縄張[なわば]りに 似[に]た 仕切[しき]りがあろう"
+      }
+    },
+    {
+      "id": 1784752015593,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "国境[こっきょう]という<br>縄張[なわば]りに 似[に]た 仕切[しき]りがあろう"
+      },
+      "after": {
+        "SentenceJA": "国境[こっきょう]という<br> 縄張[なわば]りに 似[に]た 仕切[しき]りがあろう"
+      }
+    },
+    {
+      "id": 1784752126724,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "平等[びょうどう]とは 言[い]えぬまでも<br>理不尽[りふじん]な 差[さ]のない 世界[せかい]を！"
+      },
+      "after": {
+        "SentenceJA": "平等[びょうどう]とは 言[い]えぬまでも<br> 理不尽[りふじん]な 差[さ]のない 世界[せかい]を！"
+      }
+    },
+    {
+      "id": 1784752127787,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "平等[びょうどう]とは 言[い]えぬまでも<br>理不尽[りふじん]な 差[さ]のない 世界[せかい]を！"
+      },
+      "after": {
+        "SentenceJA": "平等[びょうどう]とは 言[い]えぬまでも<br> 理不尽[りふじん]な 差[さ]のない 世界[せかい]を！"
+      }
+    },
+    {
+      "id": 1784752128346,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "平等[びょうどう]とは 言[い]えぬまでも<br>理不尽[りふじん]な 差[さ]のない 世界[せかい]を！"
+      },
+      "after": {
+        "SentenceJA": "平等[びょうどう]とは 言[い]えぬまでも<br> 理不尽[りふじん]な 差[さ]のない 世界[せかい]を！"
+      }
+    },
+    {
+      "id": 1784752190837,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "力[ちから]と 恐怖[きょうふ]を 利用[りよう]することを<br>否定[ひてい]しない"
+      },
+      "after": {
+        "SentenceJA": "力[ちから]と 恐怖[きょうふ]を 利用[りよう]することを<br> 否定[ひてい]しない"
+      }
+    },
+    {
+      "id": 1784752192493,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "力[ちから]と 恐怖[きょうふ]を 利用[りよう]することを<br>否定[ひてい]しない"
+      },
+      "after": {
+        "SentenceJA": "力[ちから]と 恐怖[きょうふ]を 利用[りよう]することを<br> 否定[ひてい]しない"
+      }
+    },
+    {
+      "id": 1784756522593,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "だが あくまで それは<br>秩序維持[ちつじょいじ]のためと 限定[げんてい]する"
+      },
+      "after": {
+        "SentenceJA": "だが あくまで それは<br> 秩序維持[ちつじょいじ]のためと 限定[げんてい]する"
+      }
+    },
+    {
+      "id": 1784756528066,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "だが あくまで それは<br>秩序維持[ちつじょいじ]のためと 限定[げんてい]する"
+      },
+      "after": {
+        "SentenceJA": "だが あくまで それは<br> 秩序維持[ちつじょいじ]のためと 限定[げんてい]する"
+      }
+    },
+    {
+      "id": 1784756614833,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "余[よ]は 何[なに]のために 力[ちから]を 使[つか]うかを<br>学習[がくしゅう]した"
+      },
+      "after": {
+        "SentenceJA": "余[よ]は 何[なに]のために 力[ちから]を 使[つか]うかを<br> 学習[がくしゅう]した"
+      }
+    },
+    {
+      "id": 1784756653997,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "敗者[はいしゃ]を 虐[しいた]げるためでは<br>決[けっ]してない！"
+      },
+      "after": {
+        "SentenceJA": "敗者[はいしゃ]を 虐[しいた]げるためでは<br> 決[けっ]してない！"
+      }
+    },
+    {
+      "id": 1784756655118,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "敗者[はいしゃ]を 虐[しいた]げるためでは<br>決[けっ]してない！"
+      },
+      "after": {
+        "SentenceJA": "敗者[はいしゃ]を 虐[しいた]げるためでは<br> 決[けっ]してない！"
+      }
+    },
+    {
+      "id": 1784756656241,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "敗者[はいしゃ]を 虐[しいた]げるためでは<br>決[けっ]してない！"
+      },
+      "after": {
+        "SentenceJA": "敗者[はいしゃ]を 虐[しいた]げるためでは<br> 決[けっ]してない！"
+      }
+    },
+    {
+      "id": 1784757691163,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "その２つが<br>絶対[ぜったい]に 交[まじ]わらないことに"
+      },
+      "after": {
+        "SentenceJA": "その２つが<br> 絶対[ぜったい]に 交[まじ]わらないことに"
+      }
+    },
+    {
+      "id": 1784757887980,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "危険生物[きけんせいぶつ]が 根絶[こんぜつ]されることを<br>望[のぞ]んでいるんだ"
+      },
+      "after": {
+        "SentenceJA": "危険生物[きけんせいぶつ]が 根絶[こんぜつ]されることを<br> 望[のぞ]んでいるんだ"
+      }
+    },
+    {
+      "id": 1784757908028,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "絶対[ぜったい]に 蟻[あり]は 根絶[ねだ]やしにして<br>批判[ひはん]は 全[すべ]て ハンター[はんたー] 協会[きょうかい]がかぶれ"
+      },
+      "after": {
+        "SentenceJA": "絶対[ぜったい]に 蟻[あり]は 根絶[ねだ]やしにして<br> 批判[ひはん]は 全[すべ]て ハンター[はんたー] 協会[きょうかい]がかぶれ"
+      }
+    },
+    {
+      "id": 1784757912967,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "絶対[ぜったい]に 蟻[あり]は 根絶[ねだ]やしにして<br>批判[ひはん]は 全[すべ]て ハンター[はんたー] 協会[きょうかい]がかぶれ"
+      },
+      "after": {
+        "SentenceJA": "絶対[ぜったい]に 蟻[あり]は 根絶[ねだ]やしにして<br> 批判[ひはん]は 全[すべ]て ハンター[はんたー] 協会[きょうかい]がかぶれ"
+      }
+    },
+    {
+      "id": 1784757914179,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "絶対[ぜったい]に 蟻[あり]は 根絶[ねだ]やしにして<br>批判[ひはん]は 全[すべ]て ハンター[はんたー] 協会[きょうかい]がかぶれ"
+      },
+      "after": {
+        "SentenceJA": "絶対[ぜったい]に 蟻[あり]は 根絶[ねだ]やしにして<br> 批判[ひはん]は 全[すべ]て ハンター[はんたー] 協会[きょうかい]がかぶれ"
+      }
+    },
+    {
+      "id": 1784758097703,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "飛散[ひさん]した 粒子[りゅうし]を<br>一斉[いっせい]に 移動[いどう]させると 目立[めだ]つので—"
+      },
+      "after": {
+        "SentenceJA": "飛散[ひさん]した 粒子[りゅうし]を<br> 一斉[いっせい]に 移動[いどう]させると 目立[めだ]つので—"
+      }
+    },
+    {
+      "id": 1784758101608,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "飛散[ひさん]した 粒子[りゅうし]を<br>一斉[いっせい]に 移動[いどう]させると 目立[めだ]つので—"
+      },
+      "after": {
+        "SentenceJA": "飛散[ひさん]した 粒子[りゅうし]を<br> 一斉[いっせい]に 移動[いどう]させると 目立[めだ]つので—"
+      }
+    },
+    {
+      "id": 1784758104908,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "飛散[ひさん]した 粒子[りゅうし]を<br>一斉[いっせい]に 移動[いどう]させると 目立[めだ]つので—"
+      },
+      "after": {
+        "SentenceJA": "飛散[ひさん]した 粒子[りゅうし]を<br> 一斉[いっせい]に 移動[いどう]させると 目立[めだ]つので—"
+      }
+    },
+    {
+      "id": 1784758287733,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ユピー[ゆぴー]にも 訪[おとず]れているであろう<br>僅[わず]かな 変化[へんか]に—"
+      },
+      "after": {
+        "SentenceJA": "ユピー[ゆぴー]にも 訪[おとず]れているであろう<br> 僅[わず]かな 変化[へんか]に—"
+      }
+    },
+    {
+      "id": 1784758545562,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "放[はな]たれた 怒気[どき]は<br>王[おう]の 器量[きりょう]としては—"
+      },
+      "after": {
+        "SentenceJA": "放[はな]たれた 怒気[どき]は<br> 王[おう]の 器量[きりょう]としては—"
+      }
+    },
+    {
+      "id": 1784758545957,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "放[はな]たれた 怒気[どき]は<br>王[おう]の 器量[きりょう]としては—"
+      },
+      "after": {
+        "SentenceJA": "放[はな]たれた 怒気[どき]は<br> 王[おう]の 器量[きりょう]としては—"
+      }
+    },
+    {
+      "id": 1784758546361,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "放[はな]たれた 怒気[どき]は<br>王[おう]の 器量[きりょう]としては—"
+      },
+      "after": {
+        "SentenceJA": "放[はな]たれた 怒気[どき]は<br> 王[おう]の 器量[きりょう]としては—"
+      }
+    },
+    {
+      "id": 1784758559254,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "稚児[ちご]の 駄々[だだ]に 親[おや]が 抱[いだ]く 程度[ていど]の<br>僅[わず]かな 焔[ほのお]であったが—"
+      },
+      "after": {
+        "SentenceJA": "稚児[ちご]の 駄々[だだ]に 親[おや]が 抱[いだ]く 程度[ていど]の<br> 僅[わず]かな 焔[ほのお]であったが—"
+      }
+    },
+    {
+      "id": 1784758559599,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "稚児[ちご]の 駄々[だだ]に 親[おや]が 抱[いだ]く 程度[ていど]の<br>僅[わず]かな 焔[ほのお]であったが—"
+      },
+      "after": {
+        "SentenceJA": "稚児[ちご]の 駄々[だだ]に 親[おや]が 抱[いだ]く 程度[ていど]の<br> 僅[わず]かな 焔[ほのお]であったが—"
+      }
+    },
+    {
+      "id": 1784758561847,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "稚児[ちご]の 駄々[だだ]に 親[おや]が 抱[いだ]く 程度[ていど]の<br>僅[わず]かな 焔[ほのお]であったが—"
+      },
+      "after": {
+        "SentenceJA": "稚児[ちご]の 駄々[だだ]に 親[おや]が 抱[いだ]く 程度[ていど]の<br> 僅[わず]かな 焔[ほのお]であったが—"
+      }
+    },
+    {
+      "id": 1784758579509,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "通常[つうじょう]の 立[た]ち 間合[まあ]いの 倍以上[ばいいじょう]<br>下[さ]がらせるに 十分[じゅうぶん]な—"
+      },
+      "after": {
+        "SentenceJA": "通常[つうじょう]の 立[た]ち 間合[まあ]いの 倍以上[ばいいじょう]<br> 下[さ]がらせるに 十分[じゅうぶん]な—"
+      }
+    },
+    {
+      "id": 1784758581320,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "通常[つうじょう]の 立[た]ち 間合[まあ]いの 倍以上[ばいいじょう]<br>下[さ]がらせるに 十分[じゅうぶん]な—"
+      },
+      "after": {
+        "SentenceJA": "通常[つうじょう]の 立[た]ち 間合[まあ]いの 倍以上[ばいいじょう]<br> 下[さ]がらせるに 十分[じゅうぶん]な—"
+      }
+    },
+    {
+      "id": 1784758673482,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "それは<br>決[けっ]して 引[ひ]けぬとの 決意[けつい]を—"
+      },
+      "after": {
+        "SentenceJA": "それは<br> 決[けっ]して 引[ひ]けぬとの 決意[けつい]を—"
+      }
+    },
+    {
+      "id": 1784758792446,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "部下[ぶか]がおぬしの 母親[ははおや]の<br>臨終[りんじゅう]に 立[た]ち 会[あ]ったのよ"
+      },
+      "after": {
+        "SentenceJA": "部下[ぶか]がおぬしの 母親[ははおや]の<br> 臨終[りんじゅう]に 立[た]ち 会[あ]ったのよ"
+      }
+    },
+    {
+      "id": 1784758803774,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "部下[ぶか]がおぬしの 母親[ははおや]の<br>臨終[りんじゅう]に 立[た]ち 会[あ]ったのよ"
+      },
+      "after": {
+        "SentenceJA": "部下[ぶか]がおぬしの 母親[ははおや]の<br> 臨終[りんじゅう]に 立[た]ち 会[あ]ったのよ"
+      }
+    },
+    {
+      "id": 1784758805806,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "部下[ぶか]がおぬしの 母親[ははおや]の<br>臨終[りんじゅう]に 立[た]ち 会[あ]ったのよ"
+      },
+      "after": {
+        "SentenceJA": "部下[ぶか]がおぬしの 母親[ははおや]の<br> 臨終[りんじゅう]に 立[た]ち 会[あ]ったのよ"
+      }
+    },
+    {
+      "id": 1784758837749,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "その 部下[ぶか]も 護衛軍[ごえいぐん]との 戦闘[せんとう]で<br>死[し]んでしまったかもな"
+      },
+      "after": {
+        "SentenceJA": "その 部下[ぶか]も 護衛軍[ごえいぐん]との 戦闘[せんとう]で<br> 死[し]んでしまったかもな"
+      }
+    },
+    {
+      "id": 1784758880259,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "わしに<br>負[ま]けを 認[みと]めさすことができれば—"
+      },
+      "after": {
+        "SentenceJA": "わしに<br> 負[ま]けを 認[みと]めさすことができれば—"
+      }
+    },
+    {
+      "id": 1784799668860,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "催眠[さいみん]ガスで<br>眠[ねむ]り 込[こ]んだブロヴーダ[ぶろゔーだ]に—"
+      },
+      "after": {
+        "SentenceJA": "催眠[さいみん]ガスで<br> 眠[ねむ]り 込[こ]んだブロヴーダ[ぶろゔーだ]に—"
+      }
+    },
+    {
+      "id": 1784800054426,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "泣[な]いてる 場合[ばあい]か！<br>パーム[ぱーむ]を 捜[さが]さなきゃ！"
+      },
+      "after": {
+        "SentenceJA": "泣[な]いてる 場合[ばあい]か！<br> パーム[ぱーむ]を 捜[さが]さなきゃ！"
+      }
+    },
+    {
+      "id": 1784800055683,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "泣[な]いてる 場合[ばあい]か！<br>パーム[ぱーむ]を 捜[さが]さなきゃ！"
+      },
+      "after": {
+        "SentenceJA": "泣[な]いてる 場合[ばあい]か！<br> パーム[ぱーむ]を 捜[さが]さなきゃ！"
+      }
+    },
+    {
+      "id": 1784800619622,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "俺[おれ]が 情報[じょうほう]を 漏[も]らしたら<br>命[いのち]が 危[あぶ]ないヤツ[やつ]だっている"
+      },
+      "after": {
+        "SentenceJA": "俺[おれ]が 情報[じょうほう]を 漏[も]らしたら<br> 命[いのち]が 危[あぶ]ないヤツ[やつ]だっている"
+      }
+    },
+    {
+      "id": 1784800937781,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "こんな 雑魚[じゃこ]くせえヤツ[やつ]に<br>弱点[じゃくてん] 突[つ]かれるとは…"
+      },
+      "after": {
+        "SentenceJA": "こんな 雑魚[じゃこ]くせえヤツ[やつ]に<br> 弱点[じゃくてん] 突[つ]かれるとは…"
+      }
+    },
+    {
+      "id": 1784800938779,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "こんな 雑魚[じゃこ]くせえヤツ[やつ]に<br>弱点[じゃくてん] 突[つ]かれるとは…"
+      },
+      "after": {
+        "SentenceJA": "こんな 雑魚[じゃこ]くせえヤツ[やつ]に<br> 弱点[じゃくてん] 突[つ]かれるとは…"
+      }
+    },
+    {
+      "id": 1784800972340,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "駆[か]け 引[ひ]きが 必要[ひつよう]な<br>俺[おれ]の“ 卵男[みさいるまん]”は—"
+      },
+      "after": {
+        "SentenceJA": "駆[か]け 引[ひ]きが 必要[ひつよう]な<br> 俺[おれ]の“ 卵男[みさいるまん]”は—"
+      }
+    },
+    {
+      "id": 1784801054409,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "問答無用[もんどうむよう]で 攻撃[こうげき]されると<br>後手[ごて]に 回[まわ]るしかねえ！"
+      },
+      "after": {
+        "SentenceJA": "問答無用[もんどうむよう]で 攻撃[こうげき]されると<br> 後手[ごて]に 回[まわ]るしかねえ！"
+      }
+    },
+    {
+      "id": 1784810512417,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "俺[おれ]の 命令[めいれい]に 背[そむ]いたり<br>俺[おれ]に 危害[きがい]を 加[くわ]えようとすれば—"
+      },
+      "after": {
+        "SentenceJA": "俺[おれ]の 命令[めいれい]に 背[そむ]いたり<br> 俺[おれ]に 危害[きがい]を 加[くわ]えようとすれば—"
+      }
+    },
+    {
+      "id": 1784810526659,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "てめえに<br>最悪[さいあく]の 激痛[げきつう]を 与[あた]えながら—"
+      },
+      "after": {
+        "SentenceJA": "てめえに<br> 最悪[さいあく]の 激痛[げきつう]を 与[あた]えながら—"
+      }
+    },
+    {
+      "id": 1784815183811,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "自分[じぶん]の 命[いのち]を 全[まった]く 顧[かえり]みず<br>突[つ]っ 込[こ]んでくるヤツ[やつ]が—"
+      },
+      "after": {
+        "SentenceJA": "自分[じぶん]の 命[いのち]を 全[まった]く 顧[かえり]みず<br> 突[つ]っ 込[こ]んでくるヤツ[やつ]が—"
+      }
+    },
+    {
+      "id": 1784815474770,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "時間[じかん]を 稼[かせ]ぐんだ<br>何[か] 名案[めいあん]が 浮[う]かぶまで…"
+      },
+      "after": {
+        "SentenceJA": "時間[じかん]を 稼[かせ]ぐんだ<br> 何[か] 名案[めいあん]が 浮[う]かぶまで…"
+      }
+    },
+    {
+      "id": 1784815478454,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "時間[じかん]を 稼[かせ]ぐんだ<br>何[か] 名案[めいあん]が 浮[う]かぶまで…"
+      },
+      "after": {
+        "SentenceJA": "時間[じかん]を 稼[かせ]ぐんだ<br> 何[か] 名案[めいあん]が 浮[う]かぶまで…"
+      }
+    },
+    {
+      "id": 1784815489407,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "時間[じかん]を 稼[かせ]ぐんだ<br>何[か] 名案[めいあん]が 浮[う]かぶまで…"
+      },
+      "after": {
+        "SentenceJA": "時間[じかん]を 稼[かせ]ぐんだ<br> 何[か] 名案[めいあん]が 浮[う]かぶまで…"
+      }
+    },
+    {
+      "id": 1785789704727,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "泣[な]いた 日[ひ]を<br>笑[わら]って 話[はな]し 合[あ]えるのは—"
+      },
+      "after": {
+        "SentenceJA": "泣[な]いた 日[ひ]を<br> 笑[わら]って 話[はな]し 合[あ]えるのは—"
+      }
+    },
+    {
+      "id": 1785789953669,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "護衛軍[ごえいぐん]に 捕[つか]まって<br>繭[まゆ]にされた 人間[にんげん]が１人[ひとり]いたな"
+      },
+      "after": {
+        "SentenceJA": "護衛軍[ごえいぐん]に 捕[つか]まって<br> 繭[まゆ]にされた 人間[にんげん]が１人[ひとり]いたな"
+      }
+    },
+    {
+      "id": 1785790061808,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "イカルゴ[いかるご]が 捜[さが]し 求[もと]めていた 人[ひと]の<br>居場所[いばしょ]だった"
+      },
+      "after": {
+        "SentenceJA": "イカルゴ[いかるご]が 捜[さが]し 求[もと]めていた 人[ひと]の<br> 居場所[いばしょ]だった"
+      }
+    },
+    {
+      "id": 1785790070568,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "イカルゴ[いかるご]が 捜[さが]し 求[もと]めていた 人[ひと]の<br>居場所[いばしょ]だった"
+      },
+      "after": {
+        "SentenceJA": "イカルゴ[いかるご]が 捜[さが]し 求[もと]めていた 人[ひと]の<br> 居場所[いばしょ]だった"
+      }
+    },
+    {
+      "id": 1785790095055,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "イカルゴ[いかるご]が 捜[さが]し 求[もと]めていた 人[ひと]の<br>居場所[いばしょ]だった"
+      },
+      "after": {
+        "SentenceJA": "イカルゴ[いかるご]が 捜[さが]し 求[もと]めていた 人[ひと]の<br> 居場所[いばしょ]だった"
+      }
+    },
+    {
+      "id": 1785872435765,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "宮殿内[きゅうでんない]で 繰[く]り 広[ひろ]げられた<br>激[はげ]しい 攻防[こうぼう]をよそに—"
+      },
+      "after": {
+        "SentenceJA": "宮殿内[きゅうでんない]で 繰[く]り 広[ひろ]げられた<br> 激[はげ]しい 攻防[こうぼう]をよそに—"
+      }
+    },
+    {
+      "id": 1785872443123,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "宮殿内[きゅうでんない]で 繰[く]り 広[ひろ]げられた<br>激[はげ]しい 攻防[こうぼう]をよそに—"
+      },
+      "after": {
+        "SentenceJA": "宮殿内[きゅうでんない]で 繰[く]り 広[ひろ]げられた<br> 激[はげ]しい 攻防[こうぼう]をよそに—"
+      }
+    },
+    {
+      "id": 1785872443904,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "宮殿内[きゅうでんない]で 繰[く]り 広[ひろ]げられた<br>激[はげ]しい 攻防[こうぼう]をよそに—"
+      },
+      "after": {
+        "SentenceJA": "宮殿内[きゅうでんない]で 繰[く]り 広[ひろ]げられた<br> 激[はげ]しい 攻防[こうぼう]をよそに—"
+      }
+    },
+    {
+      "id": 1785872682310,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "兵隊蟻[へいたいあり]になるための<br>選別[せんべつ]を 待[ま]っていた"
+      },
+      "after": {
+        "SentenceJA": "兵隊蟻[へいたいあり]になるための<br> 選別[せんべつ]を 待[ま]っていた"
+      }
+    },
+    {
+      "id": 1785873020533,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "以前[いぜん]のパーム[ぱーむ]ではないことが<br>明白[めいはく]なその 姿[すがた]が—"
+      },
+      "after": {
+        "SentenceJA": "以前[いぜん]のパーム[ぱーむ]ではないことが<br> 明白[めいはく]なその 姿[すがた]が—"
+      }
+    },
+    {
+      "id": 1785873195207,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "占[うらな]いみたいな 探索能力[たんさくのうりょく]と<br>俺[おれ]は 当[あ]たりをつけたが…"
+      },
+      "after": {
+        "SentenceJA": "占[うらな]いみたいな 探索能力[たんさくのうりょく]と<br> 俺[おれ]は 当[あ]たりをつけたが…"
+      }
+    },
+    {
+      "id": 1785873240644,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "千里眼[せんりがん]は<br>離[はな]れてこそ 有効[ゆうこう]な 技[わざ]だし—"
+      },
+      "after": {
+        "SentenceJA": "千里眼[せんりがん]は<br> 離[はな]れてこそ 有効[ゆうこう]な 技[わざ]だし—"
+      }
+    },
+    {
+      "id": 1785873240994,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "千里眼[せんりがん]は<br>離[はな]れてこそ 有効[ゆうこう]な 技[わざ]だし—"
+      },
+      "after": {
+        "SentenceJA": "千里眼[せんりがん]は<br> 離[はな]れてこそ 有効[ゆうこう]な 技[わざ]だし—"
+      }
+    },
+    {
+      "id": 1785874093169,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "素直[すなお]に<br>身[み]を 任[まか]せればよかったのだわ！"
+      },
+      "after": {
+        "SentenceJA": "素直[すなお]に<br> 身[み]を 任[まか]せればよかったのだわ！"
+      }
+    },
+    {
+      "id": 1785874260744,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "守[も]りを 強堅[つよけん]な 髪[かみ]の 鎧[よろい]に<br>委[ゆだ]ねることでこそ 可能[かのう]な—"
+      },
+      "after": {
+        "SentenceJA": "守[も]りを 強堅[つよけん]な 髪[かみ]の 鎧[よろい]に<br> 委[ゆだ]ねることでこそ 可能[かのう]な—"
+      }
+    },
+    {
+      "id": 1785874261511,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "守[も]りを 強堅[つよけん]な 髪[かみ]の 鎧[よろい]に<br>委[ゆだ]ねることでこそ 可能[かのう]な—"
+      },
+      "after": {
+        "SentenceJA": "守[も]りを 強堅[つよけん]な 髪[かみ]の 鎧[よろい]に<br> 委[ゆだ]ねることでこそ 可能[かのう]な—"
+      }
+    },
+    {
+      "id": 1785874264991,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "守[も]りを 強堅[つよけん]な 髪[かみ]の 鎧[よろい]に<br>委[ゆだ]ねることでこそ 可能[かのう]な—"
+      },
+      "after": {
+        "SentenceJA": "守[も]りを 強堅[つよけん]な 髪[かみ]の 鎧[よろい]に<br> 委[ゆだ]ねることでこそ 可能[かのう]な—"
+      }
+    },
+    {
+      "id": 1785941097329,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "時間稼[じかんかせ]ぎ<br>会[あ]わせるつもりは 毛頭[もうとう]ない"
+      },
+      "after": {
+        "SentenceJA": "時間稼[じかんかせ]ぎ<br> 会[あ]わせるつもりは 毛頭[もうとう]ない"
+      }
+    },
+    {
+      "id": 1785941099085,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "時間稼[じかんかせ]ぎ<br>会[あ]わせるつもりは 毛頭[もうとう]ない"
+      },
+      "after": {
+        "SentenceJA": "時間稼[じかんかせ]ぎ<br> 会[あ]わせるつもりは 毛頭[もうとう]ない"
+      }
+    },
+    {
+      "id": 1785941295161,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "キルア[きるあ]がずっと 抱[かか]えていた<br>堰[せき]が 切[き]れた"
+      },
+      "after": {
+        "SentenceJA": "キルア[きるあ]がずっと 抱[かか]えていた<br> 堰[せき]が 切[き]れた"
+      }
+    },
+    {
+      "id": 1785941345617,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "かつて<br>パーム[ぱーむ]が 宮殿内部[きゅうでんないぶ]に 潜入[せんにゅう]し—"
+      },
+      "after": {
+        "SentenceJA": "かつて<br> パーム[ぱーむ]が 宮殿内部[きゅうでんないぶ]に 潜入[せんにゅう]し—"
+      }
+    },
+    {
+      "id": 1785941454659,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ノヴ[のゔ]が 仕掛[しか]けた<br>大階段横[だいかいだんよこ]の 出口付近[でぐちふきん]に 来[き]たとき—"
+      },
+      "after": {
+        "SentenceJA": "ノヴ[のゔ]が 仕掛[しか]けた<br> 大階段横[だいかいだんよこ]の 出口付近[でぐちふきん]に 来[き]たとき—"
+      }
+    },
+    {
+      "id": 1785941475583,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "悪寒[おかん]で 全身[ぜんしん]が 粉々[こなごな]になりそうな<br>凶悪[きょうあく]なオーラ[おーら]の 中[ちゅう]—"
+      },
+      "after": {
+        "SentenceJA": "悪寒[おかん]で 全身[ぜんしん]が 粉々[こなごな]になりそうな<br> 凶悪[きょうあく]なオーラ[おーら]の 中[ちゅう]—"
+      }
+    },
+    {
+      "id": 1785941478020,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "悪寒[おかん]で 全身[ぜんしん]が 粉々[こなごな]になりそうな<br>凶悪[きょうあく]なオーラ[おーら]の 中[ちゅう]—"
+      },
+      "after": {
+        "SentenceJA": "悪寒[おかん]で 全身[ぜんしん]が 粉々[こなごな]になりそうな<br> 凶悪[きょうあく]なオーラ[おーら]の 中[ちゅう]—"
+      }
+    },
+    {
+      "id": 1785941481052,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "悪寒[おかん]で 全身[ぜんしん]が 粉々[こなごな]になりそうな<br>凶悪[きょうあく]なオーラ[おーら]の 中[ちゅう]—"
+      },
+      "after": {
+        "SentenceJA": "悪寒[おかん]で 全身[ぜんしん]が 粉々[こなごな]になりそうな<br> 凶悪[きょうあく]なオーラ[おーら]の 中[ちゅう]—"
+      }
+    },
+    {
+      "id": 1785941551680,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ビゼフ[びぜふ]に 陵辱[りょうじょく]され<br>絶望[ぜつぼう]した 女性[じょせい]を 装[よそお]い—"
+      },
+      "after": {
+        "SentenceJA": "ビゼフ[びぜふ]に 陵辱[りょうじょく]され<br> 絶望[ぜつぼう]した 女性[じょせい]を 装[よそお]い—"
+      }
+    },
+    {
+      "id": 1785941561436,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ビゼフ[びぜふ]に 陵辱[りょうじょく]され<br>絶望[ぜつぼう]した 女性[じょせい]を 装[よそお]い—"
+      },
+      "after": {
+        "SentenceJA": "ビゼフ[びぜふ]に 陵辱[りょうじょく]され<br> 絶望[ぜつぼう]した 女性[じょせい]を 装[よそお]い—"
+      }
+    },
+    {
+      "id": 1785941607000,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ビゼフ[びぜふ]に 陵辱[りょうじょく]され<br>絶望[ぜつぼう]した 女性[じょせい]を 装[よそお]い—"
+      },
+      "after": {
+        "SentenceJA": "ビゼフ[びぜふ]に 陵辱[りょうじょく]され<br> 絶望[ぜつぼう]した 女性[じょせい]を 装[よそお]い—"
+      }
+    },
+    {
+      "id": 1785941676607,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "極寒[ごっかん]の 中[ちゅう] 身震[みぶる]いを 止[と]めることが<br>不可能[ふかのう]であるのと 同様[どうよう]に—"
+      },
+      "after": {
+        "SentenceJA": "極寒[ごっかん]の 中[ちゅう] 身震[みぶる]いを 止[と]めることが<br> 不可能[ふかのう]であるのと 同様[どうよう]に—"
+      }
+    },
+    {
+      "id": 1785941680876,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "極寒[ごっかん]の 中[ちゅう] 身震[みぶる]いを 止[と]めることが<br>不可能[ふかのう]であるのと 同様[どうよう]に—"
+      },
+      "after": {
+        "SentenceJA": "極寒[ごっかん]の 中[ちゅう] 身震[みぶる]いを 止[と]めることが<br> 不可能[ふかのう]であるのと 同様[どうよう]に—"
+      }
+    },
+    {
+      "id": 1785941684638,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "極寒[ごっかん]の 中[ちゅう] 身震[みぶる]いを 止[と]めることが<br>不可能[ふかのう]であるのと 同様[どうよう]に—"
+      },
+      "after": {
+        "SentenceJA": "極寒[ごっかん]の 中[ちゅう] 身震[みぶる]いを 止[と]めることが<br> 不可能[ふかのう]であるのと 同様[どうよう]に—"
+      }
+    },
+    {
+      "id": 1785941767046,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "精神力[せいしんりょく]の 強[つよ]い 者[もの]ほど<br>過去[かこ]の 記憶[きおく]が 残[のこ]る 傾向[けいこう]にある"
+      },
+      "after": {
+        "SentenceJA": "精神力[せいしんりょく]の 強[つよ]い 者[もの]ほど<br> 過去[かこ]の 記憶[きおく]が 残[のこ]る 傾向[けいこう]にある"
+      }
+    },
+    {
+      "id": 1785941940501,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "過去[かこ]の 記憶[きおく]は 兵士[へいし]の 育成[いくせい]にあたり<br>益[えき]もあり 害[がい]もあった"
+      },
+      "after": {
+        "SentenceJA": "過去[かこ]の 記憶[きおく]は 兵士[へいし]の 育成[いくせい]にあたり<br> 益[えき]もあり 害[がい]もあった"
+      }
+    },
+    {
+      "id": 1785941950152,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "過去[かこ]の 記憶[きおく]は 兵士[へいし]の 育成[いくせい]にあたり<br>益[えき]もあり 害[がい]もあった"
+      },
+      "after": {
+        "SentenceJA": "過去[かこ]の 記憶[きおく]は 兵士[へいし]の 育成[いくせい]にあたり<br> 益[えき]もあり 害[がい]もあった"
+      }
+    },
+    {
+      "id": 1785941954824,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "過去[かこ]の 記憶[きおく]は 兵士[へいし]の 育成[いくせい]にあたり<br>益[えき]もあり 害[がい]もあった"
+      },
+      "after": {
+        "SentenceJA": "過去[かこ]の 記憶[きおく]は 兵士[へいし]の 育成[いくせい]にあたり<br> 益[えき]もあり 害[がい]もあった"
+      }
+    },
+    {
+      "id": 1785942042544,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "記憶[きおく]と 感情[かんじょう]が<br>結[むす]びついた 場合[ばあい]に 生[しょう]じる"
+      },
+      "after": {
+        "SentenceJA": "記憶[きおく]と 感情[かんじょう]が<br> 結[むす]びついた 場合[ばあい]に 生[しょう]じる"
+      }
+    },
+    {
+      "id": 1785942099968,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "記憶[きおく]を 残[のこ]す 者[もの]ほど<br>繭[まゆ]からの 再生[さいせい]が 早[はや]いことは—"
+      },
+      "after": {
+        "SentenceJA": "記憶[きおく]を 残[のこ]す 者[もの]ほど<br> 繭[まゆ]からの 再生[さいせい]が 早[はや]いことは—"
+      }
+    },
+    {
+      "id": 1785942123180,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ヂートゥ[ぢーとぅ]やレオル[れおる]での 実験[じっけん]によって<br>立証済[りっしょうず]みであった"
+      },
+      "after": {
+        "SentenceJA": "ヂートゥ[ぢーとぅ]やレオル[れおる]での 実験[じっけん]によって<br> 立証済[りっしょうず]みであった"
+      }
+    },
+    {
+      "id": 1785942129108,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ヂートゥ[ぢーとぅ]やレオル[れおる]での 実験[じっけん]によって<br>立証済[りっしょうず]みであった"
+      },
+      "after": {
+        "SentenceJA": "ヂートゥ[ぢーとぅ]やレオル[れおる]での 実験[じっけん]によって<br> 立証済[りっしょうず]みであった"
+      }
+    },
+    {
+      "id": 1785942180194,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "実験[じっけん]の 成功[せいこう]は<br>人類[じんるい]の 破滅[はめつ]をも 意味[いみ]する"
+      },
+      "after": {
+        "SentenceJA": "実験[じっけん]の 成功[せいこう]は<br> 人類[じんるい]の 破滅[はめつ]をも 意味[いみ]する"
+      }
+    },
+    {
+      "id": 1785942500068,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "兵士[へいし]には 記憶[きおく]も 感情[かんじょう]も<br>不要[ふよう]ってことですね"
+      },
+      "after": {
+        "SentenceJA": "兵士[へいし]には 記憶[きおく]も 感情[かんじょう]も<br> 不要[ふよう]ってことですね"
+      }
+    },
+    {
+      "id": 1785944185283,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "先[さき]に 真実[しんじつ]を 述[の]べることで<br>心理的[しんりてき]に 先手[せんて]を 打[う]つ"
+      },
+      "after": {
+        "SentenceJA": "先[さき]に 真実[しんじつ]を 述[の]べることで<br> 心理的[しんりてき]に 先手[せんて]を 打[う]つ"
+      }
+    },
+    {
+      "id": 1785944189106,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "先[さき]に 真実[しんじつ]を 述[の]べることで<br>心理的[しんりてき]に 先手[せんて]を 打[う]つ"
+      },
+      "after": {
+        "SentenceJA": "先[さき]に 真実[しんじつ]を 述[の]べることで<br> 心理的[しんりてき]に 先手[せんて]を 打[う]つ"
+      }
+    },
+    {
+      "id": 1785944189991,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "先[さき]に 真実[しんじつ]を 述[の]べることで<br>心理的[しんりてき]に 先手[せんて]を 打[う]つ"
+      },
+      "after": {
+        "SentenceJA": "先[さき]に 真実[しんじつ]を 述[の]べることで<br> 心理的[しんりてき]に 先手[せんて]を 打[う]つ"
+      }
+    },
+    {
+      "id": 1785944258951,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ユピー[ゆぴー]に 感[かん]じた 変化[へんか]の 真意[しんい]を<br>ナックル[なっくる]から 探[さぐ]るため—"
+      },
+      "after": {
+        "SentenceJA": "ユピー[ゆぴー]に 感[かん]じた 変化[へんか]の 真意[しんい]を<br> ナックル[なっくる]から 探[さぐ]るため—"
+      }
+    },
+    {
+      "id": 1785944262019,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ユピー[ゆぴー]に 感[かん]じた 変化[へんか]の 真意[しんい]を<br>ナックル[なっくる]から 探[さぐ]るため—"
+      },
+      "after": {
+        "SentenceJA": "ユピー[ゆぴー]に 感[かん]じた 変化[へんか]の 真意[しんい]を<br> ナックル[なっくる]から 探[さぐ]るため—"
+      }
+    },
+    {
+      "id": 1785944280886,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "この 場[ば]を<br>穏便[おんびん]に 離[はな]れる 必要[ひつよう]があったのだ"
+      },
+      "after": {
+        "SentenceJA": "この 場[ば]を<br> 穏便[おんびん]に 離[はな]れる 必要[ひつよう]があったのだ"
+      }
+    },
+    {
+      "id": 1785944550805,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "むしろ<br>歓迎[かんげい]すべきなのかもしれません"
+      },
+      "after": {
+        "SentenceJA": "むしろ<br> 歓迎[かんげい]すべきなのかもしれません"
+      }
+    },
+    {
+      "id": 1785944589403,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "私自身[わたくしじしん]をすこぶる 不利[ふり]にするので<br>言[い]えませんね"
+      },
+      "after": {
+        "SentenceJA": "私自身[わたくしじしん]をすこぶる 不利[ふり]にするので<br> 言[い]えませんね"
+      }
+    },
+    {
+      "id": 1785944719746,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "プフ[ぷふ]が 判断[はんだん]し 離[はな]れたことにも<br>少[すく]なからず 動揺[どうよう]したが…"
+      },
+      "after": {
+        "SentenceJA": "プフ[ぷふ]が 判断[はんだん]し 離[はな]れたことにも<br> 少[すく]なからず 動揺[どうよう]したが…"
+      }
+    },
+    {
+      "id": 1785944736200,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "それ 以上[いじょう]に<br>プフ[ぷふ]の 挑発[ちょうはつ]を 意[い]に 介[かい]さず—"
+      },
+      "after": {
+        "SentenceJA": "それ 以上[いじょう]に<br> プフ[ぷふ]の 挑発[ちょうはつ]を 意[い]に 介[かい]さず—"
+      }
+    },
+    {
+      "id": 1785944751700,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "それ 以上[いじょう]に<br>プフ[ぷふ]の 挑発[ちょうはつ]を 意[い]に 介[かい]さず—"
+      },
+      "after": {
+        "SentenceJA": "それ 以上[いじょう]に<br> プフ[ぷふ]の 挑発[ちょうはつ]を 意[い]に 介[かい]さず—"
+      }
+    },
+    {
+      "id": 1785944937288,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "朦朧[もうろう]とした 恐[おそ]れが<br>確信[かくしん]に 変[か]わった 瞬間[しゅんかん]である"
+      },
+      "after": {
+        "SentenceJA": "朦朧[もうろう]とした 恐[おそ]れが<br> 確信[かくしん]に 変[か]わった 瞬間[しゅんかん]である"
+      }
+    },
+    {
+      "id": 1785944966596,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ピトー[ぴとー]は<br>自[みずか]らの 使命[しめい]を 完全[かんぜん]に 覚悟[かくご]した"
+      },
+      "after": {
+        "SentenceJA": "ピトー[ぴとー]は<br> 自[みずか]らの 使命[しめい]を 完全[かんぜん]に 覚悟[かくご]した"
+      }
+    },
+    {
+      "id": 1785945072078,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "自[みずか]らの 情報[じょうほう]で<br>ゴン[ごん]に 動揺[どうよう]や 迷[まよ]いが 生[しょう]じたら…"
+      },
+      "after": {
+        "SentenceJA": "自[みずか]らの 情報[じょうほう]で<br> ゴン[ごん]に 動揺[どうよう]や 迷[まよ]いが 生[しょう]じたら…"
+      }
+    },
+    {
+      "id": 1785948577836,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "間[ま]を 置[お]かずに<br>応[こた]えられるようになったのは"
+      },
+      "after": {
+        "SentenceJA": "間[ま]を 置[お]かずに<br> 応[こた]えられるようになったのは"
+      }
+    },
+    {
+      "id": 1785949303513,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "王[おう]は<br>極限[きょくげん]まで 時[とき]が 圧縮[あっしゅく]され—"
+      },
+      "after": {
+        "SentenceJA": "王[おう]は<br> 極限[きょくげん]まで 時[とき]が 圧縮[あっしゅく]され—"
+      }
+    },
+    {
+      "id": 1785949303699,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "王[おう]は<br>極限[きょくげん]まで 時[とき]が 圧縮[あっしゅく]され—"
+      },
+      "after": {
+        "SentenceJA": "王[おう]は<br> 極限[きょくげん]まで 時[とき]が 圧縮[あっしゅく]され—"
+      }
+    },
+    {
+      "id": 1785949348792,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "意識[いしき]のみがかろうじて 捉[とら]える<br>ネテロ[ねてろ]の 残像[ざんぞう]を 追[お]いながら—"
+      },
+      "after": {
+        "SentenceJA": "意識[いしき]のみがかろうじて 捉[とら]える<br> ネテロ[ねてろ]の 残像[ざんぞう]を 追[お]いながら—"
+      }
+    },
+    {
+      "id": 1785949349499,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "意識[いしき]のみがかろうじて 捉[とら]える<br>ネテロ[ねてろ]の 残像[ざんぞう]を 追[お]いながら—"
+      },
+      "after": {
+        "SentenceJA": "意識[いしき]のみがかろうじて 捉[とら]える<br> ネテロ[ねてろ]の 残像[ざんぞう]を 追[お]いながら—"
+      }
+    },
+    {
+      "id": 1785949456582,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "両[りょう]の 手[て]のひらを 合[あ]わせ<br>攻撃[こうげき]への 起点[きてん]とする 所作[しょさ]"
+      },
+      "after": {
+        "SentenceJA": "両[りょう]の 手[て]のひらを 合[あ]わせ<br> 攻撃[こうげき]への 起点[きてん]とする 所作[しょさ]"
+      }
+    },
+    {
+      "id": 1785949457363,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "両[りょう]の 手[て]のひらを 合[あ]わせ<br>攻撃[こうげき]への 起点[きてん]とする 所作[しょさ]"
+      },
+      "after": {
+        "SentenceJA": "両[りょう]の 手[て]のひらを 合[あ]わせ<br> 攻撃[こうげき]への 起点[きてん]とする 所作[しょさ]"
+      }
+    },
+    {
+      "id": 1785949459829,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "両[りょう]の 手[て]のひらを 合[あ]わせ<br>攻撃[こうげき]への 起点[きてん]とする 所作[しょさ]"
+      },
+      "after": {
+        "SentenceJA": "両[りょう]の 手[て]のひらを 合[あ]わせ<br> 攻撃[こうげき]への 起点[きてん]とする 所作[しょさ]"
+      }
+    },
+    {
+      "id": 1785949478242,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "それのみが<br>余[よ]の 可動速度[かどうそくど]をはるかに 上回[うわまわ]る"
+      },
+      "after": {
+        "SentenceJA": "それのみが<br> 余[よ]の 可動速度[かどうそくど]をはるかに 上回[うわまわ]る"
+      }
+    },
+    {
+      "id": 1785949479505,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "それのみが<br>余[よ]の 可動速度[かどうそくど]をはるかに 上回[うわまわ]る"
+      },
+      "after": {
+        "SentenceJA": "それのみが<br> 余[よ]の 可動速度[かどうそくど]をはるかに 上回[うわまわ]る"
+      }
+    },
+    {
+      "id": 1785949500644,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "戦闘[せんとう]において 命取[いのちと]りに 近[ちか]いはずの<br>ムダ[むだ]な 振[ふ]る 舞[ま]いが—"
+      },
+      "after": {
+        "SentenceJA": "戦闘[せんとう]において 命取[いのちと]りに 近[ちか]いはずの<br> ムダ[むだ]な 振[ふ]る 舞[ま]いが—"
+      }
+    },
+    {
+      "id": 1785949500737,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "戦闘[せんとう]において 命取[いのちと]りに 近[ちか]いはずの<br>ムダ[むだ]な 振[ふ]る 舞[ま]いが—"
+      },
+      "after": {
+        "SentenceJA": "戦闘[せんとう]において 命取[いのちと]りに 近[ちか]いはずの<br> ムダ[むだ]な 振[ふ]る 舞[ま]いが—"
+      }
+    },
+    {
+      "id": 1785949531173,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "余[よ]に 勝[まさ]る 武器[ぶき]として<br>成立[せいりつ]している 矛盾[むじゅん]"
+      },
+      "after": {
+        "SentenceJA": "余[よ]に 勝[まさ]る 武器[ぶき]として<br> 成立[せいりつ]している 矛盾[むじゅん]"
+      }
+    },
+    {
+      "id": 1785949532835,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "余[よ]に 勝[まさ]る 武器[ぶき]として<br>成立[せいりつ]している 矛盾[むじゅん]"
+      },
+      "after": {
+        "SentenceJA": "余[よ]に 勝[まさ]る 武器[ぶき]として<br> 成立[せいりつ]している 矛盾[むじゅん]"
+      }
+    },
+    {
+      "id": 1785949533645,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "余[よ]に 勝[まさ]る 武器[ぶき]として<br>成立[せいりつ]している 矛盾[むじゅん]"
+      },
+      "after": {
+        "SentenceJA": "余[よ]に 勝[まさ]る 武器[ぶき]として<br> 成立[せいりつ]している 矛盾[むじゅん]"
+      }
+    },
+    {
+      "id": 1786039696792,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "それを 卓越[たくえつ]した<br>稀有[けう]な 事例[じれい]と 言[い]えよう"
+      },
+      "after": {
+        "SentenceJA": "それを 卓越[たくえつ]した<br> 稀有[けう]な 事例[じれい]と 言[い]えよう"
+      }
+    },
+    {
+      "id": 1786039698768,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "それを 卓越[たくえつ]した<br>稀有[けう]な 事例[じれい]と 言[い]えよう"
+      },
+      "after": {
+        "SentenceJA": "それを 卓越[たくえつ]した<br> 稀有[けう]な 事例[じれい]と 言[い]えよう"
+      }
+    },
+    {
+      "id": 1786041086050,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "それを 卓越[たくえつ]した<br>稀有[けう]な 事例[じれい]と 言[い]えよう"
+      },
+      "after": {
+        "SentenceJA": "それを 卓越[たくえつ]した<br> 稀有[けう]な 事例[じれい]と 言[い]えよう"
+      }
+    },
+    {
+      "id": 1786041703899,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "既[すで]に 見[み]た 掌打[しょうだ]では<br>受[う]けきれない 角度[かくど]から 攻撃[こうげき]すれば"
+      },
+      "after": {
+        "SentenceJA": "既[すで]に 見[み]た 掌打[しょうだ]では<br> 受[う]けきれない 角度[かくど]から 攻撃[こうげき]すれば"
+      }
+    },
+    {
+      "id": 1786041705051,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "既[すで]に 見[み]た 掌打[しょうだ]では<br>受[う]けきれない 角度[かくど]から 攻撃[こうげき]すれば"
+      },
+      "after": {
+        "SentenceJA": "既[すで]に 見[み]た 掌打[しょうだ]では<br> 受[う]けきれない 角度[かくど]から 攻撃[こうげき]すれば"
+      }
+    },
+    {
+      "id": 1786047507472,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "新[あたら]しい 掌打[てのひらだ]を 出[だ]さざるをえない<br>角度[かくど]からの 攻撃[こうげき]を 導[みちび]き 出[だ]す"
+      },
+      "after": {
+        "SentenceJA": "新[あたら]しい 掌打[てのひらだ]を 出[だ]さざるをえない<br> 角度[かくど]からの 攻撃[こうげき]を 導[みちび]き 出[だ]す"
+      }
+    },
+    {
+      "id": 1786047649591,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "幾多[いくた]ある 技[わざ]の 枝[えだ]から<br>ヤツ[やつ]がどれを 選択[せんたく]するかを 探[さぐ]るは"
+      },
+      "after": {
+        "SentenceJA": "幾多[いくた]ある 技[わざ]の 枝[えだ]から<br> ヤツ[やつ]がどれを 選択[せんたく]するかを 探[さぐ]るは"
+      }
+    },
+    {
+      "id": 1786047685363,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "無数[むすう]にそそり 立[た]つ 針[はり]の 穴[あな]から<br>正解[せいかい]を 導[みちび]き 出[だ]し"
+      },
+      "after": {
+        "SentenceJA": "無数[むすう]にそそり 立[た]つ 針[はり]の 穴[あな]から<br> 正解[せいかい]を 導[みちび]き 出[だ]し"
+      }
+    },
+    {
+      "id": 1786047685909,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "無数[むすう]にそそり 立[た]つ 針[はり]の 穴[あな]から<br>正解[せいかい]を 導[みちび]き 出[だ]し"
+      },
+      "after": {
+        "SentenceJA": "無数[むすう]にそそり 立[た]つ 針[はり]の 穴[あな]から<br> 正解[せいかい]を 導[みちび]き 出[だ]し"
+      }
+    },
+    {
+      "id": 1786047688341,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "無数[むすう]にそそり 立[た]つ 針[はり]の 穴[あな]から<br>正解[せいかい]を 導[みちび]き 出[だ]し"
+      },
+      "after": {
+        "SentenceJA": "無数[むすう]にそそり 立[た]つ 針[はり]の 穴[あな]から<br> 正解[せいかい]を 導[みちび]き 出[だ]し"
+      }
+    },
+    {
+      "id": 1786047720956,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "無数[むすう]にそそり 立[た]つ 針[はり]の 穴[あな]から<br>正解[せいかい]を 導[みちび]き 出[だ]し"
+      },
+      "after": {
+        "SentenceJA": "無数[むすう]にそそり 立[た]つ 針[はり]の 穴[あな]から<br> 正解[せいかい]を 導[みちび]き 出[だ]し"
+      }
+    },
+    {
+      "id": 1786047865435,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "頼[たの]むからその 前[まえ]に<br>精魂果[せいこんは]ててくれるなよ"
+      },
+      "after": {
+        "SentenceJA": "頼[たの]むからその 前[まえ]に<br> 精魂果[せいこんは]ててくれるなよ"
+      }
+    },
+    {
+      "id": 1786047865930,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "頼[たの]むからその 前[まえ]に<br>精魂果[せいこんは]ててくれるなよ"
+      },
+      "after": {
+        "SentenceJA": "頼[たの]むからその 前[まえ]に<br> 精魂果[せいこんは]ててくれるなよ"
+      }
+    },
+    {
+      "id": 1786047905166,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "最短[さいたん]で 体勢[たいせい]を 立[た]て 直[なお]し<br>反撃[はんげき]に 転[てん]じてきおる"
+      },
+      "after": {
+        "SentenceJA": "最短[さいたん]で 体勢[たいせい]を 立[た]て 直[なお]し<br> 反撃[はんげき]に 転[てん]じてきおる"
+      }
+    },
+    {
+      "id": 1786047907347,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "最短[さいたん]で 体勢[たいせい]を 立[た]て 直[なお]し<br>反撃[はんげき]に 転[てん]じてきおる"
+      },
+      "after": {
+        "SentenceJA": "最短[さいたん]で 体勢[たいせい]を 立[た]て 直[なお]し<br> 反撃[はんげき]に 転[てん]じてきおる"
+      }
+    },
+    {
+      "id": 1786047911316,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "最短[さいたん]で 体勢[たいせい]を 立[た]て 直[なお]し<br>反撃[はんげき]に 転[てん]じてきおる"
+      },
+      "after": {
+        "SentenceJA": "最短[さいたん]で 体勢[たいせい]を 立[た]て 直[なお]し<br> 反撃[はんげき]に 転[てん]じてきおる"
+      }
+    },
+    {
+      "id": 1786047913182,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "最短[さいたん]で 体勢[たいせい]を 立[た]て 直[なお]し<br>反撃[はんげき]に 転[てん]じてきおる"
+      },
+      "after": {
+        "SentenceJA": "最短[さいたん]で 体勢[たいせい]を 立[た]て 直[なお]し<br> 反撃[はんげき]に 転[てん]じてきおる"
+      }
+    },
+    {
+      "id": 1786047917179,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "最短[さいたん]で 体勢[たいせい]を 立[た]て 直[なお]し<br>反撃[はんげき]に 転[てん]じてきおる"
+      },
+      "after": {
+        "SentenceJA": "最短[さいたん]で 体勢[たいせい]を 立[た]て 直[なお]し<br> 反撃[はんげき]に 転[てん]じてきおる"
+      }
+    },
+    {
+      "id": 1786047970940,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "気[き]を 抜[ぬ]けば<br>拝[おが]むその 前[まえ]に 四肢[しし]もがれ"
+      },
+      "after": {
+        "SentenceJA": "気[き]を 抜[ぬ]けば<br> 拝[おが]むその 前[まえ]に 四肢[しし]もがれ"
+      }
+    },
+    {
+      "id": 1786047975421,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "気[き]を 抜[ぬ]けば<br>拝[おが]むその 前[まえ]に 四肢[しし]もがれ"
+      },
+      "after": {
+        "SentenceJA": "気[き]を 抜[ぬ]けば<br> 拝[おが]むその 前[まえ]に 四肢[しし]もがれ"
+      }
+    },
+    {
+      "id": 1786048006301,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "正確無比[せいかくむひ]に 最善手[さいぜんしゅ]を<br>打[う]ち 続[つづ]けるしかない 根気[こんき]の 勝負[しょうぶ]"
+      },
+      "after": {
+        "SentenceJA": "正確無比[せいかくむひ]に 最善手[さいぜんしゅ]を<br> 打[う]ち 続[つづ]けるしかない 根気[こんき]の 勝負[しょうぶ]"
+      }
+    },
+    {
+      "id": 1786048028519,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "正確無比[せいかくむひ]に 最善手[さいぜんしゅ]を<br>打[う]ち 続[つづ]けるしかない 根気[こんき]の 勝負[しょうぶ]"
+      },
+      "after": {
+        "SentenceJA": "正確無比[せいかくむひ]に 最善手[さいぜんしゅ]を<br> 打[う]ち 続[つづ]けるしかない 根気[こんき]の 勝負[しょうぶ]"
+      }
+    },
+    {
+      "id": 1786471247879,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "トイレ[といれ]は 奇数階[きすうかい]にしかないから<br>気[き]をつけて"
+      },
+      "after": {
+        "SentenceJA": "トイレ[といれ]は 奇数階[きすうかい]にしかないから<br> 気[き]をつけて"
+      }
+    },
+    {
+      "id": 1786471416779,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "戦闘員[せんとういん]は 武器[ぶき]を 持[も]ち<br>直[ただ]ちに１階[いちかい]へ"
+      },
+      "after": {
+        "SentenceJA": "戦闘員[せんとういん]は 武器[ぶき]を 持[も]ち<br> 直[ただ]ちに１階[いちかい]へ"
+      }
+    },
+    {
+      "id": 1786474922408,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "お 前[まえ] 着地[ちゃくち]んとき<br>ネット[ねっと] 張[は]るって 言[い]ったじゃん！"
+      },
+      "after": {
+        "SentenceJA": "お 前[まえ] 着地[ちゃくち]んとき<br> ネット[ねっと] 張[は]るって 言[い]ったじゃん！"
+      }
+    },
+    {
+      "id": 1786475136600,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "いや いい<br>宇田君[うだくん] 連勤[れんつとむ]でしょ？"
+      },
+      "after": {
+        "SentenceJA": "いや いい<br> 宇田君[うだくん] 連勤[れんつとむ]でしょ？"
+      }
+    },
+    {
+      "id": 1786475171761,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "それにさ なんだか ちょっと<br>同窓会[どうそうかい]みたいで 楽[たの]しいんだ"
+      },
+      "after": {
+        "SentenceJA": "それにさ なんだか ちょっと<br> 同窓会[どうそうかい]みたいで 楽[たの]しいんだ"
+      }
+    },
+    {
+      "id": 1786475244998,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "中途半端[ちゅうとはんぱ]なヤツ[やつ]が<br>一番[いちばん] 周[まわ]りを 不幸[ふこう]にする"
+      },
+      "after": {
+        "SentenceJA": "中途半端[ちゅうとはんぱ]なヤツ[やつ]が<br> 一番[いちばん] 周[まわ]りを 不幸[ふこう]にする"
+      }
+    },
+    {
+      "id": 1786475248139,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "中途半端[ちゅうとはんぱ]なヤツ[やつ]が<br>一番[いちばん] 周[まわ]りを 不幸[ふこう]にする"
+      },
+      "after": {
+        "SentenceJA": "中途半端[ちゅうとはんぱ]なヤツ[やつ]が<br> 一番[いちばん] 周[まわ]りを 不幸[ふこう]にする"
+      }
+    },
+    {
+      "id": 1786475291821,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "君[きみ]たちのような<br>優等生[ゆうとうせい]ではなかったが"
+      },
+      "after": {
+        "SentenceJA": "君[きみ]たちのような<br> 優等生[ゆうとうせい]ではなかったが"
+      }
+    },
+    {
+      "id": 1786475842750,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "少年[しょうねん]お 前[まえ]がすべきは<br>謝罪[しゃざい]ではなく 自害[じがい]だ"
+      },
+      "after": {
+        "SentenceJA": "少年[しょうねん]お 前[まえ]がすべきは<br> 謝罪[しゃざい]ではなく 自害[じがい]だ"
+      }
+    },
+    {
+      "id": 1786475843249,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "少年[しょうねん]お 前[まえ]がすべきは<br>謝罪[しゃざい]ではなく 自害[じがい]だ"
+      },
+      "after": {
+        "SentenceJA": "少年[しょうねん]お 前[まえ]がすべきは<br> 謝罪[しゃざい]ではなく 自害[じがい]だ"
+      }
+    },
+    {
+      "id": 1786475967322,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "せめてこの 高級[こうきゅう]フルーツ[ふるーつ]だけでも<br>置[お]いて 帰[かえ]ろう"
+      },
+      "after": {
+        "SentenceJA": "せめてこの 高級[こうきゅう]フルーツ[ふるーつ]だけでも<br> 置[お]いて 帰[かえ]ろう"
+      }
+    },
+    {
+      "id": 1786476173335,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "現時点[げんじてん]でスラー[すらー]に 関[かん]して<br>持[も]ってる 情報[じょうほう]と 交換[こうかん]しろ"
+      },
+      "after": {
+        "SentenceJA": "現時点[げんじてん]でスラー[すらー]に 関[かん]して<br> 持[も]ってる 情報[じょうほう]と 交換[こうかん]しろ"
+      }
+    },
+    {
+      "id": 1786476176124,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "現時点[げんじてん]でスラー[すらー]に 関[かん]して<br>持[も]ってる 情報[じょうほう]と 交換[こうかん]しろ"
+      },
+      "after": {
+        "SentenceJA": "現時点[げんじてん]でスラー[すらー]に 関[かん]して<br> 持[も]ってる 情報[じょうほう]と 交換[こうかん]しろ"
+      }
+    },
+    {
+      "id": 1786476179700,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "現時点[げんじてん]でスラー[すらー]に 関[かん]して<br>持[も]ってる 情報[じょうほう]と 交換[こうかん]しろ"
+      },
+      "after": {
+        "SentenceJA": "現時点[げんじてん]でスラー[すらー]に 関[かん]して<br> 持[も]ってる 情報[じょうほう]と 交換[こうかん]しろ"
+      }
+    },
+    {
+      "id": 1786476218583,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "お 前[まえ] 殺[ころ]し 屋[や]を 引退[いんたい]して<br>今[いま]は 家族[かぞく]がいるんだってな"
+      },
+      "after": {
+        "SentenceJA": "お 前[まえ] 殺[ころ]し 屋[や]を 引退[いんたい]して<br> 今[いま]は 家族[かぞく]がいるんだってな"
+      }
+    },
+    {
+      "id": 1786476400058,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ずっと<br>足[あし] 引[ひ]っ 張[ぱ]ってばかりだったので"
+      },
+      "after": {
+        "SentenceJA": "ずっと<br> 足[あし] 引[ひ]っ 張[ぱ]ってばかりだったので"
+      }
+    },
+    {
+      "id": 1787332549551,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "もう 振[ふ]り 回[まわ]されずに<br>済[す]むかと 思[おも]うと"
+      },
+      "after": {
+        "SentenceJA": "もう 振[ふ]り 回[まわ]されずに<br> 済[す]むかと 思[おも]うと"
+      }
+    },
+    {
+      "id": 1787921200715,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "正月[しょうがつ]になったらみんなに<br>腹[はら]いっぱい 食[た]べさせてやりたいし"
+      },
+      "after": {
+        "SentenceJA": "正月[しょうがつ]になったらみんなに<br> 腹[はら]いっぱい 食[た]べさせてやりたいし"
+      }
+    },
+    {
+      "id": 1787921202271,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "正月[しょうがつ]になったらみんなに<br>腹[はら]いっぱい 食[た]べさせてやりたいし"
+      },
+      "after": {
+        "SentenceJA": "正月[しょうがつ]になったらみんなに<br> 腹[はら]いっぱい 食[た]べさせてやりたいし"
+      }
+    },
+    {
+      "id": 1787921309717,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "乗[の]せてもらって<br>休[やす]んだりできないのよ"
+      },
+      "after": {
+        "SentenceJA": "乗[の]せてもらって<br> 休[やす]んだりできないのよ"
+      }
+    },
+    {
+      "id": 1787921539705,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "できる 範囲[はんい]でかまわないから<br>少[すこ]し 木[き]を 切[き]っといてくれ"
+      },
+      "after": {
+        "SentenceJA": "できる 範囲[はんい]でかまわないから<br> 少[すこ]し 木[き]を 切[き]っといてくれ"
+      }
+    },
+    {
+      "id": 1787921602527,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "できる 範囲[はんい]でかまわないから<br>少[すこ]し 木[き]を 切[き]っといてくれ"
+      },
+      "after": {
+        "SentenceJA": "できる 範囲[はんい]でかまわないから<br> 少[すこ]し 木[き]を 切[き]っといてくれ"
+      }
+    },
+    {
+      "id": 1787921604213,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "できる 範囲[はんい]でかまわないから<br>少[すこ]し 木[き]を 切[き]っといてくれ"
+      },
+      "after": {
+        "SentenceJA": "できる 範囲[はんい]でかまわないから<br> 少[すこ]し 木[き]を 切[き]っといてくれ"
+      }
+    },
+    {
+      "id": 1787921918932,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "昔[むかし]から 人食[ひとく]い 鬼[おに]は<br>日[ひ]が 暮[く]れるとうろつきだす"
+      },
+      "after": {
+        "SentenceJA": "昔[むかし]から 人食[ひとく]い 鬼[おに]は<br> 日[ひ]が 暮[く]れるとうろつきだす"
+      }
+    },
+    {
+      "id": 1787921920517,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "昔[むかし]から 人食[ひとく]い 鬼[おに]は<br>日[ひ]が 暮[く]れるとうろつきだす"
+      },
+      "after": {
+        "SentenceJA": "昔[むかし]から 人食[ひとく]い 鬼[おに]は<br> 日[ひ]が 暮[く]れるとうろつきだす"
+      }
+    },
+    {
+      "id": 1787926606407,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "嗅[か]いだことのない<br>誰[だれ]かのにおいがした"
+      },
+      "after": {
+        "SentenceJA": "嗅[か]いだことのない<br> 誰[だれ]かのにおいがした"
+      }
+    },
+    {
+      "id": 1787926637492,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "傷口[きずぐち]に 鬼[おに]の 血[ち]を 浴[あ]びたから<br>鬼[おに]になった"
+      },
+      "after": {
+        "SentenceJA": "傷口[きずぐち]に 鬼[おに]の 血[ち]を 浴[あ]びたから<br> 鬼[おに]になった"
+      }
+    },
+    {
+      "id": 1787927053927,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "なぜさっきお 前[まえ]は<br>妹[いもうと]に 覆[おお]いかぶさった？"
+      },
+      "after": {
+        "SentenceJA": "なぜさっきお 前[まえ]は<br> 妹[いもうと]に 覆[おお]いかぶさった？"
+      }
+    },
+    {
+      "id": 1787927258827,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "手足[てあし]を 動[うご]かすための<br>揺[ゆ]るぎない 原動力[げんどうりょく]になる"
+      },
+      "after": {
+        "SentenceJA": "手足[てあし]を 動[うご]かすための<br> 揺[ゆ]るぎない 原動力[げんどうりょく]になる"
+      }
+    },
+    {
+      "id": 1787927285962,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "手足[てあし]を 動[うご]かすための<br>揺[ゆ]るぎない 原動力[げんどうりょく]になる"
+      },
+      "after": {
+        "SentenceJA": "手足[てあし]を 動[うご]かすための<br> 揺[ゆ]るぎない 原動力[げんどうりょく]になる"
+      }
+    },
+    {
+      "id": 1787927294113,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "手足[てあし]を 動[うご]かすための<br>揺[ゆ]るぎない 原動力[げんどうりょく]になる"
+      },
+      "after": {
+        "SentenceJA": "手足[てあし]を 動[うご]かすための<br> 揺[ゆ]るぎない 原動力[げんどうりょく]になる"
+      }
+    },
+    {
+      "id": 1787927365776,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "脆弱[ぜいじゃく]な 覚悟[かくご]では<br>妹[いもうと]を 守[まも]ることも 治[なお]すことも"
+      },
+      "after": {
+        "SentenceJA": "脆弱[ぜいじゃく]な 覚悟[かくご]では<br> 妹[いもうと]を 守[まも]ることも 治[なお]すことも"
+      }
+    },
+    {
+      "id": 1787931345732,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "丸腰[まるごし]であるのを 悟[さと]られないよう<br>振[ふ]りかぶった 体勢[たいせい]で 手元[てもと]を 隠[かく]す"
+      },
+      "after": {
+        "SentenceJA": "丸腰[まるごし]であるのを 悟[さと]られないよう<br> 振[ふ]りかぶった 体勢[たいせい]で 手元[てもと]を 隠[かく]す"
+      }
+    },
+    {
+      "id": 1787931347226,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "丸腰[まるごし]であるのを 悟[さと]られないよう<br>振[ふ]りかぶった 体勢[たいせい]で 手元[てもと]を 隠[かく]す"
+      },
+      "after": {
+        "SentenceJA": "丸腰[まるごし]であるのを 悟[さと]られないよう<br> 振[ふ]りかぶった 体勢[たいせい]で 手元[てもと]を 隠[かく]す"
+      }
+    },
+    {
+      "id": 1787931440328,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "飢餓状態[きがじょうたい]になっている 鬼[おに]は<br>親[おや]でも 兄弟[きょうだい]でも 殺[ころ]して 食[た]べる"
+      },
+      "after": {
+        "SentenceJA": "飢餓状態[きがじょうたい]になっている 鬼[おに]は<br> 親[おや]でも 兄弟[きょうだい]でも 殺[ころ]して 食[た]べる"
+      }
+    },
+    {
+      "id": 1787931441804,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "飢餓状態[きがじょうたい]になっている 鬼[おに]は<br>親[おや]でも 兄弟[きょうだい]でも 殺[ころ]して 食[た]べる"
+      },
+      "after": {
+        "SentenceJA": "飢餓状態[きがじょうたい]になっている 鬼[おに]は<br> 親[おや]でも 兄弟[きょうだい]でも 殺[ころ]して 食[た]べる"
+      }
+    },
+    {
+      "id": 1787931543826,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "一刻[いっこく]も 早[はや]く 人[ひと]の 血肉[けつにく]を<br>食[く]らいたかっただろうに…"
+      },
+      "after": {
+        "SentenceJA": "一刻[いっこく]も 早[はや]く 人[ひと]の 血肉[けつにく]を<br> 食[く]らいたかっただろうに…"
+      }
+    },
+    {
+      "id": 1787931913446,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "すみませんがあそこの 籠[かご]とわらに<br>竹[たけ]を 少々[しょうしょう] 頂[いただ]けますか？"
+      },
+      "after": {
+        "SentenceJA": "すみませんがあそこの 籠[かご]とわらに<br> 竹[たけ]を 少々[しょうしょう] 頂[いただ]けますか？"
+      }
+    },
+    {
+      "id": 1787931915007,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "すみませんがあそこの 籠[かご]とわらに<br>竹[たけ]を 少々[しょうしょう] 頂[いただ]けますか？"
+      },
+      "after": {
+        "SentenceJA": "すみませんがあそこの 籠[かご]とわらに<br> 竹[たけ]を 少々[しょうしょう] 頂[いただ]けますか？"
+      }
+    },
+    {
+      "id": 1787931916411,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "すみませんがあそこの 籠[かご]とわらに<br>竹[たけ]を 少々[しょうしょう] 頂[いただ]けますか？"
+      },
+      "after": {
+        "SentenceJA": "すみませんがあそこの 籠[かご]とわらに<br> 竹[たけ]を 少々[しょうしょう] 頂[いただ]けますか？"
+      }
+    },
+    {
+      "id": 1787931917974,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "すみませんがあそこの 籠[かご]とわらに<br>竹[たけ]を 少々[しょうしょう] 頂[いただ]けますか？"
+      },
+      "after": {
+        "SentenceJA": "すみませんがあそこの 籠[かご]とわらに<br> 竹[たけ]を 少々[しょうしょう] 頂[いただ]けますか？"
+      }
+    },
+    {
+      "id": 1787934318732,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "明[あ]かりが 漏[も]れているから<br>誰[だれ]かいるみたいだけど"
+      },
+      "after": {
+        "SentenceJA": "明[あ]かりが 漏[も]れているから<br> 誰[だれ]かいるみたいだけど"
+      }
+    },
+    {
+      "id": 1787934340576,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "この 山[やま]は 道[みち]が 険[けわ]しいから<br>誰[だれ]か ケガ[けが]をしたんだ！"
+      },
+      "after": {
+        "SentenceJA": "この 山[やま]は 道[みち]が 険[けわ]しいから<br> 誰[だれ]か ケガ[けが]をしたんだ！"
+      }
+    },
+    {
+      "id": 1787934922002,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "てめえぶち 殺[ころ]す！<br>食[く]い 尽[つ]くしてやる！"
+      },
+      "after": {
+        "SentenceJA": "てめえぶち 殺[ころ]す！<br> 食[く]い 尽[つ]くしてやる！"
+      }
+    },
+    {
+      "id": 1787935030108,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "殺[ころ]された 人[ひと]たちを<br>埋葬[まいそう]してくれている"
+      },
+      "after": {
+        "SentenceJA": "殺[ころ]された 人[ひと]たちを<br> 埋葬[まいそう]してくれている"
+      }
+    },
+    {
+      "id": 1787935219694,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "禰豆 子[こ]<br>揺[ゆ]れるだろうが 辛抱[しんぼう]してくれ！"
+      },
+      "after": {
+        "SentenceJA": "禰豆 子[こ]<br> 揺[ゆ]れるだろうが 辛抱[しんぼう]してくれ！"
+      }
+    },
+    {
+      "id": 1787935419776,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "ここから<br>山[やま]の 麓[ふもと]の 家[いえ]まで 下[お]りてくること"
+      },
+      "after": {
+        "SentenceJA": "ここから<br> 山[やま]の 麓[ふもと]の 家[いえ]まで 下[お]りてくること"
+      }
+    },
+    {
+      "id": 1787935476595,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "この 濃[こ]い 霧[きり]で<br>俺[おれ]が 迷[まよ]うと 思[おも]ってるんだ"
+      },
+      "after": {
+        "SentenceJA": "この 濃[こ]い 霧[きり]で<br> 俺[おれ]が 迷[まよ]うと 思[おも]ってるんだ"
+      }
+    },
+    {
+      "id": 1787935477850,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "この 濃[こ]い 霧[きり]で<br>俺[おれ]が 迷[まよ]うと 思[おも]ってるんだ"
+      },
+      "after": {
+        "SentenceJA": "この 濃[こ]い 霧[きり]で<br> 俺[おれ]が 迷[まよ]うと 思[おも]ってるんだ"
+      }
+    },
+    {
+      "id": 1787935598333,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "この 調子[ちょうし]で 罠[わな]にかかっていたら<br>朝[あさ]までに 山[やま]を 下[くだ]れないぞ"
+      },
+      "after": {
+        "SentenceJA": "この 調子[ちょうし]で 罠[わな]にかかっていたら<br> 朝[あさ]までに 山[やま]を 下[くだ]れないぞ"
+      }
+    },
+    {
+      "id": 1787935667777,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "呼吸[こきゅう]を 整[ととの]えて<br>罠[わな]のにおいを 嗅[か]ぎ 分[わ]けろ"
+      },
+      "after": {
+        "SentenceJA": "呼吸[こきゅう]を 整[ととの]えて<br> 罠[わな]のにおいを 嗅[か]ぎ 分[わ]けろ"
+      }
+    },
+    {
+      "id": 1787935669215,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "呼吸[こきゅう]を 整[ととの]えて<br>罠[わな]のにおいを 嗅[か]ぎ 分[わ]けろ"
+      },
+      "after": {
+        "SentenceJA": "呼吸[こきゅう]を 整[ととの]えて<br> 罠[わな]のにおいを 嗅[か]ぎ 分[わ]けろ"
+      }
+    },
+    {
+      "id": 1787935748865,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "急[きゅう]に 身体能力[しんたいのうりょく]が<br>高[たか]くなったりはしないけど！"
+      },
+      "after": {
+        "SentenceJA": "急[きゅう]に 身体能力[しんたいのうりょく]が<br> 高[たか]くなったりはしないけど！"
+      }
+    },
+    {
+      "id": 1788897180449,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "縦[たて]の 力[ちから]には 強[つよ]いけど<br>横[よこ]の 力[ちから]には 弱[よわ]い"
+      },
+      "after": {
+        "SentenceJA": "縦[たて]の 力[ちから]には 強[つよ]いけど<br> 横[よこ]の 力[ちから]には 弱[よわ]い"
+      }
+    },
+    {
+      "id": 1788900247490,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "俺[おれ]はいつもすぐぶん 投[な]げられて<br>地面[じめん]に 転[ころ]がる"
+      },
+      "after": {
+        "SentenceJA": "俺[おれ]はいつもすぐぶん 投[な]げられて<br> 地面[じめん]に 転[ころ]がる"
+      }
+    },
+    {
+      "id": 1788900248068,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "俺[おれ]はいつもすぐぶん 投[な]げられて<br>地面[じめん]に 転[ころ]がる"
+      },
+      "after": {
+        "SentenceJA": "俺[おれ]はいつもすぐぶん 投[な]げられて<br> 地面[じめん]に 転[ころ]がる"
+      }
+    },
+    {
+      "id": 1789411140619,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "体[からだ]の 隅々[すみずみ]の 細胞[さいぼう]まで<br>酸素[さんそ]が 行[い]き 渡[わた]るよう"
+      },
+      "after": {
+        "SentenceJA": "体[からだ]の 隅々[すみずみ]の 細胞[さいぼう]まで<br> 酸素[さんそ]が 行[い]き 渡[わた]るよう"
+      }
+    },
+    {
+      "id": 1789411142921,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "体[からだ]の 隅々[すみずみ]の 細胞[さいぼう]まで<br>酸素[さんそ]が 行[い]き 渡[わた]るよう"
+      },
+      "after": {
+        "SentenceJA": "体[からだ]の 隅々[すみずみ]の 細胞[さいぼう]まで<br> 酸素[さんそ]が 行[い]き 渡[わた]るよう"
+      }
+    },
+    {
+      "id": 1789412027938,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "勝利[しょうり]に 向[む]かって<br>出発進行[しゅっぱつしんこう]！"
+      },
+      "after": {
+        "SentenceJA": "勝利[しょうり]に 向[む]かって<br> 出発進行[しゅっぱつしんこう]！"
+      }
+    },
+    {
+      "id": 1790883039611,
+      "model": "Standard (und umgekehrte Karte) Japanese",
+      "before": {
+        "SentenceJA": "禰豆 子[こ]が 目覚[めざ]めなくなって<br>半年[はんとし]たつ"
+      },
+      "after": {
+        "SentenceJA": "禰豆 子[こ]が 目覚[めざ]めなくなって<br> 半年[はんとし]たつ"
+      }
+    }
+  ]
+}

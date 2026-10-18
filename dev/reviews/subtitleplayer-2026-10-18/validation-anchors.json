@@ -1,0 +1,186 @@
+[
+  {
+    "cue": 2,
+    "subtitle_start": 3.462,
+    "reference_start": 4.462,
+    "observed_offset": 1.0,
+    "retimed_start": 4.462,
+    "residual": 0.0
+  },
+  {
+    "cue": 8,
+    "subtitle_start": 24.9,
+    "reference_start": 25.775,
+    "observed_offset": 0.875,
+    "retimed_start": 25.9,
+    "residual": -0.125
+  },
+  {
+    "cue": 16,
+    "subtitle_start": 223.682,
+    "reference_start": 224.515,
+    "observed_offset": 0.833,
+    "retimed_start": 224.682,
+    "residual": -0.167
+  },
+  {
+    "cue": 19,
+    "subtitle_start": 239.657,
+    "reference_start": 240.615,
+    "observed_offset": 0.958,
+    "retimed_start": 240.657,
+    "residual": -0.042
+  },
+  {
+    "cue": 24,
+    "subtitle_start": 278.32,
+    "reference_start": 279.112,
+    "observed_offset": 0.792,
+    "retimed_start": 279.32,
+    "residual": -0.208
+  },
+  {
+    "cue": 39,
+    "subtitle_start": 376.251,
+    "reference_start": 377.21,
+    "observed_offset": 0.959,
+    "retimed_start": 377.251,
+    "residual": -0.041
+  },
+  {
+    "cue": 60,
+    "subtitle_start": 501.835,
+    "reference_start": 502.752,
+    "observed_offset": 0.917,
+    "retimed_start": 502.835,
+    "residual": -0.083
+  },
+  {
+    "cue": 86,
+    "subtitle_start": 600.726,
+    "reference_start": 601.726,
+    "observed_offset": 1.0,
+    "retimed_start": 601.726,
+    "residual": 0.0
+  },
+  {
+    "cue": 125,
+    "subtitle_start": 740.699,
+    "reference_start": 741.699,
+    "observed_offset": 1.0,
+    "retimed_start": 741.699,
+    "residual": 0.0
+  },
+  {
+    "cue": 132,
+    "subtitle_start": 770.687,
+    "reference_start": 771.687,
+    "observed_offset": 1.0,
+    "retimed_start": 771.687,
+    "residual": 0.0
+  },
+  {
+    "cue": 133,
+    "subtitle_start": 775.484,
+    "reference_start": 776.484,
+    "observed_offset": 1.0,
+    "retimed_start": 776.484,
+    "residual": 0.0
+  },
+  {
+    "cue": 134,
+    "subtitle_start": 778.487,
+    "reference_start": 779.487,
+    "observed_offset": 1.0,
+    "retimed_start": 779.487,
+    "residual": 0.0
+  },
+  {
+    "cue": 136,
+    "subtitle_start": 785.952,
+    "reference_start": 786.952,
+    "observed_offset": 1.0,
+    "retimed_start": 786.952,
+    "residual": 0.0
+  },
+  {
+    "cue": 139,
+    "subtitle_start": 812.145,
+    "reference_start": 804.97,
+    "observed_offset": -7.175,
+    "retimed_start": 804.929,
+    "residual": 0.041
+  },
+  {
+    "cue": 140,
+    "subtitle_start": 814.856,
+    "reference_start": 807.681,
+    "observed_offset": -7.175,
+    "retimed_start": 807.64,
+    "residual": 0.041
+  },
+  {
+    "cue": 142,
+    "subtitle_start": 823.073,
+    "reference_start": 815.898,
+    "observed_offset": -7.175,
+    "retimed_start": 815.857,
+    "residual": 0.041
+  },
+  {
+    "cue": 145,
+    "subtitle_start": 839.631,
+    "reference_start": 832.414,
+    "observed_offset": -7.217,
+    "retimed_start": 832.415,
+    "residual": -0.001
+  },
+  {
+    "cue": 149,
+    "subtitle_start": 875.709,
+    "reference_start": 868.576,
+    "observed_offset": -7.133,
+    "retimed_start": 868.493,
+    "residual": 0.083
+  },
+  {
+    "cue": 169,
+    "subtitle_start": 965.215,
+    "reference_start": 958.04,
+    "observed_offset": -7.175,
+    "retimed_start": 957.999,
+    "residual": 0.041
+  },
+  {
+    "cue": 197,
+    "subtitle_start": 1088.296,
+    "reference_start": 1081.038,
+    "observed_offset": -7.258,
+    "retimed_start": 1081.08,
+    "residual": -0.042
+  },
+  {
+    "cue": 232,
+    "subtitle_start": 1211.502,
+    "reference_start": 1204.453,
+    "observed_offset": -7.049,
+    "retimed_start": 1204.286,
+    "residual": 0.167
+  },
+  {
+    "cue": 258,
+    "subtitle_start": 1396.562,
+    "reference_start": 1389.387,
+    "observed_offset": -7.175,
+    "retimed_start": 1389.346,
+    "residual": 0.041
+  },
+  {
+    "cue": 263,
+    "subtitle_start": 1408.074,
+    "reference_start": 1400.857,
+    "observed_offset": -7.217,
+    "retimed_start": 1400.858,
+    "residual": -0.001
+  }
+]

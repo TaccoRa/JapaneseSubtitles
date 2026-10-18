@@ -21,6 +21,7 @@ from typing import List, Optional, Tuple, Dict
 import threading
 from collections import defaultdict, Counter, OrderedDict
 import heapq
+import unicodedata
 
 import regex
 import srt
@@ -29,6 +30,7 @@ from tkinter import font as tkFont
 from tkinter import filedialog, messagebox, simpledialog
 
 from model.anki_ruby import AddonRubyGenerator
+from model.text_spacing import normalize_ruby_spacing
 try:
     from SubtitlePlayer.furigana_splitter import split_furigana
 except ImportError:
@@ -40,7 +42,15 @@ from model.remote_search_cache import (
     build_remote_search_cache_payload,
     load_remote_search_cache_payload,
     remote_search_cache_items,
+    remote_search_cache_plan_matches,
     remote_search_cache_repo_matches,
+)
+from model.remote_search_plan import (
+    RemoteSearchProfileError,
+    build_remote_search_query_plan,
+    normalize_remote_search_profiles,
+    remote_search_plan_fingerprint,
+    remote_search_plan_metadata,
 )
 from model.subtitle_geometry import (
     freeze_segments_for_cache,
@@ -55,6 +65,8 @@ logger = logging.getLogger(__name__)
 logging.Formatter.converter = time.gmtime
 
 class SubtitleManager:
+
+    ANIME_EPISODE_PROGRESS_KEY = "ANIME_EPISODE_PROGRESS"
 
     CLEAN_PATTERN = re.compile(r'\{\\an\d+\}')
     TAG_PATTERN = re.compile(r'<[^>]*>')
@@ -682,7 +694,7 @@ class SubtitleManager:
 
     def _clean_text(self, text: str) -> str:
         cleaned = self.CLEAN_PATTERN.sub('', text)
-        cleaned = self._clean_html_tags(cleaned)
+        cleaned = normalize_ruby_spacing(self._clean_html_tags(cleaned))
 
         speaker_mode = str(self.config.get("SUBTITLE_SPEAKER_MODE") or "").strip().lower()
         if not speaker_mode:
@@ -953,6 +965,7 @@ class SubtitleManager:
         return subs
      
     def _parse_ruby_segments(self, text: str, allow_auto: bool = True) -> List[tuple[str, Optional[str]]]:
+        text = normalize_ruby_spacing(text)
         segments: List[tuple[str, Optional[str]]] = []
         last = 0
         found_ruby = False
@@ -2167,7 +2180,13 @@ class SubtitleManager:
         except Exception:
             pass
 
-    def _set_search_dialog_active(self, active: bool) -> None:
+    def _set_modal_input_active(self, active: bool) -> None:
+        """Mark an explicit subtitle search/file dialog as owning global input.
+
+        The instance counter keeps the state queryable by the hotkey controller;
+        the root counter lets other UI-owned native file dialogs participate in
+        the same gate without importing the controller.
+        """
         try:
             with self._search_dialog_lock:
                 if active:
@@ -2177,16 +2196,241 @@ class SubtitleManager:
         except Exception:
             pass
 
-    def is_search_dialog_active(self) -> bool:
+        try:
+            root = getattr(tk, "_default_root", None)
+            if root is None:
+                return
+            count = int(getattr(root, "_subtitleplayer_modal_input_open_count", 0) or 0)
+            setattr(
+                root,
+                "_subtitleplayer_modal_input_open_count",
+                count + 1 if active else max(0, count - 1),
+            )
+        except Exception:
+            pass
+
+    def _set_search_dialog_active(self, active: bool) -> None:
+        """Backward-compatible name for the shared modal input gate."""
+        self._set_modal_input_active(active)
+
+    def is_modal_input_active(self) -> bool:
         try:
             with self._search_dialog_lock:
                 return bool(self._search_dialog_open_count > 0)
         except Exception:
             return False
 
+    def is_search_dialog_active(self) -> bool:
+        return self.is_modal_input_active()
+
     @staticmethod
     def _normalize_search_query_text(text: str) -> str:
         return re.sub(r"\s+", " ", str(text or "").strip())
+
+    @staticmethod
+    def normalize_anime_progress_key(value) -> str:
+        """Return the stable, profile-facing key used for anime progress."""
+        try:
+            text = unicodedata.normalize("NFKC", str(value or ""))
+        except Exception:
+            return ""
+        return re.sub(r"\s+", " ", text.strip()).casefold()
+
+    @staticmethod
+    def _positive_episode_number(value) -> Optional[int]:
+        """Coerce persisted episode metadata without accepting booleans/fractions."""
+        if value is None or isinstance(value, bool):
+            return None
+        try:
+            number = int(value)
+        except (TypeError, ValueError, OverflowError):
+            return None
+        try:
+            if float(value) != float(number):
+                return None
+        except (TypeError, ValueError, OverflowError):
+            return None
+        return number if number > 0 else None
+
+    def _raw_anime_episode_progress(self) -> Dict:
+        config = getattr(self, "config", None)
+        getter = getattr(config, "get", None)
+        if not callable(getter):
+            return {}
+        try:
+            raw = getter(self.ANIME_EPISODE_PROGRESS_KEY)
+        except Exception:
+            return {}
+        return dict(raw) if isinstance(raw, dict) else {}
+
+    def get_anime_episode_progress(self, anime_name=None) -> Optional[Dict]:
+        """Return validated progress for one anime, or ``None`` when unavailable."""
+        if anime_name is None:
+            anime_name = getattr(self, "anime_folder_name", None)
+        key = self.normalize_anime_progress_key(anime_name)
+        if not key:
+            return None
+
+        raw_progress = self._raw_anime_episode_progress()
+        candidates = []
+        if key in raw_progress:
+            candidates.append(raw_progress.get(key))
+        candidates.extend(
+            value
+            for raw_key, value in raw_progress.items()
+            if raw_key != key and self.normalize_anime_progress_key(raw_key) == key
+        )
+
+        for raw_record in candidates:
+            if not isinstance(raw_record, dict):
+                continue
+            season = self._positive_episode_number(raw_record.get("season"))
+            episode = self._positive_episode_number(raw_record.get("episode"))
+            global_episode = self._positive_episode_number(
+                raw_record.get("global", raw_record.get("global_episode"))
+            )
+            if episode is None and global_episode is None:
+                continue
+            display_name = self._normalize_search_query_text(raw_record.get("anime") or anime_name)
+            return {
+                "anime": display_name or self._normalize_search_query_text(anime_name),
+                "season": season,
+                "episode": episode,
+                "global": global_episode,
+            }
+        return None
+
+    def record_anime_episode_progress(
+        self,
+        anime_name=None,
+        *,
+        season=None,
+        episode=None,
+        global_episode=None,
+    ) -> Dict:
+        """Persist one anime's current episode and return the complete updated map.
+
+        Movies and other sources without an episodic identity leave the map untouched.
+        Existing entries for all other anime are preserved verbatim.
+        """
+        if anime_name is None:
+            anime_name = getattr(self, "anime_folder_name", None)
+        key = self.normalize_anime_progress_key(anime_name)
+        progress = self._raw_anime_episode_progress()
+        if not key:
+            return progress
+
+        if season is None:
+            season = getattr(self, "current_season", None)
+        if episode is None:
+            episode = getattr(self, "current_episode", None)
+        if global_episode is None:
+            try:
+                global_episode = self.get_current_global()
+            except Exception:
+                global_episode = None
+
+        season_number = self._positive_episode_number(season)
+        episode_number = self._positive_episode_number(episode)
+        global_number = self._positive_episode_number(global_episode)
+        if episode_number is None and global_number is None:
+            return progress
+
+        # Collapse differently-cased/legacy spellings of this exact query into the
+        # canonical key while leaving every other anime entry alone.
+        for raw_key in list(progress):
+            if raw_key != key and self.normalize_anime_progress_key(raw_key) == key:
+                del progress[raw_key]
+
+        record = {
+            "anime": self._normalize_search_query_text(anime_name),
+            "season": season_number,
+            "episode": episode_number,
+            "global": global_number,
+        }
+        progress[key] = record
+
+        config = getattr(self, "config", None)
+        setter = getattr(config, "set", None)
+        if callable(setter):
+            try:
+                setter(self.ANIME_EPISODE_PROGRESS_KEY, progress)
+            except Exception:
+                logger.debug("Failed to persist anime episode progress", exc_info=True)
+        return progress
+
+    def record_current_anime_episode_progress(self) -> Dict:
+        """Convenience wrapper for controllers after a successful episode load."""
+        return self.record_anime_episode_progress()
+
+    def _remote_item_for_episode(
+        self,
+        *,
+        season=None,
+        episode=None,
+        global_episode=None,
+    ) -> Optional[Dict]:
+        """Find an item by exact season/episode, then by global episode."""
+        season_number = self._positive_episode_number(season)
+        episode_number = self._positive_episode_number(episode)
+        global_number = self._positive_episode_number(global_episode)
+        if season_number is not None and episode_number is not None:
+            season_map = getattr(self, "remote_episode_map_season", {}) or {}
+            for item in season_map.get(season_number, []):
+                if self._positive_episode_number(item.get("episode")) == episode_number:
+                    return item
+        if global_number is not None:
+            return (getattr(self, "remote_episode_map_global", {}) or {}).get(global_number)
+        return None
+
+    def _choose_initial_remote_item(
+        self,
+        *,
+        hint: Optional[Tuple[Optional[int], Optional[int]]] = None,
+        movie_mode: bool = False,
+    ) -> Optional[Dict]:
+        """Choose an explicit, remembered, or first available remote episode."""
+        chosen_item = None
+        if hint is not None:
+            hint_season, hint_episode = hint
+            chosen_item = self._remote_item_for_episode(
+                season=hint_season,
+                episode=hint_episode,
+                global_episode=hint_episode,
+            )
+        elif not movie_mode:
+            remembered = self.get_anime_episode_progress()
+            if remembered:
+                chosen_item = self._remote_item_for_episode(
+                    season=remembered.get("season"),
+                    episode=remembered.get("episode"),
+                    global_episode=remembered.get("global"),
+                )
+                if chosen_item is not None:
+                    logger.info(
+                        "Resuming %s at season=%s episode=%s global=%s",
+                        remembered.get("anime") or getattr(self, "anime_folder_name", ""),
+                        remembered.get("season"),
+                        remembered.get("episode"),
+                        remembered.get("global"),
+                    )
+
+        if chosen_item is None:
+            global_map = getattr(self, "remote_episode_map_global", {}) or {}
+            if global_map:
+                keys = sorted(global_map.keys())
+                if keys:
+                    chosen_item = global_map[keys[0]]
+
+        if chosen_item is None and getattr(self, "all_results_items", None):
+            try:
+                chosen_item = max(
+                    self.all_results_items,
+                    key=lambda item: self._subtitle_candidate_score(item.get("name"), item.get("path")),
+                )
+            except Exception:
+                chosen_item = None
+        return chosen_item
 
     def _safe_search_query_name(self, query: str) -> str:
         normalized = self._normalize_search_query_text(query)
@@ -2215,6 +2459,7 @@ class SubtitleManager:
 
         # If a startup splash is visible, hide it while the user interacts with dialogs.
         hide_startup_overlay()
+        self._set_modal_input_active(True)
         try:
             popup = tk.Toplevel()
             popup.title("Choose Source")
@@ -2319,8 +2564,8 @@ class SubtitleManager:
                         overlay.close()
 
             def choose_saved_remote_search():
-                anime_query, s, e, is_movie_mode = self._ask_cached_github_search_selection(popup)
-                if not anime_query:
+                record, s, e, is_movie_mode = self._ask_cached_github_search_selection(popup)
+                if not record:
                     return
                 hint = (s, e) if (s is not None or e is not None) else None
 
@@ -2340,8 +2585,8 @@ class SubtitleManager:
                             anchor_window=root,
                             y_offset=0,
                         )
-                    result["path"] = self._initialize_remote_from_search_query(
-                        anime_query,
+                    result["path"] = self._initialize_remote_from_saved_search(
+                        record,
                         hint=hint,
                         movie_mode=is_movie_mode,
                     )
@@ -2389,6 +2634,7 @@ class SubtitleManager:
             return result["path"]
         finally:
             # Ensure the splash returns even if the user cancels/closes the dialog.
+            self._set_modal_input_active(False)
             show_startup_overlay()
 
     def ask_remote_srt_with_hint(self) -> Tuple[Optional[str], Optional[int], Optional[int], bool]:
@@ -2730,7 +2976,7 @@ class SubtitleManager:
     def _ask_cached_github_search_selection(
         self,
         parent,
-    ) -> Tuple[Optional[str], Optional[int], Optional[int], bool]:
+    ) -> Tuple[Optional[dict], Optional[int], Optional[int], bool]:
         records = self._list_cached_github_search_records()
         if not records:
             try:
@@ -2739,7 +2985,7 @@ class SubtitleManager:
                 pass
             return None, None, None, False
 
-        chosen = {"query": None, "season": None, "episode": None, "is_movie": False}
+        chosen = {"record": None, "season": None, "episode": None, "is_movie": False}
         self._set_search_dialog_active(True)
         try:
             chooser = tk.Toplevel(parent)
@@ -2836,7 +3082,7 @@ class SubtitleManager:
                     record = visible_records[int(selection[0])]
                 except Exception:
                     record = {}
-                chosen["query"] = self._normalize_search_query_text(record.get("query") or "") or None
+                chosen["record"] = dict(record) if record else None
                 chosen["season"] = s
                 chosen["episode"] = e
                 chosen["is_movie"] = False
@@ -2909,7 +3155,7 @@ class SubtitleManager:
 
             chooser.wait_window(chooser)
             return (
-                chosen["query"],
+                chosen["record"],
                 chosen["season"],
                 chosen["episode"],
                 bool(chosen.get("is_movie")),
@@ -2956,6 +3202,7 @@ class SubtitleManager:
                     last_search=f"refresh:{query}",
                     repo=f"{getattr(self, 'github_owner', '')}/{getattr(self, 'github_repo', '')}",
                     items=list(self.all_results_items or []),
+                    **self._remote_search_plan_cache_fields(),
                 )
             for key in ("display_name", "aliases"):
                 if key in old_payload:
@@ -3066,6 +3313,7 @@ class SubtitleManager:
     def ask_local_srt_file(self) -> Optional[str]:
         hide_startup_overlay()
         window = None
+        self._set_modal_input_active(True)
         try:
             parent = getattr(tk, "_default_root", None)
             window = tk.Toplevel(parent) if parent is not None else tk.Toplevel()
@@ -3099,6 +3347,7 @@ class SubtitleManager:
                     window.destroy()
                 except Exception:
                     pass
+            self._set_modal_input_active(False)
             show_startup_overlay()
 
     def calculate_geometry(self):
@@ -3581,6 +3830,113 @@ class SubtitleManager:
             self.config.set("LAST_DISPLAY_ANIME_NAME", self.display_anime_name)
         return
 
+    def _initialize_remote_from_saved_search(
+        self,
+        record: dict,
+        hint: Optional[Tuple[Optional[int], Optional[int]]] = None,
+        movie_mode: bool = False,
+    ) -> Optional[str]:
+        """Open a selected saved map without treating it as a cache miss.
+
+        The explicit *Use Saved Search* choice means the JSON is authoritative.
+        In particular, legacy schema versions and a changed provider-plan
+        fingerprint must not cause a GitHub discovery request here.  Refresh is
+        the only route that intentionally rebuilds this selected record.
+        """
+        path = str((record or {}).get("path") or "").strip()
+        if not path:
+            raise ValueError("The selected saved search has no JSON file.")
+        try:
+            payload = load_remote_search_cache_payload(path)
+        except Exception as exc:
+            raise ValueError(f"Could not read the selected saved search: {exc}") from exc
+        items = remote_search_cache_items(payload)
+        if not items:
+            raise ValueError("The selected saved search contains no subtitle entries.")
+
+        query = self._normalize_search_query_text(
+            (record or {}).get("query") or payload.get("anime_query") or ""
+        )
+        if not query:
+            raise ValueError("The selected saved search has no anime name.")
+
+        self.github_owner = getattr(self, "github_owner", None) or self.config.get("GITHUB_OWNER") or "Ajatt-Tools"
+        self.github_repo = getattr(self, "github_repo", None) or self.config.get("GITHUB_REPO") or "kitsunekko-mirror"
+        self.github_ref = getattr(self, "github_ref", None) or self.config.get("GITHUB_REF") or "main"
+        self.remote_flag = True
+        self.anime_folder_name = query
+        self.remote_search_query = query
+        self.all_results_items = []
+        for item in items:
+            entry = dict(item)
+            if not entry.get("name") and entry.get("path"):
+                entry["name"] = os.path.basename(str(entry["path"]))
+            if entry.get("path") or entry.get("name"):
+                self.all_results_items.append(entry)
+        if not self.all_results_items:
+            raise ValueError("The selected saved search has no usable subtitle entries.")
+
+        try:
+            self.config.set("REMOTE_FLAG", True)
+            self.config.set("LAST_REMOTE_SEARCH_QUERY", query)
+            self.config.set("LAST_ANIME_NAME", query)
+        except Exception:
+            logger.debug("Could not persist the selected saved-search context", exc_info=True)
+
+        logger.info("Loading saved remote subtitle map directly from %s", path)
+        return self._initialize_remote_from_loaded_items(hint=hint, movie_mode=bool(movie_mode))
+
+    def _initialize_remote_from_loaded_items(
+        self,
+        *,
+        hint: Optional[Tuple[Optional[int], Optional[int]]] = None,
+        movie_mode: bool = False,
+    ) -> Optional[str]:
+        """Choose and download an episode from the current in-memory remote map."""
+        self.build_remote_episode_maps()
+        chosen_item = self._choose_initial_remote_item(hint=hint, movie_mode=movie_mode)
+        if not chosen_item:
+            return None
+
+        target_remote_path = chosen_item.get("path")
+        target_season = chosen_item.get("season")
+        target_episode = chosen_item.get("episode")
+        target_global = chosen_item.get("global")
+        if movie_mode and target_season is None and target_episode is None and target_global is None:
+            self.current_season, self.current_episode = None, None
+        elif target_season is None and target_episode is None and target_global is not None:
+            self.current_season, self.current_episode = None, int(target_global)
+        else:
+            self.current_season, self.current_episode = target_season, target_episode
+        if not target_remote_path:
+            return None
+        self._update_display_anime_name_from_remote_path(target_remote_path)
+
+        try:
+            season_dir = self._season_cache_dir(target_season) if target_season is not None else self._season_cache_dir()
+            filename = self.sanitize_filename(os.path.basename(target_remote_path))
+            local_path = os.path.join(season_dir, filename)
+            self._download_file(self._get_raw_url(target_remote_path), local_path)
+        except Exception:
+            logger.exception("Failed to download the selected remote subtitle: %s", target_remote_path)
+            return None
+        try:
+            blob_url = f"https://github.com/{self.github_owner}/{self.github_repo}/blob/{self.github_ref}/{target_remote_path}"
+            self.remote_url = blob_url
+            self.config.set("LAST_GITHUB_URL", blob_url)
+        except Exception:
+            logger.debug("Could not persist the selected remote subtitle URL", exc_info=True)
+        if not movie_mode:
+            try:
+                center_global = target_global
+                if center_global is None and target_season is not None and target_episode is not None:
+                    center_global = self.local_to_global(target_season, target_episode)
+                if center_global is not None:
+                    self._schedule_prefetch_window(center_global)
+            except Exception:
+                logger.exception("Failed to start prefetch after loading the saved remote map")
+        return local_path
+
     def _initialize_remote_from_search_query(
         self,
         anime_query: str,
@@ -3589,7 +3945,8 @@ class SubtitleManager:
     ) -> Optional[str]:
         """
         Remote "init" without a URL: use a user-provided anime query to build the episode map,
-        pick an initial episode (hint > first global), download it to cache, then start window downloads.
+        pick an initial episode (hint > remembered progress > first global), download it to cache,
+        then start window downloads.
 
         This stores a synthesized LAST_GITHUB_URL pointing to the chosen file so the next startup
         can resume in URL-based remote init.
@@ -3643,32 +4000,7 @@ class SubtitleManager:
                 logger.exception("Failed to build remote episode map from search query: %s", anime_query)
                 return None
         self.build_remote_episode_maps()
-
-        chosen_item = None
-        if hint:
-            hint_season, hint_episode = hint
-            if hint_season is not None and hint_episode is not None:
-                lst = getattr(self, "remote_episode_map_season", {}).get(int(hint_season), [])
-                for it in lst:
-                    if it.get("episode") == int(hint_episode):
-                        chosen_item = it
-                        break
-            if chosen_item is None and hint_episode is not None:
-                chosen_item = getattr(self, "remote_episode_map_global", {}).get(int(hint_episode))
-
-        if not chosen_item and getattr(self, "remote_episode_map_global", None):
-            keys = sorted(self.remote_episode_map_global.keys())
-            if keys:
-                chosen_item = self.remote_episode_map_global[keys[0]]
-
-        if not chosen_item and getattr(self, "all_results_items", None):
-            try:
-                chosen_item = max(
-                    self.all_results_items,
-                    key=lambda it: self._subtitle_candidate_score(it.get("name"), it.get("path")),
-                )
-            except Exception:
-                chosen_item = None
+        chosen_item = self._choose_initial_remote_item(hint=hint, movie_mode=movie_mode)
 
         if not chosen_item:
             logger.info("No remote subtitle candidates found for search query: %s", anime_query)
@@ -3901,6 +4233,7 @@ class SubtitleManager:
                 repo=f"{self.github_owner}/{self.github_repo}",
                 items=all_results_items,
                 sxexx_to_gxx=sxexx_to_gxx,
+                **self._remote_search_plan_cache_fields(),
             )
             try:
                 with open(json_path, "w", encoding="utf-8") as fh:
@@ -4093,6 +4426,59 @@ class SubtitleManager:
                 item["global"] = None
             item.setdefault("part_folder", int(part))
 
+    @staticmethod
+    def _remote_search_bool(value, default: bool) -> bool:
+        """Read JSON/UI boolean settings without treating ``\"false\"`` as true."""
+        if value is None:
+            return bool(default)
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return bool(value)
+        if isinstance(value, str):
+            normalized = value.strip().casefold()
+            if normalized in ("1", "true", "yes", "on"):
+                return True
+            if normalized in ("0", "false", "no", "off", ""):
+                return False
+        return bool(value)
+
+    def _remote_search_profile_settings(self):
+        """Return validated provider profiles and fallback switches.
+
+        Configuration defaults are intentionally owned by the settings layer.
+        Until those keys exist, this model uses the built-in Netflix/Amazon/Hulu
+        profiles and the historic season-one unseasoned fallback.
+        """
+        config = getattr(self, "config", None)
+        get = getattr(config, "get", None)
+        raw_profiles = get("REMOTE_SEARCH_PROFILES") if callable(get) else None
+        generic_raw = get("REMOTE_SEARCH_GENERIC_SEASON_ENABLED") if callable(get) else None
+        unseasoned_raw = get("REMOTE_SEARCH_UNSEASONED_ENABLED") if callable(get) else None
+        try:
+            profiles = normalize_remote_search_profiles(raw_profiles)
+        except RemoteSearchProfileError as exc:
+            logger.warning("Ignoring invalid remote search profiles: %s; using defaults.", exc)
+            profiles = normalize_remote_search_profiles(None)
+        generic_enabled = self._remote_search_bool(generic_raw, False)
+        unseasoned_enabled = self._remote_search_bool(unseasoned_raw, True)
+        return profiles, generic_enabled, unseasoned_enabled
+
+    def _remote_search_plan_cache_fields(self) -> Dict:
+        profiles, generic_enabled, unseasoned_enabled = self._remote_search_profile_settings()
+        return {
+            "search_plan_fingerprint": remote_search_plan_fingerprint(
+                profiles,
+                generic_enabled=generic_enabled,
+                unseasoned_enabled=unseasoned_enabled,
+            ),
+            "search_plan": remote_search_plan_metadata(
+                profiles,
+                generic_enabled=generic_enabled,
+                unseasoned_enabled=unseasoned_enabled,
+            ),
+        }
+
     def _write_remote_episode_search_cache(self, items: List[Dict], *, last_search: str = "") -> None:
         if not items:
             return
@@ -4110,6 +4496,7 @@ class SubtitleManager:
         folder_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "github_search")
         os.makedirs(folder_dir, exist_ok=True)
         json_path = os.path.join(folder_dir, f"github_search_{safe_name}.json")
+        plan_fields = self._remote_search_plan_cache_fields()
         payload = build_remote_search_cache_payload(
             anime_query=self._normalize_search_query_text(self.anime_folder_name or ""),
             last_search=last_search,
@@ -4117,6 +4504,7 @@ class SubtitleManager:
             items=items,
             sxexx_to_gxx=sxexx_to_gxx,
             stop_reason="manual_refresh_merge",
+            **plan_fields,
         )
         try:
             with open(json_path, "w", encoding="utf-8") as fh:
@@ -4182,6 +4570,18 @@ class SubtitleManager:
         end_season = 50
         # self.anime_folder_name = "Daini no Shokugyo"
         logger.info(f"Building comprehensive episode map for {self.anime_folder_name}...")
+        profiles, generic_enabled, unseasoned_enabled = self._remote_search_profile_settings()
+        plan_fingerprint = remote_search_plan_fingerprint(
+            profiles,
+            generic_enabled=generic_enabled,
+            unseasoned_enabled=unseasoned_enabled,
+        )
+        plan_metadata = remote_search_plan_metadata(
+            profiles,
+            generic_enabled=generic_enabled,
+            unseasoned_enabled=unseasoned_enabled,
+        )
+        stale_cached_items: List[Dict] = []
 
         # If we already have a cached episode map JSON for this anime, prefer it over
         # hitting the GitHub Search API again (avoids rate limits / repeat work).
@@ -4202,7 +4602,7 @@ class SubtitleManager:
                 if legacy_query == normalized_query:
                     cache_path = os.path.join(folder_dir, fn)
                     break
-        if not force_refresh and os.path.isfile(cache_path):
+        if os.path.isfile(cache_path):
             try:
                 expected_repo = f"{getattr(self, 'github_owner', None)}/{getattr(self, 'github_repo', None)}"
                 payload = load_remote_search_cache_payload(cache_path)
@@ -4210,7 +4610,7 @@ class SubtitleManager:
                     logger.info("Cached search exists but repo mismatch; ignoring: %s", cache_path)
                 else:
                     cached_items = remote_search_cache_items(payload)
-                    if cached_items:
+                    if cached_items and remote_search_cache_plan_matches(payload, plan_fingerprint) and not force_refresh:
 
                         # Rewriting a large JSON and re-running regex parsing can be noticeably CPU-heavy.
                         out_items: List[Dict] = []
@@ -4223,6 +4623,16 @@ class SubtitleManager:
                             out_items.append(it)
                         self.all_results_items = out_items
                         return
+                    if cached_items:
+                        # A legacy cache or a changed profile plan is still valuable if
+                        # GitHub is unavailable during this refresh.  Do not use it as a
+                        # fresh result, because its coverage may no longer match.
+                        stale_cached_items = [dict(it) for it in cached_items if isinstance(it, dict)]
+                        logger.info(
+                            "Remote search cache %s; refreshing: %s",
+                            "forced refresh requested" if force_refresh else "plan changed",
+                            cache_path,
+                        )
             except Exception:
                 logger.exception("Failed to load cached GitHub search results from: %s", cache_path)
 
@@ -4283,17 +4693,25 @@ class SubtitleManager:
         session = requests.Session()
         session.headers.update(headers)
 
-        provider_early_stop_enabled = bool(self.config.get("SEASON_PROVIDER_EARLY_STOP_ENABLED") or False)
+        config_get = getattr(getattr(self, "config", None), "get", None)
+        provider_early_stop_enabled = self._remote_search_bool(
+            config_get("SEASON_PROVIDER_EARLY_STOP_ENABLED") if callable(config_get) else None,
+            False,
+        )
         try:
-            raw_min_found = self.config.get("SEASON_PROVIDER_EARLY_STOP_MIN_FOUND_SEASONS")
+            raw_min_found = config_get("SEASON_PROVIDER_EARLY_STOP_MIN_FOUND_SEASONS") if callable(config_get) else None
             provider_early_stop_min_found_seasons = int(raw_min_found) if raw_min_found is not None else 1
         except Exception:
             provider_early_stop_min_found_seasons = 1
         provider_early_stop_min_found_seasons = max(1, provider_early_stop_min_found_seasons)
 
-        # Provider "try" that succeeded for season 1 (1=Netflix, 2=Amazon).
-        primary_provider_try = None
+        # The provider ID that succeeded for season one.  IDs are stable across
+        # profile renames/reordering, unlike the old numeric try values.
+        primary_provider_id = None
+        primary_provider_label = None
         primary_provider_found_seasons = 0
+        executed_queries: List[Dict] = []
+        last_search = ""
 
         season = 1
         while True: #search season until none found
@@ -4305,50 +4723,46 @@ class SubtitleManager:
 
             strict_provider_only = (
                 provider_early_stop_enabled
-                and primary_provider_try in (1, 2)
+                and primary_provider_id is not None
                 and season > 1
                 and primary_provider_found_seasons >= provider_early_stop_min_found_seasons
             )
 
-            # Tries: 1=Netflix, 2=Amazon, 5=unseasoned fallback (only for season 1).
+            query_plan = build_remote_search_query_plan(
+                self.anime_folder_name,
+                season,
+                profiles,
+                generic_enabled=generic_enabled,
+                unseasoned_enabled=unseasoned_enabled,
+            )
             if strict_provider_only:
-                tries_to_run = [primary_provider_try]
-            else:
-                if primary_provider_try == 2:
-                    tries_to_run = [2, 1]
-                else:
-                    tries_to_run = [1, 2]
-                if season == 1:
-                    tries_to_run.append(5)
+                query_plan = tuple(query for query in query_plan if query.profile_id == primary_provider_id)
 
-            for tries in tries_to_run:  # if 0 hits try amazon instead of netflix then without both and so on can add more fallbacks later
-                if tries == 1:
-                    search_query = f"{self.anime_folder_name} s{season:02d} Netflix"
-                elif tries == 2:
-                    search_query = f"{self.anime_folder_name} s{season:02d} Amazon"
-                elif tries == 3:
-                    continue #skip for now
-                    search_query = f"{self.anime_folder_name} s{season:02d} Hulu"
-                elif tries == 4:
-                    continue #skip for now
-                    search_query = f"{self.anime_folder_name} s{season:02d}"
-                elif tries == 5:
-                    # continue #skip for now
-                    search_query = f"{self.anime_folder_name}"
-                    season_searching = False
+            for query in query_plan:
+                search_query = query.phrase
+                season_searching = query.is_seasonal
                 provider_found = False
 
                 # Prefer .srt, but if nothing is found (ass-only anime) try .ass as a fallback.
                 for ext in ("srt", "ass"):
                     q = (f'repo:{self.github_owner}/{self.github_repo}'
-                         f' path:subtitles extension:{ext} in:path {search_query}')
+                         f' path:subtitles extension:{ext} in:path "{search_query}"')
+                    last_search = q
+                    query_diagnostic = query.to_dict()
+                    query_diagnostic.update({"extension": ext, "github_query": q})
+                    executed_queries.append(query_diagnostic)
                     params = {"q": q, "per_page": per_page}
                     page = 1
                     while True:
                         params["page"] = page
                         try: resp = session.get(api_url, params=params, timeout=15)
-                        except requests.RequestException as e:# network error: stop and return what we have
+                        except requests.RequestException as e:# network error: retain stale cache where possible
                             logger.error(f"network error: {e}")
+                            if stale_cached_items:
+                                logger.warning("Using stale remote search cache after GitHub network failure.")
+                                self.all_results_items = stale_cached_items
+                            else:
+                                self.all_results_items = all_results_items
                             return
                         hdr = resp.headers
                         last_rate_info = _print_rate_info(hdr)
@@ -4373,6 +4787,10 @@ class SubtitleManager:
                                     "season": s,
                                     "episode": e,
                                     "global": global_e,
+                                    "search_provider_id": query.profile_id,
+                                    "search_provider_label": query.profile_label,
+                                    "search_provider_rank": query.rank,
+                                    "search_fallback_kind": query.fallback_kind,
                                 })
 
                             # stop when fewer than per_page items returned (no more pages)
@@ -4436,24 +4854,29 @@ class SubtitleManager:
                 if provider_found:
                     # Remember which provider succeeded for season 1, and count how many seasons
                     # have results on that same provider (used for optional early stopping).
-                    if season == 1 and tries in (1, 2) and primary_provider_try is None:
-                        primary_provider_try = tries
+                    if season == 1 and query.is_provider and primary_provider_id is None:
+                        primary_provider_id = query.profile_id
+                        primary_provider_label = query.profile_label
                         primary_provider_found_seasons = 1
                         if provider_early_stop_enabled:
                             logger.info(
                                 "Provider early stop enabled: season 01 succeeded with %s",
-                                "Netflix" if tries == 1 else "Amazon",
+                                primary_provider_label,
                             )
-                    elif tries == primary_provider_try:
+                    elif query.profile_id == primary_provider_id:
                         primary_provider_found_seasons += 1
                     break
                 if stop_season_loop:
                     break
             if stop_season_loop:
+                if stale_cached_items and stop_reason:
+                    logger.warning("Using stale remote search cache after GitHub failure: %s", stop_reason)
+                    self.all_results_items = stale_cached_items
+                    return
                 break
 
-            if strict_provider_only and not found_any_for_season and primary_provider_try in (1, 2):
-                provider_label = "Netflix" if primary_provider_try == 1 else "Amazon"
+            if strict_provider_only and not found_any_for_season and primary_provider_id is not None:
+                provider_label = primary_provider_label or primary_provider_id
                 stop_reason = f"provider_early_stop:{provider_label}:S{season:02d}"
                 logger.info(
                     "Provider early stop: no results for %s season %02d (after %d seasons found on that provider). Stopping season search.",
@@ -4501,12 +4924,15 @@ class SubtitleManager:
             json_path = os.path.join(folder_dir, f"github_search_{safe_name}.json")
             payload = build_remote_search_cache_payload(
                 anime_query=self._normalize_search_query_text(self.anime_folder_name or ""),
-                last_search=q,
+                last_search=last_search,
                 repo=f"{self.github_owner}/{self.github_repo}",
                 items=all_results_items,
                 sxexx_to_gxx=sxexx_to_gxx,
                 stop_reason=stop_reason,
                 rate_info=last_rate_info,
+                search_plan_fingerprint=plan_fingerprint,
+                search_plan=plan_metadata,
+                executed_queries=executed_queries,
             )
             try:
                 with open(json_path, "w", encoding="utf-8") as fh:
@@ -4560,7 +4986,11 @@ class SubtitleManager:
             if s is None or e is None:
                 continue
             season_eps[s].add(int(e))
-            prov = _provider_token(it.get("name") or it.get("path") or "")
+            # Fresh profile-plan results carry provenance explicitly.  Older
+            # caches and broad path searches retain the filename/path heuristic.
+            prov = str(it.get("search_provider_id") or "").strip().casefold()
+            if not prov:
+                prov = _provider_token(it.get("name") or it.get("path") or "")
             season_eps_by_provider[s][prov].add(int(e))
             if g is not None:
                 pairs[s][int(e)].add(int(g))
@@ -4693,6 +5123,19 @@ class SubtitleManager:
                 it.setdefault('conflicts', []).append('global_collision')
             used_globals.add(it['global'])
 
+    @staticmethod
+    def _remote_provider_rank(item: Dict) -> int:
+        """Return a stable, lower-is-better configured provider rank."""
+        try:
+            rank = int(item.get("search_provider_rank"))
+            return rank if rank >= 0 else 1000000
+        except (TypeError, ValueError, AttributeError):
+            return 1000000
+
+    @staticmethod
+    def _remote_item_stable_name(item: Dict) -> str:
+        return str(item.get("path") or item.get("name") or "").replace("\\", "/").casefold()
+
     def build_remote_episode_maps(self):
         """
         Build convenient lookup maps from self.all_results_items:
@@ -4711,13 +5154,41 @@ class SubtitleManager:
             path = it.get("path") or it.get("name")
             name = it.get("name")
             entry = {"season": s, "episode": e, "global": g, "path": path, "name": name}
-            entry["_score"] = self._subtitle_candidate_score(name, path)
+            for key in (
+                "search_provider_id",
+                "search_provider_label",
+                "search_provider_rank",
+                "search_fallback_kind",
+            ):
+                if key in it:
+                    entry[key] = it[key]
+            entry["_provider_rank"] = self._remote_provider_rank(it)
+            entry["_score"] = self._subtitle_candidate_score(
+                name,
+                path,
+                include_provider_preference=not bool(it.get("search_provider_id")),
+            )
             if g is not None:
                 try:
                     gi = int(g)
                     prev = self.remote_episode_map_global.get(gi)
-                    # Prefer higher-scored variants (JP, SxxExx) instead of "last one wins".
-                    if prev is None or int(entry["_score"]) > int(prev.get("_score") or 0):
+                    # Subtitle quality remains the primary decision.  Exact
+                    # configured-provider provenance only resolves ties, then
+                    # path makes old/broad results deterministic as well.
+                    is_better = prev is None
+                    if prev is not None:
+                        candidate_score = int(entry["_score"])
+                        previous_score = int(prev.get("_score") or 0)
+                        if candidate_score != previous_score:
+                            is_better = candidate_score > previous_score
+                        else:
+                            candidate_rank = int(entry.get("_provider_rank", 1000000))
+                            previous_rank = int(prev.get("_provider_rank", 1000000))
+                            if candidate_rank != previous_rank:
+                                is_better = candidate_rank < previous_rank
+                            else:
+                                is_better = self._remote_item_stable_name(entry) < self._remote_item_stable_name(prev)
+                    if is_better:
                         self.remote_episode_map_global[gi] = entry
                 except Exception:
                     pass
@@ -4728,7 +5199,15 @@ class SubtitleManager:
                     pass
         # sort season lists by episode, but keep the "best" variant first for each episode
         for s, lst in self.remote_episode_map_season.items():
-            lst.sort(key=lambda x: (x.get("episode") or 0, -(x.get("_score") or 0), x.get("global") or 0, x.get("name") or ""))
+            lst.sort(
+                key=lambda x: (
+                    x.get("episode") or 0,
+                    -(x.get("_score") or 0),
+                    x.get("_provider_rank", 1000000),
+                    x.get("global") or 0,
+                    self._remote_item_stable_name(x),
+                )
+            )
 
     def global_to_local(self, global_idx: int) -> Tuple[Optional[int], Optional[int]]:
         """Return (season, episode) for a given global index, or (None, None)."""
@@ -5058,7 +5537,13 @@ class SubtitleManager:
         s2 = re.sub(r'\s+', ' ', s2).strip()
         return s2
 
-    def _subtitle_candidate_score(self, name: Optional[str], path: Optional[str] = None) -> int:
+    def _subtitle_candidate_score(
+        self,
+        name: Optional[str],
+        path: Optional[str] = None,
+        *,
+        include_provider_preference: bool = True,
+    ) -> int:
         """
         Heuristic score to prefer "better" subtitle variants when multiple files map to the same episode/global.
 
@@ -5093,11 +5578,14 @@ class SubtitleManager:
         if re.search(r'(?:ã‚·ãƒ¼ã‚ºãƒ³|ï½¼ï½°ï½½ï¾žï¾)\s*\d{1,2}\s*[-â€â€‘â€“â€”ãƒ¼]\s*\d{1,4}', text):
             score += 30
 
-        # Small provider preference (tie-breaker)
-        if "netflix" in t:
-            score += 10
-        if "amazon" in t:
-            score += 5
+        # Legacy/broad searches have no structured provenance, so retain their
+        # historical filename/path hint.  Configured provider-plan results use
+        # their explicit rank after quality scoring instead.
+        if include_provider_preference:
+            if "netflix" in t:
+                score += 10
+            if "amazon" in t:
+                score += 5
 
         return int(score)
     

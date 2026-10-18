@@ -1,0 +1,195 @@
+{
+  "schema_version": 2,
+  "anime_query": "sakamoto",
+  "last_search": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:ass in:path sakamoto s02 Amazon",
+  "last search": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:ass in:path sakamoto s02 Amazon",
+  "repo": "Ajatt-Tools/kitsunekko-mirror",
+  "created_at": "2026-08-11T17:43:18.977044Z",
+  "rate_info": {
+    "limit": "10",
+    "remaining": "5",
+    "reset": "1786470257",
+    "retry_after": null
+  },
+  "result_count": 22,
+  "items": [
+    {
+      "name": "SAKAMOTO.DAYS.S01E01.伝説の殺し屋.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/SAKAMOTO DAYS/SAKAMOTO.DAYS.S01E01.伝説の殺し屋.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "SAKAMOTO.DAYS.S01E02.VSソンヒ・バチョウ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/SAKAMOTO DAYS/SAKAMOTO.DAYS.S01E02.VSソンヒ・バチョウ.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 2,
+      "global": 2
+    },
+    {
+      "name": "SAKAMOTO.DAYS.S01E03.シュガーパークへようこそ！.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/SAKAMOTO DAYS/SAKAMOTO.DAYS.S01E03.シュガーパークへようこそ！.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 3,
+      "global": 3
+    },
+    {
+      "name": "SAKAMOTO.DAYS.S01E04.ハードボイルド.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/SAKAMOTO DAYS/SAKAMOTO.DAYS.S01E04.ハードボイルド.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 4,
+      "global": 4
+    },
+    {
+      "name": "SAKAMOTO.DAYS.S01E05.強さの理由（わけ）.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/SAKAMOTO DAYS/SAKAMOTO.DAYS.S01E05.強さの理由（わけ）.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 5,
+      "global": 5
+    },
+    {
+      "name": "SAKAMOTO.DAYS.S01E06.マシモ.ヘイスケ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/SAKAMOTO DAYS/SAKAMOTO.DAYS.S01E06.マシモ.ヘイスケ.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 6,
+      "global": 6
+    },
+    {
+      "name": "SAKAMOTO.DAYS.S01E07.ジュラシック野郎.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/SAKAMOTO DAYS/SAKAMOTO.DAYS.S01E07.ジュラシック野郎.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 7,
+      "global": 7
+    },
+    {
+      "name": "SAKAMOTO.DAYS.S01E08.坂本商店.VS.LABO.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/SAKAMOTO DAYS/SAKAMOTO.DAYS.S01E08.坂本商店.VS.LABO.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 8,
+      "global": 8
+    },
+    {
+      "name": "SAKAMOTO.DAYS.S01E09.かけこみ乗車.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/SAKAMOTO DAYS/SAKAMOTO.DAYS.S01E09.かけこみ乗車.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 9,
+      "global": 9
+    },
+    {
+      "name": "SAKAMOTO.DAYS.S01E10.せんとうモード.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/SAKAMOTO DAYS/SAKAMOTO.DAYS.S01E10.せんとうモード.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 10,
+      "global": 10
+    },
+    {
+      "name": "SAKAMOTO.DAYS.S01E11.カジノバトル.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/SAKAMOTO DAYS/SAKAMOTO.DAYS.S01E11.カジノバトル.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 11,
+      "global": 11
+    },
+    {
+      "name": "SAKAMOTO.DAYS.S01E12.Overload.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/SAKAMOTO DAYS Part 2/SAKAMOTO.DAYS.S01E12.Overload.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 12,
+      "global": 12
+    },
+    {
+      "name": "SAKAMOTO.DAYS.S01E13.ばちあたり.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/SAKAMOTO DAYS Part 2/SAKAMOTO.DAYS.S01E13.ばちあたり.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 13,
+      "global": 13
+    },
+    {
+      "name": "SAKAMOTO.DAYS.S01E14.強襲.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/SAKAMOTO DAYS Part 2/SAKAMOTO.DAYS.S01E14.強襲.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 14,
+      "global": 14
+    },
+    {
+      "name": "SAKAMOTO.DAYS.S01E15.ぐるぐるタワー.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/SAKAMOTO DAYS Part 2/SAKAMOTO.DAYS.S01E15.ぐるぐるタワー.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 15,
+      "global": 15
+    },
+    {
+      "name": "SAKAMOTO.DAYS.S01E16.斬斬舞.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/SAKAMOTO DAYS Part 2/SAKAMOTO.DAYS.S01E16.斬斬舞.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 16,
+      "global": 16
+    },
+    {
+      "name": "SAKAMOTO.DAYS.S01E17.Have.a.nice.fight.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/SAKAMOTO DAYS Part 2/SAKAMOTO.DAYS.S01E17.Have.a.nice.fight.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 17,
+      "global": 17
+    },
+    {
+      "name": "SAKAMOTO.DAYS.S01E18.カナグリ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/SAKAMOTO DAYS Part 2/SAKAMOTO.DAYS.S01E18.カナグリ.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 18,
+      "global": 18
+    },
+    {
+      "name": "SAKAMOTO.DAYS.S01E19.三次試験.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/SAKAMOTO DAYS Part 2/SAKAMOTO.DAYS.S01E19.三次試験.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 19,
+      "global": 19
+    },
+    {
+      "name": "SAKAMOTO.DAYS.S01E20.推し被り.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/SAKAMOTO DAYS Part 2/SAKAMOTO.DAYS.S01E20.推し被り.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 20,
+      "global": 20
+    },
+    {
+      "name": "SAKAMOTO.DAYS.S01E21.ハードモード.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/SAKAMOTO DAYS Part 2/SAKAMOTO.DAYS.S01E21.ハードモード.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 21,
+      "global": 21
+    },
+    {
+      "name": "SAKAMOTO.DAYS.S01E22.それぞれのミッション.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/SAKAMOTO DAYS Part 2/SAKAMOTO.DAYS.S01E22.それぞれのミッション.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 22,
+      "global": 22
+    }
+  ],
+  "sxexx_to_gxx": {
+    "S01E01": 1,
+    "S01E02": 2,
+    "S01E03": 3,
+    "S01E04": 4,
+    "S01E05": 5,
+    "S01E06": 6,
+    "S01E07": 7,
+    "S01E08": 8,
+    "S01E09": 9,
+    "S01E10": 10,
+    "S01E11": 11,
+    "S01E12": 12,
+    "S01E13": 13,
+    "S01E14": 14,
+    "S01E15": 15,
+    "S01E16": 16,
+    "S01E17": 17,
+    "S01E18": 18,
+    "S01E19": 19,
+    "S01E20": 20,
+    "S01E21": 21,
+    "S01E22": 22
+  }
+}

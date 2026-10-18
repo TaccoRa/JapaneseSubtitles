@@ -740,6 +740,9 @@ class SettingsUI:
     def persist_anki_add_history(self, history: dict, today: str, today_count: int) -> None:
         self.adv_settings.persist_anki_add_history(history, today, today_count)
 
+    def persist_active_profile_fields(self, updates: dict) -> None:
+        self.adv_settings.persist_active_profile_fields(updates)
+
     def refresh_anki_activity_chart(self) -> None:
         self.adv_settings.refresh_anki_activity_chart()
 

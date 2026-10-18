@@ -12,6 +12,7 @@ from pynput.keyboard import Key
 from pynput.mouse import Button
 import queue
 import threading
+import time
 
 
 class _DictConfig:
@@ -20,6 +21,9 @@ class _DictConfig:
 
     def get(self, key):
         return self.values.get(key)
+
+    def set(self, key, value):
+        self.values[key] = value
 
 
 class _CharKey:
@@ -73,6 +77,31 @@ def test_destroyed_text_widget_is_not_focused_input():
             raise AssertionError("winfo_class should not be called after winfo_exists fails")
 
     assert HotkeyController._is_text_input_widget(DestroyedWidget()) is False
+
+
+def test_voice_language_switch_requires_an_installed_model_and_restarts_cleanly():
+    statuses = []
+    config = _DictConfig({"VOICE_LANGUAGE": "en"})
+    voice = SimpleNamespace(
+        model_status=lambda language: {"installed": language == "de"},
+        reconfigure=lambda force=False: statuses.append(("reconfigure", force)),
+    )
+    controller = object.__new__(SubtitleController)
+    controller.config = config
+    controller.voice = voice
+    controller.settings = SimpleNamespace(adv_settings=None)
+    controller._report_voice_status = lambda state, message, **_extra: statuses.append((state, message))
+
+    assert controller.handle_voice_recognition_language("de") is True
+    assert config.get("VOICE_LANGUAGE") == "de"
+    assert ("reconfigure", True) in statuses
+
+    statuses.clear()
+    config.set("VOICE_LANGUAGE", "en")
+    voice.model_status = lambda _language: {"installed": False}
+    assert controller.handle_voice_recognition_language("de") is False
+    assert config.get("VOICE_LANGUAGE") == "en"
+    assert any("not installed" in message for state, message in statuses if state == "error")
 
 
 def _hotkeys(values=None):
@@ -989,7 +1018,13 @@ def test_combined_voice_command_waits_for_seek_before_toggling_playback():
 
 
 def test_empty_shortcut_value_stays_disabled():
-    hotkeys = _hotkeys({"SHORTCUT_POPUP_ADD_ANKI": "", "SHORTCUT_POPUP_ADD_ANKI_CAPTURE": ""})
+    hotkeys = _hotkeys(
+        {
+            "SHORTCUT_POPUP_ADD_ANKI": "",
+            "SHORTCUT_POPUP_ADD_ANKI_CAPTURE": "",
+            "SHORTCUT_CAPTURE_ONLY": "",
+        }
+    )
 
     assert hotkeys._get_shortcut_value("SHORTCUT_POPUP_ADD_ANKI") == ""
     assert hotkeys._popup_add_anki_bindings() == []
@@ -1078,6 +1113,62 @@ def test_popup_add_capture_default_v_queues_capture_action():
     assert queued == ["popup_add_anki_capture"]
 
 
+def test_capture_only_default_shift_v_queues_and_uses_existing_anki_backend():
+    calls = []
+    hotkeys, controller = _hotkey_runtime({})
+    controller.anki_controller = SimpleNamespace(
+        trigger_external_capture_only=lambda **kwargs: calls.append(kwargs) or {"accepted": True, "source_note_id": 42}
+    )
+
+    hotkeys._on_key_press(Key.shift_l)
+    hotkeys._on_key_press(_CharKey("v"))
+
+    action, _event_time = controller._input_actions.get_nowait()
+    assert action == "capture_only"
+    hotkeys._dispatch_input_action(action, source=getattr(action, "source", ""))
+
+    assert calls == [{"use_capture_only_resume": True, "interaction_owner": "physical"}]
+
+
+def test_capture_only_shortcut_honors_its_disable_flag():
+    hotkeys, controller = _hotkey_runtime({"DISABLE_HOTKEY_CAPTURE_ONLY": True})
+
+    hotkeys._on_key_press(Key.shift_l)
+    hotkeys._on_key_press(_CharKey("v"))
+
+    assert controller._input_actions.empty()
+
+
+def test_modal_input_gate_discards_queued_global_actions_and_keeps_ui_actions():
+    calls = []
+    modal = {"active": False}
+    hotkeys, controller = _hotkey_runtime({"SHORTCUT_TOGGLE_PLAY": "space"})
+    controller.playback = SimpleNamespace(toggle_play=lambda event_time=None: calls.append(("toggle", event_time)))
+    controller.sub_manager = SimpleNamespace(is_modal_input_active=lambda: modal["active"])
+
+    hotkeys._enqueue_input_action("toggle_play", event_time=1.0, source="physical")
+    hotkeys.enqueue_action("toggle_play", event_time=2.0, source="ui")
+    modal["active"] = True
+    hotkeys._process_input_queue()
+
+    assert calls == [("toggle", 2.0)]
+    assert controller._input_actions.empty()
+    assert controller._cached_modal_input_active is True
+
+
+def test_modal_input_gate_blocks_physical_mouse_and_voice_actions():
+    modal = {"active": True}
+    hotkeys, controller = _hotkey_runtime({"SHORTCUT_TOGGLE_PLAY": "space"})
+    controller.sub_manager = SimpleNamespace(is_modal_input_active=lambda: modal["active"])
+    hotkeys._refresh_ui_state_cache()
+
+    hotkeys._on_key_press(Key.space)
+    hotkeys._on_global_click(1000, 1000, Button.middle, True)
+    hotkeys.enqueue_voice_action("voice_play")
+
+    assert controller._input_actions.empty()
+
+
 def test_external_click_clears_stale_popup_hotkey_state(monkeypatch):
     import SubtitlePlayer.controller.hotkey_controller as hotkey_module
 
@@ -1139,6 +1230,130 @@ def test_same_action_duplicate_shortcut_aliases_are_deduped():
     action, _event_time = controller._input_actions.get_nowait()
     assert action == "toggle_play"
     assert controller._input_actions.empty()
+
+
+def test_synthetic_space_suppression_does_not_block_the_next_real_space_press():
+    hotkeys, controller = _hotkey_runtime({"SHORTCUT_TOGGLE_PLAY": "space"})
+    controller._suppress_synthetic_tokens_until = {"space": time.perf_counter() + 1.0}
+
+    hotkeys._on_key_press(Key.space)
+    assert controller._input_actions.empty()
+
+    hotkeys._on_key_press(Key.space)
+    action, _event_time = controller._input_actions.get_nowait()
+    assert action == "toggle_play"
+
+
+def test_counted_synthetic_suppression_consumes_only_expected_key_events():
+    hotkeys, controller = _hotkey_runtime({"SHORTCUT_GO_BACK": "left"})
+    controller._suppress_synthetic_tokens_until = {
+        "left": {
+            "deadline": time.perf_counter() + 1.0,
+            "presses": 2,
+            "releases": 2,
+        }
+    }
+
+    assert hotkeys._is_suppressed_synthetic_key(Key.left, pressed=True) is True
+    assert hotkeys._is_suppressed_synthetic_key(Key.left, pressed=False) is True
+    assert hotkeys._is_suppressed_synthetic_key(Key.left, pressed=True) is True
+    assert hotkeys._is_suppressed_synthetic_key(Key.left, pressed=False) is True
+    assert hotkeys._is_suppressed_synthetic_key(Key.left, pressed=True) is False
+    assert "left" not in controller._suppress_synthetic_tokens_until
+
+
+def test_capture_resume_requests_video_focus_be_left_in_foreground():
+    requests = []
+    controller = object.__new__(SubtitleController)
+    controller.config = _DictConfig({"POST_ADD_CAPTURE_RESUME_PLAYBACK": True})
+    controller._latest_post_add_capture_note_id = 41
+    controller._latest_post_add_capture_window_hwnd = 90210
+    controller._voice_playback_pending = False
+    controller._handle_voice_video_action = requests.append
+
+    controller.resume_video_and_subtitles_after_capture(41)
+
+    assert requests == [
+        {
+            "kind": "playback",
+            "desired": True,
+            "repeat_count": 1,
+            "source": "capture",
+            "restore_foreground": False,
+            "target": {"hwnd": 90210},
+        }
+    ]
+
+
+def test_capture_resume_retry_keeps_capture_session_configuration():
+    scheduled = []
+    requests = []
+    controller = object.__new__(SubtitleController)
+    controller.config = _DictConfig(
+        {
+            "POST_ADD_CAPTURE_RESUME_PLAYBACK": False,
+            "CAPTURE_ONLY_RESUME_PLAYBACK": True,
+        }
+    )
+    controller.settings = SimpleNamespace(
+        root=SimpleNamespace(after=lambda _delay, callback: scheduled.append(callback))
+    )
+    controller._latest_post_add_capture_note_id = 42
+    controller._latest_post_add_capture_window_hwnd = 73
+    controller._voice_playback_pending = True
+    controller.release_anki_pause_lease = lambda *_args, **_kwargs: None
+    controller._handle_voice_video_action = requests.append
+    session = SimpleNamespace(capture_only=True, pause_lease=None)
+
+    controller.resume_video_and_subtitles_after_capture(42, session=session)
+    controller._voice_playback_pending = False
+    scheduled[0]()
+
+    assert requests[0]["source"] == "capture"
+    assert requests[0]["restore_foreground"] is False
+
+
+def test_video_delivery_forwards_foreground_policy(monkeypatch):
+    import SubtitlePlayer.controller.controller as controller_module
+
+    sent = []
+
+    class _ImmediateThread:
+        def __init__(self, target, **_kwargs):
+            self.target = target
+
+        def start(self):
+            self.target()
+
+    def _send(target, hotkey, **kwargs):
+        sent.append((target, hotkey, kwargs))
+        kwargs["before_send"](target)
+        return {"ok": True, "reason": "sent", "window": target, "sent_count": 1}
+
+    monkeypatch.setattr(controller_module.threading, "Thread", _ImmediateThread)
+    monkeypatch.setattr(controller_module, "send_hotkey_to_window", _send)
+    monkeypatch.setattr(controller_module, "dispatch_to_tk_sync", lambda _root, callback: callback())
+    monkeypatch.setattr(controller_module, "dispatch_to_tk", lambda _root, callback: callback())
+
+    controller = object.__new__(SubtitleController)
+    controller.config = _DictConfig({"VOICE_PLAYBACK_HOTKEY": "space"})
+    controller.settings = SimpleNamespace(root=object())
+    controller.playback = SimpleNamespace(set_playing=lambda _desired: None)
+    controller.playing = False
+    controller._shutting_down = False
+    controller._voice_playback_pending = False
+    controller._app_window_hwnds = set()
+    controller._report_voice_status = lambda *_args: None
+    controller._complete_voice_video_request = lambda *_args: None
+    controller._suppress_external_hotkey_events = lambda *_args: None
+
+    controller._run_voice_video_delivery(
+        {"kind": "playback", "desired": True, "restore_foreground": False},
+        {"hwnd": 99},
+        allow_prompt=False,
+    )
+
+    assert sent[0][2]["restore_foreground"] is False
 
 
 def test_mode2_play_shortcut_does_not_fire_in_mode1():

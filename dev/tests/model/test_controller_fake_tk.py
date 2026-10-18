@@ -543,6 +543,30 @@ def test_episode_switch_default_start_toggle_ignores_saved_time():
     assert controller.current_time == pytest.approx(8.0)
 
 
+def test_current_episode_progress_is_forwarded_to_active_profile():
+    progress = {
+        "example show": {
+            "anime": "Example Show",
+            "season": 2,
+            "episode": 7,
+            "global": 19,
+        }
+    }
+    persisted = []
+    manager = SimpleNamespace(
+        record_current_anime_episode_progress=lambda: progress,
+        get_anime_episode_progress=lambda: progress["example show"],
+    )
+    controller = SimpleNamespace(
+        sub_manager=manager,
+        settings=SimpleNamespace(persist_active_profile_fields=persisted.append),
+    )
+
+    EpisodeController(controller).remember_current_anime_episode()
+
+    assert persisted == [{"ANIME_EPISODE_PROGRESS": progress}]
+
+
 def test_popup_add_selection_callback_flow():
     calls = []
 

@@ -19,6 +19,113 @@ class _DictConfig:
         self.values[key] = value
 
 
+def test_anime_episode_progress_preserves_shows_and_normalizes_name():
+    manager = object.__new__(SubtitleManager)
+    manager.config = _DictConfig(
+        {
+            "ANIME_EPISODE_PROGRESS": {
+                "other show": {"anime": "Other Show", "season": 1, "episode": 8, "global": 8},
+                "EXAMPLE  SHOW": {"anime": "Old spelling", "season": 1, "episode": 2, "global": 2},
+            }
+        }
+    )
+    manager.anime_folder_name = "  Example Show  "
+    manager.current_season = 2
+    manager.current_episode = 4
+    manager.get_current_global = lambda: 16
+
+    progress = manager.record_current_anime_episode_progress()
+
+    assert progress["example show"] == {
+        "anime": "Example Show",
+        "season": 2,
+        "episode": 4,
+        "global": 16,
+    }
+    assert progress["other show"]["episode"] == 8
+    assert "EXAMPLE  SHOW" not in progress
+
+
+def test_initial_remote_episode_uses_profile_progress_unless_hint_is_explicit():
+    manager = object.__new__(SubtitleManager)
+    manager.config = _DictConfig(
+        {
+            "ANIME_EPISODE_PROGRESS": {
+                "example show": {
+                    "anime": "Example Show",
+                    "season": 2,
+                    "episode": 3,
+                    "global": 15,
+                }
+            }
+        }
+    )
+    manager.anime_folder_name = "Example Show"
+    first = {"season": 1, "episode": 1, "global": 1, "path": "first.srt"}
+    remembered = {"season": 2, "episode": 3, "global": 15, "path": "remembered.srt"}
+    explicit = {"season": 1, "episode": 4, "global": 4, "path": "explicit.srt"}
+    manager.remote_episode_map_global = {1: first, 4: explicit, 15: remembered}
+    manager.remote_episode_map_season = defaultdict(list, {1: [first, explicit], 2: [remembered]})
+    manager.all_results_items = [first, remembered, explicit]
+
+    assert manager._choose_initial_remote_item() is remembered
+    assert manager._choose_initial_remote_item(hint=(1, 4)) is explicit
+
+
+def test_malformed_or_unavailable_anime_progress_falls_back_to_first_episode():
+    manager = object.__new__(SubtitleManager)
+    manager.config = _DictConfig(
+        {
+            "ANIME_EPISODE_PROGRESS": {
+                "example show": {"season": "bad", "episode": 99, "global": 99}
+            }
+        }
+    )
+    manager.anime_folder_name = "Example Show"
+    first = {"season": 1, "episode": 1, "global": 1, "path": "first.srt"}
+    manager.remote_episode_map_global = {1: first}
+    manager.remote_episode_map_season = defaultdict(list, {1: [first]})
+    manager.all_results_items = [first]
+
+    assert manager._choose_initial_remote_item() is first
+
+
+def test_loaded_remote_search_downloads_the_remembered_episode(tmp_path):
+    manager = object.__new__(SubtitleManager)
+    manager.config = _DictConfig(
+        {
+            "ANIME_EPISODE_PROGRESS": {
+                "example show": {
+                    "anime": "Example Show",
+                    "season": 2,
+                    "episode": 3,
+                    "global": 15,
+                }
+            }
+        }
+    )
+    manager.anime_folder_name = "Example Show"
+    manager.github_owner = "owner"
+    manager.github_repo = "repo"
+    manager.github_ref = "main"
+    first = {"season": 1, "episode": 1, "global": 1, "path": "show.S01E01.srt", "name": "show.S01E01.srt"}
+    remembered = {"season": 2, "episode": 3, "global": 15, "path": "show.S02E03.srt", "name": "show.S02E03.srt"}
+    manager.all_results_items = [first, remembered]
+    downloads = []
+    manager._season_cache_dir = lambda _season=None: str(tmp_path)
+    manager._get_raw_url = lambda path: f"raw://{path}"
+    manager._download_file = lambda raw, local: downloads.append((raw, local))
+    manager._update_display_anime_name_from_remote_path = lambda _path: None
+    manager._schedule_prefetch_window = lambda _global: None
+
+    path = manager._initialize_remote_from_loaded_items()
+
+    assert path.endswith("show.S02E03.srt")
+    assert (manager.current_season, manager.current_episode) == (2, 3)
+    assert downloads[0][0] == "raw://show.S02E03.srt"
+    assert manager.config.get("LAST_GITHUB_URL").endswith("/show.S02E03.srt")
+
+
 def _cleaner(values):
     manager = object.__new__(SubtitleManager)
     manager.config = _DictConfig(values)

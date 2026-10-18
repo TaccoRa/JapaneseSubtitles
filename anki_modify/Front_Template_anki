@@ -162,7 +162,9 @@
 
 <script>
 (function () {
-  const MIN_STROKE_SIZE = 24;
+  // Keep a stroke legible without making a one-kanji card dominate the card.
+  const MIN_STROKE_SIZE = 80;
+  const MAX_STROKE_SIZE = 144;
   const VIEWPORT_PADDING = 4;
 
   function px(value) {
@@ -194,23 +196,10 @@
     return visual || window.innerHeight || document.documentElement.clientHeight || 0;
   }
 
-  function isMeasureBoundary(el) {
-    return !!(el && el.id === "answer");
-  }
-
-  function hasPreviousBoundary(row) {
-    let prev = row.previousElementSibling;
-    while (prev) {
-      if (isMeasureBoundary(prev)) return true;
-      prev = prev.previousElementSibling;
-    }
-    return false;
-  }
-
   function scopedPreviousHeight(row) {
     let total = 0;
     let prev = row.previousElementSibling;
-    while (prev && !isMeasureBoundary(prev)) {
+    while (prev) {
       total += outerHeight(prev);
       prev = prev.previousElementSibling;
     }
@@ -220,7 +209,7 @@
   function scopedFollowingHeight(row) {
     let total = 0;
     let next = row.nextElementSibling;
-    while (next && !isMeasureBoundary(next)) {
+    while (next) {
       if (!next.classList || !next.classList.contains("stroke-order-row")) {
         total += outerHeight(next);
       }
@@ -229,15 +218,35 @@
     return total;
   }
 
+  function answerRequiredHeight() {
+    return outerHeight(document.querySelector(".answer-divider")) +
+      outerHeight(document.querySelector(".answer-required"));
+  }
+
   function availableRowHeight(row) {
     const rect = row.getBoundingClientRect();
+    const answerDivider = document.querySelector(".answer-divider");
+    const rowStyle = getComputedStyle(row);
+    const bottomMargin = px(rowStyle.marginBottom);
+
+    // On the answer side, only reserve the divider and the actual answer.
+    // The example sentence and optional image may sit below the fold.
+    if (answerDivider) {
+      const card = row.closest(".card") || document.querySelector(".card");
+      const cardRect = card ? card.getBoundingClientRect() : null;
+      const top = cardRect
+        ? Math.max(VIEWPORT_PADDING, rect.top - cardRect.top)
+        : Math.max(VIEWPORT_PADDING, rect.top);
+      const raw = viewportHeight() - VIEWPORT_PADDING - top -
+        answerRequiredHeight() - bottomMargin;
+      return Math.max(0, Math.floor(raw));
+    }
+
     const before = scopedPreviousHeight(row);
     const after = scopedFollowingHeight(row);
-    const scopeTop = hasPreviousBoundary(row)
-      ? VIEWPORT_PADDING
-      : Math.max(VIEWPORT_PADDING, rect.top - before);
-    const raw = viewportHeight() - VIEWPORT_PADDING - scopeTop - before - after;
-    return Math.max(MIN_STROKE_SIZE, Math.floor(raw));
+    const scopeTop = Math.max(VIEWPORT_PADDING, rect.top - before);
+    const raw = viewportHeight() - VIEWPORT_PADDING - scopeTop - before - after - bottomMargin;
+    return Math.max(0, Math.floor(raw));
   }
 
   function fitStrokeRow(row) {
@@ -259,12 +268,16 @@
     const rowRect = row.getBoundingClientRect();
     const w = row.clientWidth || rowRect.width;
     const h = availableRowHeight(row);
-    if (!w || !h) return;
+    if (!w) return;
 
     const maxByWidth = (w - gapX * (cols - 1)) / cols;
     const maxByHeight = (h - gapY * (rows - 1)) / rows;
-    const size = Math.max(MIN_STROKE_SIZE, Math.floor(Math.min(maxByWidth, maxByHeight)));
-    const rowHeight = Math.min(h, Math.ceil(size * rows + gapY * (rows - 1)));
+    const size = Math.max(1, Math.floor(Math.min(
+      MAX_STROKE_SIZE,
+      maxByWidth,
+      Math.max(MIN_STROKE_SIZE, maxByHeight)
+    )));
+    const rowHeight = Math.ceil(size * rows + gapY * (rows - 1));
 
     row.style.height = rowHeight + "px";
     row.style.flex = "0 0 " + rowHeight + "px";
@@ -281,6 +294,8 @@
       requestAnimationFrame(fitStrokeRows);
     });
   }
+
+  window.fitStrokeRowsForCard = scheduleFitStrokeRow;
 
   function initStrokeFront() {
     if (!window.strokeAutoInit) return false;
@@ -323,17 +338,43 @@
 })();
 </script>
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## Back Template
 ```html
+<div id="answer" class="answer-scroll-anchor"></div>
 {{FrontSide}}
-<hr id=answer>
+<hr class="answer-divider">
 
 {{#Back}}
-  <span class="transl">{{Back}}</span><br>
+  <div class="answer-required"><span class="transl">{{Back}}</span></div>
 {{/Back}}
 
 {{#SentenceDE}}
-  <span class="sentenceDE">{{SentenceDE}}</span><br>
+  <span class="sentenceDE">{{SentenceDE}}</span><br class="answer-example-break">
 {{/SentenceDE}}
 
 {{#Image}}
@@ -497,6 +538,10 @@
         setTimeout(initStrokeAuto, i * 50);
       }
     }
+
+    if (typeof window.fitStrokeRowsForCard === "function") {
+      window.fitStrokeRowsForCard();
+    }
   }
 
   if (typeof onUpdateHook !== "undefined") onUpdateHook.push(runBack);
@@ -526,6 +571,27 @@
   margin: 0;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.answer-scroll-anchor {
+  display: block;
+  flex: 0 0 auto;
+  height: 0;
+  overflow: hidden;
+}
+
+.answer-divider,
+.answer-required {
+  flex: 0 0 auto;
+}
+
+/* Keep the review result compact: example context is optional on the back. */
+.card:has(.answer-divider) .sentenceJA,
+.card:has(.answer-divider) .sentenceDE,
+.card:has(.answer-divider) .answer-example-break {
+  display: none;
 }
 
 .kanji {

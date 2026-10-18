@@ -531,6 +531,40 @@ hover content.
 
 **Status:** Fixed on 2026-07-17.
 
+### HOVER-011 - Stable subtitle tooltip and multi-word dictionary labels
+
+**Input:** Multiple highlighted words including `所詮` in `所詮は もぬけ`.
+
+**Was wrong:** The dictionary/translation overlay followed the hovered word or
+pointer, and a multi-word dictionary result repeated its surface as
+`所詮: 所詮 [しょせん] ...`. Dictionary headwords were not visually separated.
+
+**Should be:** Keep the combined non-ruby hover overlay stable over the selected
+word bounds. Show each dictionary result once, for example `所詮 [しょせん] ...`,
+and render every entry's headword/reading in bold.
+
+### HOVER-012 - Hover information follows its subtitle words
+
+**Was wrong:** Dictionary, translation, and status windows were centered over the
+entire subtitle canvas instead of the hovered or highlighted words.
+
+**Should be:** Mouse hover information keeps its original word-relative placement.
+Voice and Ctrl-click selections center one window over the combined horizontal
+bounds of their selected words. If selected words span both subtitle lines, place
+the window above the upper-line word height.
+
+### HOVER-013 - Dictionary gloss wrapping and padding
+
+**Input:** `階 [きざはし] — stairs, stairs at the front of a noh stage`.
+
+**Was wrong:** The popup hover used a narrow character-wrap limit, leaving
+`noh stage` stranded on a second line, and dictionary text sat too close to the
+left edge.
+
+**Should be:** Normalize accidental whitespace in a single dictionary gloss, keep
+short definitions on one line, wrap long definitions at word boundaries up to a
+`1000 px` ceiling, and leave a small readable margin around hover text.
+
 ## Subtitle Cue, Cleaning, And Layout
 
 ### SUB-001 - Right-click at a cue boundary
@@ -703,6 +737,57 @@ until another app window received focus.
 
 **Should be:** Apply Now rebuilds runtime shortcut bindings/state immediately.
 
+### KEY-005 - External browser arrow survives focus handoff
+
+**Was wrong:** A global Back command was recognized while Chrome was not focused,
+but its Left Arrow sometimes reached the browser only after the user clicked the
+Chrome window.
+
+**Should be:** Activate the configured browser target reliably, wait until its UI
+thread can consume keyboard input, send the complete key event, and only then
+restore the previous foreground window. Do not move or resize either window.
+
+## Voice Commands
+
+### VOICE-001 - Highlight-aware add and capture commands
+
+**Expected:** `add` creates one card per highlighted word, while `add together`
+creates one card from the complete highlighted expression. `capture` follows the
+separate-card behavior, captures media once on the newest card, and propagates it
+to all earlier exact-sentence cards. `capture together` creates one combined card
+and captures once. With no highlights, these commands use the valid popup
+selection or hovered subtitle word.
+
+### VOICE-002 - Indexed lookup and copy without highlighting
+
+**Expected:** Dictionary, translate, copy, add, and capture accept positions such
+as `2`, `last`, `end`, `last 2`, and `end 2` without requiring a prior highlight.
+Indexed dictionary/translation must not create a persistent highlight. Bare
+`translate` translates highlighted words together; `translate each` translates
+each highlighted word independently.
+
+### VOICE-003 - Structured command settings
+
+**Expected:** Voice commands are separated into thematic settings areas and every
+row has a behavior/syntax tooltip. Highlight automation is one aligned row with
+Dictionary, Translation, and Anki/database status options. Every Voice section can
+be folded independently, remembers its state, and temporarily opens while settings
+search is active.
+
+### VOICE-004 - Reliable indexed highlights and combined hover commands
+
+**Was wrong:** English recognition could return `highlight to` for spoken
+`highlight two`, which had no exact command mapping. Saying lookup commands such
+as `dictionary and translate` ran separate actions, so the second hover replaced
+the first.
+
+**Should be:** Treat `two`, `to`, and `too` as position 2 for indexed commands,
+accept unambiguous ranges such as `highlight 1 until 3`, and accept discrete lists
+such as `highlight 4 and 6 and 7` (up to five ascending positions). Combine
+dictionary, translation or translate-each, and Anki/database status into one
+atomic hover window when their enabled aliases are joined with `and` (or German
+`und`).
+
 ## Anki, Media, And Database
 
 ### ANKI-001 - Same-sentence media propagation
@@ -816,6 +901,17 @@ translate the Japanese verb headword directly for `Back` while retaining Jisho's
 glosses in `Definition`. Noun use of the stem keeps the noun translation. For this
 case, `決心する` becomes `sich entschließen`, while `決心` remains
 `Entschlossenheit, Entschiedenheit`.
+
+### ANKI-011 - Capture completion order
+
+**Was wrong:** Add+capture and capture-only jumped to the subtitle end immediately
+after sending the external capture hotkey, before Sound and Image had appeared in
+Anki. Playback resume happened later through a separate path.
+
+**Should be:** Poll the captured source note until all configured media fields are
+present. For the latest active capture, jump to the subtitle end only then, and
+after that optionally resume the external video and SubtitlePlayer together. A
+superseded capture may still finish media propagation but must not jump or resume.
 
 ## Episodes, Playback, And Persistence
 

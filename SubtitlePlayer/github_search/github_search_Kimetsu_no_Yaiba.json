@@ -1,1498 +1,1962 @@
 {
-  "last search": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles/anime_tv extension:srt in:path Kimetsu no Yaiba",
+  "schema_version": 3,
+  "anime_query": "Kimetsu no Yaiba",
+  "last_search": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:srt in:path \"Kimetsu no Yaiba\"",
+  "last search": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:srt in:path \"Kimetsu no Yaiba\"",
   "repo": "Ajatt-Tools/kitsunekko-mirror",
-  "created_at": "2026-02-06T18:28:53.484924Z",
-  "stop_reason": null,
+  "created_at": "2026-09-04T07:52:10.881414Z",
+  "stop_reason": "fallback_unseasoned_search",
   "rate_info": {
     "limit": "10",
-    "remaining": "9",
-    "reset": "1770402593",
+    "remaining": "1",
+    "reset": "1788508388",
     "retry_after": null
   },
-  "result_count": 387,
-  "items": [
+  "search_plan_fingerprint": "30f730cf39aa7bc51f8bddcd99b845957e328b33394d5564e870d47ef9bf4e26",
+  "search_plan": {
+    "profiles": [
+      {
+        "id": "netflix",
+        "label": "Netflix",
+        "enabled": true,
+        "template": "{show} s{season02} Netflix",
+        "rank": 0
+      },
+      {
+        "id": "amazon",
+        "label": "Amazon",
+        "enabled": true,
+        "template": "{show} s{season02} Amazon",
+        "rank": 1
+      },
+      {
+        "id": "hulu",
+        "label": "Hulu",
+        "enabled": true,
+        "template": "{show} s{season02} Hulu",
+        "rank": 2
+      }
+    ],
+    "generic_enabled": false,
+    "unseasoned_enabled": true
+  },
+  "executed_queries": [
     {
-      "name": "鬼滅の刃.S01E01.残酷.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E01.残酷.WEBRip.Netflix.ja[cc].srt",
+      "profile_id": "netflix",
+      "profile_label": "Netflix",
+      "rank": 0,
+      "phrase": "Kimetsu no Yaiba s01 Netflix",
       "season": 1,
-      "episode": 1,
-      "global": 1
+      "fallback_kind": "provider",
+      "is_seasonal": true,
+      "extension": "srt",
+      "github_query": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:srt in:path \"Kimetsu no Yaiba s01 Netflix\""
     },
     {
-      "name": "Kimetsu_no_Yaiba_(1).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/extra/Kimetsu_no_Yaiba_(1).srt",
-      "season": null,
-      "episode": null,
-      "global": 1
+      "profile_id": "netflix",
+      "profile_label": "Netflix",
+      "rank": 0,
+      "phrase": "Kimetsu no Yaiba s01 Netflix",
+      "season": 1,
+      "fallback_kind": "provider",
+      "is_seasonal": true,
+      "extension": "ass",
+      "github_query": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:ass in:path \"Kimetsu no Yaiba s01 Netflix\""
     },
+    {
+      "profile_id": "amazon",
+      "profile_label": "Amazon",
+      "rank": 1,
+      "phrase": "Kimetsu no Yaiba s01 Amazon",
+      "season": 1,
+      "fallback_kind": "provider",
+      "is_seasonal": true,
+      "extension": "srt",
+      "github_query": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:srt in:path \"Kimetsu no Yaiba s01 Amazon\""
+    },
+    {
+      "profile_id": "amazon",
+      "profile_label": "Amazon",
+      "rank": 1,
+      "phrase": "Kimetsu no Yaiba s01 Amazon",
+      "season": 1,
+      "fallback_kind": "provider",
+      "is_seasonal": true,
+      "extension": "ass",
+      "github_query": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:ass in:path \"Kimetsu no Yaiba s01 Amazon\""
+    },
+    {
+      "profile_id": "hulu",
+      "profile_label": "Hulu",
+      "rank": 2,
+      "phrase": "Kimetsu no Yaiba s01 Hulu",
+      "season": 1,
+      "fallback_kind": "provider",
+      "is_seasonal": true,
+      "extension": "srt",
+      "github_query": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:srt in:path \"Kimetsu no Yaiba s01 Hulu\""
+    },
+    {
+      "profile_id": "hulu",
+      "profile_label": "Hulu",
+      "rank": 2,
+      "phrase": "Kimetsu no Yaiba s01 Hulu",
+      "season": 1,
+      "fallback_kind": "provider",
+      "is_seasonal": true,
+      "extension": "ass",
+      "github_query": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:ass in:path \"Kimetsu no Yaiba s01 Hulu\""
+    },
+    {
+      "profile_id": "unseasoned",
+      "profile_label": "Unseasoned fallback",
+      "rank": 3,
+      "phrase": "Kimetsu no Yaiba",
+      "season": 1,
+      "fallback_kind": "unseasoned",
+      "is_seasonal": false,
+      "extension": "srt",
+      "github_query": "repo:Ajatt-Tools/kitsunekko-mirror path:subtitles extension:srt in:path \"Kimetsu no Yaiba\""
+    }
+  ],
+  "result_count": 241,
+  "items": [
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E01.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E01.srt",
       "season": 1,
       "episode": 1,
-      "global": 1
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "New-raws Kimetsu no Yaiba - Hashira Geiko-hen - 01 1080p Hulu .srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/extra/New-raws Kimetsu no Yaiba - Hashira Geiko-hen - 01 1080p Hulu .srt",
-      "season": null,
-      "episode": null,
-      "global": 1
+      "name": "鬼滅の刃.S01E01.残酷.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E01.残酷.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 1,
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E01.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E01.ja.srt",
       "season": 1,
       "episode": 1,
-      "global": 1
-    },
-    {
-      "name": "[NanakoRaws] Kimetsu no Yaiba - Hashira Geiko-hen - 01-04 (CX 1920x1080 x265 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[NanakoRaws] Kimetsu no Yaiba - Hashira Geiko-hen - 01-04 (CX 1920x1080 x265 AAC).srt",
-      "season": null,
-      "episode": null,
-      "global": 1
-    },
-    {
-      "name": "Kimetsu no Yaiba S01E01.jpn cc .srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/extra/Kimetsu no Yaiba S01E01.jpn cc .srt",
-      "season": 1,
-      "episode": 1,
-      "global": 1
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Ohys-Raws] Kimetsu no Yaiba - 01 (BS11 1920x1080 x264 AAC).srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 01 (BS11 1920x1080 x264 AAC).srt",
       "season": null,
       "episode": null,
-      "global": 1
-    },
-    {
-      "name": "[CoolComic404][01][1080P][WebRip][HEVC-10bit AAC].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[CoolComic404][01][1080P][WebRip][HEVC-10bit AAC].srt",
-      "season": null,
-      "episode": null,
-      "global": 1
-    },
-    {
-      "name": "[EMBER] Demon Slayer (2023) (Season 3) - E01 [1080p] [Dual Audio HEVC WEBRip].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/[EMBER] Demon Slayer (2023) (Season 3) - E01 [1080p] [Dual Audio HEVC WEBRip].srt",
-      "season": null,
-      "episode": null,
-      "global": 1
-    },
-    {
-      "name": "鬼滅の刃.S01E01.残酷.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E01.残酷.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 1,
-      "global": 1
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retimed] Kimetsu no Yaiba - Hashira Geiko-hen - 01.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[Crunchyroll Retimed] Kimetsu no Yaiba - Hashira Geiko-hen - 01.srt",
       "season": null,
       "episode": null,
-      "global": 1
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "Kimetsu no Yaiba - Hashira Geiko Hen - 01 「鬼舞辻無惨を倒すために」 (CX 1920x1080 x264 AAC).srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/Kimetsu no Yaiba - Hashira Geiko Hen - 01 「鬼舞辻無惨を倒すために」 (CX 1920x1080 x264 AAC).srt",
       "season": null,
       "episode": null,
-      "global": 1
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[CoolComic404][01][1080P][WebRip][HEVC-10bit AAC].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[CoolComic404][01][1080P][WebRip][HEVC-10bit AAC].srt",
+      "season": null,
+      "episode": null,
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[EMBER] Demon Slayer (2023) (Season 3) - E01 [1080p] [Dual Audio HEVC WEBRip].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/[EMBER] Demon Slayer (2023) (Season 3) - E01 [1080p] [Dual Audio HEVC WEBRip].srt",
+      "season": null,
+      "episode": null,
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[SubsPlease] Kimetsu no Yaiba - Hashira Geiko-hen - 01 (1080p) [0D0CBE3D].srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[SubsPlease] Kimetsu no Yaiba - Hashira Geiko-hen - 01 (1080p) [0D0CBE3D].srt",
       "season": null,
       "episode": null,
-      "global": 1
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "Kimetsu no Yaiba - Hashira Geiko Hen - 01 「鬼舞辻無惨を倒すために」 (CX 1920x1080 x264 AAC)_track5_[und].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/extra/Kimetsu no Yaiba - Hashira Geiko Hen - 01 「鬼舞辻無惨を倒すために」 (CX 1920x1080 x264 AAC)_track5_[und].srt",
+      "name": "[NanakoRaws] Kimetsu no Yaiba - Hashira Geiko-hen - 01-04 (CX 1920x1080 x265 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[NanakoRaws] Kimetsu no Yaiba - Hashira Geiko-hen - 01-04 (CX 1920x1080 x265 AAC).srt",
       "season": null,
       "episode": null,
-      "global": 1
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "Demon Slayer Kimetsu no Yaiba.S01E01.WEBRip.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/extra/Demon Slayer Kimetsu no Yaiba.S01E01.WEBRip.ja[cc].srt",
-      "season": 1,
-      "episode": 1,
-      "global": 1
-    },
-    {
-      "name": "鬼滅の刃.S01E02.育手・鱗滝左近次.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E02.育手・鱗滝左近次.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 2,
-      "global": 2
+      "name": "[Erai-raws] Kimetsu no Yaiba - Mugenjou Hen - Movie 01 [1080p CR WEB-DL AVC AAC][MultiSub][B27E5570][AI-Whisper-ja-1.5b].srt",
+      "path": "subtitles/anime_movie/Kimetsu no Yaiba. Mugenjou-hen Movie 1 - Akaza Sairai/[Erai-raws] Kimetsu no Yaiba - Mugenjou Hen - Movie 01 [1080p CR WEB-DL AVC AAC][MultiSub][B27E5570][AI-Whisper-ja-1.5b].srt",
+      "season": null,
+      "episode": null,
+      "global": 1,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E02.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E02.srt",
       "season": 1,
       "episode": 2,
-      "global": 2
-    },
-    {
-      "name": "[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 02 [1080p] [Hulu].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 02 [1080p] [Hulu].srt",
-      "season": null,
-      "episode": null,
-      "global": 2
-    },
-    {
-      "name": "[DB]Kimetsu no Yaiba - 02 (10bit 1080p x265).CC.ja.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 02 (10bit 1080p x265).CC.ja.srt",
-      "season": null,
-      "episode": null,
-      "global": 2
-    },
-    {
-      "name": "[Ohys-Raws] Kimetsu no Yaiba - 02 (BS11 1920x1080 x264 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 02 (BS11 1920x1080 x264 AAC).srt",
-      "season": null,
-      "episode": null,
-      "global": 2
-    },
-    {
-      "name": "Kimetsu no Yaiba - Hashira Geiko Hen - 02 「水柱・冨岡義勇の痛み」 (UHB 1920x1080 x264 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/Kimetsu no Yaiba - Hashira Geiko Hen - 02 「水柱・冨岡義勇の痛み」 (UHB 1920x1080 x264 AAC).srt",
-      "season": null,
-      "episode": null,
-      "global": 2
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E02.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E02.ja.srt",
       "season": 1,
       "episode": 2,
-      "global": 2
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[DB]Kimetsu no Yaiba - 02 (10bit 1080p x265).CC.ja.srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 02 (10bit 1080p x265).CC.ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Ohys-Raws] Kimetsu no Yaiba - 02 (BS11 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 02 (BS11 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[CoolComic404][02][1080P][WebRip][HEVC-10bit AAC].srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[CoolComic404][02][1080P][WebRip][HEVC-10bit AAC].srt",
       "season": null,
       "episode": null,
-      "global": 2
-    },
-    {
-      "name": "[EMBER] Demon Slayer (2023) (Season 3) - E02 [1080p] [Dual Audio HEVC WEBRip].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/[EMBER] Demon Slayer (2023) (Season 3) - E02 [1080p] [Dual Audio HEVC WEBRip].srt",
-      "season": null,
-      "episode": null,
-      "global": 2
-    },
-    {
-      "name": "鬼滅の刃.S01E02.育手・鱗滝左近次.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E02.育手・鱗滝左近次.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 2,
-      "global": 2
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retimed] Kimetsu no Yaiba - Hashira Geiko-hen - 02.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[Crunchyroll Retimed] Kimetsu no Yaiba - Hashira Geiko-hen - 02.srt",
       "season": null,
       "episode": null,
-      "global": 2
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "鬼滅の刃.S01E02.育手・鱗滝左近次.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E02.育手・鱗滝左近次.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 2,
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[EMBER] Demon Slayer (2023) (Season 3) - E02 [1080p] [Dual Audio HEVC WEBRip].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/[EMBER] Demon Slayer (2023) (Season 3) - E02 [1080p] [Dual Audio HEVC WEBRip].srt",
+      "season": null,
+      "episode": null,
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[SubsPlease] Kimetsu no Yaiba - Hashira Geiko-hen - 02 (1080p) [B8EC67A1].srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[SubsPlease] Kimetsu no Yaiba - Hashira Geiko-hen - 02 (1080p) [B8EC67A1].srt",
       "season": null,
       "episode": null,
-      "global": 2
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "鬼滅の刃.S01E03.錆兎と真菰.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E03.錆兎と真菰.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 3,
-      "global": 3
+      "name": "[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 02 [1080p] [Hulu].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 02 [1080p] [Hulu].srt",
+      "season": null,
+      "episode": null,
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Kimetsu no Yaiba - Hashira Geiko Hen - 02 「水柱・冨岡義勇の痛み」 (UHB 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/Kimetsu no Yaiba - Hashira Geiko Hen - 02 「水柱・冨岡義勇の痛み」 (UHB 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E03.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E03.srt",
       "season": 1,
       "episode": 3,
-      "global": 3
-    },
-    {
-      "name": "[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 03 [1080p] [Hulu].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 03 [1080p] [Hulu].srt",
-      "season": null,
-      "episode": null,
-      "global": 3
+      "global": 3,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E03.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E03.ja.srt",
       "season": 1,
       "episode": 3,
-      "global": 3
-    },
-    {
-      "name": "Demon Slayer Kimetsu no Yaiba.S01E03.WEBRip.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/extra/Demon Slayer Kimetsu no Yaiba.S01E03.WEBRip.ja[cc].srt",
-      "season": 1,
-      "episode": 3,
-      "global": 3
-    },
-    {
-      "name": "[Ohys-Raws] Kimetsu no Yaiba - 03 (BS11 1920x1080 x264 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 03 (BS11 1920x1080 x264 AAC).srt",
-      "season": null,
-      "episode": null,
-      "global": 3
+      "global": 3,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S01E03.錆兎と真菰.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E03.錆兎と真菰.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 3,
-      "global": 3
+      "global": 3,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "[SubsPlease] Kimetsu no Yaiba - Hashira Geiko-hen - 03 (1080p) [0506D32B].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[SubsPlease] Kimetsu no Yaiba - Hashira Geiko-hen - 03 (1080p) [0506D32B].srt",
+      "name": "[Ohys-Raws] Kimetsu no Yaiba - 03 (BS11 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 03 (BS11 1920x1080 x264 AAC).srt",
       "season": null,
       "episode": null,
-      "global": 3
+      "global": 3,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[CoolComic404][03][1080P][WebRip][HEVC-10bit AAC].srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[CoolComic404][03][1080P][WebRip][HEVC-10bit AAC].srt",
       "season": null,
       "episode": null,
-      "global": 3
+      "global": 3,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retimed] Kimetsu no Yaiba - Hashira Geiko-hen - 03.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[Crunchyroll Retimed] Kimetsu no Yaiba - Hashira Geiko-hen - 03.srt",
       "season": null,
       "episode": null,
-      "global": 3
+      "global": 3,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[EMBER] Demon Slayer (2023) (Season 3) - E03 [1080p] [Dual Audio HEVC WEBRip].srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/[EMBER] Demon Slayer (2023) (Season 3) - E03 [1080p] [Dual Audio HEVC WEBRip].srt",
       "season": null,
       "episode": null,
-      "global": 3
+      "global": 3,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "Kimetsu no Yaiba - Hashira Geiko Hen - 03 「炭治郎全快！！柱稽古大参加」 (UHB 1920x1080 x264 AAC).srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/Kimetsu no Yaiba - Hashira Geiko Hen - 03 「炭治郎全快！！柱稽古大参加」 (UHB 1920x1080 x264 AAC).srt",
       "season": null,
       "episode": null,
-      "global": 3
+      "global": 3,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "鬼滅の刃.S01E04.最終選別.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E04.最終選別.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 4,
-      "global": 4
+      "name": "[SubsPlease] Kimetsu no Yaiba - Hashira Geiko-hen - 03 (1080p) [0506D32B].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[SubsPlease] Kimetsu no Yaiba - Hashira Geiko-hen - 03 (1080p) [0506D32B].srt",
+      "season": null,
+      "episode": null,
+      "global": 3,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 03 [1080p] [Hulu].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 03 [1080p] [Hulu].srt",
+      "season": null,
+      "episode": null,
+      "global": 3,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E04.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E04.srt",
       "season": 1,
       "episode": 4,
-      "global": 4
+      "global": 4,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E04.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E04.ja.srt",
       "season": 1,
       "episode": 4,
-      "global": 4
-    },
-    {
-      "name": "[Ohys-Raws] Kimetsu no Yaiba - 04 (BS11 1920x1080 x264 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 04 (BS11 1920x1080 x264 AAC).srt",
-      "season": null,
-      "episode": null,
-      "global": 4
-    },
-    {
-      "name": "Kimetsu no Yaiba - Hashira Geiko Hen - 04 「笑顔になれる」 (OTV 1920x1080 x264 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/Kimetsu no Yaiba - Hashira Geiko Hen - 04 「笑顔になれる」 (OTV 1920x1080 x264 AAC).srt",
-      "season": null,
-      "episode": null,
-      "global": 4
-    },
-    {
-      "name": "[EMBER] Demon Slayer (2023) (Season 3) - E04 [1080p] [Dual Audio HEVC WEBRip].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/[EMBER] Demon Slayer (2023) (Season 3) - E04 [1080p] [Dual Audio HEVC WEBRip].srt",
-      "season": null,
-      "episode": null,
-      "global": 4
-    },
-    {
-      "name": "[SubsPlease] Kimetsu no Yaiba - Hashira Geiko-hen - 04 (1080p) [9B5F5C36].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[SubsPlease] Kimetsu no Yaiba - Hashira Geiko-hen - 04 (1080p) [9B5F5C36].srt",
-      "season": null,
-      "episode": null,
-      "global": 4
-    },
-    {
-      "name": "[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 04 [1080p] [Hulu].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 04 [1080p] [Hulu].srt",
-      "season": null,
-      "episode": null,
-      "global": 4
-    },
-    {
-      "name": "[CoolComic404][04][1080P][WebRip][HEVC-10bit AAC].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[CoolComic404][04][1080P][WebRip][HEVC-10bit AAC].srt",
-      "season": null,
-      "episode": null,
-      "global": 4
+      "global": 4,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S01E04.最終選別.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E04.最終選別.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 4,
-      "global": 4
+      "global": 4,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Ohys-Raws] Kimetsu no Yaiba - 04 (BS11 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 04 (BS11 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 4,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retimed] Kimetsu no Yaiba - Hashira Geiko-hen - 04.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[Crunchyroll Retimed] Kimetsu no Yaiba - Hashira Geiko-hen - 04.srt",
       "season": null,
       "episode": null,
-      "global": 4
+      "global": 4,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "Demon Slayer Kimetsu no Yaiba.S01E04.WEBRip.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/extra/Demon Slayer Kimetsu no Yaiba.S01E04.WEBRip.ja[cc].srt",
-      "season": 1,
-      "episode": 4,
-      "global": 4
+      "name": "[SubsPlease] Kimetsu no Yaiba - Hashira Geiko-hen - 04 (1080p) [9B5F5C36].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[SubsPlease] Kimetsu no Yaiba - Hashira Geiko-hen - 04 (1080p) [9B5F5C36].srt",
+      "season": null,
+      "episode": null,
+      "global": 4,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "鬼滅の刃.S01E05.己の鋼.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E05.己の鋼.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 5,
-      "global": 5
+      "name": "[CoolComic404][04][1080P][WebRip][HEVC-10bit AAC].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[CoolComic404][04][1080P][WebRip][HEVC-10bit AAC].srt",
+      "season": null,
+      "episode": null,
+      "global": 4,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[EMBER] Demon Slayer (2023) (Season 3) - E04 [1080p] [Dual Audio HEVC WEBRip].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/[EMBER] Demon Slayer (2023) (Season 3) - E04 [1080p] [Dual Audio HEVC WEBRip].srt",
+      "season": null,
+      "episode": null,
+      "global": 4,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 04 [1080p] [Hulu].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 04 [1080p] [Hulu].srt",
+      "season": null,
+      "episode": null,
+      "global": 4,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Kimetsu no Yaiba - Hashira Geiko Hen - 04 「笑顔になれる」 (OTV 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/Kimetsu no Yaiba - Hashira Geiko Hen - 04 「笑顔になれる」 (OTV 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 4,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E05.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E05.srt",
       "season": 1,
       "episode": 5,
-      "global": 5
-    },
-    {
-      "name": "[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 05 [1080p] [Hulu].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 05 [1080p] [Hulu].srt",
-      "season": null,
-      "episode": null,
-      "global": 5
-    },
-    {
-      "name": "鬼滅の刃.S01E05.己の鋼.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E05.己の鋼.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 5,
-      "global": 5
-    },
-    {
-      "name": "Demon Slayer Kimetsu no Yaiba.S01E05.WEBRip.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/extra/Demon Slayer Kimetsu no Yaiba.S01E05.WEBRip.ja[cc].srt",
-      "season": 1,
-      "episode": 5,
-      "global": 5
-    },
-    {
-      "name": "[NanakoRaws] Kimetsu no Yaiba - Hashira Geiko-hen - 05-08 END (CX 1920x1080 x265 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[NanakoRaws] Kimetsu no Yaiba - Hashira Geiko-hen - 05-08 END (CX 1920x1080 x265 AAC).srt",
-      "season": null,
-      "episode": null,
-      "global": 5
-    },
-    {
-      "name": "[Ohys-Raws] Kimetsu no Yaiba - 05 (BS11 1920x1080 x264 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 05 (BS11 1920x1080 x264 AAC).srt",
-      "season": null,
-      "episode": null,
-      "global": 5
-    },
-    {
-      "name": "[CoolComic404][05][1080P][WebRip][HEVC-10bit AAC].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[CoolComic404][05][1080P][WebRip][HEVC-10bit AAC].srt",
-      "season": null,
-      "episode": null,
-      "global": 5
-    },
-    {
-      "name": "[EMBER] Demon Slayer (2023) (Season 3) - E05 [1080p] [Dual Audio HEVC WEBRip].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/[EMBER] Demon Slayer (2023) (Season 3) - E05 [1080p] [Dual Audio HEVC WEBRip].srt",
-      "season": null,
-      "episode": null,
-      "global": 5
+      "global": 5,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E05.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E05.ja.srt",
       "season": 1,
       "episode": 5,
-      "global": 5
+      "global": 5,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "鬼滅の刃.S01E05.己の鋼.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E05.己の鋼.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 5,
+      "global": 5,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Ohys-Raws] Kimetsu no Yaiba - 05 (BS11 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 05 (BS11 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 5,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[CoolComic404][05][1080P][WebRip][HEVC-10bit AAC].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[CoolComic404][05][1080P][WebRip][HEVC-10bit AAC].srt",
+      "season": null,
+      "episode": null,
+      "global": 5,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "Kimetsu no Yaiba - Hashira Geiko Hen - 05 「鬼を喰ってまで」 (CX 1920x1080 x264 AAC).srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/Kimetsu no Yaiba - Hashira Geiko Hen - 05 「鬼を喰ってまで」 (CX 1920x1080 x264 AAC).srt",
       "season": null,
       "episode": null,
-      "global": 5
+      "global": 5,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retimed] Kimetsu no Yaiba - Hashira Geiko-hen - 05.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[Crunchyroll Retimed] Kimetsu no Yaiba - Hashira Geiko-hen - 05.srt",
       "season": null,
       "episode": null,
-      "global": 5
+      "global": 5,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "鬼滅の刃.S01E06.鬼を連れた剣士.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E06.鬼を連れた剣士.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 6,
-      "global": 6
+      "name": "[EMBER] Demon Slayer (2023) (Season 3) - E05 [1080p] [Dual Audio HEVC WEBRip].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/[EMBER] Demon Slayer (2023) (Season 3) - E05 [1080p] [Dual Audio HEVC WEBRip].srt",
+      "season": null,
+      "episode": null,
+      "global": 5,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 05 [1080p] [Hulu].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 05 [1080p] [Hulu].srt",
+      "season": null,
+      "episode": null,
+      "global": 5,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[NanakoRaws] Kimetsu no Yaiba - Hashira Geiko-hen - 05-08 END (CX 1920x1080 x265 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[NanakoRaws] Kimetsu no Yaiba - Hashira Geiko-hen - 05-08 END (CX 1920x1080 x265 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 5,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E06.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E06.srt",
       "season": 1,
       "episode": 6,
-      "global": 6
-    },
-    {
-      "name": "[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 06 [1080p] [Hulu].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 06 [1080p] [Hulu].srt",
-      "season": null,
-      "episode": null,
-      "global": 6
-    },
-    {
-      "name": "[DB]Kimetsu no Yaiba - 06 (10bit 1080p x265).CC.ja.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 06 (10bit 1080p x265).CC.ja.srt",
-      "season": null,
-      "episode": null,
-      "global": 6
-    },
-    {
-      "name": "Kimetsu no Yaiba - Hashira Geiko Hen - 06 「鬼殺隊最強」 (CX 1920x1080 x264 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/Kimetsu no Yaiba - Hashira Geiko Hen - 06 「鬼殺隊最強」 (CX 1920x1080 x264 AAC).srt",
-      "season": null,
-      "episode": null,
-      "global": 6
-    },
-    {
-      "name": "[Ohys-Raws] Kimetsu no Yaiba - 06 (BS11 1920x1080 x264 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 06 (BS11 1920x1080 x264 AAC).srt",
-      "season": null,
-      "episode": null,
-      "global": 6
+      "global": 6,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E06.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E06.ja.srt",
       "season": 1,
       "episode": 6,
-      "global": 6
+      "global": 6,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "[EMBER] Demon Slayer (2023) (Season 3) - E06 [1080p] [Dual Audio HEVC WEBRip].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/[EMBER] Demon Slayer (2023) (Season 3) - E06 [1080p] [Dual Audio HEVC WEBRip].srt",
+      "name": "[DB]Kimetsu no Yaiba - 06 (10bit 1080p x265).CC.ja.srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 06 (10bit 1080p x265).CC.ja.srt",
       "season": null,
       "episode": null,
-      "global": 6
+      "global": 6,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "[CoolComic404][06][1080P][WebRip][HEVC-10bit AAC].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[CoolComic404][06][1080P][WebRip][HEVC-10bit AAC].srt",
+      "name": "[Ohys-Raws] Kimetsu no Yaiba - 06 (BS11 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 06 (BS11 1920x1080 x264 AAC).srt",
       "season": null,
       "episode": null,
-      "global": 6
-    },
-    {
-      "name": "[Crunchyroll Retimed] Kimetsu no Yaiba - Hashira Geiko-hen - 06.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[Crunchyroll Retimed] Kimetsu no Yaiba - Hashira Geiko-hen - 06.srt",
-      "season": null,
-      "episode": null,
-      "global": 6
+      "global": 6,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S01E06.鬼を連れた剣士.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E06.鬼を連れた剣士.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 6,
-      "global": 6
+      "global": 6,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "鬼滅の刃.S01E07.鬼舞辻無慘.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E07.鬼舞辻無慘.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 7,
-      "global": 7
+      "name": "[CoolComic404][06][1080P][WebRip][HEVC-10bit AAC].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[CoolComic404][06][1080P][WebRip][HEVC-10bit AAC].srt",
+      "season": null,
+      "episode": null,
+      "global": 6,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Crunchyroll Retimed] Kimetsu no Yaiba - Hashira Geiko-hen - 06.srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[Crunchyroll Retimed] Kimetsu no Yaiba - Hashira Geiko-hen - 06.srt",
+      "season": null,
+      "episode": null,
+      "global": 6,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[EMBER] Demon Slayer (2023) (Season 3) - E06 [1080p] [Dual Audio HEVC WEBRip].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/[EMBER] Demon Slayer (2023) (Season 3) - E06 [1080p] [Dual Audio HEVC WEBRip].srt",
+      "season": null,
+      "episode": null,
+      "global": 6,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Kimetsu no Yaiba - Hashira Geiko Hen - 06 「鬼殺隊最強」 (CX 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/Kimetsu no Yaiba - Hashira Geiko Hen - 06 「鬼殺隊最強」 (CX 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 6,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 06 [1080p] [Hulu].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 06 [1080p] [Hulu].srt",
+      "season": null,
+      "episode": null,
+      "global": 6,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E07.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E07.srt",
       "season": 1,
       "episode": 7,
-      "global": 7
+      "global": 7,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E07.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E07.ja.srt",
       "season": 1,
       "episode": 7,
-      "global": 7
-    },
-    {
-      "name": "鬼滅の刃.S01E07.鬼舞辻無慘.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E07.鬼舞辻無慘.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 7,
-      "global": 7
-    },
-    {
-      "name": "[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 07 [1080p] [Hulu].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 07 [1080p] [Hulu].srt",
-      "season": null,
-      "episode": null,
-      "global": 7
-    },
-    {
-      "name": "[Ohys-Raws] Kimetsu no Yaiba - 07 (BS11 1920x1080 x264 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 07 (BS11 1920x1080 x264 AAC).srt",
-      "season": null,
-      "episode": null,
-      "global": 7
-    },
-    {
-      "name": "[CoolComic404][07][1080P][WebRip][HEVC-10bit AAC].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[CoolComic404][07][1080P][WebRip][HEVC-10bit AAC].srt",
-      "season": null,
-      "episode": null,
-      "global": 7
-    },
-    {
-      "name": "[Crunchyroll Retimed] Kimetsu no Yaiba - Hashira Geiko-hen - 07.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[Crunchyroll Retimed] Kimetsu no Yaiba - Hashira Geiko-hen - 07.srt",
-      "season": null,
-      "episode": null,
-      "global": 7
-    },
-    {
-      "name": "[EMBER] Demon Slayer (2023) (Season 3) - E07 [1080p] [Dual Audio HEVC WEBRip].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/[EMBER] Demon Slayer (2023) (Season 3) - E07 [1080p] [Dual Audio HEVC WEBRip].srt",
-      "season": null,
-      "episode": null,
-      "global": 7
+      "global": 7,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[DB]Kimetsu no Yaiba - 07 (10bit 1080p x265).CC.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 07 (10bit 1080p x265).CC.ja.srt",
       "season": null,
       "episode": null,
-      "global": 7
+      "global": 7,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "鬼滅の刃.S01E07.鬼舞辻無慘.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E07.鬼舞辻無慘.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 7,
+      "global": 7,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[CoolComic404][07][1080P][WebRip][HEVC-10bit AAC].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[CoolComic404][07][1080P][WebRip][HEVC-10bit AAC].srt",
+      "season": null,
+      "episode": null,
+      "global": 7,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[EMBER] Demon Slayer (2023) (Season 3) - E07 [1080p] [Dual Audio HEVC WEBRip].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/[EMBER] Demon Slayer (2023) (Season 3) - E07 [1080p] [Dual Audio HEVC WEBRip].srt",
+      "season": null,
+      "episode": null,
+      "global": 7,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Ohys-Raws] Kimetsu no Yaiba - 07 (BS11 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 07 (BS11 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 7,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Crunchyroll Retimed] Kimetsu no Yaiba - Hashira Geiko-hen - 07.srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[Crunchyroll Retimed] Kimetsu no Yaiba - Hashira Geiko-hen - 07.srt",
+      "season": null,
+      "episode": null,
+      "global": 7,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 07 [1080p] [Hulu].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 07 [1080p] [Hulu].srt",
+      "season": null,
+      "episode": null,
+      "global": 7,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "Kimetsu no Yaiba - Hashira Geiko Hen - 07 「岩柱 悲鳴嶼行冥」 (UHB 1920x1080 x264 AAC).srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/Kimetsu no Yaiba - Hashira Geiko Hen - 07 「岩柱 悲鳴嶼行冥」 (UHB 1920x1080 x264 AAC).srt",
       "season": null,
       "episode": null,
-      "global": 7
-    },
-    {
-      "name": "鬼滅の刃.S01E08.幻惑の血の香り.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E08.幻惑の血の香り.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 8,
-      "global": 8
+      "global": 7,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E08.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E08.srt",
       "season": 1,
       "episode": 8,
-      "global": 8
-    },
-    {
-      "name": "Kimetsu no Yaiba - Hashira Geiko Hen - 08 「柱・集結」 (UHB 1920x1080 x264 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/Kimetsu no Yaiba - Hashira Geiko Hen - 08 「柱・集結」 (UHB 1920x1080 x264 AAC).srt",
-      "season": null,
-      "episode": null,
-      "global": 8
-    },
-    {
-      "name": "[CoolComic404][08][1080P][WebRip][HEVC-10bit AAC].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[CoolComic404][08][1080P][WebRip][HEVC-10bit AAC].srt",
-      "season": null,
-      "episode": null,
-      "global": 8
-    },
-    {
-      "name": "[DB]Kimetsu no Yaiba - 08 (10bit 1080p x265).CC.ja.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 08 (10bit 1080p x265).CC.ja.srt",
-      "season": null,
-      "episode": null,
-      "global": 8
-    },
-    {
-      "name": "[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 08 END [1080p] [Hulu].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 08 END [1080p] [Hulu].srt",
-      "season": null,
-      "episode": null,
-      "global": 8
-    },
-    {
-      "name": "鬼滅の刃.S01E08.幻惑の血の香り.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E08.幻惑の血の香り.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 8,
-      "global": 8
-    },
-    {
-      "name": "[Crunchyroll Retimed] Kimetsu no Yaiba - Hashira Geiko-hen - 08.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[Crunchyroll Retimed] Kimetsu no Yaiba - Hashira Geiko-hen - 08.srt",
-      "season": null,
-      "episode": null,
-      "global": 8
-    },
-    {
-      "name": "[EMBER] Demon Slayer (2023) (Season 3) - E08 [1080p] [Dual Audio HEVC WEBRip].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/[EMBER] Demon Slayer (2023) (Season 3) - E08 [1080p] [Dual Audio HEVC WEBRip].srt",
-      "season": null,
-      "episode": null,
-      "global": 8
-    },
-    {
-      "name": "[Ohys-Raws] Kimetsu no Yaiba - 08 (BS11 1920x1080 x264 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 08 (BS11 1920x1080 x264 AAC).srt",
-      "season": null,
-      "episode": null,
-      "global": 8
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E08.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E08.ja.srt",
       "season": 1,
       "episode": 8,
-      "global": 8
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "鬼滅の刃.S01E09.手毬鬼と矢印鬼.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E09.手毬鬼と矢印鬼.WEBRip.Netflix.ja[cc].srt",
+      "name": "[DB]Kimetsu no Yaiba - 08 (10bit 1080p x265).CC.ja.srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 08 (10bit 1080p x265).CC.ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "鬼滅の刃.S01E08.幻惑の血の香り.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E08.幻惑の血の香り.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
-      "episode": 9,
-      "global": 9
+      "episode": 8,
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[CoolComic404][08][1080P][WebRip][HEVC-10bit AAC].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[CoolComic404][08][1080P][WebRip][HEVC-10bit AAC].srt",
+      "season": null,
+      "episode": null,
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Crunchyroll Retimed] Kimetsu no Yaiba - Hashira Geiko-hen - 08.srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[Crunchyroll Retimed] Kimetsu no Yaiba - Hashira Geiko-hen - 08.srt",
+      "season": null,
+      "episode": null,
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Ohys-Raws] Kimetsu no Yaiba - 08 (BS11 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 08 (BS11 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[EMBER] Demon Slayer (2023) (Season 3) - E08 [1080p] [Dual Audio HEVC WEBRip].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/[EMBER] Demon Slayer (2023) (Season 3) - E08 [1080p] [Dual Audio HEVC WEBRip].srt",
+      "season": null,
+      "episode": null,
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 08 END [1080p] [Hulu].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/[New-raws] Kimetsu no Yaiba - Hashira Geiko-hen - 08 END [1080p] [Hulu].srt",
+      "season": null,
+      "episode": null,
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Kimetsu no Yaiba - Hashira Geiko Hen - 08 「柱・集結」 (UHB 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/Kimetsu no Yaiba - Hashira Geiko Hen - 08 「柱・集結」 (UHB 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 8,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E09.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E09.srt",
       "season": 1,
       "episode": 9,
-      "global": 9
-    },
-    {
-      "name": "Demon Slayer Kimetsu no Yaiba.S01E09.WEBRip.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/extra/Demon Slayer Kimetsu no Yaiba.S01E09.WEBRip.ja[cc].srt",
-      "season": 1,
-      "episode": 9,
-      "global": 9
+      "global": 9,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E09.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E09.ja.srt",
       "season": 1,
       "episode": 9,
-      "global": 9
-    },
-    {
-      "name": "[Ohys-Raws] Kimetsu no Yaiba - 09 (BS11 1920x1080 x264 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 09 (BS11 1920x1080 x264 AAC).srt",
-      "season": null,
-      "episode": null,
-      "global": 9
-    },
-    {
-      "name": "[EMBER] Demon Slayer (2023) (Season 3) - E09 [1080p] [Dual Audio HEVC WEBRip].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/[EMBER] Demon Slayer (2023) (Season 3) - E09 [1080p] [Dual Audio HEVC WEBRip].srt",
-      "season": null,
-      "episode": null,
-      "global": 9
+      "global": 9,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S01E09.手毬鬼と矢印鬼.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E09.手毬鬼と矢印鬼.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 9,
-      "global": 9
+      "global": 9,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "鬼滅の刃.S01E10.ずっと一緒にいる.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E10.ずっと一緒にいる.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 10,
-      "global": 10
+      "name": "[Ohys-Raws] Kimetsu no Yaiba - 09 (BS11 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 09 (BS11 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 9,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[EMBER] Demon Slayer (2023) (Season 3) - E09 [1080p] [Dual Audio HEVC WEBRip].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/[EMBER] Demon Slayer (2023) (Season 3) - E09 [1080p] [Dual Audio HEVC WEBRip].srt",
+      "season": null,
+      "episode": null,
+      "global": 9,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E10.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E10.srt",
       "season": 1,
       "episode": 10,
-      "global": 10
-    },
-    {
-      "name": "Demon Slayer Kimetsu no Yaiba.S01E10.WEBRip.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/extra/Demon Slayer Kimetsu no Yaiba.S01E10.WEBRip.ja[cc].srt",
-      "season": 1,
-      "episode": 10,
-      "global": 10
+      "global": 10,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E10.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E10.ja.srt",
       "season": 1,
       "episode": 10,
-      "global": 10
-    },
-    {
-      "name": "鬼滅の刃.S01E10.ずっと一緒にいる.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E10.ずっと一緒にいる.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 10,
-      "global": 10
-    },
-    {
-      "name": "[EMBER] Demon Slayer (2023) (Season 3) - E10 [1080p] [Dual Audio HEVC WEBRip].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/[EMBER] Demon Slayer (2023) (Season 3) - E10 [1080p] [Dual Audio HEVC WEBRip].srt",
-      "season": null,
-      "episode": null,
-      "global": 10
+      "global": 10,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Ohys-Raws] Kimetsu no Yaiba - 10 (BS11 1920x1080 x264 AAC).srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 10 (BS11 1920x1080 x264 AAC).srt",
       "season": null,
       "episode": null,
-      "global": 10
+      "global": 10,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "鬼滅の刃.S01E11.鼓の屋敷.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E11.鼓の屋敷.WEBRip.Netflix.ja[cc].srt",
+      "name": "鬼滅の刃.S01E10.ずっと一緒にいる.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E10.ずっと一緒にいる.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
-      "episode": 11,
-      "global": 11
+      "episode": 10,
+      "global": 10,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "[DB]Kimetsu no Yaiba - 11 (10bit 1080p x265).CC.ja.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 11 (10bit 1080p x265).CC.ja.srt",
+      "name": "[EMBER] Demon Slayer (2023) (Season 3) - E10 [1080p] [Dual Audio HEVC WEBRip].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/[EMBER] Demon Slayer (2023) (Season 3) - E10 [1080p] [Dual Audio HEVC WEBRip].srt",
       "season": null,
       "episode": null,
-      "global": 11
+      "global": 10,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E11.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E11.srt",
       "season": 1,
       "episode": 11,
-      "global": 11
-    },
-    {
-      "name": "[EMBER] Demon Slayer (2023) (Season 3) - E11 [1080p] [Dual Audio HEVC WEBRip].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/[EMBER] Demon Slayer (2023) (Season 3) - E11 [1080p] [Dual Audio HEVC WEBRip].srt",
-      "season": null,
-      "episode": null,
-      "global": 11
-    },
-    {
-      "name": "鬼滅の刃.S01E11.鼓の屋敷.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E11.鼓の屋敷.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 11,
-      "global": 11
-    },
-    {
-      "name": "[Ohys-Raws] Kimetsu no Yaiba - 11 (BS11 1920x1080 x264 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 11 (BS11 1920x1080 x264 AAC).srt",
-      "season": null,
-      "episode": null,
-      "global": 11
+      "global": 11,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E11.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E11.ja.srt",
       "season": 1,
       "episode": 11,
-      "global": 11
+      "global": 11,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "鬼滅の刃.S01E12.猪は牙を剥き.善逸は眠る.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E12.猪は牙を剥き.善逸は眠る.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 12,
-      "global": 12
-    },
-    {
-      "name": "Demon Slayer Kimetsu no Yaiba.S01E12.WEBRip.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/extra/Demon Slayer Kimetsu no Yaiba.S01E12.WEBRip.ja[cc].srt",
-      "season": 1,
-      "episode": 12,
-      "global": 12
-    },
-    {
-      "name": "[Ohys-Raws] Kimetsu no Yaiba - 12 (BS11 1920x1080 x264 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 12 (BS11 1920x1080 x264 AAC).srt",
+      "name": "[DB]Kimetsu no Yaiba - 11 (10bit 1080p x265).CC.ja.srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 11 (10bit 1080p x265).CC.ja.srt",
       "season": null,
       "episode": null,
-      "global": 12
+      "global": 11,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "鬼滅の刃.S01E12.猪は牙を剥き.善逸は眠る.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E12.猪は牙を剥き.善逸は眠る.WEBRip.Netflix.ja[cc].srt",
+      "name": "鬼滅の刃.S01E11.鼓の屋敷.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E11.鼓の屋敷.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
-      "episode": 12,
-      "global": 12
+      "episode": 11,
+      "global": 11,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[EMBER] Demon Slayer (2023) (Season 3) - E11 [1080p] [Dual Audio HEVC WEBRip].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/[EMBER] Demon Slayer (2023) (Season 3) - E11 [1080p] [Dual Audio HEVC WEBRip].srt",
+      "season": null,
+      "episode": null,
+      "global": 11,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Ohys-Raws] Kimetsu no Yaiba - 11 (BS11 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 11 (BS11 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 11,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E12.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E12.srt",
       "season": 1,
       "episode": 12,
-      "global": 12
+      "global": 12,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E12.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E12.ja.srt",
       "season": 1,
       "episode": 12,
-      "global": 12
+      "global": 12,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "鬼滅の刃.S01E13.命より大事なもの.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E13.命より大事なもの.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 13,
-      "global": 13
-    },
-    {
-      "name": "Demon Slayer Kimetsu no Yaiba.S01E13.WEBRip.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/extra/Demon Slayer Kimetsu no Yaiba.S01E13.WEBRip.ja[cc].srt",
-      "season": 1,
-      "episode": 13,
-      "global": 13
-    },
-    {
-      "name": "[Ohys-Raws] Kimetsu no Yaiba - 13 (BS11 1920x1080 x264 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 13 (BS11 1920x1080 x264 AAC).srt",
+      "name": "[Ohys-Raws] Kimetsu no Yaiba - 12 (BS11 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 12 (BS11 1920x1080 x264 AAC).srt",
       "season": null,
       "episode": null,
-      "global": 13
+      "global": 12,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "鬼滅の刃.S01E12.猪は牙を剥き.善逸は眠る.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E12.猪は牙を剥き.善逸は眠る.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 12,
+      "global": 12,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E13.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E13.srt",
       "season": 1,
       "episode": 13,
-      "global": 13
+      "global": 13,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E13.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E13.ja.srt",
       "season": 1,
       "episode": 13,
-      "global": 13
+      "global": 13,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Ohys-Raws] Kimetsu no Yaiba - 13 (BS11 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 13 (BS11 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 13,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S01E13.命より大事なもの.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E13.命より大事なもの.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 13,
-      "global": 13
-    },
-    {
-      "name": "鬼滅の刃.S01E14.藤の花の家紋の家.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E14.藤の花の家紋の家.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 14,
-      "global": 14
-    },
-    {
-      "name": "[DB]Kimetsu no Yaiba - 14 (10bit 1080p x265).CC.ja.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 14 (10bit 1080p x265).CC.ja.srt",
-      "season": null,
-      "episode": null,
-      "global": 14
-    },
-    {
-      "name": "[Ohys-Raws] Kimetsu no Yaiba - 14 (BS11 1920x1080 x264 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 14 (BS11 1920x1080 x264 AAC).srt",
-      "season": null,
-      "episode": null,
-      "global": 14
-    },
-    {
-      "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E14.ja.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E14.ja.srt",
-      "season": 1,
-      "episode": 14,
-      "global": 14
+      "global": 13,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E14.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E14.srt",
       "season": 1,
       "episode": 14,
-      "global": 14
+      "global": 14,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E14.ja.srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E14.ja.srt",
+      "season": 1,
+      "episode": 14,
+      "global": 14,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[DB]Kimetsu no Yaiba - 14 (10bit 1080p x265).CC.ja.srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 14 (10bit 1080p x265).CC.ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 14,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Ohys-Raws] Kimetsu no Yaiba - 14 (BS11 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 14 (BS11 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 14,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S01E14.藤の花の家紋の家.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E14.藤の花の家紋の家.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 14,
-      "global": 14
-    },
-    {
-      "name": "鬼滅の刃.S01E15.那田蜘蛛山.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E15.那田蜘蛛山.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 15,
-      "global": 15
+      "global": 14,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E15.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E15.srt",
       "season": 1,
       "episode": 15,
-      "global": 15
+      "global": 15,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E15.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E15.ja.srt",
       "season": 1,
       "episode": 15,
-      "global": 15
-    },
-    {
-      "name": "Demon Slayer Kimetsu no Yaiba.S01E15.WEBRip.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/extra/Demon Slayer Kimetsu no Yaiba.S01E15.WEBRip.ja[cc].srt",
-      "season": 1,
-      "episode": 15,
-      "global": 15
+      "global": 15,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S01E15.那田蜘蛛山.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E15.那田蜘蛛山.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 15,
-      "global": 15
+      "global": 15,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Ohys-Raws] Kimetsu no Yaiba - 15 (BS11 1920x1080 x264 AAC).srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 15 (BS11 1920x1080 x264 AAC).srt",
       "season": null,
       "episode": null,
-      "global": 15
-    },
-    {
-      "name": "鬼滅の刃.S01E16.自分ではない誰かを前へ.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E16.自分ではない誰かを前へ.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 16,
-      "global": 16
+      "global": 15,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E16.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E16.srt",
       "season": 1,
       "episode": 16,
-      "global": 16
+      "global": 16,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E16.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E16.ja.srt",
       "season": 1,
       "episode": 16,
-      "global": 16
+      "global": 16,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[DB]Kimetsu no Yaiba - 16 (10bit 1080p x265).CC.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 16 (10bit 1080p x265).CC.ja.srt",
       "season": null,
       "episode": null,
-      "global": 16
+      "global": 16,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Ohys-Raws] Kimetsu no Yaiba - 16 (BS11 1920x1080 x264 AAC).srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 16 (BS11 1920x1080 x264 AAC).srt",
       "season": null,
       "episode": null,
-      "global": 16
+      "global": 16,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S01E16.自分ではない誰かを前へ.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E16.自分ではない誰かを前へ.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 16,
-      "global": 16
-    },
-    {
-      "name": "鬼滅の刃.S01E17.ひとつのことを極め抜け.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E17.ひとつのことを極め抜け.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 17,
-      "global": 17
+      "global": 16,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E17.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E17.srt",
       "season": 1,
       "episode": 17,
-      "global": 17
-    },
-    {
-      "name": "[DB]Kimetsu no Yaiba - 17 (10bit 1080p x265).CC.ja.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 17 (10bit 1080p x265).CC.ja.srt",
-      "season": null,
-      "episode": null,
-      "global": 17
-    },
-    {
-      "name": "[Ohys-Raws] Kimetsu no Yaiba - 17 (BS11 1920x1080 x264 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 17 (BS11 1920x1080 x264 AAC).srt",
-      "season": null,
-      "episode": null,
-      "global": 17
+      "global": 17,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E17.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E17.ja.srt",
       "season": 1,
       "episode": 17,
-      "global": 17
+      "global": 17,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[DB]Kimetsu no Yaiba - 17 (10bit 1080p x265).CC.ja.srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 17 (10bit 1080p x265).CC.ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 17,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Ohys-Raws] Kimetsu no Yaiba - 17 (BS11 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 17 (BS11 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 17,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S01E17.ひとつのことを極め抜け.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E17.ひとつのことを極め抜け.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 17,
-      "global": 17
-    },
-    {
-      "name": "鬼滅の刃.S01E18.偽物の絆.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E18.偽物の絆.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 18,
-      "global": 18
+      "global": 17,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E18.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E18.srt",
       "season": 1,
       "episode": 18,
-      "global": 18
-    },
-    {
-      "name": "[DB]Kimetsu no Yaiba - 18 (10bit 1080p x265).CC.ja.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 18 (10bit 1080p x265).CC.ja.srt",
-      "season": null,
-      "episode": null,
-      "global": 18
-    },
-    {
-      "name": "鬼滅の刃.S01E18.偽物の絆.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E18.偽物の絆.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 18,
-      "global": 18
-    },
-    {
-      "name": "[Ohys-Raws] Kimetsu no Yaiba - 18 (BS11 1920x1080 x264 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 18 (BS11 1920x1080 x264 AAC).srt",
-      "season": null,
-      "episode": null,
-      "global": 18
+      "global": 18,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E18.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E18.ja.srt",
       "season": 1,
       "episode": 18,
-      "global": 18
+      "global": 18,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "鬼滅の刃.S01E19.ヒノカミ.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E19.ヒノカミ.WEBRip.Netflix.ja[cc].srt",
+      "name": "[DB]Kimetsu no Yaiba - 18 (10bit 1080p x265).CC.ja.srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 18 (10bit 1080p x265).CC.ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 18,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "鬼滅の刃.S01E18.偽物の絆.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E18.偽物の絆.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
-      "episode": 19,
-      "global": 19
+      "episode": 18,
+      "global": 18,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Ohys-Raws] Kimetsu no Yaiba - 18 (BS11 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 18 (BS11 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 18,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E19.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E19.srt",
       "season": 1,
       "episode": 19,
-      "global": 19
+      "global": 19,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E19.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E19.ja.srt",
       "season": 1,
       "episode": 19,
-      "global": 19
-    },
-    {
-      "name": "鬼滅の刃.S01E19.ヒノカミ.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E19.ヒノカミ.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 19,
-      "global": 19
-    },
-    {
-      "name": "[Ohys-Raws] Kimetsu no Yaiba - 19 (BS11 1920x1080 x264 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 19 (BS11 1920x1080 x264 AAC).srt",
-      "season": null,
-      "episode": null,
-      "global": 19
+      "global": 19,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[DB]Kimetsu no Yaiba - 19 (10bit 1080p x265).CC.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 19 (10bit 1080p x265).CC.ja.srt",
       "season": null,
       "episode": null,
-      "global": 19
+      "global": 19,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "鬼滅の刃.S01E20.寄せ集めの家族.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E20.寄せ集めの家族.WEBRip.Netflix.ja[cc].srt",
+      "name": "鬼滅の刃.S01E19.ヒノカミ.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E19.ヒノカミ.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
-      "episode": 20,
-      "global": 20
+      "episode": 19,
+      "global": 19,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Ohys-Raws] Kimetsu no Yaiba - 19 (BS11 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 19 (BS11 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 19,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E20.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E20.srt",
       "season": 1,
       "episode": 20,
-      "global": 20
-    },
-    {
-      "name": "Demon Slayer Kimetsu no Yaiba.S01E20.WEBRip.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/extra/Demon Slayer Kimetsu no Yaiba.S01E20.WEBRip.ja[cc].srt",
-      "season": 1,
-      "episode": 20,
-      "global": 20
-    },
-    {
-      "name": "[Ohys-Raws] Kimetsu no Yaiba - 20 (BS11 1920x1080 x264 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 20 (BS11 1920x1080 x264 AAC).srt",
-      "season": null,
-      "episode": null,
-      "global": 20
+      "global": 20,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E20.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E20.ja.srt",
       "season": 1,
       "episode": 20,
-      "global": 20
+      "global": 20,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Ohys-Raws] Kimetsu no Yaiba - 20 (BS11 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 20 (BS11 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 20,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S01E20.寄せ集めの家族.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E20.寄せ集めの家族.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 20,
-      "global": 20
-    },
-    {
-      "name": "鬼滅の刃.S01E21.隊律違反.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E21.隊律違反.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 21,
-      "global": 21
+      "global": 20,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E21.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E21.srt",
       "season": 1,
       "episode": 21,
-      "global": 21
-    },
-    {
-      "name": "[Ohys-Raws] Kimetsu no Yaiba - 21 (BS11 1920x1080 x264 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 21 (BS11 1920x1080 x264 AAC).srt",
-      "season": null,
-      "episode": null,
-      "global": 21
-    },
-    {
-      "name": "[DB]Kimetsu no Yaiba - 21 (10bit 1080p x265).CC.ja.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 21 (10bit 1080p x265).CC.ja.srt",
-      "season": null,
-      "episode": null,
-      "global": 21
+      "global": 21,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E21.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E21.ja.srt",
       "season": 1,
       "episode": 21,
-      "global": 21
+      "global": 21,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[DB]Kimetsu no Yaiba - 21 (10bit 1080p x265).CC.ja.srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 21 (10bit 1080p x265).CC.ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 21,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S01E21.隊律違反.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E21.隊律違反.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 21,
-      "global": 21
+      "global": 21,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "鬼滅の刃.S01E22.お館様.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E22.お館様.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 22,
-      "global": 22
+      "name": "[Ohys-Raws] Kimetsu no Yaiba - 21 (BS11 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 21 (BS11 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 21,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E22.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E22.srt",
       "season": 1,
       "episode": 22,
-      "global": 22
-    },
-    {
-      "name": "鬼滅の刃.S01E22.お館様.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E22.お館様.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 22,
-      "global": 22
-    },
-    {
-      "name": "Demon Slayer Kimetsu no Yaiba.S01E22.WEBRip.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/extra/Demon Slayer Kimetsu no Yaiba.S01E22.WEBRip.ja[cc].srt",
-      "season": 1,
-      "episode": 22,
-      "global": 22
+      "global": 22,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E22.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E22.ja.srt",
       "season": 1,
       "episode": 22,
-      "global": 22
+      "global": 22,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "鬼滅の刃.S01E22.お館様.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E22.お館様.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 22,
+      "global": 22,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Ohys-Raws] Kimetsu no Yaiba - 22 (BS11 1920x1080 x264 AAC).srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 22 (BS11 1920x1080 x264 AAC).srt",
       "season": null,
       "episode": null,
-      "global": 22
-    },
-    {
-      "name": "鬼滅の刃.S01E23.柱合会議.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E23.柱合会議.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 23,
-      "global": 23
+      "global": 22,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E23.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E23.srt",
       "season": 1,
       "episode": 23,
-      "global": 23
+      "global": 23,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E23.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E23.ja.srt",
       "season": 1,
       "episode": 23,
-      "global": 23
+      "global": 23,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[DB]Kimetsu no Yaiba - 23 (10bit 1080p x265).CC.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 23 (10bit 1080p x265).CC.ja.srt",
       "season": null,
       "episode": null,
-      "global": 23
+      "global": 23,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S01E23.柱合会議.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E23.柱合会議.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 23,
-      "global": 23
+      "global": 23,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Ohys-Raws] Kimetsu no Yaiba - 23 (BS11 1920x1080 x264 AAC).srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 23 (BS11 1920x1080 x264 AAC).srt",
       "season": null,
       "episode": null,
-      "global": 23
-    },
-    {
-      "name": "鬼滅の刃.S01E24.機能回復訓練.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E24.機能回復訓練.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 24,
-      "global": 24
+      "global": 23,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E24.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E24.srt",
       "season": 1,
       "episode": 24,
-      "global": 24
-    },
-    {
-      "name": "[DB]Kimetsu no Yaiba - 24 (10bit 1080p x265).CC.ja.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 24 (10bit 1080p x265).CC.ja.srt",
-      "season": null,
-      "episode": null,
-      "global": 24
+      "global": 24,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E24.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E24.ja.srt",
       "season": 1,
       "episode": 24,
-      "global": 24
+      "global": 24,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[DB]Kimetsu no Yaiba - 24 (10bit 1080p x265).CC.ja.srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 24 (10bit 1080p x265).CC.ja.srt",
+      "season": null,
+      "episode": null,
+      "global": 24,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Ohys-Raws] Kimetsu no Yaiba - 24 (BS11 1920x1080 x264 AAC).srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 24 (BS11 1920x1080 x264 AAC).srt",
       "season": null,
       "episode": null,
-      "global": 24
+      "global": 24,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S01E24.機能回復訓練.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E24.機能回復訓練.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 24,
-      "global": 24
-    },
-    {
-      "name": "鬼滅の刃.S01E25.継子・栗花落カナヲ.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E25.継子・栗花落カナヲ.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 25,
-      "global": 25
+      "global": 24,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E25.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E25.srt",
       "season": 1,
       "episode": 25,
-      "global": 25
+      "global": 25,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E25.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E25.ja.srt",
       "season": 1,
       "episode": 25,
-      "global": 25
-    },
-    {
-      "name": "Demon Slayer Kimetsu no Yaiba.S01E25.WEBRip.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/extra/Demon Slayer Kimetsu no Yaiba.S01E25.WEBRip.ja[cc].srt",
-      "season": 1,
-      "episode": 25,
-      "global": 25
+      "global": 25,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Ohys-Raws] Kimetsu no Yaiba - 25 (BS11 1920x1080 x264 AAC).srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 25 (BS11 1920x1080 x264 AAC).srt",
       "season": null,
       "episode": null,
-      "global": 25
+      "global": 25,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S01E25.継子・栗花落カナヲ.WEBRip.Netflix.ja[cc].srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E25.継子・栗花落カナヲ.WEBRip.Netflix.ja[cc].srt",
       "season": 1,
       "episode": 25,
-      "global": 25
-    },
-    {
-      "name": "鬼滅の刃.S01E26.新たなる任務.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E26.新たなる任務.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 26,
-      "global": 26
+      "global": 25,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S01E26.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Judas] Kimetsu no Yaiba - S01E26.srt",
       "season": 1,
       "episode": 26,
-      "global": 26
+      "global": 26,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S01E26.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Crunchyroll Retime] Kimetsu no Yaiba - S01E26.ja.srt",
       "season": 1,
       "episode": 26,
-      "global": 26
-    },
-    {
-      "name": "鬼滅の刃.S01E26.新たなる任務.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E26.新たなる任務.WEBRip.Netflix.ja[cc].srt",
-      "season": 1,
-      "episode": 26,
-      "global": 26
-    },
-    {
-      "name": "[Ohys-Raws] Kimetsu no Yaiba - 26 END (BS11 1920x1080 x264 AAC).srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 26 END (BS11 1920x1080 x264 AAC).srt",
-      "season": null,
-      "episode": null,
-      "global": 26
+      "global": 26,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[DB]Kimetsu no Yaiba - 26 (10bit 1080p x265).CC.ja.srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba/[DB]Kimetsu no Yaiba - 26 (10bit 1080p x265).CC.ja.srt",
       "season": null,
       "episode": null,
-      "global": 26
+      "global": 26,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S02E01.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Mugen Ressha-hen (TV)/extra/Demon.Slayer .Kimetsu.no.Yaiba.S02E01.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 1,
-      "global": 27
+      "name": "鬼滅の刃.S01E26.新たなる任務.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/鬼滅の刃.S01E26.新たなる任務.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 26,
+      "global": 26,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
-      "name": "鬼滅の刃.S02E01.炎柱・煉󠄁獄杏寿郎.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Mugen Ressha-hen (TV)/鬼滅の刃.S02E01.炎柱・煉󠄁獄杏寿郎.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 1,
-      "global": 27,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S02E01.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Mugen Ressha-hen (TV)/extra/Demon.Slayer .Kimetsu.no.Yaiba.S02E01.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 1,
-      "global": 27,
-      "conflicts": [
-        "global_collision"
-      ]
+      "name": "[Ohys-Raws] Kimetsu no Yaiba - 26 END (BS11 1920x1080 x264 AAC).srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba/[Ohys-Raws] Kimetsu no Yaiba - 26 END (BS11 1920x1080 x264 AAC).srt",
+      "season": null,
+      "episode": null,
+      "global": 26,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas] Kimetsu no Yaiba - S02E01.ja.srt",
@@ -1500,9 +1964,10 @@
       "season": 2,
       "episode": 1,
       "global": 27,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S02E01.炎柱・煉󠄁獄杏寿郎.WEBRip.Netflix.ja[cc].srt",
@@ -1510,33 +1975,10 @@
       "season": 2,
       "episode": 1,
       "global": 27,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S02E02.深い眠り.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Mugen Ressha-hen (TV)/鬼滅の刃.S02E02.深い眠り.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 2,
-      "global": 28
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S02E02.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Mugen Ressha-hen (TV)/extra/Demon.Slayer .Kimetsu.no.Yaiba.S02E02.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 2,
-      "global": 28,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S02E02.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Mugen Ressha-hen (TV)/extra/Demon.Slayer .Kimetsu.no.Yaiba.S02E02.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 2,
-      "global": 28,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -1547,9 +1989,10 @@
       "season": 2,
       "episode": 2,
       "global": 28,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S02E02.深い眠り.WEBRip.Netflix.ja[cc].srt",
@@ -1557,33 +2000,10 @@
       "season": 2,
       "episode": 2,
       "global": 28,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S02E03.本当なら.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Mugen Ressha-hen (TV)/鬼滅の刃.S02E03.本当なら.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 3,
-      "global": 29
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S02E03.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Mugen Ressha-hen (TV)/extra/Demon.Slayer .Kimetsu.no.Yaiba.S02E03.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 3,
-      "global": 29,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S02E03.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Mugen Ressha-hen (TV)/extra/Demon.Slayer .Kimetsu.no.Yaiba.S02E03.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 3,
-      "global": 29,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -1594,9 +2014,10 @@
       "season": 2,
       "episode": 3,
       "global": 29,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S02E03.本当なら.WEBRip.Netflix.ja[cc].srt",
@@ -1604,23 +2025,10 @@
       "season": 2,
       "episode": 3,
       "global": 29,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S02E04.侮辱.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Mugen Ressha-hen (TV)/鬼滅の刃.S02E04.侮辱.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 4,
-      "global": 30
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S02E04.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Mugen Ressha-hen (TV)/extra/Demon.Slayer .Kimetsu.no.Yaiba.S02E04.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 4,
-      "global": 30,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -1631,9 +2039,10 @@
       "season": 2,
       "episode": 4,
       "global": 30,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S02E04.侮辱.WEBRip.Netflix.ja[cc].srt",
@@ -1641,33 +2050,10 @@
       "season": 2,
       "episode": 4,
       "global": 30,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S02E04.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Mugen Ressha-hen (TV)/extra/Demon.Slayer .Kimetsu.no.Yaiba.S02E04.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 4,
-      "global": 30,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S02E05.前へ.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Mugen Ressha-hen (TV)/鬼滅の刃.S02E05.前へ.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 5,
-      "global": 31
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S02E05.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Mugen Ressha-hen (TV)/extra/Demon.Slayer .Kimetsu.no.Yaiba.S02E05.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 5,
-      "global": 31,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -1678,9 +2064,10 @@
       "season": 2,
       "episode": 5,
       "global": 31,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S02E05.前へ.WEBRip.Netflix.ja[cc].srt",
@@ -1688,33 +2075,10 @@
       "season": 2,
       "episode": 5,
       "global": 31,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S02E05.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Mugen Ressha-hen (TV)/extra/Demon.Slayer .Kimetsu.no.Yaiba.S02E05.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 5,
-      "global": 31,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S02E06.猗窩座.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Mugen Ressha-hen (TV)/鬼滅の刃.S02E06.猗窩座.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 6,
-      "global": 32
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S02E06.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Mugen Ressha-hen (TV)/extra/Demon.Slayer .Kimetsu.no.Yaiba.S02E06.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 6,
-      "global": 32,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -1725,19 +2089,10 @@
       "season": 2,
       "episode": 6,
       "global": 32,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S02E06.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Mugen Ressha-hen (TV)/extra/Demon.Slayer .Kimetsu.no.Yaiba.S02E06.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 6,
-      "global": 32,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S02E06.猗窩座.WEBRip.Netflix.ja[cc].srt",
@@ -1745,23 +2100,10 @@
       "season": 2,
       "episode": 6,
       "global": 32,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S02E07.心を燃やせ.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Mugen Ressha-hen (TV)/鬼滅の刃.S02E07.心を燃やせ.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 7,
-      "global": 33
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S02E07.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Mugen Ressha-hen (TV)/extra/Demon.Slayer .Kimetsu.no.Yaiba.S02E07.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 7,
-      "global": 33,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -1772,9 +2114,10 @@
       "season": 2,
       "episode": 7,
       "global": 33,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S02E07.心を燃やせ.WEBRip.Netflix.ja[cc].srt",
@@ -1782,43 +2125,10 @@
       "season": 2,
       "episode": 7,
       "global": 33,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S02E07.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Mugen Ressha-hen (TV)/extra/Demon.Slayer .Kimetsu.no.Yaiba.S02E07.WEBRip.Netflix.ja[cc].srt",
-      "season": 2,
-      "episode": 7,
-      "global": 33,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S03E01.音柱・宇髄天元.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/鬼滅の刃.S03E01.音柱・宇髄天元.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 1,
-      "global": 34
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S03E01.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/extra/Demon.Slayer .Kimetsu.no.Yaiba.S03E01.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 1,
-      "global": 34,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S03E01.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/extra/Demon.Slayer .Kimetsu.no.Yaiba.S03E01.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 1,
-      "global": 34,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -1829,36 +2139,10 @@
       "season": 3,
       "episode": 1,
       "global": 34,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S03E02.遊郭潜入.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/鬼滅の刃.S03E02.遊郭潜入.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 2,
-      "global": 35
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S03E02.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/extra/Demon.Slayer .Kimetsu.no.Yaiba.S03E02.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 2,
-      "global": 35,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S03E02.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/extra/Demon.Slayer .Kimetsu.no.Yaiba.S03E02.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 2,
-      "global": 35,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S03E02.遊郭潜入.WEBRip.Netflix.ja[cc].srt",
@@ -1866,26 +2150,10 @@
       "season": 3,
       "episode": 2,
       "global": 35,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S03E03.何者 .WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/鬼滅の刃.S03E03.何者 .WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 3,
-      "global": 36
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S03E03.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/extra/Demon.Slayer .Kimetsu.no.Yaiba.S03E03.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 3,
-      "global": 36,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S03E03.何者 .WEBRip.Netflix.ja[cc].srt",
@@ -1893,36 +2161,10 @@
       "season": 3,
       "episode": 3,
       "global": 36,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S03E03.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/extra/Demon.Slayer .Kimetsu.no.Yaiba.S03E03.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 3,
-      "global": 36,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S03E04.今夜.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/鬼滅の刃.S03E04.今夜.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 4,
-      "global": 37
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S03E04.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/extra/Demon.Slayer .Kimetsu.no.Yaiba.S03E04.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 4,
-      "global": 37,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S03E04.今夜.WEBRip.Netflix.ja[cc].srt",
@@ -1930,36 +2172,10 @@
       "season": 3,
       "episode": 4,
       "global": 37,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S03E04.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/extra/Demon.Slayer .Kimetsu.no.Yaiba.S03E04.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 4,
-      "global": 37,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S03E05.ド派手に行くぜ!.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/鬼滅の刃.S03E05.ド派手に行くぜ!.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 5,
-      "global": 38
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S03E05.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/extra/Demon.Slayer .Kimetsu.no.Yaiba.S03E05.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 5,
-      "global": 38,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S03E05.ド派手に行くぜ!.WEBRip.Netflix.ja[cc].srt",
@@ -1967,36 +2183,10 @@
       "season": 3,
       "episode": 5,
       "global": 38,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S03E05.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/extra/Demon.Slayer .Kimetsu.no.Yaiba.S03E05.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 5,
-      "global": 38,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S03E06.重なる記憶.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/鬼滅の刃.S03E06.重なる記憶.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 6,
-      "global": 39
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S03E06.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/extra/Demon.Slayer .Kimetsu.no.Yaiba.S03E06.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 6,
-      "global": 39,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S03E06.重なる記憶.WEBRip.Netflix.ja[cc].srt",
@@ -2004,46 +2194,10 @@
       "season": 3,
       "episode": 6,
       "global": 39,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S03E06.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/extra/Demon.Slayer .Kimetsu.no.Yaiba.S03E06.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 6,
-      "global": 39,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S03E07.変貌.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/鬼滅の刃.S03E07.変貌.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 7,
-      "global": 40
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S03E07.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/extra/Demon.Slayer .Kimetsu.no.Yaiba.S03E07.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 7,
-      "global": 40,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S03E07.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/extra/Demon.Slayer .Kimetsu.no.Yaiba.S03E07.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 7,
-      "global": 40,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S03E07.変貌.WEBRip.Netflix.ja[cc].srt",
@@ -2051,26 +2205,10 @@
       "season": 3,
       "episode": 7,
       "global": 40,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S03E08.集結.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/鬼滅の刃.S03E08.集結.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 8,
-      "global": 41
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S03E08.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/extra/Demon.Slayer .Kimetsu.no.Yaiba.S03E08.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 8,
-      "global": 41,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S03E08.集結.WEBRip.Netflix.ja[cc].srt",
@@ -2078,26 +2216,10 @@
       "season": 3,
       "episode": 8,
       "global": 41,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S03E08.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/extra/Demon.Slayer .Kimetsu.no.Yaiba.S03E08.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 8,
-      "global": 41,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S03E09.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/extra/Demon.Slayer .Kimetsu.no.Yaiba.S03E09.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 9,
-      "global": 42
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S03E09.上弦の鬼を倒したら.WEBRip.Netflix.ja[cc].srt",
@@ -2105,46 +2227,10 @@
       "season": 3,
       "episode": 9,
       "global": 42,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S03E09.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/extra/Demon.Slayer .Kimetsu.no.Yaiba.S03E09.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 9,
-      "global": 42,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S03E09.上弦の鬼を倒したら.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/鬼滅の刃.S03E09.上弦の鬼を倒したら.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 9,
-      "global": 42,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S03E10.絶対諦めない.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/鬼滅の刃.S03E10.絶対諦めない.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 10,
-      "global": 43
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S03E10.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/extra/Demon.Slayer .Kimetsu.no.Yaiba.S03E10.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 10,
-      "global": 43,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S03E10.絶対諦めない.WEBRip.Netflix.ja[cc].srt",
@@ -2152,46 +2238,10 @@
       "season": 3,
       "episode": 10,
       "global": 43,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S03E10.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/extra/Demon.Slayer .Kimetsu.no.Yaiba.S03E10.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 10,
-      "global": 43,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S03E11.何度生まれ変わっても.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/鬼滅の刃.S03E11.何度生まれ変わっても.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 11,
-      "global": 44
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S03E11.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/extra/Demon.Slayer .Kimetsu.no.Yaiba.S03E11.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 11,
-      "global": 44,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer .Kimetsu.no.Yaiba.S03E11.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/extra/Demon.Slayer .Kimetsu.no.Yaiba.S03E11.WEBRip.Netflix.ja[cc].srt",
-      "season": 3,
-      "episode": 11,
-      "global": 44,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S03E11.何度生まれ変わっても.WEBRip.Netflix.ja[cc].srt",
@@ -2199,26 +2249,10 @@
       "season": 3,
       "episode": 11,
       "global": 44,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S04E01.誰かの夢.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/鬼滅の刃.S04E01.誰かの夢.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 1,
-      "global": 45
-    },
-    {
-      "name": "Demon.Slayer.Kimetsu.no.Yaiba.S04E01.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/extra/Demon.Slayer.Kimetsu.no.Yaiba.S04E01.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 1,
-      "global": 45,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Judas Kimetsu no Yaiba - S04E01.ja.srt",
@@ -2226,9 +2260,10 @@
       "season": 4,
       "episode": 1,
       "global": 45,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S04E01.srt",
@@ -2236,16 +2271,10 @@
       "season": 4,
       "episode": 1,
       "global": 45,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer.Kimetsu.no.Yaiba.S04E01.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/extra/Demon.Slayer.Kimetsu.no.Yaiba.S04E01.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 1,
-      "global": 45,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -2256,33 +2285,10 @@
       "season": 4,
       "episode": 1,
       "global": 45,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S04E02.縁壱零式.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/鬼滅の刃.S04E02.縁壱零式.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 2,
-      "global": 46
-    },
-    {
-      "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S04E02.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/[Crunchyroll Retime] Kimetsu no Yaiba - S04E02.srt",
-      "season": 4,
-      "episode": 2,
-      "global": 46,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S04E02.縁壱零式.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/鬼滅の刃.S04E02.縁壱零式.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 2,
-      "global": 46,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -2293,6 +2299,35 @@
       "season": 4,
       "episode": 2,
       "global": 46,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S04E02.srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/[Crunchyroll Retime] Kimetsu no Yaiba - S04E02.srt",
+      "season": 4,
+      "episode": 2,
+      "global": 46,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
+      "conflicts": [
+        "global_collision"
+      ]
+    },
+    {
+      "name": "鬼滅の刃.S04E02.縁壱零式.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/鬼滅の刃.S04E02.縁壱零式.WEBRip.Netflix.ja[cc].srt",
+      "season": 4,
+      "episode": 2,
+      "global": 46,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -2303,33 +2338,10 @@
       "season": 4,
       "episode": 2,
       "global": 46,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S04E03.三百年以上前の刀.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/鬼滅の刃.S04E03.三百年以上前の刀.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 3,
-      "global": 47
-    },
-    {
-      "name": "Demon.Slayer.Kimetsu.no.Yaiba.S04E03.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/extra/Demon.Slayer.Kimetsu.no.Yaiba.S04E03.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 3,
-      "global": 47,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer.Kimetsu.no.Yaiba.S04E03.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/extra/Demon.Slayer.Kimetsu.no.Yaiba.S04E03.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 3,
-      "global": 47,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -2340,6 +2352,21 @@
       "season": 4,
       "episode": 3,
       "global": 47,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S04E03.srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/[Crunchyroll Retime] Kimetsu no Yaiba - S04E03.srt",
+      "season": 4,
+      "episode": 3,
+      "global": 47,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -2350,26 +2377,13 @@
       "season": 4,
       "episode": 3,
       "global": 47,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
-    },
-    {
-      "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S04E03.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/[Crunchyroll Retime] Kimetsu no Yaiba - S04E03.srt",
-      "season": 4,
-      "episode": 3,
-      "global": 47,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S04E04.時透君ありがとう.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/鬼滅の刃.S04E04.時透君ありがとう.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 4,
-      "global": 48
     },
     {
       "name": "[Judas Kimetsu no Yaiba - S04E04.ja.srt",
@@ -2377,9 +2391,10 @@
       "season": 4,
       "episode": 4,
       "global": 48,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S04E04.srt",
@@ -2387,16 +2402,10 @@
       "season": 4,
       "episode": 4,
       "global": 48,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Kimetsu.no.Yaiba.S04E04.Thank.you.Tokito.1080p.NF.WEB-DL.AAC2.0.H.264-anotherone.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/extra/Kimetsu.no.Yaiba.S04E04.Thank.you.Tokito.1080p.NF.WEB-DL.AAC2.0.H.264-anotherone.srt",
-      "season": 4,
-      "episode": 4,
-      "global": 48,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -2407,43 +2416,10 @@
       "season": 4,
       "episode": 4,
       "global": 48,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S04E05.赫刀.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/鬼滅の刃.S04E05.赫刀.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 5,
-      "global": 49
-    },
-    {
-      "name": "Demon.Slayer.Kimetsu.no.Yaiba.S04E05.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/extra/Demon.Slayer.Kimetsu.no.Yaiba.S04E05.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 5,
-      "global": 49,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer.Kimetsu.no.Yaiba.S04E05.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/extra/Demon.Slayer.Kimetsu.no.Yaiba.S04E05.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 5,
-      "global": 49,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S04E05.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/[Crunchyroll Retime] Kimetsu no Yaiba - S04E05.srt",
-      "season": 4,
-      "episode": 5,
-      "global": 49,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -2454,6 +2430,21 @@
       "season": 4,
       "episode": 5,
       "global": 49,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S04E05.srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/[Crunchyroll Retime] Kimetsu no Yaiba - S04E05.srt",
+      "season": 4,
+      "episode": 5,
+      "global": 49,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -2464,33 +2455,10 @@
       "season": 4,
       "episode": 5,
       "global": 49,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S04E06.柱になるんじゃないのか!.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/鬼滅の刃.S04E06.柱になるんじゃないのか!.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 6,
-      "global": 50
-    },
-    {
-      "name": "Demon.Slayer.Kimetsu.no.Yaiba.S04E06.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/extra/Demon.Slayer.Kimetsu.no.Yaiba.S04E06.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 6,
-      "global": 50,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer.Kimetsu.no.Yaiba.S04E06.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/extra/Demon.Slayer.Kimetsu.no.Yaiba.S04E06.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 6,
-      "global": 50,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -2501,6 +2469,21 @@
       "season": 4,
       "episode": 6,
       "global": 50,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S04E06.srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/[Crunchyroll Retime] Kimetsu no Yaiba - S04E06.srt",
+      "season": 4,
+      "episode": 6,
+      "global": 50,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -2511,43 +2494,10 @@
       "season": 4,
       "episode": 6,
       "global": 50,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S04E06.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/[Crunchyroll Retime] Kimetsu no Yaiba - S04E06.srt",
-      "season": 4,
-      "episode": 6,
-      "global": 50,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S04E07.極悪人.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/鬼滅の刃.S04E07.極悪人.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 7,
-      "global": 51
-    },
-    {
-      "name": "Demon.Slayer.Kimetsu.no.Yaiba.S04E07.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/extra/Demon.Slayer.Kimetsu.no.Yaiba.S04E07.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 7,
-      "global": 51,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer.Kimetsu.no.Yaiba.S04E07.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/extra/Demon.Slayer.Kimetsu.no.Yaiba.S04E07.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 7,
-      "global": 51,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -2558,9 +2508,10 @@
       "season": 4,
       "episode": 7,
       "global": 51,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S04E07.srt",
@@ -2568,6 +2519,10 @@
       "season": 4,
       "episode": 7,
       "global": 51,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -2578,43 +2533,10 @@
       "season": 4,
       "episode": 7,
       "global": 51,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S04E08.無一郎の無.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/鬼滅の刃.S04E08.無一郎の無.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 8,
-      "global": 52
-    },
-    {
-      "name": "Demon.Slayer.Kimetsu.no.Yaiba.S04E08.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/extra/Demon.Slayer.Kimetsu.no.Yaiba.S04E08.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 8,
-      "global": 52,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer.Kimetsu.no.Yaiba.S04E08.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/extra/Demon.Slayer.Kimetsu.no.Yaiba.S04E08.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 8,
-      "global": 52,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S04E08.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/[Crunchyroll Retime] Kimetsu no Yaiba - S04E08.srt",
-      "season": 4,
-      "episode": 8,
-      "global": 52,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -2625,6 +2547,21 @@
       "season": 4,
       "episode": 8,
       "global": 52,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S04E08.srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/[Crunchyroll Retime] Kimetsu no Yaiba - S04E08.srt",
+      "season": 4,
+      "episode": 8,
+      "global": 52,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -2635,33 +2572,10 @@
       "season": 4,
       "episode": 8,
       "global": 52,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S04E09.霞柱・時透無一郎.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/鬼滅の刃.S04E09.霞柱・時透無一郎.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 9,
-      "global": 53
-    },
-    {
-      "name": "Demon.Slayer.Kimetsu.no.Yaiba.S04E09.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/extra/Demon.Slayer.Kimetsu.no.Yaiba.S04E09.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 9,
-      "global": 53,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer.Kimetsu.no.Yaiba.S04E09.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/extra/Demon.Slayer.Kimetsu.no.Yaiba.S04E09.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 9,
-      "global": 53,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -2672,6 +2586,21 @@
       "season": 4,
       "episode": 9,
       "global": 53,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S04E09.srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/[Crunchyroll Retime] Kimetsu no Yaiba - S04E09.srt",
+      "season": 4,
+      "episode": 9,
+      "global": 53,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -2682,43 +2611,10 @@
       "season": 4,
       "episode": 9,
       "global": 53,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S04E09.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/[Crunchyroll Retime] Kimetsu no Yaiba - S04E09.srt",
-      "season": 4,
-      "episode": 9,
-      "global": 53,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S04E10.恋柱・甘露寺蜜璃.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/鬼滅の刃.S04E10.恋柱・甘露寺蜜璃.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 10,
-      "global": 54
-    },
-    {
-      "name": "Demon.Slayer.Kimetsu.no.Yaiba.S04E10.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/extra/Demon.Slayer.Kimetsu.no.Yaiba.S04E10.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 10,
-      "global": 54,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer.Kimetsu.no.Yaiba.S04E10.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/extra/Demon.Slayer.Kimetsu.no.Yaiba.S04E10.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 10,
-      "global": 54,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -2729,9 +2625,10 @@
       "season": 4,
       "episode": 10,
       "global": 54,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S04E10.srt",
@@ -2739,6 +2636,10 @@
       "season": 4,
       "episode": 10,
       "global": 54,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -2749,33 +2650,10 @@
       "season": 4,
       "episode": 10,
       "global": 54,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S04E11.繋いだ絆.彼は誰時.朝ぼらけ.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/鬼滅の刃.S04E11.繋いだ絆.彼は誰時.朝ぼらけ.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 11,
-      "global": 55
-    },
-    {
-      "name": "Demon.Slayer.Kimetsu.no.Yaiba.S04E11.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/extra/Demon.Slayer.Kimetsu.no.Yaiba.S04E11.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 11,
-      "global": 55,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Demon.Slayer.Kimetsu.no.Yaiba.S04E11.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/extra/Demon.Slayer.Kimetsu.no.Yaiba.S04E11.WEBRip.Netflix.ja[cc].srt",
-      "season": 4,
-      "episode": 11,
-      "global": 55,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -2786,6 +2664,21 @@
       "season": 4,
       "episode": 11,
       "global": 55,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S04E11.srt",
+      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/[Crunchyroll Retime] Kimetsu no Yaiba - S04E11.srt",
+      "season": 4,
+      "episode": 11,
+      "global": 55,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -2796,43 +2689,10 @@
       "season": 4,
       "episode": 11,
       "global": 55,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "[Crunchyroll Retime] Kimetsu no Yaiba - S04E11.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/[Crunchyroll Retime] Kimetsu no Yaiba - S04E11.srt",
-      "season": 4,
-      "episode": 11,
-      "global": 55,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S05E01.鬼舞辻󠄀無惨を倒すために.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/鬼滅の刃.S05E01.鬼舞辻󠄀無惨を倒すために.WEBRip.Netflix.ja[cc].srt",
-      "season": 5,
-      "episode": 1,
-      "global": 56
-    },
-    {
-      "name": "Kimetsu.no.Yaiba.S05E01.鬼舞辻󠄀無惨を倒すために.Netflix.jpn.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/extra/Kimetsu.no.Yaiba.S05E01.鬼舞辻󠄀無惨を倒すために.Netflix.jpn.srt",
-      "season": 5,
-      "episode": 1,
-      "global": 56,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Kimetsu.no.Yaiba.S05E01.鬼舞辻󠄀無惨を倒すために.Netflix.jpn.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/extra/Kimetsu.no.Yaiba.S05E01.鬼舞辻󠄀無惨を倒すために.Netflix.jpn.srt",
-      "season": 5,
-      "episode": 1,
-      "global": 56,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned",
       "conflicts": [
         "global_collision"
       ]
@@ -2843,26 +2703,10 @@
       "season": 5,
       "episode": 1,
       "global": 56,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S05E02.水柱・冨岡義勇の痛み.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/鬼滅の刃.S05E02.水柱・冨岡義勇の痛み.WEBRip.Netflix.ja[cc].srt",
-      "season": 5,
-      "episode": 2,
-      "global": 57
-    },
-    {
-      "name": "Kimetsu.no.Yaiba.S05E02.水柱・冨岡義勇の痛み.Netflix.jpn.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/extra/Kimetsu.no.Yaiba.S05E02.水柱・冨岡義勇の痛み.Netflix.jpn.srt",
-      "season": 5,
-      "episode": 2,
-      "global": 57,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S05E02.水柱・冨岡義勇の痛み.WEBRip.Netflix.ja[cc].srt",
@@ -2870,46 +2714,10 @@
       "season": 5,
       "episode": 2,
       "global": 57,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Kimetsu.no.Yaiba.S05E02.水柱・冨岡義勇の痛み.Netflix.jpn.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/extra/Kimetsu.no.Yaiba.S05E02.水柱・冨岡義勇の痛み.Netflix.jpn.srt",
-      "season": 5,
-      "episode": 2,
-      "global": 57,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S05E03.炭治郎全快!!.柱稽古大参加.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/鬼滅の刃.S05E03.炭治郎全快!!.柱稽古大参加.WEBRip.Netflix.ja[cc].srt",
-      "season": 5,
-      "episode": 3,
-      "global": 58
-    },
-    {
-      "name": "Kimetsu.no.Yaiba.S05E03.炭治郎全快！！柱稽古大参加.Netflix.jpn.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/extra/Kimetsu.no.Yaiba.S05E03.炭治郎全快！！柱稽古大参加.Netflix.jpn.srt",
-      "season": 5,
-      "episode": 3,
-      "global": 58,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Kimetsu.no.Yaiba.S05E03.炭治郎全快！！柱稽古大参加.Netflix.jpn.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/extra/Kimetsu.no.Yaiba.S05E03.炭治郎全快！！柱稽古大参加.Netflix.jpn.srt",
-      "season": 5,
-      "episode": 3,
-      "global": 58,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S05E03.炭治郎全快!!.柱稽古大参加.WEBRip.Netflix.ja[cc].srt",
@@ -2917,26 +2725,10 @@
       "season": 5,
       "episode": 3,
       "global": 58,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S05E04.笑顔になれる.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/鬼滅の刃.S05E04.笑顔になれる.WEBRip.Netflix.ja[cc].srt",
-      "season": 5,
-      "episode": 4,
-      "global": 59
-    },
-    {
-      "name": "Kimetsu.no.Yaiba.S05E04.笑顔になれる.Netflix.jpn.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/extra/Kimetsu.no.Yaiba.S05E04.笑顔になれる.Netflix.jpn.srt",
-      "season": 5,
-      "episode": 4,
-      "global": 59,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S05E04.笑顔になれる.WEBRip.Netflix.ja[cc].srt",
@@ -2944,46 +2736,10 @@
       "season": 5,
       "episode": 4,
       "global": 59,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Kimetsu.no.Yaiba.S05E04.笑顔になれる.Netflix.jpn.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/extra/Kimetsu.no.Yaiba.S05E04.笑顔になれる.Netflix.jpn.srt",
-      "season": 5,
-      "episode": 4,
-      "global": 59,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S05E05.鬼を喰ってまで.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/鬼滅の刃.S05E05.鬼を喰ってまで.WEBRip.Netflix.ja[cc].srt",
-      "season": 5,
-      "episode": 5,
-      "global": 60
-    },
-    {
-      "name": "Kimetsu.no.Yaiba.S05E05.鬼を喰ってまで.Netflix.jpn.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/extra/Kimetsu.no.Yaiba.S05E05.鬼を喰ってまで.Netflix.jpn.srt",
-      "season": 5,
-      "episode": 5,
-      "global": 60,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Kimetsu.no.Yaiba.S05E05.鬼を喰ってまで.Netflix.jpn.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/extra/Kimetsu.no.Yaiba.S05E05.鬼を喰ってまで.Netflix.jpn.srt",
-      "season": 5,
-      "episode": 5,
-      "global": 60,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S05E05.鬼を喰ってまで.WEBRip.Netflix.ja[cc].srt",
@@ -2991,36 +2747,10 @@
       "season": 5,
       "episode": 5,
       "global": 60,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S05E06.鬼殺隊最強.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/鬼滅の刃.S05E06.鬼殺隊最強.WEBRip.Netflix.ja[cc].srt",
-      "season": 5,
-      "episode": 6,
-      "global": 61
-    },
-    {
-      "name": "Kimetsu.no.Yaiba.S05E06.鬼殺隊最強.Netflix.jpn.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/extra/Kimetsu.no.Yaiba.S05E06.鬼殺隊最強.Netflix.jpn.srt",
-      "season": 5,
-      "episode": 6,
-      "global": 61,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Kimetsu.no.Yaiba.S05E06.鬼殺隊最強.Netflix.jpn.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/extra/Kimetsu.no.Yaiba.S05E06.鬼殺隊最強.Netflix.jpn.srt",
-      "season": 5,
-      "episode": 6,
-      "global": 61,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S05E06.鬼殺隊最強.WEBRip.Netflix.ja[cc].srt",
@@ -3028,36 +2758,10 @@
       "season": 5,
       "episode": 6,
       "global": 61,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S05E07.岩柱・悲鳴嶼行冥.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/鬼滅の刃.S05E07.岩柱・悲鳴嶼行冥.WEBRip.Netflix.ja[cc].srt",
-      "season": 5,
-      "episode": 7,
-      "global": 62
-    },
-    {
-      "name": "Kimetsu.no.Yaiba.S05E07.岩柱・悲鳴嶼行冥.Netflix.jpn.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/extra/Kimetsu.no.Yaiba.S05E07.岩柱・悲鳴嶼行冥.Netflix.jpn.srt",
-      "season": 5,
-      "episode": 7,
-      "global": 62,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Kimetsu.no.Yaiba.S05E07.岩柱・悲鳴嶼行冥.Netflix.jpn.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/extra/Kimetsu.no.Yaiba.S05E07.岩柱・悲鳴嶼行冥.Netflix.jpn.srt",
-      "season": 5,
-      "episode": 7,
-      "global": 62,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S05E07.岩柱・悲鳴嶼行冥.WEBRip.Netflix.ja[cc].srt",
@@ -3065,36 +2769,10 @@
       "season": 5,
       "episode": 7,
       "global": 62,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "鬼滅の刃.S05E08.柱・結集.WEBRip.Netflix.ja[cc].srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/鬼滅の刃.S05E08.柱・結集.WEBRip.Netflix.ja[cc].srt",
-      "season": 5,
-      "episode": 8,
-      "global": 63
-    },
-    {
-      "name": "Kimetsu.no.Yaiba.S05E08.柱・結集.Netflix.jpn.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/extra/Kimetsu.no.Yaiba.S05E08.柱・結集.Netflix.jpn.srt",
-      "season": 5,
-      "episode": 8,
-      "global": 63,
-      "conflicts": [
-        "global_collision"
-      ]
-    },
-    {
-      "name": "Kimetsu.no.Yaiba.S05E08.柱・結集.Netflix.jpn.srt",
-      "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/extra/Kimetsu.no.Yaiba.S05E08.柱・結集.Netflix.jpn.srt",
-      "season": 5,
-      "episode": 8,
-      "global": 63,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "鬼滅の刃.S05E08.柱・結集.WEBRip.Netflix.ja[cc].srt",
@@ -3102,37 +2780,87 @@
       "season": 5,
       "episode": 8,
       "global": 63,
-      "conflicts": [
-        "global_collision"
-      ]
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "Demon Slayer -Kimetsu no Yaiba- The Movie Mugen Train (Fujitv 2021.09.25 retimed for BD).ja.srt",
+      "path": "subtitles/anime_movie/Kimetsu no Yaiba. Mugen Ressha-hen/Demon Slayer -Kimetsu no Yaiba- The Movie Mugen Train (Fujitv 2021.09.25 retimed for BD).ja.srt",
+      "season": null,
+      "episode": null,
+      "global": null,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "Kimetsu no Yaiba - 刀鍛冶の里 敵襲編 (CX 1920x1080 x264 AAC).srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/Kimetsu no Yaiba - 刀鍛冶の里 敵襲編 (CX 1920x1080 x264 AAC).srt",
       "season": null,
       "episode": null,
-      "global": null
+      "global": null,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "Kimetsu no Yaiba - 刀鍛冶の里 繋いだ絆編 (CX 1920x1080 x264 AAC).srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba. Katanakaji no Sato-hen/Kimetsu no Yaiba - 刀鍛冶の里 繋いだ絆編 (CX 1920x1080 x264 AAC).srt",
       "season": null,
       "episode": null,
-      "global": null
+      "global": null,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "Kimetsu no Yaiba - 柱スペシャル動画 (CX 1920x1080 x264 AAC).srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba. Hashira Geiko-hen/Kimetsu no Yaiba - 柱スペシャル動画 (CX 1920x1080 x264 AAC).srt",
       "season": null,
       "episode": null,
-      "global": null
+      "global": null,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     },
     {
       "name": "Kimetsu no Yaiba Yuukaku Hen - Tokubetsu Henshuu Ban 「特別編集版 遊郭潜入編」 (CX 1920x1080 x264 AAC).srt",
       "path": "subtitles/anime_tv/Kimetsu no Yaiba. Yuukaku-hen/Kimetsu no Yaiba Yuukaku Hen - Tokubetsu Henshuu Ban 「特別編集版 遊郭潜入編」 (CX 1920x1080 x264 AAC).srt",
       "season": null,
       "episode": null,
-      "global": null
+      "global": null,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[Judas] Kimetsu no Yaiba - Movie 01 - Mugen Train [BD 1080p][HEVC x265 10bit][Dual-Audio].srt",
+      "path": "subtitles/anime_movie/Kimetsu no Yaiba. Mugen Ressha-hen/[Judas] Kimetsu no Yaiba - Movie 01 - Mugen Train [BD 1080p][HEVC x265 10bit][Dual-Audio].srt",
+      "season": null,
+      "episode": null,
+      "global": null,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "劇場版「鬼滅の刃」.無限列車編.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_movie/Kimetsu no Yaiba. Mugen Ressha-hen/劇場版「鬼滅の刃」.無限列車編.WEBRip.Netflix.ja[cc].srt",
+      "season": null,
+      "episode": null,
+      "global": null,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
     }
   ],
   "sxexx_to_gxx": {
@@ -3199,5 +2927,10 @@
     "S05E06": 61,
     "S05E07": 62,
     "S05E08": 63
-  }
+  },
+  "display_name": "Demon Slayer",
+  "aliases": [
+    "Kimetsu no Yaiba",
+    "Kimetsu_no_Yaiba"
+  ]
 }

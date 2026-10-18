@@ -7,7 +7,7 @@ import json
 from collections import OrderedDict
 from typing import Any, Iterable
 
-REMOTE_SEARCH_CACHE_SCHEMA_VERSION = 2
+REMOTE_SEARCH_CACHE_SCHEMA_VERSION = 3
 
 
 def normalize_remote_search_cache_payload(payload: Any) -> OrderedDict:
@@ -55,6 +55,21 @@ def remote_search_cache_repo_matches(payload: Any, expected_repo: str | None) ->
     return str(repo) == str(expected_repo)
 
 
+def remote_search_cache_plan_matches(payload: Any, expected_fingerprint: str | None) -> bool:
+    """Return whether a payload was built with the active provider query plan.
+
+    v1/v2 payloads remain readable, but intentionally do not match an active
+    v3 plan fingerprint.  The manager can therefore refresh them while still
+    retaining them as a stale fallback when GitHub is unavailable.
+    """
+
+    if not expected_fingerprint:
+        return True
+    normalized = normalize_remote_search_cache_payload(payload)
+    actual = normalized.get("search_plan_fingerprint")
+    return isinstance(actual, str) and actual == str(expected_fingerprint)
+
+
 def build_remote_search_cache_payload(
     *,
     anime_query: str,
@@ -64,6 +79,9 @@ def build_remote_search_cache_payload(
     sxexx_to_gxx: dict | None = None,
     stop_reason: str | None = None,
     rate_info: dict | None = None,
+    search_plan_fingerprint: str | None = None,
+    search_plan: dict | None = None,
+    executed_queries: Iterable[dict] | None = None,
 ) -> OrderedDict:
     items_list = [dict(item) for item in items]
     payload = OrderedDict()
@@ -77,6 +95,12 @@ def build_remote_search_cache_payload(
         payload["stop_reason"] = stop_reason
     if rate_info is not None:
         payload["rate_info"] = dict(rate_info)
+    if search_plan_fingerprint is not None:
+        payload["search_plan_fingerprint"] = str(search_plan_fingerprint)
+    if search_plan is not None:
+        payload["search_plan"] = dict(search_plan)
+    if executed_queries is not None:
+        payload["executed_queries"] = [dict(query) for query in executed_queries if isinstance(query, dict)]
     payload["result_count"] = len(items_list)
     payload["items"] = items_list
     payload["sxexx_to_gxx"] = dict(sxexx_to_gxx or {})

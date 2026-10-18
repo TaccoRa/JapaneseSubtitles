@@ -78,6 +78,7 @@ ANNOTATION_SPECS = [
     {"key": "ANNOTATION_COLORIZE_ANKI", "type": "bool", "default": False},
     {"key": "ANNOTATION_COLORIZE_WANIKANI", "type": "bool", "default": False},
     {"key": "ANNOTATION_INCLUDE_PARTICLES", "type": "bool", "default": False},
+    {"key": "ANNOTATION_MATCH_CANONICAL_KANA_FORMS", "type": "bool", "default": True},
     {"key": "ANNOTATION_MATCH_DERIVED_VERB_NOUNS", "type": "bool", "default": False},
     {"key": "ANNOTATION_RECOGNIZE_HONORIFIC_NAMES", "type": "bool", "default": True},
     {"key": "ANNOTATION_MIN_TOKEN_LENGTH", "type": "int", "default": 1, "min": 1, "max": 20},
@@ -713,8 +714,18 @@ class AnnotationTab:
         tk.Checkbutton(section, text="Show meaning in hover popup", variable=self._var("ANNOTATION_SHOW_MEANING_ON_HOVER")).grid(row=4, column=0, columnspan=2, sticky="w")
         tk.Checkbutton(section, text="Show Anki/local status in hover popup", variable=self._var("ANNOTATION_SHOW_CARD_STATUS_ON_HOVER")).grid(row=5, column=0, columnspan=2, sticky="w")
         tk.Checkbutton(section, text="Include particles in annotation matching", variable=self._var("ANNOTATION_INCLUDE_PARTICLES")).grid(row=6, column=0, columnspan=2, sticky="w")
+        canonical_kana = tk.Checkbutton(
+            section,
+            text="Match kana/katakana canonical spellings",
+            variable=self._var("ANNOTATION_MATCH_CANONICAL_KANA_FORMS"),
+        )
+        canonical_kana.grid(row=7, column=0, columnspan=2, sticky="w")
+        _Tooltip(
+            canonical_kana,
+            "Allows tokenizer-confirmed uninflected spellings such as \u3088\u3046\u3084\u304f -> \u6f38\u304f or \u30de\u30cc\u30b1 -> \u9593\u629c\u3051. Inflected forms such as \u3046\u307e\u304f are still not matched to \u65e8\u3044.",
+        )
         derived_nouns = tk.Checkbutton(section, text="Match derived verb nouns", variable=self._var("ANNOTATION_MATCH_DERIVED_VERB_NOUNS"))
-        derived_nouns.grid(row=7, column=0, columnspan=2, sticky="w")
+        derived_nouns.grid(row=8, column=0, columnspan=2, sticky="w")
         _Tooltip(
             derived_nouns,
             "Off by default. When off, noun-like forms such as \u52d5\u304d are not marked known just because \u52d5\u304f is in the database.",
@@ -724,15 +735,15 @@ class AnnotationTab:
             text="Recognize names with honorifics",
             variable=self._var("ANNOTATION_RECOGNIZE_HONORIFIC_NAMES"),
         )
-        honorific_names.grid(row=8, column=0, columnspan=2, sticky="w")
+        honorific_names.grid(row=9, column=0, columnspan=2, sticky="w")
         _Tooltip(
             honorific_names,
             "Recognizes proper names followed by honorifics such as さん, くん, 君, ちゃん, 様, 先生, and 先輩. Known base names keep their database status; otherwise the full name is ignored as vocabulary.",
         )
         min_len_label = tk.Label(section, text="Minimum token length for annotation")
-        min_len_label.grid(row=9, column=0, sticky="w")
+        min_len_label.grid(row=10, column=0, sticky="w")
         min_len_entry = tk.Entry(section, textvariable=self._var("ANNOTATION_MIN_TOKEN_LENGTH"), width=self._w(8))
-        min_len_entry.grid(row=9, column=1, sticky="w")
+        min_len_entry.grid(row=10, column=1, sticky="w")
         min_len_help = "Minimum subtitle-token length to mark. Example: 2 skips one-character tokens like は or の, but still marks 重要."
         _Tooltip(min_len_label, min_len_help)
         _Tooltip(min_len_entry, min_len_help)

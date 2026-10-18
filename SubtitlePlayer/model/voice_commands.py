@@ -6,6 +6,7 @@ import copy
 import re
 import unicodedata
 from collections import OrderedDict
+from itertools import combinations, permutations, product
 from typing import Any
 
 
@@ -20,6 +21,15 @@ VOICE_ACTIONS = OrderedDict(
                 "dispatch": "voice_stop_listening",
                 "en": ["stop listening"],
                 "de": ["zuhören stoppen", "spracherkennung stoppen"],
+            },
+        ),
+        (
+            "abort",
+            {
+                "label": "Abort current voice action",
+                "dispatch": "voice_abort",
+                "en": ["abort", "cancel command"],
+                "de": ["abbrechen", "befehl abbrechen"],
             },
         ),
         (
@@ -143,17 +153,45 @@ VOICE_ACTIONS = OrderedDict(
             },
         ),
         (
-            "add_card",
-            {"label": "Add Anki card", "dispatch": "voice_add_anki", "en": ["add card"], "de": ["karte hinzufügen", "karte hinzufugen"]},
+            "add",
+            {
+                "label": "Add",
+                "dispatch": "voice_add",
+                "indexed_dispatch": "voice_add_index",
+                "multi_indexed_dispatch": "voice_add",
+                "en": ["add"],
+                "de": ["hinzufügen", "hinzufugen"],
+            },
         ),
         (
-            "add_card_capture",
+            "add_together",
             {
-                "label": "Add Anki card + capture",
-                "dispatch": "voice_add_anki_capture",
-                "indexed_capture": True,
-                "en": ["add card with capture", "capture"],
-                "de": ["karte mit aufnahme hinzufügen", "karte mit aufnahme hinzufugen", "aufnahme"],
+                "label": "Add together",
+                "dispatch": "voice_add_together",
+                "multi_indexed_dispatch": "voice_add_together",
+                "en": ["add together"],
+                "de": ["zusammen hinzufügen", "zusammen hinzufugen"],
+            },
+        ),
+        (
+            "capture",
+            {
+                "label": "Capture",
+                "dispatch": "voice_capture",
+                "indexed_dispatch": "voice_capture_index",
+                "multi_indexed_dispatch": "voice_capture",
+                "en": ["capture"],
+                "de": ["aufnehmen", "aufnahme"],
+            },
+        ),
+        (
+            "capture_together",
+            {
+                "label": "Capture together",
+                "dispatch": "voice_capture_together",
+                "multi_indexed_dispatch": "voice_capture_together",
+                "en": ["capture together"],
+                "de": ["zusammen aufnehmen"],
             },
         ),
         (
@@ -166,12 +204,182 @@ VOICE_ACTIONS = OrderedDict(
             },
         ),
         (
+            "highlight_indexed",
+            {
+                "label": "Highlight indexed subtitle word",
+                "dispatch": "voice_highlight_index",
+                "indexed_dispatch": "voice_highlight_index",
+                "indexed_only": True,
+                "multi_indexed_dispatch": "voice_highlight",
+                "multi_indexed_max_count": 5,
+                "multi_indexed_max_position": 20,
+                "en": ["highlight"],
+                "de": ["markiere", "hervorheben"],
+            },
+        ),
+        (
+            "highlight_add",
+            {
+                "label": "Add highlighted word",
+                "dispatch": "voice_highlight_add_index",
+                "indexed_dispatch": "voice_highlight_add_index",
+                "indexed_only": True,
+                "multi_indexed_dispatch": "voice_highlight_add",
+                "multi_indexed_max_count": 5,
+                "multi_indexed_max_position": 20,
+                "en": ["add highlight"],
+                "de": ["markierung hinzufügen", "markierung hinzufugen"],
+            },
+        ),
+        (
+            "highlight_remove",
+            {
+                "label": "Remove highlighted word",
+                "dispatch": "voice_highlight_remove_index",
+                "indexed_dispatch": "voice_highlight_remove_index",
+                "indexed_only": True,
+                "multi_indexed_dispatch": "voice_highlight_remove",
+                "multi_indexed_max_count": 5,
+                "multi_indexed_max_position": 20,
+                "en": ["remove highlight"],
+                "de": ["markierung entfernen"],
+            },
+        ),
+        (
+            "highlight_clear",
+            {
+                "label": "Remove highlighted words",
+                "dispatch": "voice_highlight_clear",
+                "en": ["highlight remove", "remove highlight", "clear highlight"],
+                "de": ["markierung entfernen", "markierung löschen", "markierung loschen"],
+            },
+        ),
+        (
+            "show_highlighted_dictionary",
+            {
+                "label": "Dictionary",
+                "dispatch": "voice_dictionary",
+                "indexed_dispatch": "voice_dictionary_index",
+                "multi_indexed_dispatch": "voice_dictionary",
+                "en": ["show dictionary", "dictionary"],
+                "de": ["wörterbuch", "woerterbuch", "wörterbuch zeigen", "woerterbuch zeigen"],
+            },
+        ),
+        (
+            "show_highlighted_dictionary_together",
+            {
+                "label": "Dictionary together",
+                "dispatch": "voice_dictionary_together",
+                "multi_indexed_dispatch": "voice_dictionary_together",
+                "en": ["dictionary together", "show dictionary together"],
+                "de": [
+                    "wörterbuch zusammen",
+                    "woerterbuch zusammen",
+                    "wörterbuch zusammen zeigen",
+                    "woerterbuch zusammen zeigen",
+                ],
+            },
+        ),
+        (
+            "show_highlighted_translation",
+            {
+                "label": "Translate together",
+                "dispatch": "voice_translate",
+                "indexed_dispatch": "voice_translate_index",
+                "multi_indexed_dispatch": "voice_translate",
+                "en": ["translate", "show translation", "translation"],
+                "de": ["übersetzen", "uebersetzen", "übersetzung zeigen", "uebersetzung zeigen"],
+            },
+        ),
+        (
+            "translate_each_highlighted",
+            {
+                "label": "Translate each",
+                "dispatch": "voice_translate_each",
+                "multi_indexed_dispatch": "voice_translate_each",
+                "en": ["translate each"],
+                "de": [
+                    "jedes wort übersetzen",
+                    "jedes wort uebersetzen",
+                    "einzeln übersetzen",
+                    "einzeln uebersetzen",
+                ],
+            },
+        ),
+        (
+            "show_highlighted_status",
+            {
+                "label": "Anki/database status",
+                "dispatch": "voice_status",
+                "indexed_dispatch": "voice_status_index",
+                "multi_indexed_dispatch": "voice_status",
+                "en": ["status", "show status"],
+                "de": ["status", "status zeigen"],
+            },
+        ),
+        (
             "copy_selection",
             {
-                "label": "Copy selection",
-                "dispatch": "voice_copy_selection",
-                "en": ["copy selection"],
-                "de": ["auswahl kopieren"],
+                "label": "Copy active result",
+                "dispatch": "voice_copy",
+                "indexed_dispatch": "voice_copy_index",
+                "multi_indexed_dispatch": "voice_copy",
+                "en": ["copy", "copy selection"],
+                "de": ["kopieren", "auswahl kopieren"],
+            },
+        ),
+        (
+            "copy_kanji",
+            {
+                "label": "Copy highlighted Japanese",
+                "dispatch": "voice_copy_kanji",
+                "en": ["copy kanji", "copy highlighted"],
+                "de": ["kanji kopieren", "markierung kopieren"],
+            },
+        ),
+        (
+            "copy_kanji_each",
+            {
+                "label": "Copy highlighted Japanese separately",
+                "dispatch": "voice_copy_kanji_each",
+                "en": ["copy kanji each", "copy each kanji"],
+                "de": ["jedes kanji kopieren", "kanji einzeln kopieren"],
+            },
+        ),
+        (
+            "copy_dictionary",
+            {
+                "label": "Copy dictionary for each word",
+                "dispatch": "voice_copy_dictionary",
+                "en": ["copy dictionary", "copy dictionary each"],
+                "de": ["wörterbuch kopieren", "wörterbuch einzeln kopieren", "woerterbuch kopieren"],
+            },
+        ),
+        (
+            "copy_dictionary_together",
+            {
+                "label": "Copy dictionary together",
+                "dispatch": "voice_copy_dictionary_together",
+                "en": ["copy dictionary together"],
+                "de": ["wörterbuch zusammen kopieren", "woerterbuch zusammen kopieren"],
+            },
+        ),
+        (
+            "copy_translation",
+            {
+                "label": "Copy combined translation",
+                "dispatch": "voice_copy_translation",
+                "en": ["copy translation", "copy translation together"],
+                "de": ["übersetzung kopieren", "uebersetzung kopieren", "übersetzung zusammen kopieren"],
+            },
+        ),
+        (
+            "copy_translation_each",
+            {
+                "label": "Copy translations separately",
+                "dispatch": "voice_copy_translation_each",
+                "en": ["copy translation each", "copy each translation"],
+                "de": ["jede übersetzung kopieren", "jede uebersetzung kopieren"],
             },
         ),
         (
@@ -210,8 +418,245 @@ VOICE_ACTIONS = OrderedDict(
                 "de": ["modus 3", "modus drei"],
             },
         ),
-        ("show_app", {"label": "Show app", "dispatch": "alt_x", "en": ["show app"], "de": ["app zeigen"]}),
+        (
+            "language_english",
+            {
+                "label": "Recognition language: English",
+                "dispatch": "voice_language_english",
+                "en": ["English voice", "switch to English"],
+                "de": ["Englisch", "zu Englisch wechseln"],
+            },
+        ),
+        (
+            "language_german",
+            {
+                "label": "Recognition language: German",
+                "dispatch": "voice_language_german",
+                "en": ["German voice", "switch to German"],
+                "de": ["Deutsch", "zu Deutsch wechseln"],
+            },
+        ),
+        (
+            "show_app",
+            {
+                "label": "Show / hide app settings",
+                "dispatch": "voice_toggle_app",
+                "en": ["app", "show app"],
+                "de": ["app", "app zeigen"],
+            },
+        ),
+        (
+            "toggle_display",
+            {
+                "label": "Show / hide subtitles and controls",
+                "dispatch": "voice_toggle_display",
+                "en": ["show", "show controls"],
+                "de": ["anzeigen", "steuerung anzeigen"],
+            },
+        ),
+        (
+            "show_settings",
+            {
+                "label": "Show settings",
+                "dispatch": "voice_show_settings",
+                "en": ["settings", "show settings"],
+                "de": ["einstellungen", "einstellungen zeigen"],
+            },
+        ),
+        (
+            "open_advanced_settings",
+            {
+                "label": "Open Advanced Settings",
+                "dispatch": "voice_open_advanced_settings",
+                "en": ["open advanced settings", "advanced settings"],
+                "de": ["erweiterte einstellungen öffnen", "erweiterte einstellungen oeffnen"],
+            },
+        ),
+        (
+            "close_advanced_settings",
+            {
+                "label": "Close Advanced Settings",
+                "dispatch": "voice_close_advanced_settings",
+                "en": ["close advanced settings"],
+                "de": ["erweiterte einstellungen schließen", "erweiterte einstellungen schliessen"],
+            },
+        ),
     ]
+)
+
+
+VOICE_ACTION_GROUPS = OrderedDict(
+    [
+        (
+            "Playback",
+            ("play", "pause", "go_back", "go_forward", "go_to_time", "speed_up", "speed_down"),
+        ),
+        (
+            "Subtitles & Episodes",
+            (
+                "subtitle_back",
+                "subtitle_forward",
+                "jump_sub_end",
+                "show_subtitles",
+                "hide_subtitles",
+                "previous_episode",
+                "next_episode",
+            ),
+        ),
+        (
+            "Anki & Capture",
+            ("add", "add_together", "capture", "capture_together", "capture_only"),
+        ),
+        (
+            "Highlight, Lookup & Copy",
+            (
+                "highlight_indexed",
+                "highlight_add",
+                "highlight_remove",
+                "highlight_clear",
+                "show_highlighted_dictionary",
+                "show_highlighted_dictionary_together",
+                "show_highlighted_translation",
+                "translate_each_highlighted",
+                "show_highlighted_status",
+                "copy_selection",
+                "copy_kanji",
+                "copy_kanji_each",
+                "copy_dictionary",
+                "copy_dictionary_together",
+                "copy_translation",
+                "copy_translation_each",
+            ),
+        ),
+        (
+            "Voice & App",
+            (
+                "stop_listening",
+                "abort",
+                "cycle_mode",
+                "mode_1",
+                "mode_2",
+                "mode_3",
+                "language_english",
+                "language_german",
+                "show_app",
+                "toggle_display",
+                "show_settings",
+                "open_advanced_settings",
+                "close_advanced_settings",
+            ),
+        ),
+    ]
+)
+
+
+VOICE_ACTION_TOOLTIPS = {
+    "play": "Toggle video and SubtitlePlayer playback. This works whether playback is currently running or paused.",
+    "pause": "Pause the external video and SubtitlePlayer without toggling an already paused state.",
+    "stop_listening": "Disable voice recognition. Use the configured physical voice-toggle hotkey to enable it again.",
+    "abort": "Cancel pending steps from the current voice action and immediately clear its wait indicator. An Anki request already sent cannot be undone.",
+    "go_back": "Move the video and subtitles back. Add a count, for example 'back 5', to repeat the configured browser Back hotkey.",
+    "go_forward": "Move the video and subtitles forward. Add a count, for example 'forward 5', to repeat the configured browser Forward hotkey.",
+    "go_to_time": "Jump to a timestamp. Examples: 'go to 2' means 00:02 and 'go to fifteen twelve' means 15:12.",
+    "subtitle_back": "Jump to an earlier subtitle. An optional number repeats the action.",
+    "subtitle_forward": "Jump to a later subtitle. An optional number repeats the action.",
+    "jump_sub_end": "Jump to the end of the subtitle currently containing the playback position.",
+    "show_subtitles": "Show the subtitle overlay without toggling it when it is already visible.",
+    "hide_subtitles": "Hide the subtitle overlay without toggling it when it is already hidden.",
+    "previous_episode": "Switch to the previous available episode in the current episode map.",
+    "next_episode": "Switch to the next available episode in the current episode map.",
+    "speed_up": "Increase fast-forward speed by 0.1. An optional number repeats the increase.",
+    "speed_down": "Decrease fast-forward speed by 0.1. An optional number repeats the decrease.",
+    "add": "With highlighted words, create one Anki card per word. Without highlights, add the popup selection or hovered subtitle word. Position lists such as 'add 8, 9 and 12' add those words separately.",
+    "add_together": "Create one Anki card from all highlighted words as one expression. A position list such as 'add together 8, 9 and 12' selects and combines those words first.",
+    "capture": "With highlighted words, create one card per word, capture media once on the newest card, and copy it to the other exact-sentence cards. Position lists such as 'capture 8, 9 and 12' are supported.",
+    "capture_together": "Create one card from all highlighted words together and capture its media once. A position list selects and combines those words first.",
+    "capture_only": "Run external media capture for the latest Anki card without adding another card. Exact-sentence media propagation still runs.",
+    "highlight_indexed": "Highlight subtitle words by position. Examples: 'highlight 2', 'highlight 2 until 5', 'highlight 4 and 6 and 7', and 'highlight 8, 9 and 12'. Lists support up to five ascending positions from the first 12 words. 'Last 2' means the second word from the end.",
+    "highlight_add": "Add positions to the existing subtitle highlight, for example 'add highlight 8' or 'add highlight 2 and 14 and 15'.",
+    "highlight_remove": "Remove positions from the existing subtitle highlight, for example 'remove highlight 9'.",
+    "highlight_clear": "Remove every persistent voice highlight from the current subtitle.",
+    "show_highlighted_dictionary": "Show dictionary entries for highlighted words. Without highlighting first, use a position such as 'dictionary 2', 'dictionary last', or 'dictionary end 2'. Combine it with translate, translate each, or status using 'and'.",
+    "show_highlighted_dictionary_together": "Look up all highlighted words together as one dictionary expression. Combine it with translate or translate each using 'and'.",
+    "show_highlighted_translation": "Translate all highlighted words together as one phrase. Without highlighting first, use a position such as 'translate 2' or 'translate last'. Combine it with dictionary or status using 'and'.",
+    "translate_each_highlighted": "Translate every highlighted word independently and show the individual results together. Combine it with dictionary or status using 'and'.",
+    "show_highlighted_status": "Show Anki/database status for highlighted words. Use 'status 2' for one indexed word, or combine status with dictionary or translation using 'and'.",
+    "copy_selection": "Copy the currently displayed hover result. Translation is preferred when a translation is visible. Indexed forms such as 'copy 2' copy that subtitle word.",
+    "copy_kanji": "Copy the highlighted Japanese as one sentence-faithful selection.",
+    "copy_kanji_each": "Copy each highlighted Japanese word on a separate line.",
+    "copy_dictionary": "Copy one dictionary result for each highlighted word.",
+    "copy_dictionary_together": "Copy one dictionary lookup for the combined highlighted expression.",
+    "copy_translation": "Copy the combined highlighted-word translation after it has been translated.",
+    "copy_translation_each": "Copy each highlighted-word translation on a separate labelled line.",
+    "cycle_mode": "Cycle to the next SubtitlePlayer input mode.",
+    "mode_1": "Switch directly to input mode 1.",
+    "mode_2": "Switch directly to input mode 2.",
+    "mode_3": "Switch directly to input mode 3.",
+    "language_english": "Switch voice recognition to English when the English offline model is installed.",
+    "language_german": "Switch voice recognition to German when the German offline model is installed.",
+    "show_app": "Toggle the main settings window and an already-open Advanced Settings window without changing subtitle/control visibility.",
+    "toggle_display": "Show or hide the subtitle and control windows together without changing settings-window visibility.",
+    "show_settings": "Show and raise the main SubtitlePlayer settings window.",
+    "open_advanced_settings": "Open or raise Advanced Settings without closing it when it is already visible.",
+    "close_advanced_settings": "Close Advanced Settings without hiding the main settings window.",
+}
+
+_LEGACY_VOICE_ACTION_KEYS = {
+    "add_card",
+    "add_indexed",
+    "add_each_highlighted",
+    "add_card_capture",
+    "capture_each_highlighted",
+}
+
+_LEGACY_LOOKUP_ALIAS_UPGRADES = {
+    "show_highlighted_dictionary": {
+        "en": ("dictionary",),
+        "de": ("wörterbuch", "woerterbuch"),
+    },
+    "show_highlighted_translation": {
+        "en": ("translate",),
+        "de": ("übersetzen", "uebersetzen"),
+    },
+    "copy_selection": {
+        "en": ("copy",),
+        "de": ("kopieren",),
+    },
+}
+
+_VOICE_ALIAS_UPGRADES = {
+    "show_app": {
+        "en": ("app", "show app"),
+        "de": ("app", "app zeigen"),
+    },
+}
+
+for _group_name, _group_actions in VOICE_ACTION_GROUPS.items():
+    for _action in _group_actions:
+        if _action in VOICE_ACTIONS:
+            VOICE_ACTIONS[_action]["group"] = _group_name
+for _action, _spec in VOICE_ACTIONS.items():
+    _spec["tooltip"] = VOICE_ACTION_TOOLTIPS.get(
+        _action,
+        f"Run the {_spec.get('label') or _action} voice action.",
+    )
+
+
+VOICE_HOVER_LAYER_ACTIONS = OrderedDict(
+    [
+        ("show_highlighted_dictionary", "dictionary"),
+        ("show_highlighted_dictionary_together", "dictionary_together"),
+        ("show_highlighted_translation", "translation"),
+        ("translate_each_highlighted", "translation_each"),
+        ("show_highlighted_status", "status"),
+    ]
+)
+VOICE_HOVER_LAYER_ORDER = (
+    "dictionary",
+    "dictionary_together",
+    "translation",
+    "translation_each",
+    "status",
 )
 
 
@@ -366,18 +811,69 @@ def iter_voice_time_suffixes(language: str):
                 yield value, minutes * 60 + seconds
 
 
-def iter_indexed_capture_suffixes(language: str):
-    """Yield 1-based and end-relative word positions for capture commands."""
+def iter_indexed_word_suffixes(language: str):
+    """Yield 1-based and end-relative subtitle-word positions."""
     language = "de" if str(language).lower() == "de" else "en"
-    last_words = ("letzte", "letztes", "letzter") if language == "de" else ("last",)
+    last_words = ("letzte", "letztes", "letzter", "ende") if language == "de" else ("last", "end")
     for number in range(1, 60):
         for value in _number_variants(language, number):
             yield value, number
+    if language == "en":
+        # The constrained recognizer can prefer these homophones because "to"
+        # also appears in highlight ranges.
+        yield "to", 2
+        yield "too", 2
     for last_word in last_words:
         yield last_word, -1
         for number in range(1, 60):
             for value in _number_variants(language, number):
                 yield normalize_voice_phrase(f"{last_word} {value}"), -number
+
+
+def iter_multi_indexed_suffixes(
+    language: str,
+    max_position: int = 12,
+    max_selection_count: int = 3,
+):
+    """Yield bounded ranges and natural spoken lists of subtitle positions."""
+    language = "de" if str(language).lower() == "de" else "en"
+    range_words = ("bis",) if language == "de" else ("to", "until")
+    and_word = "und" if language == "de" else "and"
+    maximum_position = max(2, min(20, int(max_position)))
+    positions = range(1, maximum_position + 1)
+    words = {number: _number_word(language, number) for number in positions}
+
+    def phrase_variants(value: str):
+        yield normalize_voice_phrase(value)
+
+    for left in positions:
+        for right in positions:
+            if left == right:
+                continue
+            for range_word in range_words:
+                for phrase in phrase_variants(f"{words[left]} {range_word} {words[right]}"):
+                    yield phrase, "range", left, right
+
+    maximum_count = max(2, min(5, int(max_selection_count)))
+    for count in range(2, maximum_count + 1):
+        selection_positions = (
+            positions
+            if count <= 3
+            else range(1, min(12, maximum_position) + 1)
+        )
+        for selected in combinations(selection_positions, count):
+            selected_words = [words[value] for value in selected]
+            spoken_variants = [f" {and_word} ".join(selected_words)]
+            if count > 2:
+                spoken_variants.append(f"{' '.join(selected_words[:-1])} {and_word} {selected_words[-1]}")
+            for spoken in dict.fromkeys(spoken_variants):
+                for phrase in phrase_variants(spoken):
+                    yield phrase, "selection", *selected
+
+
+def iter_multi_highlight_suffixes(language: str, max_position: int = 12, max_selection_count: int = 5):
+    """Compatibility alias for callers using the former highlight-only helper."""
+    yield from iter_multi_indexed_suffixes(language, max_position, max_selection_count)
 
 
 def encode_voice_sequence(steps: list[tuple[str, int]]) -> str:
@@ -453,6 +949,7 @@ def merge_voice_commands(raw: Any) -> dict[str, dict[str, Any]]:
     merged = default_voice_commands()
     if not isinstance(raw, dict):
         return merged
+    legacy_schema = bool(_LEGACY_VOICE_ACTION_KEYS.intersection(raw))
     for action, defaults in merged.items():
         incoming = raw.get(action)
         if not isinstance(incoming, dict):
@@ -461,6 +958,21 @@ def merge_voice_commands(raw: Any) -> dict[str, dict[str, Any]]:
         for language in ("en", "de"):
             if language in incoming:
                 defaults[language] = split_voice_aliases(incoming.get(language))
+    if legacy_schema:
+        for action, language_aliases in _LEGACY_LOOKUP_ALIAS_UPGRADES.items():
+            command = merged.get(action)
+            if not isinstance(command, dict):
+                continue
+            for language, aliases in language_aliases.items():
+                current = split_voice_aliases(command.get(language))
+                command[language] = list(dict.fromkeys([*aliases, *current]))
+    for action, language_aliases in _VOICE_ALIAS_UPGRADES.items():
+        command = merged.get(action)
+        if not isinstance(command, dict):
+            continue
+        for language, aliases in language_aliases.items():
+            current = split_voice_aliases(command.get(language))
+            command[language] = list(dict.fromkeys([*aliases, *current]))
     return merged
 
 
@@ -471,6 +983,66 @@ def merge_wake_prefixes(raw: Any) -> dict[str, str]:
             if language in raw:
                 merged[language] = normalize_voice_phrase(raw.get(language))
     return merged
+
+
+def encode_voice_hover_layers(layers: Any) -> str:
+    requested = {str(layer or "").strip() for layer in (layers or ())}
+    requested.intersection_update(VOICE_HOVER_LAYER_ORDER)
+    if "translation_each" in requested:
+        requested.discard("translation")
+    if "dictionary_together" in requested:
+        requested.discard("dictionary")
+    ordered = [layer for layer in VOICE_HOVER_LAYER_ORDER if layer in requested]
+    return "voice_hover_layers:" + ",".join(ordered)
+
+
+def decode_voice_hover_layers(value: Any) -> tuple[str, ...]:
+    text = str(value or "")
+    if not text.startswith("voice_hover_layers:"):
+        return ()
+    requested = {
+        part.strip()
+        for part in text.split(":", 1)[1].split(",")
+        if part.strip() in VOICE_HOVER_LAYER_ORDER
+    }
+    if "translation_each" in requested:
+        requested.discard("translation")
+    if "dictionary_together" in requested:
+        requested.discard("dictionary")
+    return tuple(layer for layer in VOICE_HOVER_LAYER_ORDER if layer in requested)
+
+
+def iter_voice_hover_layer_phrases(language: str, commands: dict[str, dict[str, Any]]):
+    """Yield combined hover aliases and one atomic multi-layer dispatch."""
+    language = "de" if str(language).lower() == "de" else "en"
+    connector = "und" if language == "de" else "and"
+    entries = []
+    for action, layer in VOICE_HOVER_LAYER_ACTIONS.items():
+        command = commands.get(action)
+        if not isinstance(command, dict) or not command.get("enabled"):
+            continue
+        aliases = split_voice_aliases(command.get(language))
+        if aliases:
+            entries.append((action, layer, aliases))
+
+    seen = set()
+    for length in range(2, min(3, len(entries)) + 1):
+        for ordered_entries in permutations(entries, length):
+            layers = tuple(entry[1] for entry in ordered_entries)
+            if "translation" in layers and "translation_each" in layers:
+                continue
+            if "dictionary" in layers and "dictionary_together" in layers:
+                continue
+            dispatch = encode_voice_hover_layers(layers)
+            actions = tuple(entry[0] for entry in ordered_entries)
+            for aliases in product(*(entry[2] for entry in ordered_entries)):
+                for separator in (f" {connector} ", " "):
+                    phrase = normalize_voice_phrase(separator.join(aliases))
+                    marker = (phrase, dispatch)
+                    if not phrase or marker in seen:
+                        continue
+                    seen.add(marker)
+                    yield phrase, dispatch, actions
 
 
 def voice_alias_conflicts(
@@ -494,17 +1066,31 @@ def voice_alias_conflicts(
                         timed_phrase = normalize_voice_phrase(f"{phrase} {suffix}")
                         phrase_actions.setdefault(timed_phrase, []).append(action)
                     continue
-                phrase_actions.setdefault(phrase, []).append(action)
-                if VOICE_ACTIONS[action].get("indexed_capture"):
-                    for suffix, _position in iter_indexed_capture_suffixes(language):
+                if not VOICE_ACTIONS[action].get("indexed_only"):
+                    phrase_actions.setdefault(phrase, []).append(action)
+                if VOICE_ACTIONS[action].get("indexed_dispatch"):
+                    for suffix, _position in iter_indexed_word_suffixes(language):
                         indexed_phrase = normalize_voice_phrase(f"{phrase} {suffix}")
                         phrase_actions.setdefault(indexed_phrase, []).append(action)
+                if VOICE_ACTIONS[action].get("multi_indexed_dispatch"):
+                    max_count = int(VOICE_ACTIONS[action].get("multi_indexed_max_count") or 3)
+                    max_position = int(VOICE_ACTIONS[action].get("multi_indexed_max_position") or 12)
+                    for suffix, _kind, *_positions in iter_multi_indexed_suffixes(
+                        language,
+                        max_position=max_position,
+                        max_selection_count=max_count,
+                    ):
+                        multi_phrase = normalize_voice_phrase(f"{phrase} {suffix}")
+                        phrase_actions.setdefault(multi_phrase, []).append(action)
                 if not VOICE_ACTIONS[action].get("repeatable"):
                     continue
                 for variants in VOICE_REPEAT_WORDS[language].values():
                     for variant in variants:
                         repeated_phrase = normalize_voice_phrase(f"{phrase} {variant}")
                         phrase_actions.setdefault(repeated_phrase, []).append(action)
+        for bare_phrase, dispatch, _actions in iter_voice_hover_layer_phrases(language, merged_commands):
+            phrase = normalize_voice_phrase(f"{prefix} {bare_phrase}" if prefix else bare_phrase)
+            phrase_actions.setdefault(phrase, []).append(dispatch)
         duplicates = {
             phrase: actions
             for phrase, actions in phrase_actions.items()
@@ -542,13 +1128,31 @@ def build_voice_phrase_map(
                     if timed_phrase:
                         phrase_map[timed_phrase] = f"{dispatch}:{int(seconds)}"
                 continue
-            if phrase:
+            if phrase and not VOICE_ACTIONS[action].get("indexed_only"):
                 phrase_map[phrase] = dispatch
-            if VOICE_ACTIONS[action].get("indexed_capture"):
-                for suffix, position in iter_indexed_capture_suffixes(language):
+            indexed_dispatch = str(VOICE_ACTIONS[action].get("indexed_dispatch") or "").strip()
+            if indexed_dispatch:
+                for suffix, position in iter_indexed_word_suffixes(language):
                     indexed_phrase = normalize_voice_phrase(f"{phrase} {suffix}")
                     if indexed_phrase:
-                        phrase_map[indexed_phrase] = f"voice_add_anki_capture_index:{int(position)}"
+                        phrase_map[indexed_phrase] = f"{indexed_dispatch}:{int(position)}"
+            multi_indexed_dispatch = str(
+                VOICE_ACTIONS[action].get("multi_indexed_dispatch") or ""
+            ).strip()
+            if multi_indexed_dispatch:
+                max_count = int(VOICE_ACTIONS[action].get("multi_indexed_max_count") or 3)
+                max_position = int(VOICE_ACTIONS[action].get("multi_indexed_max_position") or 12)
+                for suffix, kind, *positions in iter_multi_indexed_suffixes(
+                    language,
+                    max_position=max_position,
+                    max_selection_count=max_count,
+                ):
+                    multi_phrase = normalize_voice_phrase(f"{phrase} {suffix}")
+                    encoded_positions = ",".join(str(int(position)) for position in positions)
+                    if multi_phrase and encoded_positions:
+                        phrase_map[multi_phrase] = (
+                            f"{multi_indexed_dispatch}_{kind}:{encoded_positions}"
+                        )
             if action in {"play", "pause"} and bare_phrase:
                 sequence_second.append((bare_phrase, dispatch))
             if VOICE_ACTIONS[action].get("sequence_first") and bare_phrase:
@@ -564,6 +1168,11 @@ def build_voice_phrase_map(
                         bare_repeated = normalize_voice_phrase(f"{bare_phrase} {variant}")
                         if bare_repeated:
                             sequence_first.append((bare_repeated, (dispatch, int(repeat_count))))
+
+    for bare_phrase, dispatch, _actions in iter_voice_hover_layer_phrases(language, merged_commands):
+        phrase = normalize_voice_phrase(f"{prefix} {bare_phrase}" if prefix else bare_phrase)
+        if phrase:
+            phrase_map[phrase] = dispatch
 
     connector = "und" if language == "de" else "and"
     for first_phrase, first_mapping in sequence_first:

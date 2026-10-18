@@ -167,3 +167,17 @@ def test_voice_mode_and_stop_listening_commands_are_available():
     assert phrase_map["subtitles next mode"] == "voice_cycle_mode"
     assert phrase_map["subtitles mode 1"] == "voice_mode_1"
     assert phrase_map["subtitles mode 3"] == "voice_mode_3"
+
+
+def test_language_switch_and_high_position_homophones_are_in_the_voice_grammar():
+    phrase_map, _grammar = build_voice_phrase_map(
+        "en",
+        default_voice_commands(),
+        {"en": "subtitles", "de": "untertitel"},
+    )
+
+    assert phrase_map["subtitles switch to german"] == "voice_language_german"
+    assert phrase_map["subtitles english voice"] == "voice_language_english"
+    assert phrase_map["subtitles highlight too"] == "voice_highlight_index:2"
+    assert phrase_map["subtitles add highlight fourteen"] == "voice_highlight_add_index:14"
+    assert phrase_map["subtitles remove highlight fifteen"] == "voice_highlight_remove_index:15"

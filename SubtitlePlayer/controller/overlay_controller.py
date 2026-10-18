@@ -125,13 +125,18 @@ class OverlayController(_ControllerProxy):
             self._hover_video_pause_active = False
         self._sync_timer_for_hover_pause(paused=paused, event_time=now)
         try:
-            self._suppress_synthetic_space_until = now + 0.45
+            suppress = getattr(self.controller, "_suppress_external_hotkey_events", None)
+            if callable(suppress):
+                suppress("space", 1)
+            else:
+                self._suppress_synthetic_space_until = now + 0.45
             keyboard = getattr(self, "_hover_pause_keyboard", None)
             if keyboard is None:
                 keyboard = KeyboardController()
                 self._hover_pause_keyboard = keyboard
-            keyboard.press(Key.space)
-            keyboard.release(Key.space)
+            keyboard.tap(Key.space)
+            # keyboard.press(Key.space)
+            # keyboard.release(Key.space)
         except Exception:
             logger.warning("Failed to send subtitle-hover spacebar toggle", exc_info=True)
 
