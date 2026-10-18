@@ -335,6 +335,9 @@ class BrowserSyncController:
             self._finish_native(session, False)
 
     def _finish_native(self, session, ok):
+        # Sessions remain in add history; media belongs only to pending storage
+        # or Anki, otherwise each completed capture would retain its WAV/PNG.
+        session.native_result = None
         if session.target_note_id and not session.media_completion_notified:
             self.controller.hotkey_controller.notify_capture_media_finished(session.target_note_id, ok)
             session.media_completion_notified = True

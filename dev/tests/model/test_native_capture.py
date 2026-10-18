@@ -149,6 +149,19 @@ def test_parallel_capture_failure_does_not_attach_to_a_late_note():
     assert not any(message["type"] == "CaptureCommit" for message in sync.sent)
 
 
+def test_failure_before_note_creation_notifies_late_note_once_and_releases_media():
+    sync = browser(); sync._finished_operations = set()
+    notices, feedback, releases = [], [], []
+    sync.controller.hotkey_controller = SimpleNamespace(notify_capture_media_finished=lambda *args: notices.append(args))
+    sync.controller.anki_controller = SimpleNamespace(_finish_action_feedback_key=lambda *args: feedback.append(args))
+    sync.controller.release_anki_pause_lease = lambda *args, **kwargs: releases.append(args)
+    session = CaptureSession(FrozenActionTarget.create(selected_text="word", subtitle_text="sentence", sentence_key="sentence"), phase="failed", native_result={"audio": "large recording"})
+    sync._finish_native(session, False)
+    assert session.native_result is None and not notices
+    sync.bind_capture_note(session, 123); sync.bind_capture_note(session, 123)
+    assert notices == [(123, False)] and len(feedback) == len(releases) == 1
+
+
 def test_parallel_capture_waits_for_note_before_verifying_reused_media(monkeypatch):
     import queue
     import controller.browser_sync_controller as module
