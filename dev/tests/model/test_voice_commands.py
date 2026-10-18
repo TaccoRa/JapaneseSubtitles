@@ -47,7 +47,7 @@ def test_voice_alias_conflicts_are_reported_per_language():
 
 def test_disabled_voice_action_is_removed_from_grammar():
     commands = default_voice_commands()
-    commands["add_card_capture"]["enabled"] = False
+    commands["capture"]["enabled"] = False
 
     phrase_map, _grammar = build_voice_phrase_map(
         "en",
@@ -124,18 +124,18 @@ def test_voice_absolute_time_phrases_map_to_seconds():
 
 def test_capture_phrases_are_exact_and_support_indexed_positions():
     commands = default_voice_commands()
-    commands["add_card_capture"]["en"] = ["capture"]
+    commands["capture"]["en"] = ["capture"]
     phrase_map, _grammar = build_voice_phrase_map(
         "en",
         commands,
         {"en": "subtitles", "de": "untertitel"},
     )
 
-    assert phrase_map["subtitles capture"] == "voice_add_anki_capture"
+    assert phrase_map["subtitles capture"] == "voice_capture"
     assert phrase_map["subtitles capture only"] == "voice_capture_only"
-    assert phrase_map["subtitles capture 6"] == "voice_add_anki_capture_index:6"
-    assert phrase_map["subtitles capture last"] == "voice_add_anki_capture_index:-1"
-    assert phrase_map["subtitles capture last two"] == "voice_add_anki_capture_index:-2"
+    assert phrase_map["subtitles capture 6"] == "voice_capture_index:6"
+    assert phrase_map["subtitles capture last"] == "voice_capture_index:-1"
+    assert phrase_map["subtitles capture last two"] == "voice_capture_index:-2"
 
 
 def test_back_and_play_builds_a_sequential_command():

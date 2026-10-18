@@ -32,6 +32,12 @@ class SubtitleNavigationController(_ControllerProxy):
     def __init__(self, controller: Any) -> None:
         super().__init__(controller)
 
+    def _source_time(self, value):
+        browser = getattr(self.controller, "browser_sync", None)
+        if browser is not None and browser.following:
+            return browser.source_time(value)
+        return value - float(self.settings._last_offset_value)
+
     def get_offset_value(self) -> float: return float(self.settings._last_offset_value)
     
     @staticmethod
@@ -227,7 +233,7 @@ class SubtitleNavigationController(_ControllerProxy):
             return text
 
         try:
-            sub_t = float(self.current_time) - float(self.settings._last_offset_value)
+            sub_t = self._source_time(float(self.current_time))
         except Exception:
             sub_t = 0.0
         idx = self._display_index_at_time(sub_t)
@@ -248,7 +254,7 @@ class SubtitleNavigationController(_ControllerProxy):
                 idx = None
         if idx is None:
             try:
-                sub_t = float(self.current_time) - float(self.settings._last_offset_value)
+                sub_t = self._source_time(float(self.current_time))
             except Exception:
                 sub_t = 0.0
             idx = self._display_index_at_time(sub_t)
@@ -299,7 +305,7 @@ class SubtitleNavigationController(_ControllerProxy):
 
     def _slider_preview_needs_render(self, value: float) -> bool:
         try:
-            sub_t = float(value) - float(self.settings._last_offset_value)
+            sub_t = self._source_time(float(value))
         except Exception:
             return True
         try:
@@ -332,7 +338,7 @@ class SubtitleNavigationController(_ControllerProxy):
     ):
         render_start = time.perf_counter()
         offset = self.settings._last_offset_value
-        sub_t = self.current_time - offset
+        sub_t = self._source_time(self.current_time)
         if getattr(self, "_defer_auto_ruby_once", False):
             self._defer_auto_ruby_once = False
             allow_auto_ruby = False

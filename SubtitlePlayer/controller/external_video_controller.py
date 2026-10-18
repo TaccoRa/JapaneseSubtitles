@@ -88,6 +88,19 @@ class ExternalVideoCommandService:
         repeat_interval_ms: int = 120,
     ) -> ExternalVideoDelivery:
         command = str(command or "").strip().lower()
+        browser = getattr(self.controller, "browser_sync", None)
+        if browser is not None and browser.following and command != "capture":
+            try:
+                if command in ("pause", "resume"):
+                    browser.command("pause" if command == "pause" else "play")
+                elif command in ("seek_back", "seek_forward"):
+                    delta = float(self.controller.settings._last_skip_value) * max(1, repeat_count)
+                    browser.command("seek", time=max(0.0, self.controller.current_time + (delta if command == "seek_forward" else -delta)))
+                else:
+                    return ExternalVideoDelivery(command, False, "unsupported_browser_command")
+                return ExternalVideoDelivery(command, True, "browser_command_pending", browser.identity.wire())
+            except (ConnectionError, ValueError) as exc:
+                return ExternalVideoDelivery(command, False, str(exc))
         hotkey = self._hotkey_for(command)
         if not hotkey:
             return ExternalVideoDelivery(command, False, "hotkey_empty")

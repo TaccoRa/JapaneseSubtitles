@@ -682,6 +682,56 @@ class AnkiClient:
                 copied[name] = value
         return copied
 
+    def verify_capture_media(self, note_id):
+        notes = self._invoke("notesInfo", {"notes": [int(note_id)]}) or []
+        if len(notes) != 1:
+            raise RuntimeError("Capture target note is missing")
+        fields = notes[0].get("fields", {})
+        if "[sound:" not in str(fields.get(self.sound_field, {}).get("value", "")) or "<img" not in str(fields.get(self.image_field, {}).get("value", "")):
+            raise RuntimeError("Anki media fields are incomplete")
+        return True
+
+    def attach_native_capture(self, note_id, operation_id, audio, image, *, is_cancelled=lambda: False):
+        """Retryable media-only update of one explicit note; never creates notes."""
+        import base64
+        import hashlib
+        import io
+        import re
+        if not re.fullmatch(r"[a-f0-9]{32}", str(operation_id)) or int(note_id) <= 0:
+            raise ValueError("Invalid media operation identity")
+        raw_audio = base64.b64decode(audio, validate=True)
+        raw_image = base64.b64decode(image, validate=True)
+        if not raw_image.startswith(b"\x89PNG\r\n\x1a\n") or len(raw_audio) < 100:
+            raise ValueError("Incomplete recording media")
+        if len(raw_audio) > 24_000_000 or len(raw_image) > 16_000_000:
+            raise ValueError("Capture exceeds media size limit")
+        import wave
+        with wave.open(io.BytesIO(raw_audio), "rb") as recording:
+            if recording.getsampwidth() != 2 or recording.getnchannels() != 1 or recording.getnframes() <= 0:
+                raise ValueError("Invalid PCM recording")
+            if recording.getnframes() / recording.getframerate() > 125:
+                raise ValueError("Recording interval too long")
+        media = ((self.sound_field, "wav", raw_audio), (self.image_field, "png", raw_image))
+        notes = self._invoke("notesInfo", {"notes": [int(note_id)]}) or []
+        if len(notes) != 1 or any(name not in notes[0].get("fields", {}) for name, _, _ in media):
+            raise ValueError("Target note is missing required media fields")
+        fields = {}
+        for name, extension, data in media:
+            if is_cancelled():
+                raise RuntimeError("Capture cancelled")
+            filename = f"subtitleplayer_{operation_id}_{hashlib.sha256(data).hexdigest()[:16]}.{extension}"
+            stored = self._invoke("storeMediaFile", {"filename": filename, "data": base64.b64encode(data).decode("ascii")})
+            if stored != filename:
+                raise RuntimeError("Anki did not store requested media")
+            fields[name] = f"[sound:{filename}]" if extension == "wav" else f'<img src="{filename}">'
+        if is_cancelled():
+            raise RuntimeError("Capture cancelled")
+        self._invoke("updateNoteFields", {"note": {"id": int(note_id), "fields": fields}})
+        verified = self._invoke("notesInfo", {"notes": [int(note_id)]}) or []
+        if not verified or any(verified[0].get("fields", {}).get(name, {}).get("value") != value for name, value in fields.items()):
+            raise RuntimeError("Anki media fields have not finished updating")
+        return fields
+
     def copy_captured_sentence_media_to_previous_note(
         self,
         source_note_id: int,
@@ -1050,7 +1100,7 @@ class AnkiClient:
             if any(current_media.get(name) and current_media.get(name) != str(previous_media.get(name) or "") for name in media_fields):
                 changed_note_ids.add(note_id)
             for name, value in current_media.items():
-                if require_fresh_media and value == str(previous_media.get(name) or ""):
+                if require_fresh_media and any(value == str(item.get("media", {}).get(name) or "") for item in baseline_notes.values()):
                     continue
                 if value and name not in source_values:
                     source_values[name] = value
@@ -1105,6 +1155,7 @@ class AnkiClient:
             "raw_sentence": raw_sentence,
             "rendered_sentence": rendered_sentence,
             "reason": reason,
+            "requires_fresh_media": require_fresh_media,
         }
 
     def find_latest_note_id_for_capture(self) -> Optional[int]:

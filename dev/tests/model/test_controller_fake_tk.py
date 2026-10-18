@@ -91,7 +91,7 @@ class FakeRenderer:
     def update_canvas(self, canvas):
         self.canvas = canvas
 
-    def render_subtitle(self, top, bottom, overlay, preview=False):
+    def render_subtitle(self, top, bottom, overlay, preview=False, cue_snapshot=None):
         self.calls.append({"top": top, "bottom": bottom, "preview": bool(preview)})
 
 
@@ -329,7 +329,7 @@ def test_right_click_popup_does_not_redraw_subtitle_before_opening():
             _sync_playing_time_to_event=lambda **kwargs: sync_kwargs.append(kwargs)
         ),
         subtitle_navigation=SimpleNamespace(copy_text_for_current_subtitle=lambda: "visible subtitle"),
-        popup=SimpleNamespace(open_copy_popup=lambda text: opened.append(text)),
+        popup=SimpleNamespace(open_copy_popup=lambda text, **kwargs: opened.append(text)),
         last_subtitle_raw="visible subtitle",
     )
 
@@ -581,7 +581,7 @@ def test_popup_add_selection_callback_flow():
     fake_popup = SimpleNamespace(after=Root().after)
     popup._add_selection_to_anki_from_popup(fake_popup, "字幕")
 
-    assert calls == [{"selected_text": "選択", "subtitle_text": "字幕"}]
+    assert calls == [{"selected_text": "選択", "subtitle_text": "字幕", "cue_snapshot": None, "selection_spans": ()}]
 
 
 def test_popup_hotkey_add_uses_popup_selection_without_window_focus():
@@ -599,7 +599,7 @@ def test_popup_hotkey_add_uses_popup_selection_without_window_focus():
     popup._on_add_anki = lambda **kwargs: calls.append(kwargs)
 
     assert popup.add_selected_to_anki_if_pointer_inside() is True
-    assert calls == [{"selected_text": "\u9078\u629e", "subtitle_text": "\u5b57\u5e55"}]
+    assert calls == [{"selected_text": "\u9078\u629e", "subtitle_text": "\u5b57\u5e55", "cue_snapshot": None, "selection_spans": ()}]
 
     popup._pointer_inside_window = lambda _window: False
     assert popup.add_selected_to_anki_if_pointer_inside() is True
@@ -632,6 +632,7 @@ def test_popup_hotkey_add_capture_forwards_capture_flag():
             "selected_text": "\u9078\u629e",
             "subtitle_text": "\u5b57\u5e55",
             "post_add_capture": True,
+            "cue_snapshot": None, "selection_spans": (),
         }
     ]
 

@@ -94,6 +94,9 @@ class AnkiController(_ControllerProxy):
             interaction_owner=str(interaction_owner or target.initiator or "ui"),
             action_feedback_key=id(target),
         )
+        browser = getattr(self.controller, "browser_sync", None)
+        if browser is not None:
+            browser.freeze_capture(session)
         if target.sentence_key:
             try:
                 session.baseline_media = self.anki.snapshot_exact_sentence_media(target.subtitle_text)
@@ -139,6 +142,10 @@ class AnkiController(_ControllerProxy):
                 session.cancel(reason)
                 cancelled.append(session)
         for session in cancelled:
+            if session.backend == "native":
+                browser = getattr(self.controller, "browser_sync", None)
+                if browser is not None and browser._capture is session:
+                    browser.abort(reason)
             self._finish_action_feedback_key(session.action_feedback_key, False)
             release = getattr(self.controller, "release_anki_pause_lease", None)
             if callable(release):
@@ -535,9 +542,15 @@ class AnkiController(_ControllerProxy):
                             # exact-sentence card already.  Reconcile that
                             # state immediately when the new card appears.
                             try:
-                                self.anki.reconcile_exact_sentence_media(
+                                reconciled = self.anki.reconcile_exact_sentence_media(
                                     added_note_id,
                                     baseline=capture_session.baseline_media,
+                                )
+                                capture_session.reuse_ready = bool(
+                                    not reconciled.get("missing_media_fields", ["unknown"])
+                                    and reconciled.get("available_media_fields")
+                                    and not reconciled.get("failed_note_ids")
+                                    and not reconciled.get("requires_fresh_media")
                                 )
                             except Exception:
                                 logger.debug(
@@ -808,6 +821,9 @@ class AnkiController(_ControllerProxy):
             win.bind("<Escape>", lambda _event: _cancel())
 
     def _post_add_capture_delay_ms(self) -> int | None:
+            browser = getattr(self.controller, "browser_sync", None)
+            if browser is not None and browser.native:
+                return 0
             raw = self.config.get("POST_ADD_CAPTURE_DELAY_MS")
             if raw is None or str(raw).strip() == "":
                 return None
@@ -882,6 +898,13 @@ class AnkiController(_ControllerProxy):
                 capture_only = bool(session.capture_only)
                 if note_id is None:
                     note_id = session.target_note_id
+            if session is not None and session.backend == "native":
+                try:
+                    self.controller.browser_sync.capture(session, note_id)
+                    return True
+                except Exception as exc:
+                    self.controller.browser_sync._set_status("Capture failed · " + str(exc))
+                    return False
             target_title = self._post_add_capture_target_title()
             external_hotkey = self._post_add_capture_hotkey()
             note_label = note_id if note_id is not None else "pending note"
@@ -1337,6 +1360,9 @@ class AnkiController(_ControllerProxy):
 
 
     def _schedule_ocr_sync_after_anki(self, duration_sec: float = 5.0, interval_sec: float = 1.0) -> None:
+            browser = getattr(self.controller, "browser_sync", None)
+            if browser is not None and browser.following:
+                return
             if self._shutting_down:
                 return
             if not self.config.get("OCR_ENABLED"):

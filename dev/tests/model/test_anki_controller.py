@@ -73,7 +73,6 @@ def test_post_add_external_capture_focuses_target_and_sends_hotkey(monkeypatch):
         ("focus", "Chrome"),
         ("suppress", "ctrl+shift+y", 1),
         ("hotkey", "ctrl+shift+y"),
-        ("jump", "subtitle_end"),
     ]
 
 

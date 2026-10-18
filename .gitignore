@@ -11,6 +11,10 @@ venv/
 
 cache_github/
 voice_models/
+timing_maps/
+pending_capture_media/
+browser-extension/*.zip
+native/subtitle-align/target/
 
 # Editor/IDE settings
 .vscode/

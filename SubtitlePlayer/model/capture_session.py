@@ -71,6 +71,13 @@ class CaptureSession:
     interaction_owner: str = "ui"
     action_feedback_key: int | None = None
     cancellation_reason: str = ""
+    backend: str = "asbplayer"
+    timing_version: str = ""
+    media_identity: Any = None
+    media_fingerprint: str = ""
+    mapped_interval: tuple[float, float] | None = None
+    post_capture_policy: str = "play"
+    reuse_ready: bool = False
 
     def set_target_note(self, note_id: int | None) -> None:
         try:

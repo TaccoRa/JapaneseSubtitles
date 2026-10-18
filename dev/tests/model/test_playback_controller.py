@@ -254,6 +254,8 @@ def test_hotkey_queue_preserves_event_timestamp():
     hotkeys = HotkeyController(controller)
 
     hotkeys._enqueue_input_action("toggle_play", event_time=12.345)
+    controller.SHORTCUT_DEFAULTS = {"SHORTCUT_TOGGLE_SUBTITLES": "s"}
+    controller.config = SimpleNamespace(get=lambda key: None)
     hotkeys._process_input_queue()
 
     assert calls == [pytest.approx(12.345)]
@@ -406,7 +408,7 @@ def test_hotkey_dispatch_adds_popup_selection_to_anki():
     calls = []
     controller = SimpleNamespace(
         _shutting_down=False,
-        popup=SimpleNamespace(add_selected_to_anki_if_pointer_inside=lambda: calls.append("popup_add")),
+        popup=SimpleNamespace(add_selected_to_anki_if_pointer_inside=lambda **kwargs: (calls.append("popup_add") or True)),
         playback=SimpleNamespace(),
         subtitle_navigation=SimpleNamespace(toggle_subtitle_visibility=lambda: None),
         config=SimpleNamespace(get=lambda _key: False),
@@ -423,7 +425,7 @@ def test_hotkey_dispatch_adds_popup_selection_to_anki_with_capture():
     controller = SimpleNamespace(
         _shutting_down=False,
         popup=SimpleNamespace(
-            add_selected_to_anki_if_pointer_inside=lambda **kwargs: calls.append(kwargs)
+            add_selected_to_anki_if_pointer_inside=lambda **kwargs: (calls.append(kwargs) or True)
         ),
         playback=SimpleNamespace(),
         subtitle_navigation=SimpleNamespace(toggle_subtitle_visibility=lambda: None),
@@ -433,7 +435,7 @@ def test_hotkey_dispatch_adds_popup_selection_to_anki_with_capture():
 
     hotkeys._dispatch_input_action("popup_add_anki_capture")
 
-    assert calls == [{"post_add_capture": True}]
+    assert calls == [{"post_add_capture": True, "on_complete": None}]
 
 
 def test_repeat_seek_preview_updates_time_display_only():

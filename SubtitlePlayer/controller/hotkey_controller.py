@@ -481,7 +481,7 @@ class HotkeyController(_ControllerProxy):
                 if not hasattr(self.controller, "_held_repeat_press_time"):
                     self.controller._held_repeat_press_time = {}
                 for action in actions:
-                    if self._is_seek_repeat_action(action):
+                    if self._is_seek_repeat_action(action) and action in self._held_repeat_next_fire:
                         released_seek_actions.add(action)
                         released_seek_fired[action] = (action in self._held_repeat_fired)
                         released_seek_press_time[action] = self._held_repeat_press_time.get(action)

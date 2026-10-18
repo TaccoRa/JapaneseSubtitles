@@ -13,6 +13,20 @@ from pynput.mouse import Button
 import queue
 import threading
 import time
+import pytest
+
+@pytest.fixture(autouse=True)
+def fake_listener_environment(monkeypatch):
+    # Synthetic key events must not read the tester's real physical keyboard.
+    monkeypatch.setattr(HotkeyController, "_physical_hold_binding_active", lambda self, binding: None)
+    original = HotkeyController._on_key_press
+    def press(self, key):
+        # The real Tk input pump refreshes these caches before listener events.
+        self.controller._cached_text_input_focused = self._read_text_input_focused()
+        self.controller._cached_popup_open = self._read_popup_open()
+        return original(self, key)
+    monkeypatch.setattr(HotkeyController, "_on_key_press", press)
+
 
 
 class _DictConfig:
@@ -61,6 +75,7 @@ def test_video_click_flags(tmp_path):
 
     ctrl = object.__new__(SubtitleController)
     ctrl.config = cfg
+    ctrl.settings = SimpleNamespace()
     ctrl._init_runtime_state()
 
     assert ctrl.video_click is True
@@ -488,7 +503,7 @@ def test_advanced_window_show_uses_topmost_no_activate(monkeypatch):
     import SubtitlePlayer.view.settings_advanced_ui as advanced_module
 
     calls = []
-    ui = object.__new__(SettingsAdvancedUI)
+    ui = SettingsAdvancedUI(SimpleNamespace())
     win = SimpleNamespace(
         deiconify=lambda: calls.append("deiconify"),
         lift=lambda: calls.append("lift"),
@@ -597,7 +612,7 @@ def test_hover_pause_toggles_app_timer_with_spacebar():
     assert controller.playing is False
     assert controller._hover_timer_pause_active is True
     assert len(calls) == 1
-    assert [event[0] for event in keyboard.events] == ["press", "release"]
+    assert keyboard.events == []  # External commands now use the shared video service.
 
     overlay._trigger_background_video_space(paused=False)
     assert controller.playing is True
@@ -784,6 +799,7 @@ def test_generic_anki_prompt_does_not_clear_pending_add_payload():
     )
     anki_controller = AnkiController(controller)
 
+    controller.config = _DictConfig({})
     anki_controller._show_anki_wait_dialog()
 
     assert controller._pending_anki_payload == {"selected_text": "\u5207\u308b", "subtitle_text": "\u5207\u308b"}

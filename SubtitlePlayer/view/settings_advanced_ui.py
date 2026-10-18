@@ -481,6 +481,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
 
     def _current_local_config_snapshot(self, profile_name: str | None = None) -> dict:
         data = dict(getattr(self.config, "local_config", {}) or {})
+        data.pop("BROWSER_PAIRING_TOKEN", None)
         if profile_name:
             data["ACTIVE_SETTINGS_PROFILE"] = self._sanitize_profile_name(profile_name)
         return data
@@ -1025,6 +1026,10 @@ class SettingsAdvancedUI(_SettingsUIProxy):
 
     def _apply_loaded_profile(self, name: str, data: dict) -> None:
         data = dict(data)
+        token = self.config.get("BROWSER_PAIRING_TOKEN")
+        if token:
+            data["BROWSER_PAIRING_TOKEN"] = token
+        data.setdefault("POST_CAPTURE_PLAYBACK", "play")
         data["ACTIVE_SETTINGS_PROFILE"] = name
         replacer = getattr(self.config, "replace_local_config", None)
         if callable(replacer):

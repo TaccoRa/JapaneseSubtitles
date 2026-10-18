@@ -46,6 +46,7 @@ from controller.ocr_controller import OCRController
 from controller.overlay_controller import OverlayController
 from controller.playback_controller import PlaybackController
 from controller.subtitle_navigation import SubtitleNavigationController
+from controller.browser_sync_controller import BrowserSyncController
 from logging_setup import set_debug_logging
 from utils import (
     dispatch_to_tk,
@@ -142,6 +143,7 @@ class SubtitleController:
             pass
         self.ocr_controller._schedule_ocr_time_jump("startup")
         if self._startup_resume_play: self.playback.toggle_play()
+        self.browser_sync = BrowserSyncController(self)
 
     def _init_runtime_state(self) -> None:
         self.default_start_time = self.current_time = self.config.get("DEFAULT_START_TIME")
@@ -2879,6 +2881,9 @@ class SubtitleController:
                 pass
 
     def _shutdown_background_services(self) -> None:
+        browser = getattr(self, "browser_sync", None)
+        if browser is not None:
+            browser.close()
         try:
             self.voice_stop_microphone_test(restart_recognition=False, wait=True)
         except Exception:

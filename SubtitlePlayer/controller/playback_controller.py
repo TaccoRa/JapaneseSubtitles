@@ -11,6 +11,18 @@ class PlaybackController:
     def _now(self) -> float:
         return time.perf_counter()
 
+    def _browser(self):
+        browser = getattr(self.controller, "browser_sync", None)
+        return browser if browser is not None and browser.following else None
+
+    def source_time(self, value):
+        browser = self._browser()
+        return browser.source_time(value) if browser else value - self.controller.get_offset_value()
+
+    def video_time(self, value):
+        browser = self._browser()
+        return browser.video_time(value) if browser else value + self.controller.get_offset_value()
+
     def _advance_playing_time_to_now(
         self,
         *,
@@ -19,7 +31,7 @@ class PlaybackController:
         update_display: bool = True,
         update_slider: bool = True,
     ) -> float:
-        if not self.controller.playing:
+        if self._browser() or not self.controller.playing:
             return 0.0
 
         if now is None:
@@ -126,6 +138,14 @@ class PlaybackController:
         if t is None:
             return
 
+        browser = self._browser()
+        if browser:
+            try:
+                browser.command("seek", time=float(t))
+            except (ConnectionError, ValueError) as exc:
+                browser._set_status(str(exc))
+            return
+
         offset = self.controller.get_offset_value()
         # print(offset, "test")##testing
         t = max(0, min(t, self.controller.total_duration + offset))
@@ -141,6 +161,13 @@ class PlaybackController:
 
     def toggle_play(self, event_time: float | None = None):
         if self.controller._shutting_down:
+            return
+        browser = self._browser()
+        if browser:
+            try:
+                browser.command("pause" if self.controller.playing else "play")
+            except ConnectionError as exc:
+                browser._set_status(str(exc))
             return
         if self.controller.entry_editing:
             self.controller.control_time_entry_return(None)
@@ -206,6 +233,14 @@ class PlaybackController:
         self._set_play_button_state()
 
     def change_fast_forward_speed(self, delta: float, *, persist: bool = True) -> float:
+        browser = self._browser()
+        if browser and browser.snapshot:
+            speed = self.controller._coerce_fast_forward_speed(browser.snapshot.rate + float(delta))
+            try:
+                browser.command("rate", rate=speed)
+            except ConnectionError as exc:
+                browser._set_status(str(exc))
+            return speed
         if self.controller._shutting_down:
             return float(getattr(self.controller, "fast_forward_speed", 1.0) or 1.0)
         if not bool(getattr(self.controller, "fast_forward_enabled", True)):
@@ -272,6 +307,19 @@ class PlaybackController:
             self.seek_relative(-skip, event_time=event_time)
 
     def jump_subtitle_segment(self, direction: str, event_time: float | None = None) -> None:
+        browser = self._browser()
+        if browser:
+            if not browser.mapping:
+                browser._set_status("Finding timing…")
+                return
+            starts = [x[0] for x in browser.mapping.video]
+            current = float(self.controller.current_time)
+            idx = bisect.bisect_right(starts, current + (.05 if direction == "next" else -.05))
+            if direction == "prev":
+                idx -= 1
+            if 0 <= idx < len(starts):
+                self.set_current_time(starts[idx])
+            return
         start_times = self.controller._get_display_start_times()
         if not start_times:
             self._sync_playing_time_to_event(event_time)
@@ -283,7 +331,7 @@ class PlaybackController:
             update_slider=False,
         )
         offset = self.controller.get_offset_value()
-        sub_t = max(0.0, float(self.controller.current_time) - offset)
+        sub_t = max(0.0, self.source_time(float(self.controller.current_time)))
         epsilon = 0.05
 
         if direction == "prev":
@@ -300,10 +348,21 @@ class PlaybackController:
                 self._publish_current_time()
             return
 
-        self.set_current_time(float(start_times[target_idx]) + offset)
+        self.set_current_time(self.video_time(float(start_times[target_idx])))
         self.controller._schedule_hide_controls()
 
     def on_jump_sub_end(self, event=None, event_time: float | None = None):
+        browser = self._browser()
+        if browser:
+            if not browser.mapping:
+                return
+            starts = [x[0] for x in browser.mapping.video]
+            idx = browser.mapping.cue_at(float(self.controller.current_time))
+            if idx is None:
+                idx = bisect.bisect_right(starts, float(self.controller.current_time))
+            if idx < len(starts):
+                self.set_current_time(browser.mapping.video[idx][1] + float(self.controller.audio_padding) * .001)
+            return
         start_times = self.controller._get_display_start_times()
         if not start_times:
             self._sync_playing_time_to_event(event_time)
@@ -315,7 +374,7 @@ class PlaybackController:
             update_slider=False,
         )
         offset = self.controller.get_offset_value()
-        sub_t = max(0.0, float(self.controller.current_time) - offset)
+        sub_t = max(0.0, self.source_time(float(self.controller.current_time)))
         epsilon = 0.05
         padding_sec = float(self.controller.audio_padding)*0.001
 
@@ -333,7 +392,7 @@ class PlaybackController:
         if sub_t > end_time + epsilon:
             next_idx = bisect.bisect_right(start_times, sub_t + epsilon)
             if next_idx < len(start_times) and next_idx < len(end_times):
-                target_time = float(end_times[next_idx]) + padding_sec + offset
+                target_time = self.video_time(float(end_times[next_idx])) + padding_sec
                 self.set_current_time(target_time)
                 self.controller._schedule_hide_controls()
                 return
@@ -341,7 +400,7 @@ class PlaybackController:
                 self._publish_current_time()
             return
 
-        target_time = end_time + padding_sec + offset
+        target_time = self.video_time(end_time) + padding_sec
         if target_time < float(self.controller.current_time or 0.0) - epsilon:
             if synced:
                 self._publish_current_time()

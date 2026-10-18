@@ -11,3 +11,4 @@ srt==3.5.3
 unidic-lite==1.0.8
 vosk==0.3.45
 sounddevice==0.5.5
+websockets==16.1.1

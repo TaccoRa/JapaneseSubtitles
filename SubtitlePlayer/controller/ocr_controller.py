@@ -51,6 +51,9 @@ class OCRController(_ControllerProxy):
             return None
 
     def _schedule_ocr_time_jump(self, reason: str) -> None:
+            browser = getattr(self.controller, "browser_sync", None)
+            if browser is not None and browser.following:
+                return
             if self._shutting_down:
                 return
             if not self.config.get("OCR_ENABLED"):
@@ -91,6 +94,9 @@ class OCRController(_ControllerProxy):
             self._ocr_thread.start()
 
     def _apply_ocr_time(self, seconds: float, generation: int) -> None:
+            browser = getattr(self.controller, "browser_sync", None)
+            if browser is not None and browser.following:
+                return
             if self._shutting_down:
                 return
             if generation != self._ocr_generation:
