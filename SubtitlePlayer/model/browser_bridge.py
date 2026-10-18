@@ -1,5 +1,6 @@
 """Authenticated loopback-only transport. Workers never call Tk directly."""
 import hmac
+import errno
 import json
 import queue
 import re
@@ -23,6 +24,8 @@ class BrowserBridge:
         self.error = None
         self.trusted_origins = set(trusted_origins)
         self._pairing = {}
+        self._thread = None
+        self._stop = threading.Event()
 
     def approve_pairing(self, request_id, allowed):
         with self._lock:
@@ -32,19 +35,34 @@ class BrowserBridge:
                 request["ready"].set()
 
     def start(self):
+        if self._thread and self._thread.is_alive():
+            return
+        self.ready.clear()
+        self.error = None
+        self._stop.clear()
         def run():
             try:
                 from websockets.sync.server import serve
                 with serve(self._accept, "127.0.0.1", self.port, max_size=32 * 1024 * 1024,
                            ping_interval=10, ping_timeout=10) as server:
-                    self._server = server
+                    with self._lock:
+                        self._server = server
+                    if self._stop.is_set():
+                        return
                     self.port = server.socket.getsockname()[1]
                     self.ready.set()
                     server.serve_forever()
             except Exception as exc:
-                self.error = str(exc)
+                if isinstance(exc, OSError) and (exc.errno == errno.EADDRINUSE or getattr(exc, "winerror", None) == 10048):
+                    self.error = f"Port {self.port} is in use. Close the other SubtitlePlayer instance, then click Retry connection."
+                else:
+                    self.error = str(exc)
+            finally:
+                with self._lock:
+                    self._server = None
                 self.ready.set()
-        threading.Thread(target=run, name="browser-bridge", daemon=True).start()
+        self._thread = threading.Thread(target=run, name="browser-bridge", daemon=True)
+        self._thread.start()
 
     def _emit(self, event):
         event = {**event, "_received_monotonic": time.monotonic()}
@@ -131,10 +149,14 @@ class BrowserBridge:
         return operation
 
     def close(self):
+        self._stop.set()
         with self._lock:
             for request in self._pairing.values():
                 request["ready"].set()
-            if self._peer:
-                self._peer.close()
-        if self._server:
-            self._server.shutdown()
+            peer, server = self._peer, self._server
+        if peer:
+            peer.close()
+        if server:
+            server.shutdown()
+        if self._thread and self._thread is not threading.current_thread():
+            self._thread.join(timeout=3)

@@ -352,3 +352,23 @@ def test_mainloop_keyboard_interrupt_requests_clean_shutdown(monkeypatch):
     assert root.quit_calls == 1
     assert root.destroy_calls == 1
     assert diagnostics_closed == [True]
+
+
+def test_normal_mainloop_exit_releases_services_without_a_window_close_event(monkeypatch):
+    player = SubtitlePlayerApp()
+    root = _FakeRoot()
+    root.after = lambda *_args: "startup-check"
+    root.after_cancel = lambda *_args: None
+    root.mainloop = lambda: None  # The existing settings Quit path uses root.quit().
+    calls = []
+    from types import SimpleNamespace
+    player.controller = SimpleNamespace(shutdown=lambda: calls.append("shutdown"))
+    monkeypatch.setattr(player, "_load_config", lambda: None)
+    monkeypatch.setattr(player, "_build_root", lambda: setattr(player, "root", root))
+    monkeypatch.setattr(player, "_show_startup_overlay", lambda: None)
+    monkeypatch.setattr(player, "_start_startup_worker", lambda: None)
+    monkeypatch.setattr(player, "_close_crash_diagnostics", lambda: calls.append("diagnostics"))
+    player.run()
+    assert calls == ["shutdown", "diagnostics"]
+    player._on_close()
+    assert calls == ["shutdown", "diagnostics"]

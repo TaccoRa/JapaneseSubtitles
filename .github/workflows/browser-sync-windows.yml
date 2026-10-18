@@ -24,7 +24,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m pytest dev/tests/model dev/tests/test_subtitle_alignment_probe.py -q
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node --test dev/tests/extension.test.cjs dev/tests/content.test.cjs
+          node --test dev/tests/extension.test.cjs dev/tests/content.test.cjs dev/tests/offscreen.test.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-ChildItem browser-extension -Filter *.js | ForEach-Object { node --check $_.FullName; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }
       - uses: actions/upload-artifact@v4

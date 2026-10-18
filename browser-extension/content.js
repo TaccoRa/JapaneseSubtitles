@@ -1,24 +1,35 @@
 /* One isolated-world instance per frame. No devtools or stream URL extraction. */
 (()=>{
+const existing=globalThis.subtitlePlayerContent;
+if(existing){existing.publish();return;}
 const videos=new Map(), ids=new WeakMap(), epochs=new WeakMap(), captionSources=new WeakMap();
 let sequence=0, capture=null, suppress=0;
+let lastEpisode='',lastEpisodeAt=0;
 const roots=()=>{
   const all=[document];
   for(let i=0;i<all.length;i++)for(const e of all[i].querySelectorAll('*'))if(e.shadowRoot)all.push(e.shadowRoot);
   return all;
 };
-const send=m=>chrome.runtime.sendMessage(m).catch(()=>{});
+const send=m=>{try{return chrome.runtime.sendMessage(m).catch(()=>{});}catch{return Promise.resolve();}};
+function publish(){discover();for(const [id,v]of videos)send(snapshot(v,id,'discover'));}
+globalThis.subtitlePlayerContent={publish};
 function mediaKey(video){
   // Streaming duration can change as segments load without changing the episode.
   return location.href+'|'+video.currentSrc+'|'+(epochs.get(video)||0)+'|'+[...video.audioTracks||[]].map(t=>t.id+':'+t.enabled);
 }
 function publishCaptions(video,id){
   if(video.readyState<1)return;
-  let seen=captionSources.get(video);if(!seen){seen=new Set();captionSources.set(video,seen);}
+  let seen=captionSources.get(video);if(!seen){seen=new Map();captionSources.set(video,seen);}
   for(const track of video.querySelectorAll('track[src]')){
+    const label=(track.srclang+' '+track.label).toLowerCase();
+    if(!/english|german|englisch|deutsch|\b(en|eng|de|deu|ger)\b/.test(label))continue;
     const resourceKey=mediaKey(video)+'|'+track.src+'|'+track.srclang+'|'+track.label;
-    if(seen.has(resourceKey))continue;seen.add(resourceKey);
-    send({type:'CaptionResource',url:track.src,videoId:id,mediaKey:mediaKey(video),language:track.srclang,label:track.label});
+    // Retry after a temporary offline/permission failure; a failed first fetch
+    // must not leave alignment waiting forever for an already-discovered track.
+    if(seen.has(resourceKey)&&performance.now()-seen.get(resourceKey)<10000)continue;
+    seen.set(resourceKey,performance.now());
+    const priority=/english|englisch|\b(en|eng)\b/.test(label)?(/\(2\)/.test(label)?10:0):20;
+    send({type:'CaptionResource',url:track.src,videoId:id,mediaKey:mediaKey(video),language:track.srclang,label:track.label,priority});
   }
 }
 function snapshot(video,id,event='tick'){
@@ -81,13 +92,14 @@ async function command(m){
   return snapshot(v,m.identity.videoId,'ack');
 }
 chrome.runtime.onMessage.addListener((m,sender,reply)=>{
+  if(m.type==='DiscoverVideos'){publish();reply({ok:true});return;}
   if(m.type==='PlayerCommand'){command(m).then(state=>reply({ok:true,state}),e=>reply({ok:false,error:e.message}));return true;}
   if(m.type==='PrepareCapture'){
     (async()=>{
       if(capture)throw Error('A recording is already running');
       const v=videos.get(m.identity.videoId);if(!v)throw Error('Video replaced');
       suppress=performance.now()+15000;v.pause();v.playbackRate=1;await waitSeek(v,m.start);
-      capture={...m,id:m.identity.videoId,video:v,started:false};
+      capture={...m,screenshotTime:m.screenshotTime??(m.start+m.end)/2,id:m.identity.videoId,video:v,started:false};
       const r=v.getBoundingClientRect();
       window.postMessage({subtitlePlayerCrop:true,operationId:m.operationId,rect:{x:r.x,y:r.y,width:r.width,height:r.height},viewport:{width:innerWidth,height:innerHeight}},'*');
       return {ok:true};
@@ -97,6 +109,16 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
     (async()=>{if(!capture||capture.operationId!==m.operationId)throw Error('Capture cancelled');
       suppress=performance.now()+500;await capture.video.play();capture.started=true;return {ok:true};
     })().then(reply,e=>reply({ok:false,error:e.message}));return true;
+  }
+  if(m.type==='ScreenshotReady'){
+    (async()=>{
+      if(!capture||capture.operationId!==m.operationId||!capture.screenshotPending)throw Error('Capture cancelled');
+      capture.screenshotPending=false;suppress=performance.now()+500;
+      await capture.video.play();return {ok:true};
+    })().then(reply,e=>reply({ok:false,error:e.message}));return true;
+  }
+  if(m.type==='CaptureCheckpoint'){
+    reply({ok:!!capture&&capture.operationId===m.operationId&&capture.screenshotPending});return;
   }
   if(m.type==='FinishCapture'){
     if(capture?.operationId===m.operationId){suppress=performance.now()+500;capture.video.pause();capture=null;}
@@ -117,14 +139,33 @@ window.addEventListener('message',e=>{
   if(window===top)send({...next,type:'CropResult'});else parent.postMessage(next,'*');
 });
 let lastCaption='';
+// A crop belongs to one layout. Do not attach a stale crop after fullscreen/resize.
+document.addEventListener('fullscreenchange',()=>{if(capture)abort('Fullscreen changed during capture');});
+window.addEventListener('resize',()=>{if(capture)abort('Video layout changed during capture');});
 setInterval(()=>{
+  if(window===top&&typeof subtitlePlayerEpisodeContext==='function'){
+    const context=subtitlePlayerEpisodeContext(location.href);
+    if(context){
+      const value=JSON.stringify(context);
+      if(value!==lastEpisode||performance.now()-lastEpisodeAt>2000){
+        send({type:'EpisodeContext',...context,title:document.title});lastEpisode=value;lastEpisodeAt=performance.now();
+      }
+    }
+  }
   discover();for(const [id,v]of videos){
     send(snapshot(v,id));
-    const native=[...v.textTracks].flatMap(t=>[...t.cues||[]].map(c=>[c.startTime,c.endTime]));
-    if(native.length>=8&&sequence%50===0)send({type:'CaptionIntervals',videoId:id,intervals:native});
+    const tracks=[...v.textTracks].filter(t=>/english|german|englisch|deutsch|\b(en|eng|de|deu|ger)\b/i.test(t.language+' '+t.label));
+    tracks.sort((a,b)=>(a.mode==='showing'?-10:/english|\ben\b|\beng\b/i.test(a.label+' '+a.language)?0:5)-(b.mode==='showing'?-10:/english|\ben\b|\beng\b/i.test(b.label+' '+b.language)?0:5));
+    const track=tracks.find(t=>t.cues?.length>=8);
+    if(track&&sequence%50===0)send({type:'CaptionIntervals',videoId:id,language:track.language,intervals:[...track.cues].map(c=>[c.startTime,c.endTime])});
     if(capture?.id===id&&capture.started){
+      if(!capture.screenshotRequested&&v.currentTime>=capture.screenshotTime){
+        capture.screenshotRequested=true;capture.screenshotPending=true;
+        suppress=performance.now()+500;v.pause();
+        send({type:'CaptureScreenshot',operationId:capture.operationId,time:v.currentTime});
+      }
       send({type:'CaptureClock',operationId:capture.operationId,time:v.currentTime,buffering:v.readyState<3,paused:v.paused});
-      if(v.currentTime>=capture.end){suppress=performance.now()+500;v.pause();send({type:'CaptureBoundary',operationId:capture.operationId,time:v.currentTime});capture.started=false;}
+      if(!capture.screenshotPending&&v.currentTime>=capture.end){suppress=performance.now()+500;v.pause();send({type:'CaptureBoundary',operationId:capture.operationId,time:v.currentTime});capture.started=false;}
     }
   }
 },100);

@@ -468,23 +468,33 @@ class AnkiController(_ControllerProxy):
             )
             subtitle_text = action_target.subtitle_text
             anime_name = self._current_anki_anime_name()
+            browser = getattr(self.controller, "browser_sync", None)
+            native_capture = bool(post_add_capture and browser is not None and browser.native)
+            capture_delay_ms = self._post_add_capture_delay_ms() if post_add_capture else None
+            # Native media writes require the newly created note's explicit ID.
+            # A legacy negative delay must never start native recording early.
+            early_capture = bool(post_add_capture and not native_capture and capture_delay_ms is not None and capture_delay_ms < 0)
+            try:
+                capture_session = (
+                    self._new_capture_session(action_target, capture_only=False,
+                        early_capture=early_capture, pause_lease=pause_lease)
+                    if post_add_capture else None
+                )
+            except (ConnectionError, ValueError) as exc:
+                if browser is not None:
+                    browser._set_status("Capture not started · " + str(exc))
+                self._finish_action_feedback(action_target, False)
+                release = getattr(self.controller, "release_anki_pause_lease", None)
+                if callable(release):
+                    release(pause_lease, resume=False)
+                if callable(on_complete):
+                    on_complete(False, None)
+                return
             self._set_busy_cursor(True)
             try:
                 dispatch_to_tk(self.settings.root, self.popup.mark_anki_busy)
             except Exception:
                 pass
-            capture_delay_ms = self._post_add_capture_delay_ms() if post_add_capture else None
-            early_capture = post_add_capture and capture_delay_ms is not None and capture_delay_ms < 0
-            capture_session = (
-                self._new_capture_session(
-                    action_target,
-                    capture_only=False,
-                    early_capture=bool(early_capture),
-                    pause_lease=pause_lease,
-                )
-                if post_add_capture
-                else None
-            )
             if early_capture:
                 self._schedule_post_add_external_capture_hotkey(
                     abs(int(capture_delay_ms)),

@@ -3,6 +3,9 @@ const saved = await chrome.storage.local.get(['token']);
 document.querySelector('#token').value = saved.token || '';
 async function refreshVideos(){
   const state = await chrome.runtime.sendMessage({type:'ListVideos',tabId:tab.id});
+  const native=document.querySelector('#native');
+  native.hidden=state.backend!=='native';native.disabled=state.nativeEnabled;
+  native.textContent=state.nativeEnabled?'Native recording enabled':'Enable native recording';
   const select=document.querySelector('#video'),chosen=select.value;
   const next=state.videos.map(v=>JSON.stringify(v.identity));
   if(JSON.stringify([...select.options].map(o=>o.value))!==JSON.stringify(next)){
@@ -15,8 +18,8 @@ async function refreshVideos(){
     if(next.includes(chosen))select.value=chosen;
   }
   document.querySelector('#connect').disabled=!state.videos.length;
-  if(!state.videos.length)document.querySelector('#status').textContent='Open this popup on the video tab. If it stays empty, reload the video page once after installing the extension.';
-  else if(document.querySelector('#status').textContent.startsWith('Open this popup'))document.querySelector('#status').textContent=state.status;
+  if(!state.videos.length)document.querySelector('#status').textContent=state.discoveryError?'Cannot inspect this tab: '+state.discoveryError:'Looking for the video in this tab and its frames…';
+  else document.querySelector('#status').textContent=state.status+(state.autoEnabled?' · automatic connection on':' · automatic connection paused');
 }
 await refreshVideos();
 setInterval(()=>refreshVideos().catch(e=>{document.querySelector('#status').textContent=e.message;}),500);
@@ -28,4 +31,15 @@ document.querySelector('#connect').onclick=async()=>{
     document.querySelector('#status').textContent=result.error||'Connected. Waiting for subtitle timing…';
   }catch(e){document.querySelector('#status').textContent=e.message;}
 };
-document.querySelector('#disconnect').onclick=()=>chrome.runtime.sendMessage({type:'Disconnect'});
+document.querySelector('#native').onclick=async()=>{
+  try{
+    const result=await chrome.runtime.sendMessage({type:'EnableNativeRecording',identity:JSON.parse(document.querySelector('#video').value)});
+    document.querySelector('#status').textContent=result.error||'Native audio recording enabled';
+  }catch(e){document.querySelector('#status').textContent=e.message;}
+};
+document.querySelector('#disconnect').onclick=async()=>{
+  try{
+    const result=await chrome.runtime.sendMessage({type:'Disconnect'});
+    document.querySelector('#status').textContent=result.error||'Disconnected';
+  }catch(e){document.querySelector('#status').textContent=e.message;}
+};

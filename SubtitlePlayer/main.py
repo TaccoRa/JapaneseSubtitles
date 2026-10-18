@@ -49,5 +49,22 @@ _enable_windows_dpi_awareness()
 from app import SubtitlePlayerApp
 
 if __name__ == "__main__":
-    app = SubtitlePlayerApp()
-    app.run()
+    from pathlib import Path
+    from model.single_instance import SingleInstance
+    instance = SingleInstance(Path(__file__).resolve().parent.parent / "logs/subtitleplayer.instance")
+    if instance.acquire():
+        try:
+            app = SubtitlePlayerApp()
+            app.run()
+        finally:
+            instance.close()
+    else:
+        import tkinter as tk
+        from tkinter import messagebox
+        root = tk.Tk()
+        root.withdraw()
+        try:
+            messagebox.showinfo("SubtitlePlayer is already running",
+                                "SubtitlePlayer is already open. Use its existing controls, or close it before restarting.", parent=root)
+        finally:
+            root.destroy()

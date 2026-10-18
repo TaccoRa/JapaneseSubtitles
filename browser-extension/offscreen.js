@@ -1,20 +1,31 @@
-let stream,context,source,recorder,chunks=[],operation,crop,screenshot,screenshotTime;
+let stream,context,source,operation,crop,screenshot;
+let lifecycle=Promise.resolve();
 let processor,clock=null,pcm=[],pcmCount=0,pcmStart=0,recordedPCM=[],recordingActive=false;
-const preview=document.querySelector('#preview'),canvas=document.querySelector('#image');
+const canvas=document.querySelector('#image');
 const base64=async blob=>{const bytes=new Uint8Array(await blob.arrayBuffer());let out='';for(let i=0;i<bytes.length;i+=32768)out+=String.fromCharCode(...bytes.subarray(i,i+32768));return btoa(out);};
 async function disconnect(){
   recordingActive=false;recordedPCM=[];pcm=[];pcmCount=0;clock=null;
-  if(recorder?.state!=='inactive')recorder?.stop();recorder=null;operation=null;
-  stream?.getTracks().forEach(t=>t.stop());await context?.close();stream=null;
+  operation=null;crop=null;screenshot=null;
+  // Detach before awaiting: cleanup is safe after failures and repeated disconnects.
+  const oldStream=stream,oldContext=context,oldSource=source,oldProcessor=processor;
+  stream=context=source=processor=null;
+  if(oldProcessor){oldProcessor.port.onmessage=null;oldProcessor.disconnect();}
+  oldSource?.disconnect();
+  oldStream?.getTracks().forEach(t=>t.stop());
+  if(oldContext&&oldContext.state!=='closed')await oldContext.close();
 }
 chrome.runtime.onMessage.addListener((m,sender,reply)=>{
   if(m.target!=='offscreen')return;
-  (async()=>{
+  const handle=async()=>{
     if(m.type==='StreamState')return {ok:true,connected:!!stream&&stream.getTracks().some(t=>t.readyState==='live')};
     if(m.type==='ConnectStream'){
-      await disconnect();stream=await navigator.mediaDevices.getUserMedia({
+      await disconnect();
+      try{
+      stream=await navigator.mediaDevices.getUserMedia({
         audio:{mandatory:{chromeMediaSource:'tab',chromeMediaSourceId:m.streamId}},
-        video:{mandatory:{chromeMediaSource:'tab',chromeMediaSourceId:m.streamId}}});
+        // Continuous video tab capture forces Chrome's fullscreen-within-tab mode.
+        // A card's still image is captured separately, only on the bound tab.
+        video:false});
       context=new AudioContext();source=context.createMediaStreamSource(stream);source.connect(context.destination);await context.resume();
       await context.audioWorklet.addModule('pcm-worklet.js');
       processor=new AudioWorkletNode(context,'subtitle-pcm');source.connect(processor);
@@ -33,7 +44,8 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
           pcm=[];pcmCount=0;
         }
       };
-      preview.srcObject=stream;await preview.play();return {ok:true};
+      return {ok:true};
+      }catch(error){await disconnect();throw error;}
     }
     if(m.type==='DisconnectStream'){await disconnect();return {ok:true};}
     if(m.type==='AnalysisClock'){
@@ -42,30 +54,35 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
     }
     if(m.type==='SetCrop'){crop=m;return {ok:true};}
     if(m.type==='StartRecording'){
-      if(!stream||!stream.getAudioTracks().length)throw Error('Click Connect in the extension to enable audio');
-      if(recorder&&recorder.state!=='inactive')throw Error('Recorder busy');
-      operation=m.operationId;chunks=[];screenshot=null;screenshotTime=m.screenshotTime;
+      if(!stream||!stream.getAudioTracks().some(t=>t.readyState==='live')||!context||context.state==='closed')throw Error('Click Enable native recording in the extension to enable audio');
+      if(recordingActive)throw Error('Recorder busy');
+      operation=m.operationId;screenshot=null;
       recordedPCM=[];recordingActive=true;return {ok:true};
     }
 
     if(m.operationId!==operation)return {ok:false,error:'Stale recording operation'};
-    if(m.type==='RecordingClock'){
-      const paused=m.paused||m.buffering;
-      if(!screenshot&&m.time>=screenshotTime&&crop?.operationId===operation){
-        const r=crop.rect,view=crop.viewport;
-        const sx=preview.videoWidth/view.width,sy=preview.videoHeight/view.height;
+    if(m.type==='StoreScreenshot'){
+      if(crop?.operationId!==operation)throw Error('Video crop is not ready');
+      const id=operation,r=crop.rect,view=crop.viewport;
+      const image=await createImageBitmap(await (await fetch(m.image)).blob());
+      try{
+        if(id!==operation)throw Error('Capture cancelled');
+        const sx=image.width/view.width,sy=image.height/view.height;
         const x=Math.max(0,r.x*sx),y=Math.max(0,r.y*sy);
-        const w=Math.min(r.width*sx,preview.videoWidth-x),h=Math.min(r.height*sy,preview.videoHeight-y);
-        if(w<8||h<8)throw Error('Video image is outside the captured tab');
+        const w=Math.min(r.width*sx,image.width-x),h=Math.min(r.height*sy,image.height-y);
+        if(![x,y,w,h].every(Number.isFinite)||w<8||h<8)throw Error('Video image is outside the captured tab');
         canvas.width=Math.round(w);canvas.height=Math.round(h);
-        canvas.getContext('2d').drawImage(preview,x,y,w,h,0,0,canvas.width,canvas.height);
+        canvas.getContext('2d').drawImage(image,x,y,w,h,0,0,canvas.width,canvas.height);
         screenshot=canvas.toDataURL('image/png').split(',')[1];
-      }
+      }finally{image.close();}
+      return {ok:true};
+    }
+    if(m.type==='RecordingClock'){
       return {ok:true};
     }
     if(m.type==='CancelRecording'){operation=null;recordingActive=false;recordedPCM=[];return {ok:true};}
     if(m.type==='StopRecording'){
-      const id=operation;
+      const id=operation,capturedImage=screenshot;
       recordingActive=false;
       if(!screenshot)throw Error('Video screenshot was not captured');
       const count=recordedPCM.reduce((n,a)=>n+a.length,0);
@@ -77,9 +94,16 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
       view.setUint16(32,2,true);view.setUint16(34,16,true);put(36,'data');view.setUint32(40,count*2,true);
       let index=44;for(const chunk of recordedPCM)for(const value of chunk){view.setInt16(index,Math.max(-32768,Math.min(32767,value*32767)),true);index+=2;}
       const audio=await base64(new Blob([bytes],{type:'audio/wav'}));
-      await chrome.runtime.sendMessage({type:'EncodedCapture',operationId:id,audio,image:screenshot,audioMime:'audio/wav',endTime:m.time});
+      if(operation!==id)throw Error('Capture cancelled during encoding');
+      await chrome.runtime.sendMessage({type:'EncodedCapture',operationId:id,audio,image:capturedImage,audioMime:'audio/wav',endTime:m.time});
+      recordedPCM=[];
       return {ok:true};
     }
     return {ok:false,error:'Unknown recorder request'};
-  })().then(reply,e=>reply({ok:false,error:e.message}));return true;
+  };
+  let result;
+  if(['ConnectStream','DisconnectStream'].includes(m.type)){
+    result=lifecycle.then(handle);lifecycle=result.catch(()=>{});
+  }else result=handle();
+  result.then(reply,e=>reply({ok:false,error:e.message}));return true;
 });

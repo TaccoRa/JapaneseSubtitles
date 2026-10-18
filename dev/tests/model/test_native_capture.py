@@ -63,6 +63,7 @@ def browser():
         paused=True, buffering=False, rate=1, fingerprint="episode"))
     sync.identity = MediaIdentity.read(identity)
     sync.following = sync._connected = True
+    sync._native_enabled = True
     sync.controller = SimpleNamespace(config=SimpleNamespace(get=lambda key: {"CAPTURE_BACKEND": "native", "POST_CAPTURE_PLAYBACK": "play", "AUDIO_PADDING": 500}.get(key)))
     sync.mapping = TimingMap("source", "episode", "reference", ((10, 12), (30, 32)), ((11, 13), (22.784, 24.784)), (True, True))
     sync._capture = None
@@ -94,6 +95,15 @@ def test_capture_refuses_replaced_video():
     sync.identity = MediaIdentity(1, "replacement-doc", 3, "video")
     with pytest.raises(ValueError, match="changed"):
         sync.capture(session, 123)
+    assert not sync.sent
+
+
+def test_capture_preflight_requires_the_browser_recording_gesture_before_adding_a_note():
+    sync = browser()
+    sync._native_enabled = False
+    session = CaptureSession(FrozenActionTarget.create(selected_text="word", subtitle_text="sentence", sentence_key="sentence", cue_snapshot=SimpleNamespace(cue_index=0)))
+    with pytest.raises(ValueError, match="Enable native recording"):
+        sync.freeze_capture(session)
     assert not sync.sent
 
 

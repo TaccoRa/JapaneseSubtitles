@@ -5,6 +5,48 @@ from SubtitlePlayer.controller.anki_controller import AnkiController
 from SubtitlePlayer.model.capture_session import FrozenActionTarget
 
 
+def test_native_capture_waits_for_the_exact_note_id_even_with_legacy_negative_delay(monkeypatch):
+    scheduled, workers = [], []
+    def freeze(session):
+        session.backend = "native"
+    owner = SimpleNamespace(
+        browser_sync=SimpleNamespace(native=True, freeze_capture=freeze),
+        settings=SimpleNamespace(root=object()),
+        popup=SimpleNamespace(mark_anki_busy=lambda: None, mark_anki_success=lambda: None),
+        anki=SimpleNamespace(snapshot_exact_sentence_media=lambda text: {}, ping=lambda: True,
+            commit_prepared_note=lambda value: {"note_id": 42},
+            reconcile_exact_sentence_media=lambda *args, **kwargs: {"missing_media_fields": ["Sound", "Image"]}))
+    action = AnkiController(owner)
+    for name, fn in {
+        "_current_anki_anime_name": lambda: "Anime",
+        "_post_add_capture_delay_ms": lambda: -500,
+        "_set_busy_cursor": lambda value: None,
+        "_record_subtitleplayer_added_card": lambda *args: None,
+        "_record_successful_anki_add": lambda: None,
+        "_annotation_entries_for_added_anki_note": lambda result: [],
+        "_log_anki_add_result": lambda **kwargs: None,
+        "_schedule_ocr_sync_after_anki": lambda: None,
+        "_schedule_post_add_external_capture_hotkey": lambda delay, **kwargs: scheduled.append((delay, kwargs)),
+    }.items():
+        object.__setattr__(action, name, fn)
+    monkeypatch.setattr(anki_controller_module, "dispatch_to_tk", lambda root, fn, *args: fn(*args))
+    class Worker:
+        def __init__(self, target, **kwargs):
+            workers.append(target)
+        def start(self):
+            pass
+    monkeypatch.setattr(anki_controller_module.threading, "Thread", Worker)
+    target = FrozenActionTarget.create(selected_text="word", subtitle_text="sentence", sentence_key="sentence")
+    action._start_anki_commit_worker("word", prepared={}, post_add_capture=True, action_target=target)
+    assert not scheduled
+    workers[0]()
+    assert len(scheduled) == 1
+    delay, details = scheduled[0]
+    assert delay == 0 and details["note_id"] == 42
+    assert details["session"].target_note_id == 42
+    assert details["session"].backend == "native" and not details["session"].early_capture
+
+
 def test_anki_add_result_prints_plain_status_lines(capsys):
     controller = SimpleNamespace(
         anki=SimpleNamespace(

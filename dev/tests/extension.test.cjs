@@ -14,9 +14,16 @@ const identity={tabId:1,documentId:'doc',frameId:2,videoId:'video'};
 const sender={tab:{id:1},documentId:'doc',frameId:2};
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 async function settle(){for(let i=0;i<8;i++)await tick();}
+async function until(predicate){
+  const deadline=Date.now()+1000;
+  while(!predicate()){
+    if(Date.now()>deadline)throw Error('Expected asynchronous extension result did not arrive');
+    await tick();
+  }
+}
 function environment(){
   let listener,socket;
-  const frames=[],offscreen=[],sent=[];
+  const frames=[],offscreen=[],sent=[],scripts=[],timers=new Map();let timerId=0;
   class Socket{
     static OPEN=1;
     constructor(){socket=this;this.readyState=1;}
@@ -28,13 +35,18 @@ function environment(){
     storage:{local:{async get(){return {};},async set(){}}},
     offscreen:{async hasDocument(){return true;},async createDocument(){}},
     tabCapture:{async getMediaStreamId(){return 'stream';}},
-    tabs:{async sendMessage(tab,m,target){frames.push({tab,m,target});return {ok:true,state:{}};},onActivated:{addListener(){}},onRemoved:{addListener(){}}}
+    scripting:{async executeScript(value){scripts.push(value);}},
+    fetch:async()=>({ok:true,text:async()=>Array.from({length:10},(_,i)=>`${i+1}\n00:00:${String(i*5).padStart(2,'0')}.000 --> 00:00:${String(i*5+2).padStart(2,'0')}.000\ntext`).join('\n\n')}),
+    tabs:{async query(){return [];},async get(id){return {id,active:true,windowId:5};},async captureVisibleTab(){return 'data:image/png;base64,picture';},async sendMessage(tab,m,target){frames.push({tab,m,target});return {ok:true,state:{}};},onActivated:{addListener(){}},onRemoved:{addListener(){}},onUpdated:{addListener(){}}}
   };
-  vm.runInNewContext(source,{chrome,WebSocket:Socket,crypto:webcrypto,TextEncoder,URL,console,setInterval:()=>1,clearInterval(){},setTimeout:()=>1});
+  vm.runInNewContext(source,{chrome,fetch:(...args)=>chrome.fetch(...args),WebSocket:Socket,crypto:webcrypto,TextEncoder,URL,console,setInterval:()=>1,clearInterval(){},setTimeout:(fn,delay)=>{timers.set(++timerId,{fn,delay});return timerId;},clearTimeout:id=>timers.delete(id)});
   const message=(m,s={})=>new Promise(resolve=>{const pending=listener(m,s,resolve);if(pending!==true)resolve();});
-  return {frames,offscreen,sent,message,get socket(){return socket;},
-    async connect(paused=true){
+  return {chrome,frames,offscreen,sent,scripts,timers,message,get socket(){return socket;},
+    async fireTimers(){const pending=[...timers.values()];timers.clear();for(const timer of pending)timer.fn();await settle();},
+    async connect(paused=true,native=true){
       await message({type:'Connect',identity,token:'code'});socket.onopen();socket.onmessage({data:JSON.stringify({type:'Welcome'})});
+      await settle();socket.onmessage({data:JSON.stringify({type:'RecorderConfig',backend:native?'native':'asbplayer'})});await settle();
+      if(native)assert.equal((await message({type:'EnableNativeRecording',identity})).ok,true);
       await message({type:'PlaybackSnapshot',videoId:'video',sequence:1,currentTime:20,duration:1000,rate:1.5,paused,mediaKey:'episode',width:1000,height:500},sender);
       await new Promise(resolve=>setTimeout(resolve,15));await settle();
     },
@@ -82,4 +94,129 @@ test('a user abort invalidates delayed successful completion',async()=>{
   await env.message({type:'CaptureAborted',operationId:'capture',error:'User sought'},sender);await settle();
   await env.receive({type:'CaptureCommit',operationId:'capture',ok:true,policy:'play'});
   assert.equal(env.frames.filter(x=>x.m.action==='play').length,0);
+});
+
+test('repeated connection requests serialize stream cleanup and acquisition',async()=>{
+  const env=environment();
+  const one=env.message({type:'Connect',identity,token:'code'});
+  const two=env.message({type:'Disconnect'});
+  const three=env.message({type:'Connect',identity,token:'code'});
+  assert.ok((await one).ok);assert.ok((await two).ok);assert.ok((await three).ok);
+  assert.deepEqual(env.offscreen.map(m=>m.type),['DisconnectStream','DisconnectStream','DisconnectStream']);
+});
+
+test('asbplayer mode follows the clock without acquiring or retaining tab audio',async()=>{
+  const env=environment();await env.connect(true,false);
+  assert.equal(env.offscreen.filter(m=>m.type==='ConnectStream').length,0);
+  assert.equal(env.sent.filter(m=>m.type==='PlaybackSnapshot').length,1);
+  assert.match((await env.message({type:'EnableNativeRecording',identity})).error,/asbplayer is selected/);
+});
+
+test('switching back to asbplayer releases native audio before another capture',async()=>{
+  const env=environment();await env.connect();env.offscreen.length=0;
+  await env.receive({type:'RecorderConfig',backend:'asbplayer'});
+  assert.equal(env.offscreen.filter(m=>m.type==='DisconnectStream').length,1);
+  await recording(env);
+  assert.equal(env.sent.at(-1).ok,false);
+  assert.equal(env.offscreen.filter(m=>m.type==='StartRecording').length,0);
+});
+
+test('episode adapters distinguish episodes from opaque player IDs and preserve series identity',()=>{
+  const scope={URL};vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../../browser-extension/episode-context.js'),'utf8'),scope);
+  const parse=scope.subtitlePlayerEpisodeContext;
+  const one=parse('https://www.miruro.to/watch/series/kimetsu-no-yaiba?ep=5');
+  const two=parse('https://www.miruro.to/watch/series/kimetsu-no-yaiba?ep=6');
+  assert.equal(one.seriesKey,two.seriesKey);assert.equal(two.episode,6);
+  assert.equal(parse('https://www.miruro.to/watch/series/anime?ep=opaque-id'),null);
+  const ani=parse('https://aniworld.to/anime/stream/kimetsu/staffel-2/episode-3');
+  assert.equal(ani.season,2);assert.equal(ani.episode,3);
+  assert.equal(parse('https://player.test/?id=145779'),null);
+});
+
+test('next episode player replacement stays in the bound tab and adopts its new document',async()=>{
+  const env=environment();await env.connect();
+  await env.message({type:'PlaybackSnapshot',videoId:'new-video',sequence:1,currentTime:0,duration:1447,rate:1,paused:true,mediaKey:'next-episode',width:1000,height:500},{...sender,documentId:'new-document'});
+  await settle();
+  const bound=env.sent.filter(m=>m.type==='Bound').at(-1);
+  assert.equal(bound.identity.documentId,'new-document');assert.equal(bound.identity.tabId,1);
+  env.frames.length=0;
+  await env.receive({type:'PlayerCommand',operationId:'old',identity,action:'play'});
+  assert.equal(env.frames.length,0);assert.equal(env.sent.at(-1).ok,false);
+});
+
+test('captions arriving before the replacement video binds are replayed for alignment',async()=>{
+  const env=environment();await env.connect();
+  const nextSender={...sender,documentId:'new-document'};
+  await env.message({type:'CaptionResource',videoId:'new-video',mediaKey:'next',url:'https://captions.test/en.vtt',language:'en',label:'English',priority:0},nextSender);
+  await settle();
+  await env.message({type:'PlaybackSnapshot',videoId:'new-video',sequence:1,currentTime:0,duration:1447,rate:1,paused:true,mediaKey:'next',width:1000,height:500},nextSender);
+  await until(()=>env.sent.some(m=>m.type==='CaptionText'&&m.identity.documentId==='new-document'));
+  const caption=env.sent.filter(m=>m.type==='CaptionText').at(-1);
+  assert.equal(caption.identity.documentId,'new-document');assert.equal(caption.identity.videoId,'new-video');
+});
+
+test('opening the popup recovers scripts in existing frames and refreshes the video list',async()=>{
+  const env=environment();await env.connect();
+  const reply=await env.message({type:'ListVideos',tabId:1});
+  assert.equal(reply.videos.length,1);assert.equal(env.scripts.length,1);
+  assert.equal(env.scripts[0].target.tabId,1);assert.equal(env.scripts[0].target.allFrames,true);
+  assert.deepEqual(Array.from(env.scripts[0].files),['episode-context.js','content.js']);
+});
+
+test('the single visible video automatically connects without acquiring audio',async()=>{
+  const env=environment();await settle();
+  await env.message({type:'ListVideos',tabId:1});
+  await env.message({type:'PlaybackSnapshot',videoId:'video',sequence:1,currentTime:10,duration:1000,rate:1,paused:true,mediaKey:'auto-episode',width:1000,height:500},sender);
+  await settle();await env.fireTimers();
+  assert.ok(env.socket);assert.equal(env.offscreen.filter(m=>m.type==='ConnectStream').length,0);
+  env.socket.onopen();env.socket.onmessage({data:JSON.stringify({type:'Welcome'})});await settle();
+  assert.equal(env.sent.find(m=>m.type==='Bound').identity.videoId,'video');
+});
+
+test('explicit disconnect keeps automatic reconnection paused',async()=>{
+  const env=environment();await env.connect();await env.message({type:'ListVideos',tabId:1});
+  await env.message({type:'Disconnect'});env.sent.length=0;
+  await env.message({type:'PlaybackSnapshot',videoId:'video',sequence:2,currentTime:11,duration:1000,rate:1,paused:true,mediaKey:'episode',width:1000,height:500},sender);
+  await settle();await env.fireTimers();
+  assert.equal((await env.message({type:'ListVideos',tabId:1})).autoEnabled,false);
+  assert.equal(env.sent.length,0);
+});
+
+test('a refused bridge connection stays retryable until the app starts',async()=>{
+  const env=environment();await env.connect();const first=env.socket;
+  first.onerror();first.onclose({code:1006});
+  assert.match((await env.message({type:'ListVideos',tabId:1})).status,/Waiting for SubtitlePlayer/);
+  await env.fireTimers();assert.notEqual(env.socket,first);
+  env.socket.onopen();env.socket.onmessage({data:JSON.stringify({type:'Welcome'})});await settle();
+  assert.equal((await env.message({type:'ListVideos',tabId:1})).status,'Connected');
+});
+
+test('screenshot uses the bound browser window and resumes only after cropping succeeds',async()=>{
+  const env=environment();await env.connect();await recording(env);
+  const captures=[];env.chrome.tabs.captureVisibleTab=async(window,options)=>{captures.push({window,options});return 'data:image/png;base64,picture';};
+  await env.message({type:'CaptureScreenshot',operationId:'capture'},sender);await settle();
+  assert.equal(captures.length,1);assert.equal(captures[0].window,5);
+  assert.equal(env.offscreen.filter(m=>m.type==='StoreScreenshot').length,1);
+  assert.equal(env.frames.filter(f=>f.m.type==='CaptureCheckpoint').length,1);
+  assert.equal(env.frames.filter(f=>f.m.type==='ScreenshotReady').length,1);
+});
+
+test('an inactive bound tab never captures another tab and never resumes',async()=>{
+  const env=environment();await env.connect();await recording(env);
+  env.chrome.tabs.get=async id=>({id,active:false,windowId:5});
+  env.chrome.tabs.captureVisibleTab=async()=>{throw Error('Must not capture');};
+  await env.message({type:'CaptureScreenshot',operationId:'capture'},sender);await settle();
+  assert.equal(env.offscreen.filter(m=>m.type==='StoreScreenshot').length,0);
+  assert.equal(env.frames.filter(f=>f.m.type==='ScreenshotReady').length,0);
+  assert.equal(env.sent.at(-1).ok,false);assert.match(env.sent.at(-1).error,/selected/);
+});
+
+test('abort during a delayed screenshot discards the image and does not resume',async()=>{
+  const env=environment();await env.connect();await recording(env);
+  let release;env.chrome.tabs.captureVisibleTab=()=>new Promise(resolve=>release=resolve);
+  await env.message({type:'CaptureScreenshot',operationId:'capture'},sender);await settle();
+  await env.message({type:'CaptureAborted',operationId:'capture',error:'User sought'},sender);await settle();
+  release('data:image/png;base64,picture');await settle();
+  assert.equal(env.offscreen.filter(m=>m.type==='StoreScreenshot').length,0);
+  assert.equal(env.frames.filter(f=>f.m.type==='ScreenshotReady').length,0);
 });

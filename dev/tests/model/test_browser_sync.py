@@ -49,6 +49,56 @@ def test_bridge_preserves_arrival_time_through_a_delayed_ui_queue(monkeypatch):
     assert event["_received_monotonic"] == 10
 
 
+def test_bridge_closing_releases_port_and_can_be_restarted():
+    bridge = BrowserBridge("secret", port=0)
+    bridge.start()
+    assert bridge.ready.wait(3) and not bridge.error
+    port = bridge.port
+    bridge.close()
+    assert not bridge._thread.is_alive()
+    replacement = BrowserBridge("other", port=port)
+    try:
+        replacement.start()
+        assert replacement.ready.wait(3) and not replacement.error
+    finally:
+        replacement.close()
+    bridge.start()
+    try:
+        assert bridge.ready.wait(3) and not bridge.error
+    finally:
+        bridge.close()
+
+
+def test_busy_port_is_explained_and_retry_succeeds_after_release():
+    import socket
+    with socket.socket() as occupied:
+        occupied.bind(("127.0.0.1", 0))
+        occupied.listen()
+        bridge = BrowserBridge("secret", port=occupied.getsockname()[1])
+        bridge.start()
+        assert bridge.ready.wait(3)
+        bridge.close()
+        assert "Port" in bridge.error and "Retry connection" in bridge.error
+    bridge.start()
+    try:
+        assert bridge.ready.wait(3) and not bridge.error
+    finally:
+        bridge.close()
+
+
+def test_single_instance_lock_prevents_duplicate_launch_and_releases(tmp_path):
+    from model.single_instance import SingleInstance
+    one, two = SingleInstance(tmp_path / "instance"), SingleInstance(tmp_path / "instance")
+    try:
+        assert one.acquire()
+        assert not two.acquire()
+        one.close()
+        assert two.acquire()
+    finally:
+        one.close()
+        two.close()
+
+
 def test_rendered_captions_are_evidence_and_do_not_replace_full_reference():
     from controller.browser_sync_controller import BrowserSyncController
     sync = object.__new__(BrowserSyncController)

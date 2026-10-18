@@ -69,8 +69,9 @@ class SubtitlePlayerApp:
             self._show_error_message_once("SubtitlePlayer stopped", f"{type(exc).__name__}: {exc}")
             raise
         finally:
-            self._closing = True
-            self._close_startup_overlay()
+            # root.quit() may exit without WM_DELETE_WINDOW or Destroy firing.
+            # Always release listeners and the browser bridge on that path too.
+            self._on_close()
             self._close_crash_diagnostics()
 
     def _load_config(self):

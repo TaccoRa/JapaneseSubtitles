@@ -20,13 +20,15 @@ function environment(){
     async play(){this.paused=false;}
   }
   const video=new Video();
-  const document={querySelectorAll:selector=>selector==='video'?[video]:[]};
+  const documentEvents=new Map();
+  const document={querySelectorAll:selector=>selector==='video'?[video]:[],addEventListener:(name,fn)=>documentEvents.set(name,fn)};
   const window={addEventListener:(name,fn)=>windowEvents.set(name,fn),postMessage(data){windowEvents.get('message')?.({data,source:window});}};
-  vm.runInNewContext(source,{document,window,top:window,parent:window,location:{href:'https://video.test/episode'},innerWidth:800,innerHeight:450,
+  const scope=vm.createContext({document,window,top:window,parent:window,location:{href:'https://video.test/episode'},innerWidth:800,innerHeight:450,
     performance:{now:()=>now},crypto,console,
     chrome:{runtime:{sendMessage:async m=>{sent.push(m);},onMessage:{addListener:fn=>{listener=fn;}}}},
     setInterval:(fn,delay)=>schedule(fn,delay,delay),setTimeout:(fn,delay)=>schedule(fn,delay,0),
     clearInterval:key=>timers.delete(key),clearTimeout:key=>timers.delete(key)});
+  vm.runInContext(source,scope);
   function advance(ms){
     const end=now+ms;
     while(true){const next=[...timers].sort((a,b)=>a[1].at-b[1].at)[0];if(!next||next[1].at>end)break;
@@ -34,7 +36,8 @@ function environment(){
     now=end;
   }
   advance(100);
-  return {video,sent,advance,command(action,time){
+  const message=m=>new Promise(resolve=>listener(m,{},resolve));
+  return {video,sent,advance,message,reinject(){vm.runInContext(source,scope);},fullscreen(){documentEvents.get('fullscreenchange')?.();},command(action,time){
     const videoId=sent.find(m=>m.type==='PlaybackSnapshot').videoId;
     return new Promise(resolve=>listener({type:'PlayerCommand',identity:{videoId},action,time},{},resolve));
   }};
@@ -44,6 +47,48 @@ test('seek acknowledges a completed clock change even without seeked',async()=>{
   const env=environment(),reply=env.command('seek',100);
   env.video._time=100;env.video.seeking=false;env.advance(50);
   assert.equal((await reply).ok,true);
+});
+
+test('script recovery republishes a video without duplicate listeners or a new identity',()=>{
+  const env=environment(),identity=env.sent[0].videoId;
+  env.reinject();env.reinject();
+  assert.equal(env.sent.filter(m=>m.type==='PlaybackSnapshot').at(-1).videoId,identity);
+  const before=env.sent.length;
+  env.video.dispatchEvent(new Event('pause'));
+  assert.equal(env.sent.length,before+1);
+});
+
+test('fullscreen during viewing preserves the video identity and clock',()=>{
+  const env=environment(),identity=env.sent[0].videoId;
+  env.fullscreen();env.video._time=30;env.advance(100);
+  assert.equal(env.sent.at(-1).videoId,identity);assert.equal(env.sent.at(-1).currentTime,30);
+  assert.equal(env.sent.filter(m=>m.type==='CaptureAborted').length,0);
+});
+
+test('capture waits for its still image at video time, then resumes and stops at its end',async()=>{
+  const env=environment();env.video._time=10;
+  const identity={videoId:env.sent[0].videoId},operationId='card';
+  await env.message({type:'PrepareCapture',identity,operationId,start:10,end:12,screenshotTime:11});
+  await env.message({type:'RunCapture',operationId});
+  env.video._time=11;env.advance(100);
+  assert.equal(env.video.paused,true);
+  assert.equal(env.sent.filter(m=>m.type==='CaptureScreenshot').length,1);
+  env.advance(1000);assert.equal(env.sent.filter(m=>m.type==='CaptureBoundary').length,0);
+  assert.equal((await env.message({type:'ScreenshotReady',operationId:'stale'})).ok,false);
+  assert.equal(env.video.paused,true);
+  assert.equal((await env.message({type:'ScreenshotReady',operationId})).ok,true);
+  assert.equal(env.video.paused,false);
+  env.video._time=12;env.advance(100);
+  assert.equal(env.video.paused,true);assert.equal(env.sent.filter(m=>m.type==='CaptureBoundary').length,1);
+});
+
+test('fullscreen changing mid-capture cancels the crop rather than attaching the wrong image',async()=>{
+  const env=environment();env.video._time=10;
+  const identity={videoId:env.sent[0].videoId},operationId='card';
+  await env.message({type:'PrepareCapture',identity,operationId,start:10,end:12});
+  env.fullscreen();
+  assert.equal(env.sent.at(-1).type,'CaptureAborted');
+  assert.equal((await env.message({type:'ScreenshotReady',operationId})).ok,false);
 });
 test('seeked arriving before seeking clears does not cause a false timeout',async()=>{
   const env=environment(),reply=env.command('seek',100);
@@ -65,4 +110,26 @@ test('duration updates preserve media identity, while a replaced resource invali
   assert.equal(env.sent.filter(m=>m.type==='PlaybackSnapshot').at(-1).mediaKey,initial);
   env.video.dispatchEvent(new Event('emptied'));
   assert.notEqual(env.sent.filter(m=>m.type==='PlaybackSnapshot').at(-1).mediaKey,initial);
+});
+
+test('English timing uses one caption track rather than mixing every language',()=>{
+  const env=environment();
+  const cues=Array.from({length:10},(_,i)=>({startTime:i*5,endTime:i*5+2}));
+  env.video.textTracks=[{language:'ja',label:'Japanese',mode:'disabled',cues:cues.map(c=>({startTime:c.startTime+20,endTime:c.endTime+20}))},
+    {language:'eng',label:'English',mode:'showing',cues},
+    {language:'ger',label:'German',mode:'disabled',cues:cues.map(c=>({startTime:c.startTime+1,endTime:c.endTime+1}))}];
+  env.advance(5000);
+  const caption=env.sent.find(m=>m.type==='CaptionIntervals');
+  assert.equal(caption.language,'eng');assert.equal(caption.intervals.length,10);assert.equal(caption.intervals[0][0],0);
+});
+
+test('caption discovery retries a resource after a temporary load failure',()=>{
+  const env=environment();
+  env.video.querySelectorAll=()=>[{src:'https://captions.test/en.vtt',srclang:'en',label:'English'}];
+  env.advance(100);
+  assert.equal(env.sent.filter(m=>m.type==='CaptionResource').length,1);
+  env.advance(9900);
+  assert.equal(env.sent.filter(m=>m.type==='CaptionResource').length,1);
+  env.advance(100);
+  assert.equal(env.sent.filter(m=>m.type==='CaptionResource').length,2);
 });

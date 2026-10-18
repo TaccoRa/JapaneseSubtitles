@@ -494,6 +494,21 @@ class EpisodeController(_ControllerProxy):
             anime_name = display_name_getter() if callable(display_name_getter) else self.sub_manager.get_anime_name()
             title= f'S{self.sub_manager.get_current_season()}E{self.sub_manager.get_current_episode()} {anime_name}'
             self.settings.root.title(title)
+            browser = getattr(self.controller, "browser_sync", None)
+            if browser is not None and browser.following:
+                # Loading subtitles must not seek the browser back to a remembered
+                # desktop position, especially when the site advanced the episode.
+                browser.invalidate()
+                self.current_time = browser.snapshot.time_at() if browser.snapshot else 0.0
+                self.last_subtitle_text = ""
+                self.last_rendered_index = None
+                self._defer_auto_ruby_once = True
+                self.remember_current_anime_episode()
+                try:
+                    self.sub_manager.schedule_episode_preload_around_current()
+                except Exception:
+                    pass
+                return
             self.current_time = self._episode_start_time_for_current()
             self._defer_auto_ruby_once = True
             self.last_subtitle_text = ""

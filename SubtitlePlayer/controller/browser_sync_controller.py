@@ -1,8 +1,10 @@
 """Browser clock, independent subtitle map and correlated native media writes."""
 import base64
 import json
+import logging
 from pathlib import Path
 import queue
+import re
 import threading
 import time
 import tkinter as tk
@@ -13,6 +15,8 @@ from model.browser_protocol import MediaIdentity, PlaybackSnapshot
 from model.subtitle_alignment import align_intervals, parse_intervals
 from model.timing_map import TimingMapCache, digest
 from model.capture_session import CaptureSession, FrozenActionTarget
+
+logger = logging.getLogger(__name__)
 
 
 class BrowserSyncController:
@@ -41,6 +45,13 @@ class BrowserSyncController:
         self._connected = False
         self._audio_aligner = None
         self._audio_busy = False
+        self._sent_backend = None
+        self._native_enabled = False
+        self._browser_episode = None
+        self._episode_problem = None
+        self._reference_fingerprint = None
+        self._notice_until = 0.0
+        self._notice = ""
         cfg = controller.config
         updates = {}
         if not cfg.get("BROWSER_PAIRING_TOKEN"):
@@ -103,6 +114,10 @@ class BrowserSyncController:
         tk.Label(root, text=text, justify="left", wraplength=560).pack(padx=12, pady=12)
         tk.Label(root, textvariable=self._status_var, wraplength=560).pack(padx=12, pady=5)
         ttk.Button(root, text="Show subtitles", command=lambda: self.controller.subtitle_navigation.on_refresh_subtitles(None)).pack(pady=5)
+        def retry():
+            self.bridge.start()
+            self._set_status("Waiting for Chrome connection")
+        ttk.Button(root, text="Retry connection", command=retry).pack(pady=5)
         code = ttk.Entry(root, width=65)
         code.insert(0, self.bridge.token)
         def copy():
@@ -115,6 +130,11 @@ class BrowserSyncController:
     def _set_status(self, value):
         self.status = value
         self._status_var.set(value)
+
+    def report_error(self, value):
+        self._notice, self._notice_until = value, time.monotonic() + 20
+        logger.warning("%s", value)
+        self._set_status(value)
 
     def _source(self):
         manager = self.controller.sub_manager
@@ -160,6 +180,8 @@ class BrowserSyncController:
         reference_hash = digest(json.dumps(reference).encode())
         cached = self.cache.load(source_hash, fingerprint, reference_hash)
         if cached:
+            if self._capture and self.mapping and cached.version != self.mapping.version:
+                self.abort("Subtitle timing correction changed")
             self.mapping = cached
             return
         self._analyzing = True
@@ -181,9 +203,9 @@ class BrowserSyncController:
                     result = TimingMap(source_hash, fingerprint, result.reference_hash, original_source,
                                        tuple(video), tuple(confidence), "rendered-captions")
                 self.cache.save(result)
-                self._results.put(("alignment", generation, result))
+                self._results.put(("alignment", (generation, reference_hash), result))
             except Exception as exc:
-                self._results.put(("alignment-error", generation, str(exc)))
+                self._results.put(("alignment-error", (generation, reference_hash), str(exc)))
         threading.Thread(target=work, name="subtitle-alignment", daemon=True).start()
 
     def command(self, action, **arguments):
@@ -208,6 +230,8 @@ class BrowserSyncController:
             return
         if not self.fresh or not self.mapping:
             raise ValueError("Alignment uncertain: connect Chrome and wait for timing")
+        if not self._native_enabled:
+            raise ValueError("Click Enable native recording in the browser extension first")
         cue = session.target.cue_snapshot
         if cue is None:
             raise ValueError("Capture needs a frozen subtitle cue")
@@ -234,6 +258,8 @@ class BrowserSyncController:
         session.set_target_note(note_id)
         session.phase = "recording"
         self._capture = session
+        logger.info("Native capture %s started for note %s, interval %.3f..%.3f, map %s",
+                    session.id, note_id, *session.mapped_interval, session.timing_version)
         start, end = session.mapped_interval
         self.bridge.send(dict(type="CaptureRequest", operationId=session.id, identity=session.media_identity,
                               fingerprint=session.media_fingerprint, timingVersion=session.timing_version,
@@ -277,6 +303,10 @@ class BrowserSyncController:
                     raise RuntimeError("Capture cancelled")
                 self.controller.anki.attach_native_capture(session.target_note_id, session.id,
                     result["audio"], result["image"], is_cancelled=lambda: session.cancelled)
+                reconcile = getattr(self.controller.anki, "copy_captured_sentence_media_to_previous_note", None)
+                if callable(reconcile) and not session.cancelled:
+                    reconcile(session.target_note_id)
+                logger.info("Native capture %s media verified on note %s", session.id, session.target_note_id)
                 self._results.put(("media", session.id, None))
             except Exception as exc:
                 self._results.put(("media", session.id, str(exc)))
@@ -294,11 +324,14 @@ class BrowserSyncController:
             finally:
                 settings.adv_settings._set_modal_input_active(False)
             self.bridge.approve_pairing(event["requestId"], allowed)
+        elif kind == "Connected":
+            self._sent_backend = None
         elif kind == "TrustedOrigin":
             origins = set(self.controller.config.get("BROWSER_TRUSTED_EXTENSION_ORIGINS") or ())
             origins.add(event["origin"])
             self.controller.config.set("BROWSER_TRUSTED_EXTENSION_ORIGINS", sorted(origins))
         elif kind == "Bound":
+            logger.info("Browser video bound: %s", event["identity"])
             self._connected = True
             identity = MediaIdentity.read(event["identity"])
             if identity != self.identity:
@@ -307,11 +340,25 @@ class BrowserSyncController:
             self.identity = identity
             self.following = True
             self._set_status("Finding timing…")
+            self._send_recorder_config()
         elif kind == "Disconnected":
             self._connected = False
+            self._native_enabled = False
             self.abort("Chrome disconnected")
             # Keep following enabled: never fall back silently to the old clock.
             self._set_status("Chrome disconnected · clock frozen")
+        elif kind == "VideoUnavailable":
+            self.abort("Browser video changed")
+            self._connected = False
+            self.snapshot = None
+            self.invalidate()
+            self._set_status("Waiting for the next browser video")
+        elif kind == "EpisodeContext":
+            if self.identity and MediaIdentity.read(event["identity"]) == self.identity:
+                self._follow_episode(event)
+        elif kind == "RecorderState":
+            if self.identity and MediaIdentity.read(event["identity"]) == self.identity:
+                self._native_enabled = bool(event.get("enabled"))
         elif kind == "Unbound":
             self.abort("Disconnected by user")
             self.following = False
@@ -329,17 +376,28 @@ class BrowserSyncController:
                 self.invalidate(); self._reference = (); self._reference_kind = "none"
                 self._caption_last = None; self._observed_intervals = []
             self.snapshot = snapshot
+            if self._reference_fingerprint and self._reference_fingerprint != snapshot.fingerprint:
+                self._reference = ()
+                self._reference_kind = "none"
+                self._reference_fingerprint = None
             self._source()
             if self._reference and self.mapping is None:
                 self._align()
         elif kind in ("CaptionText", "CaptionIntervals"):
             if MediaIdentity.read(event["identity"]) != self.identity:
                 return
+            if event.get("fingerprint") and self.snapshot and event["fingerprint"] != self.snapshot.fingerprint:
+                return
             intervals = parse_intervals(event["text"]) if kind == "CaptionText" else tuple(map(tuple, event["intervals"]))
             if intervals != self._reference:
+                logger.info("Browser caption timing reference: %s intervals (%s)", len(intervals), kind)
                 self._reference_kind = "full"
+                self._reference_fingerprint = event.get("fingerprint")
                 self._reference = intervals
                 self._align()
+        elif kind == "CaptionUnavailable":
+            if not self._reference:
+                self._set_status(event["error"])
         elif kind == "CaptionObservation":
             if self._reference_kind == "full" or MediaIdentity.read(event["identity"]) != self.identity:
                 return
@@ -372,7 +430,7 @@ class BrowserSyncController:
                 try:
                     mapping = worker.transcribe(base64.b64decode(event["audio"], validate=True), event["start"], event["rate"])
                     self.cache.save(mapping)
-                    self._results.put(("alignment", generation, mapping))
+                    self._results.put(("audio-alignment", generation, mapping))
                 except Exception as exc:
                     self._results.put(("audio-error", generation, str(exc)))
                 finally:
@@ -391,7 +449,7 @@ class BrowserSyncController:
             if not event.get("ok"):
                 session.phase = "failed"
                 self._capture = None
-                self._set_status("Capture failed · " + event.get("error", "Unknown error"))
+                self.report_error("Capture failed · " + event.get("error", "Unknown error"))
                 self._finish_native(session, False)
                 return
             if session.phase != "recording":
@@ -420,6 +478,11 @@ class BrowserSyncController:
     def _poll(self):
         if self._closed:
             return
+        if self._connected:
+            try:
+                self._send_recorder_config()
+            except ConnectionError:
+                pass
         try:
             while True:
                 self._event(self.bridge.events.get_nowait())
@@ -431,14 +494,30 @@ class BrowserSyncController:
             while True:
                 kind, identity, value = self._results.get_nowait()
                 if kind.startswith("alignment"):
-                    if identity != self._generation:
+                    generation, reference_hash = identity
+                    if generation != self._generation:
                         continue
                     self._analyzing = False
+                    if reference_hash != digest(json.dumps(tuple(self._reference)).encode()):
+                        self._align()
+                        continue
                     if kind == "alignment":
+                        if self._capture and self.mapping and value.version != self.mapping.version:
+                            self.abort("Subtitle timing correction changed")
                         self.mapping = value
+                        logger.info("Subtitle timing aligned: %s, %s/%s confident cues, offsets %.3f..%.3f",
+                                    value.method, sum(value.confidence), len(value.source),
+                                    min(v[0]-s[0] for s,v in zip(value.source,value.video)),
+                                    max(v[0]-s[0] for s,v in zip(value.source,value.video)))
                         self.bridge.send(dict(type="TimingMap", version=value.version, video=value.video))
                     else:
-                        self._set_status("Alignment uncertain · " + value)
+                        self.report_error("Alignment uncertain · " + value)
+                elif kind == "audio-alignment" and identity == self._generation:
+                    if self._reference_kind != "full":
+                        if self._capture and self.mapping and value.version != self.mapping.version:
+                            self.abort("Subtitle timing correction changed")
+                        self.mapping = value
+                        self.bridge.send(dict(type="TimingMap", version=value.version, video=value.video))
                 elif kind == "audio-error" and identity == self._generation:
                     self._set_status("Alignment uncertain · " + value)
                 elif kind == "reuse" and self._capture and self._capture.id == identity:
@@ -449,7 +528,7 @@ class BrowserSyncController:
                     session, result = self._pending_media[identity]
                     if value or session.cancelled:
                         session.phase = "cancelled" if session.cancelled else "failed"
-                        self._set_status("Media pending · " + (value or "Cancelled"))
+                        self.report_error("Media pending · " + (value or "Cancelled"))
                     else:
                         del self._pending_media[identity]
                         (self._pending_directory / (identity + ".json")).unlink(missing_ok=True)
@@ -481,9 +560,14 @@ class BrowserSyncController:
                 c.playback._publish_current_time()
             if not self._capture and self.mapping and self.fresh and not self._pending_media:
                 idx = self.mapping.cue_at(c.current_time)
-                self._set_status("Aligned · Chrome" if idx is None or self.mapping.confidence[idx] else "Alignment uncertain")
+                aligned = "Aligned · enable native recording" if self.native and not self._native_enabled else "Aligned · Chrome"
+                self._set_status(aligned if idx is None or self.mapping.confidence[idx] else "Alignment uncertain")
             elif not self.fresh:
                 self._set_status("Chrome disconnected or buffering · clock frozen")
+        if self._episode_problem:
+            self._set_status(self._episode_problem)
+        if time.monotonic() < getattr(self, "_notice_until", 0):
+            self._set_status(self._notice)
         for operation, deadline in list(self._commands.items()):
             if time.monotonic() > deadline:
                 del self._commands[operation]
@@ -491,6 +575,56 @@ class BrowserSyncController:
         if self.bridge.error:
             self._set_status("Browser bridge unavailable: " + self.bridge.error)
         self._job = self.controller.settings.root.after(50, self._poll)
+
+    def _send_recorder_config(self):
+        backend = self._capture.backend if self._capture else ("native" if self.native else "asbplayer")
+        if backend != self._sent_backend:
+            self.bridge.send(dict(type="RecorderConfig", backend=backend))
+            self._sent_backend = backend
+
+    def _follow_episode(self, event):
+        """Use explicit site episode metadata within the already selected series."""
+        try:
+            episode = int(event["episode"])
+            season = int(event["season"]) if event.get("season") else None
+            if not 0 < episode < 10000 or (season is not None and not 0 < season < 1000):
+                return
+        except (ValueError, TypeError, KeyError):
+            return
+        context = (event["seriesKey"], season, episode)
+        if context == self._browser_episode:
+            return
+        manager = self.controller.sub_manager
+        normalize = lambda value: re.sub(r"[\W_]", "", str(value).casefold())
+        anime = normalize(manager.get_anime_name())
+        if self._browser_episode is None:
+            title = normalize(event.get("title", ""))
+            if len(anime) < 4 or anime not in title:
+                self._episode_problem = "Select matching anime subtitles before following browser episodes"
+                return
+        elif context[0] != self._browser_episode[0]:
+            self._episode_problem = "New browser series or season: select its matching subtitles"
+            return
+        self._browser_episode = context
+        if season is None and event.get("scope") == "season":
+            season = manager.get_current_season()
+        navigation = self.controller.episode_controller
+        if navigation._requested_episode_is_current(episode, season):
+            self._episode_problem = None
+            return
+        # Clear the previous map before loading or displaying another episode.
+        self.invalidate()
+        self._reference = ()
+        self._reference_kind = "none"
+        self._reference_fingerprint = None
+        navigation.save_current_episode_position()
+        target_season, target_episode = manager.change_episode("set", episode, season)
+        if target_episode is None or not navigation._requested_episode_is_current(episode, season):
+            self._episode_problem = f"Subtitle episode {episode} unavailable: refresh its episode list"
+            return
+        navigation._after_episode_change()
+        self._episode_problem = None
+        self._set_status(f"Episode {episode} · finding timing")
 
     def close(self):
         self._closed = True
