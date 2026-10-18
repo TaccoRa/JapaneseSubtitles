@@ -2003,6 +2003,14 @@ class AnkiClient:
             suru_headword = self._suru_compound_headword(window)
             if suru_headword:
                 return suru_headword
+            # A kana stem can be noun-like in isolation but a verb in its
+            # sentence (ぬれにくい). Use the exact selected contextual token.
+            if window:
+                token = window[0]
+                surface = str(getattr(token, "surface", "") or "")
+                feature = getattr(token, "feature", None)
+                if surface == selected and str(getattr(feature, "pos1", "") or "") == "動詞":
+                    return self._verb_headword_text(token, surface)
         return ""
 
     def _anki_marker_tags_for_selection(
@@ -3062,7 +3070,13 @@ class AnkiClient:
                 and (not c_type or "下一段" in c_type)
             ):
                 potential_base = godan_base_from_potential_form(orth_base)
-                if potential_base and self._contains_japanese(potential_base):
+                # A kana spelling can differ from the kanji lemma without
+                # being a potential form: ぬれる / 濡れる must not become ぬる.
+                lemma_reading = self._katakana_to_hiragana(str(getattr(feature, "lForm", "") or ""))
+                agrees_with_lemma = potential_base == lemma or (
+                    lemma_reading and self._katakana_to_hiragana(potential_base) == lemma_reading
+                )
+                if potential_base and agrees_with_lemma and self._contains_japanese(potential_base):
                     return potential_base
             if self._contains_japanese(orth_base):
                 return orth_base

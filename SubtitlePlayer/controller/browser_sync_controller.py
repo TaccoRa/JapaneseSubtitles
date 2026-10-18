@@ -309,7 +309,10 @@ class BrowserSyncController:
                 logger.info("Native capture %s media verified on note %s", session.id, session.target_note_id)
                 self._results.put(("media", session.id, None))
             except Exception as exc:
-                self._results.put(("media", session.id, str(exc)))
+                error = str(exc)
+                if "affected editor" in error.lower():
+                    error = "Close Anki's note editor, then click Retry media. Your capture is saved."
+                self._results.put(("media", session.id, error))
         threading.Thread(target=work, name="anki-native-media", daemon=True).start()
 
     def _event(self, event):

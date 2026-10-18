@@ -3,6 +3,13 @@ from SubtitlePlayer.model.word_database import WordDatabase, WordEntry
 import logging
 
 
+def test_kana_spelling_difference_does_not_add_an_unrelated_potential_root():
+    assert AnnotationProvider._orthographic_lookup_candidates(
+        {"orth_base": "ぬれる", "pos1": "動詞", "c_type": "下一段-ラ行"}, "濡れる") == ["ぬれる"]
+    assert AnnotationProvider._orthographic_lookup_candidates(
+        {"orth_base": "書ける", "pos1": "動詞", "c_type": "下一段-カ行"}, "書く") == ["書ける", "書く"]
+
+
 class _Config:
     def __init__(self, values):
         self.values = values

@@ -482,7 +482,7 @@ class AnkiController(_ControllerProxy):
                 )
             except (ConnectionError, ValueError) as exc:
                 if browser is not None:
-                    browser._set_status("Capture not started · " + str(exc))
+                    browser.report_error("Capture not started · " + str(exc))
                 self._finish_action_feedback(action_target, False)
                 release = getattr(self.controller, "release_anki_pause_lease", None)
                 if callable(release):
@@ -1006,13 +1006,26 @@ class AnkiController(_ControllerProxy):
             if owner != "voice":
                 self._begin_action_feedback(target, force=True)
             pause_lease = self._acquire_pause_lease(target)
-            session = self._new_capture_session(
-                target,
-                capture_only=bool(use_capture_only_resume),
-                early_capture=False,
-                pause_lease=pause_lease,
-                interaction_owner=owner,
-            )
+            try:
+                session = self._new_capture_session(
+                    target, capture_only=bool(use_capture_only_resume),
+                    early_capture=False, pause_lease=pause_lease, interaction_owner=owner,
+                )
+            except (ConnectionError, ValueError) as exc:
+                message = "Capture not started: " + str(exc)
+                logger.warning("%s", message)
+                browser = getattr(self.controller, "browser_sync", None)
+                if browser is not None:
+                    browser.report_error(message)
+                report = getattr(self.controller, "_report_voice_status", None)
+                if callable(report):
+                    report("error", message)
+                self._finish_action_feedback(target, False)
+                release = getattr(self.controller, "release_anki_pause_lease", None)
+                if callable(release):
+                    release(pause_lease, resume=False)
+                return {"accepted": False, "queued": False, "source_note_id": source_note_id,
+                        "reason": "capture_not_ready", "error": str(exc)}
             session.set_target_note(source_note_id)
             sent = bool(
                 self._run_post_add_external_capture(

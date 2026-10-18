@@ -5,6 +5,25 @@ from SubtitlePlayer.controller.anki_controller import AnkiController
 from SubtitlePlayer.model.capture_session import FrozenActionTarget
 
 
+def test_capture_only_preflight_failure_does_not_escape_into_the_voice_input_pump():
+    calls = []
+    def not_ready(session):
+        raise ValueError("Click Enable native recording in the browser extension first")
+    owner = SimpleNamespace(
+        browser_sync=SimpleNamespace(freeze_capture=not_ready, report_error=lambda text: calls.append(text)),
+        release_anki_pause_lease=lambda lease, resume=False: calls.append((lease, resume)),
+        _report_voice_status=lambda state, text: calls.append((state, text)))
+    action = AnkiController(owner)
+    target = anki_controller_module.FrozenActionTarget.create(selected_text="ぬれ", subtitle_text="ぬれにくい", sentence_key="sentence")
+    action._last_subtitleplayer_added_card = {"note_id": 42, "target": target}
+    object.__setattr__(action, "_acquire_pause_lease", lambda target: "lease")
+    object.__setattr__(action, "_finish_action_feedback", lambda *args: None)
+    result = action.trigger_external_capture_only(interaction_owner="voice")
+    assert not result["accepted"] and result["reason"] == "capture_not_ready"
+    assert "Enable native recording" in result["error"]
+    assert ("lease", False) in calls
+
+
 def test_native_capture_waits_for_the_exact_note_id_even_with_legacy_negative_delay(monkeypatch):
     scheduled, workers = [], []
     def freeze(session):

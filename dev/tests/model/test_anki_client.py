@@ -3,6 +3,13 @@ import SubtitlePlayer.model.anki_client as anki_client_module
 from SubtitlePlayer.model.anki_client import AnkiClient, AnkiConnectRequestError
 
 
+def test_kana_ichidan_stem_keeps_its_dictionary_form_instead_of_inventing_a_potential_base():
+    client = AnkiClient(ConfigManager("config.json"))
+    assert client._card_headword_for_anki("ぬれ", "通気性は良いが ぬれにくく 燃えにくい") == "ぬれる"
+    assert client._card_headword_for_anki("書ける", "漢字が書ける") == "書く"
+    assert client._card_headword_for_anki("行ける", "学校に行ける") == "行く"
+
+
 def test_extract_jisho_translation_list():
     # basic sanity check that we return a list of definitions
     client = AnkiClient(ConfigManager("config.json"))

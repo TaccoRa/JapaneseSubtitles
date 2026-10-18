@@ -585,7 +585,7 @@ class AnnotationProvider:
             and (not c_type or "下一段" in c_type)
         ):
             potential_base = godan_base_from_potential_form(orth_base)
-            if potential_base:
+            if potential_base and normalize_word(potential_base) == normalize_word(lookup):
                 candidates.append(potential_base)
         return candidates
 
