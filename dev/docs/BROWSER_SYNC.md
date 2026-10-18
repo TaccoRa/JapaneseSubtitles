@@ -39,7 +39,10 @@ On the current acceptance machine Windows application control blocked a PyAV DLL
 - New tests cover clock staleness, buffering, playback speed, transport authentication, exact media identity, map-version freezing, conflicting captures, media-only Anki updates, retry idempotency, cancellation, drift and supported audio-anchor steps.
 - Miruro, AniWorld and Hydra live native-capture acceptance is **pending manual extension loading**. Browser automation policy blocks `chrome://extensions`; it must not be bypassed.
 - The <150 ms clock p95, <500 ms seek convergence and <250 ms capture-boundary targets remain **unmeasured live**. Native is experimental and is not the default.
-- asbplayer's supported explicit-note API integration and rendered custom-caption aggregation need further acceptance work. Its existing hotkey backend remains available; no global load-subtitles broadcast was introduced.
+- `python dev/validate_sync_local.py` exercises the actual desktop app and WebSocket transport against a simulated browser clock using archived subtitles. After fixing queued-observation timestamps and synchronous furigana work, the local run measured **92.36 ms p95** and **94.79 ms maximum** clock error across 243 samples; the post-seek phase checks were within 82.02 ms after a 200 ms settling interval. Buffer/pause/disconnection freeze checks passed. These are simulated-transport measurements, not site/capture acceptance.
+- The [first Windows acceptance run](https://github.com/TaccoRa/JapaneseSubtitles/actions/runs/39120855168) passed, including compilation and tests with the alass helper. Its downloadable artifact contains the helper and extension. Automatic approval review rejected reusing Git credentials to fetch this artifact locally; no credentials were retrieved through that approach.
+- Rendered custom-caption observations can establish partial timing maps; unsupported regions stay uncertain. Live acceptance of this path remains pending.
+- asbplayer's supported explicit-note API integration needs further acceptance work. Its existing hotkey backend remains available; no global load-subtitles broadcast was introduced. The new bridge uses port 8767 to avoid asbplayer's default proxy port 8766.
 
 ## Feature-preservation checklist
 

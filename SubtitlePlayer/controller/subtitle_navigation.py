@@ -167,7 +167,11 @@ class SubtitleNavigationController(_ControllerProxy):
 
     def update_time_and_subtitle_displays(self):#updates settings time overlay and control window entry
         self.update_time_display()
-        self._update_subtitle_display()
+        browser = getattr(self.controller, "browser_sync", None)
+        if browser is not None and browser.following:
+            self._update_subtitle_display(allow_auto_ruby=False, schedule_auto_ruby=True)
+        else:
+            self._update_subtitle_display()
 
     def refresh_after_offset_change(self) -> None:
         self.update_time_display()

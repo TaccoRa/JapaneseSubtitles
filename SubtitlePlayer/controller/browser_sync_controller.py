@@ -1,7 +1,5 @@
 """Browser clock, independent subtitle map and correlated native media writes."""
 import base64
-from dataclasses import dataclass
-import hashlib
 import json
 from pathlib import Path
 import queue
@@ -29,6 +27,7 @@ class BrowserSyncController:
         self._generation = 0
         self._analyzing = False
         self._reference = ()
+        self._reference_kind = "none"
         self._results = queue.Queue()
         self._capture = None
         self._pending_media = {}
@@ -51,7 +50,8 @@ class BrowserSyncController:
         if updates:
             cfg.set_many(updates)
             controller.settings.persist_active_profile_fields({"POST_CAPTURE_PLAYBACK": updates.get("POST_CAPTURE_PLAYBACK", cfg.get("POST_CAPTURE_PLAYBACK"))})
-        self.bridge = BrowserBridge(cfg.get("BROWSER_PAIRING_TOKEN"), int(cfg.get("BROWSER_BRIDGE_PORT") or 8767))
+        port = cfg.get("BROWSER_BRIDGE_PORT")
+        self.bridge = BrowserBridge(cfg.get("BROWSER_PAIRING_TOKEN"), int(port if port is not None else 8767))
         base = Path(cfg.local_path).resolve().parent
         self.cache = TimingMapCache(base / "timing_maps")
         self._pending_directory = base / "pending_capture_media"
@@ -151,6 +151,14 @@ class BrowserSyncController:
         source_hash, source = self._source()
         fingerprint = self.snapshot.fingerprint
         reference = tuple(self._reference)
+        original_source = source
+        first = 0
+        if self._reference_kind == "rendered":
+            indices = [i for i, (a, b) in enumerate(source) if b >= reference[0][0] - 30 and a <= reference[-1][1] + 30]
+            if not indices:
+                return
+            first = indices[0]
+            source = source[first:indices[-1] + 1]
         reference_hash = digest(json.dumps(reference).encode())
         cached = self.cache.load(source_hash, fingerprint, reference_hash)
         if cached:
@@ -162,6 +170,18 @@ class BrowserSyncController:
         def work():
             try:
                 result = align_intervals(source, reference, source_hash, fingerprint)
+                if len(source) != len(original_source):
+                    from model.timing_map import TimingMap
+                    video, confidence = [], []
+                    for i, interval in enumerate(original_source):
+                        if first <= i < first + len(source):
+                            video.append(result.video[i-first]); confidence.append(result.confidence[i-first])
+                        else:
+                            edge = 0 if i < first else -1
+                            offset = result.video[edge][0] - result.source[edge][0]
+                            video.append(tuple(t + offset for t in interval)); confidence.append(False)
+                    result = TimingMap(source_hash, fingerprint, result.reference_hash, original_source,
+                                       tuple(video), tuple(confidence), "rendered-captions")
                 self.cache.save(result)
                 self._results.put(("alignment", generation, result))
             except Exception as exc:
@@ -270,7 +290,8 @@ class BrowserSyncController:
             self._connected = True
             identity = MediaIdentity.read(event["identity"])
             if identity != self.identity:
-                self.invalidate(); self.snapshot = None; self._reference = ()
+                self.invalidate(); self.snapshot = None; self._reference = (); self._reference_kind = "none"
+                self._caption_last = None; self._observed_intervals = []
             self.identity = identity
             self.following = True
             self._set_status("Finding timing…")
@@ -287,13 +308,14 @@ class BrowserSyncController:
             self.controller.playing = False
             self._set_status("Legacy controls · Chrome disconnected")
         elif kind == "PlaybackSnapshot":
-            snapshot = PlaybackSnapshot.read(event)
+            snapshot = PlaybackSnapshot.read(event, now=event.get("_received_monotonic"))
             if snapshot.identity != self.identity:
                 return
             if self.snapshot and snapshot.sequence <= self.snapshot.sequence:
                 return
             if self.snapshot and self.snapshot.fingerprint != snapshot.fingerprint:
-                self.invalidate(); self._reference = ()
+                self.invalidate(); self._reference = (); self._reference_kind = "none"
+                self._caption_last = None; self._observed_intervals = []
             self.snapshot = snapshot
             self._source()
         elif kind in ("CaptionText", "CaptionIntervals"):
@@ -301,8 +323,22 @@ class BrowserSyncController:
                 return
             intervals = parse_intervals(event["text"]) if kind == "CaptionText" else tuple(map(tuple, event["intervals"]))
             if intervals != self._reference:
+                self._reference_kind = "full"
                 self._reference = intervals
                 self._align()
+        elif kind == "CaptionObservation":
+            if self._reference_kind == "full" or MediaIdentity.read(event["identity"]) != self.identity:
+                return
+            previous = self._caption_last
+            current = (str(event.get("text") or ""), float(event["time"]))
+            self._caption_last = current
+            if previous and previous[0] and .3 <= current[1] - previous[1] <= 15:
+                self._observed_intervals.append((previous[1], current[1]))
+                self._observed_intervals = self._observed_intervals[-1000:]
+                if len(self._observed_intervals) >= 12 and len(self._observed_intervals) % 4 == 0:
+                    self._reference_kind = "rendered"
+                    self._reference = tuple(sorted(set(self._observed_intervals)))
+                    self._align()
         elif kind == "AudioChunk":
             if not self.snapshot or event.get("fingerprint") != self.snapshot.fingerprint or MediaIdentity.read(event["identity"]) != self.identity:
                 return
@@ -333,7 +369,7 @@ class BrowserSyncController:
             if not event.get("ok"):
                 self._set_status("Video command failed: " + event.get("error", "Unknown error"))
             elif event.get("state", {}).get("identity"):
-                self._event({**event["state"], "type": "PlaybackSnapshot"})
+                self._event({**event["state"], "type": "PlaybackSnapshot", "_received_monotonic": event.get("_received_monotonic")})
         elif kind == "CaptureResult":
             session = self._capture
             if not session or event.get("operationId") != session.id or session.cancelled:

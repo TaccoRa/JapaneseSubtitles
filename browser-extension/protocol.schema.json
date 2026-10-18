@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SubtitlePlayer loopback protocol version 1",
+  "description": "Seconds for all timestamps. Messages are accepted only after authenticated Hello. Native operations carry an exact video identity, operation ID, note ID, and frozen timing-map version.",
+  "$defs": {
+    "MediaIdentity": {
+      "type": "object",
+      "required": ["tabId", "documentId", "frameId", "videoId"],
+      "properties": {"tabId": {"type": "integer"}, "documentId": {"type": "string"}, "frameId": {"type": "integer"}, "videoId": {"type": "string"}}
+    },
+    "PlaybackSnapshot": {
+      "type": "object",
+      "required": ["type", "identity", "sequence", "currentTime", "duration", "rate", "paused", "buffering", "fingerprint"],
+      "properties": {"type": {"const": "PlaybackSnapshot"}, "identity": {"$ref": "#/$defs/MediaIdentity"}, "sequence": {"type": "integer"}, "currentTime": {"type": "number", "minimum": 0}, "duration": {"type": "number", "minimum": 0}, "rate": {"type": "number", "exclusiveMinimum": 0}, "paused": {"type": "boolean"}, "buffering": {"type": "boolean"}, "seeking": {"type": "boolean"}, "fingerprint": {"type": "string"}}
+    },
+    "PlayerCommand": {
+      "type": "object", "required": ["type", "operationId", "identity", "action"],
+      "properties": {"type": {"const": "PlayerCommand"}, "operationId": {"type": "string"}, "identity": {"$ref": "#/$defs/MediaIdentity"}, "action": {"enum": ["pause", "play", "seek", "rate", "abort"]}, "time": {"type": "number"}, "rate": {"type": "number", "exclusiveMinimum": 0}}
+    },
+    "TimingMap": {
+      "type": "object", "required": ["type", "version", "video"],
+      "properties": {"type": {"const": "TimingMap"}, "version": {"type": "string"}, "video": {"type": "array", "items": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}}}}
+    },
+    "CaptureRequest": {
+      "type": "object", "required": ["type", "operationId", "identity", "noteId", "fingerprint", "timingVersion", "start", "end"],
+      "properties": {"type": {"const": "CaptureRequest"}, "operationId": {"type": "string"}, "identity": {"$ref": "#/$defs/MediaIdentity"}, "noteId": {"type": "integer", "minimum": 1}, "fingerprint": {"type": "string"}, "timingVersion": {"type": "string"}, "start": {"type": "number", "minimum": 0}, "end": {"type": "number", "minimum": 0}, "reuse": {"type": "boolean"}}
+    },
+    "CaptureResult": {
+      "type": "object", "required": ["type", "operationId", "ok"],
+      "properties": {"type": {"const": "CaptureResult"}, "operationId": {"type": "string"}, "identity": {"$ref": "#/$defs/MediaIdentity"}, "ok": {"type": "boolean"}, "error": {"type": "string"}, "audio": {"type": "string", "contentEncoding": "base64"}, "image": {"type": "string", "contentEncoding": "base64"}}
+    }
+  },
+  "oneOf": [{"$ref": "#/$defs/PlaybackSnapshot"}, {"$ref": "#/$defs/PlayerCommand"}, {"$ref": "#/$defs/TimingMap"}, {"$ref": "#/$defs/CaptureRequest"}, {"$ref": "#/$defs/CaptureResult"}]
+}

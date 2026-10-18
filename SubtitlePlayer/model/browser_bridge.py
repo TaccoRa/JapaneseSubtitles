@@ -4,6 +4,7 @@ import json
 import queue
 import secrets
 import threading
+import time
 import uuid
 
 from model.browser_protocol import PROTOCOL_VERSION
@@ -36,6 +37,7 @@ class BrowserBridge:
         threading.Thread(target=run, name="browser-bridge", daemon=True).start()
 
     def _emit(self, event):
+        event = {**event, "_received_monotonic": time.monotonic()}
         try:
             self.events.put_nowait(event)
         except queue.Full:

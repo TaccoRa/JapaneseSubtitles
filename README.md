@@ -4,6 +4,11 @@ JapaneseSubtitles is a small desktop app that shows subtitle text in a floating 
 
 The app does not play the video itself. You keep your video open in the background, then use this app to show, time, copy, translate, and send subtitle text to Anki.
 
+An experimental Chrome connection can follow the existing video clock and record
+media while keeping your original subtitles unchanged. See the
+[browser setup, feature checklist and validation status](dev/docs/BROWSER_SYNC.md).
+The existing asbplayer capture workflow remains the default during validation.
+
 ## What The App Can Do
 
 - Show subtitles in a transparent always-on-top overlay.

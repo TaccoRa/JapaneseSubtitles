@@ -6,6 +6,10 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {webcrypto}=require('node:crypto');
 const source=fs.readFileSync(path.join(__dirname,'../../browser-extension/background.js'),'utf8');
+test('popup loads its top-level-await script as a module',()=>{
+  const html=fs.readFileSync(path.join(__dirname,'../../browser-extension/popup.html'),'utf8');
+  assert.match(html,/<script\s+type="module"\s+src="popup\.js"/);
+});
 const identity={tabId:1,documentId:'doc',frameId:2,videoId:'video'};
 const sender={tab:{id:1},documentId:'doc',frameId:2};
 const tick=()=>new Promise(resolve=>setImmediate(resolve));

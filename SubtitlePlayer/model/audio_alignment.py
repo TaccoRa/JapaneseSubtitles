@@ -1,6 +1,5 @@
 """Local Japanese transcription anchors. No OCR and no cloud speech service."""
 from difflib import SequenceMatcher
-import io
 from pathlib import Path
 import re
 from statistics import median

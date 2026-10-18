@@ -30,6 +30,33 @@ def test_reject_nonfinite_clock():
         snapshot(currentTime=float("nan"))
 
 
+def test_bridge_preserves_arrival_time_through_a_delayed_ui_queue(monkeypatch):
+    import model.browser_bridge as module
+    bridge = BrowserBridge("code")
+    monkeypatch.setattr(module.time, "monotonic", lambda: 10)
+    bridge._emit({"type": "PlaybackSnapshot", "_received_monotonic": 999})
+    event = bridge.events.get_nowait()
+    assert event["_received_monotonic"] == 10
+
+
+def test_rendered_captions_are_evidence_and_do_not_replace_full_reference():
+    from controller.browser_sync_controller import BrowserSyncController
+    sync = object.__new__(BrowserSyncController)
+    sync.identity = MediaIdentity(1, "document", 2, "video")
+    sync._reference_kind = "none"
+    sync._caption_last = None
+    sync._observed_intervals = []
+    aligned = []
+    sync._align = lambda: aligned.append(sync._reference)
+    for i in range(13):
+        sync._event(dict(type="CaptionObservation", identity=sync.identity.wire(), time=i*5, text=f"Caption {i}"))
+    assert len(aligned) == 1 and len(aligned[0]) == 12
+    sync._reference_kind = "full"
+    sync._reference = ((1, 2),)
+    sync._event(dict(type="CaptionObservation", identity=sync.identity.wire(), time=70, text="new"))
+    assert sync._reference == ((1, 2),)
+
+
 def test_piecewise_map_keeps_gap_and_original_times(tmp_path):
     source = ((10, 12), (20, 22), (40, 42))
     mapping = TimingMap("source", "media", "reference", source, ((11, 13), (21, 23), (32.784, 34.784)), (True, True, False))
