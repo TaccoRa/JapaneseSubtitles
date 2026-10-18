@@ -1,7 +1,8 @@
-let stream,context,source,operation,crop,screenshot;
+let stream,context,source,operation,crop,screenshot,streamTabId=null;
 let lifecycle=Promise.resolve();
 let processor,clock=null,pcm=[],pcmCount=0,pcmStart=0,recordedPCM=[],recordingActive=false;
 const canvas=document.querySelector('#image');
+const notify=message=>{try{return chrome.runtime.sendMessage(message).catch(()=>{});}catch{return Promise.resolve();}};
 const base64=async blob=>{const bytes=new Uint8Array(await blob.arrayBuffer());let out='';for(let i=0;i<bytes.length;i+=32768)out+=String.fromCharCode(...bytes.subarray(i,i+32768));return btoa(out);};
 async function disconnect(){
   recordingActive=false;recordedPCM=[];pcm=[];pcmCount=0;clock=null;
@@ -9,6 +10,7 @@ async function disconnect(){
   // Detach before awaiting: cleanup is safe after failures and repeated disconnects.
   const oldStream=stream,oldContext=context,oldSource=source,oldProcessor=processor;
   stream=context=source=processor=null;
+  streamTabId=null;
   if(oldProcessor){oldProcessor.port.onmessage=null;oldProcessor.disconnect();}
   oldSource?.disconnect();
   oldStream?.getTracks().forEach(t=>t.stop());
@@ -17,7 +19,7 @@ async function disconnect(){
 chrome.runtime.onMessage.addListener((m,sender,reply)=>{
   if(m.target!=='offscreen')return;
   const handle=async()=>{
-    if(m.type==='StreamState')return {ok:true,connected:!!stream&&stream.getTracks().some(t=>t.readyState==='live')};
+    if(m.type==='StreamState')return {ok:true,connected:!!stream&&context?.state!=='closed'&&stream.getAudioTracks().some(t=>t.readyState==='live'),tabId:streamTabId};
     if(m.type==='ConnectStream'){
       await disconnect();
       try{
@@ -26,6 +28,11 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
         // Continuous video tab capture forces Chrome's fullscreen-within-tab mode.
         // A card's still image is captured separately, only on the bound tab.
         video:false});
+      streamTabId=m.tabId;
+      for(const track of stream.getAudioTracks())track.addEventListener('ended',()=>{
+        recordingActive=false;
+        notify({type:'NativeRecordingStopped',tabId:m.tabId});
+      },{once:true});
       context=new AudioContext();source=context.createMediaStreamSource(stream);source.connect(context.destination);await context.resume();
       await context.audioWorklet.addModule('pcm-worklet.js');
       processor=new AudioWorkletNode(context,'subtitle-pcm');source.connect(processor);
@@ -40,7 +47,7 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
           const out=new Int16Array(Math.floor(all.length*16000/context.sampleRate));
           for(let i=0;i<out.length;i++){const index=i*context.sampleRate/16000;const left=Math.floor(index),f=index-left;out[i]=Math.max(-32768,Math.min(32767,((all[left]||0)*(1-f)+(all[left+1]||0)*f)*32767));}
           const bytes=new Uint8Array(out.buffer);let value='';for(let i=0;i<bytes.length;i+=32768)value+=String.fromCharCode(...bytes.subarray(i,i+32768));
-          chrome.runtime.sendMessage({type:'AudioChunk',audio:btoa(value),start:pcmStart,rate:clock.rate,fingerprint:clock.fingerprint}).catch(()=>{});
+          notify({type:'AudioChunk',audio:btoa(value),start:pcmStart,rate:clock.rate,fingerprint:clock.fingerprint});
           pcm=[];pcmCount=0;
         }
       };
@@ -95,7 +102,7 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
       let index=44;for(const chunk of recordedPCM)for(const value of chunk){view.setInt16(index,Math.max(-32768,Math.min(32767,value*32767)),true);index+=2;}
       const audio=await base64(new Blob([bytes],{type:'audio/wav'}));
       if(operation!==id)throw Error('Capture cancelled during encoding');
-      await chrome.runtime.sendMessage({type:'EncodedCapture',operationId:id,audio,image:capturedImage,audioMime:'audio/wav',endTime:m.time});
+      await notify({type:'EncodedCapture',operationId:id,audio,image:capturedImage,audioMime:'audio/wav',endTime:m.time});
       recordedPCM=[];
       return {ok:true};
     }

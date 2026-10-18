@@ -471,8 +471,8 @@ class AnkiController(_ControllerProxy):
             browser = getattr(self.controller, "browser_sync", None)
             native_capture = bool(post_add_capture and browser is not None and browser.native)
             capture_delay_ms = self._post_add_capture_delay_ms() if post_add_capture else None
-            # Native media writes require the newly created note's explicit ID.
-            # A legacy negative delay must never start native recording early.
+            # Native recording starts alongside note creation. Only attachment
+            # waits for the new note's exact ID; legacy delay settings don't apply.
             early_capture = bool(post_add_capture and not native_capture and capture_delay_ms is not None and capture_delay_ms < 0)
             try:
                 capture_session = (
@@ -480,7 +480,11 @@ class AnkiController(_ControllerProxy):
                         early_capture=early_capture, pause_lease=pause_lease)
                     if post_add_capture else None
                 )
-            except (ConnectionError, ValueError) as exc:
+                if native_capture:
+                    can_reuse = getattr(self.anki, "can_reuse_capture_media", None)
+                    capture_session.reuse_ready = bool(callable(can_reuse) and can_reuse(action_target, capture_session.baseline_media, prepared))
+                    browser.capture(capture_session)
+            except (ConnectionError, ValueError, RuntimeError) as exc:
                 if browser is not None:
                     browser.report_error("Capture not started · " + str(exc))
                 self._finish_action_feedback(action_target, False)
@@ -505,10 +509,13 @@ class AnkiController(_ControllerProxy):
                 started = time.perf_counter()
                 completion_result = None
                 completion_success = False
+                capture_error = ""
                 try:
                     if not self.anki.ping():
                         raise RuntimeError("AnkiConnect not reachable.")
 
+                    if native_capture and (capture_session.cancelled or capture_session.phase == "failed"):
+                        raise RuntimeError("Recording cancelled before card creation")
                     if prepared is None:
                         result = self.anki.add_from_selection(
                             selection_text=selected,
@@ -546,28 +553,33 @@ class AnkiController(_ControllerProxy):
                                     exc_info=True,
                                 )
                         if capture_session is not None:
-                            capture_session.set_target_note(added_note_id)
-                            capture_session.phase = "adding"
+                            if not native_capture:
+                                capture_session.set_target_note(added_note_id)
+                                capture_session.phase = "adding"
                             # An early capture may have populated an older
                             # exact-sentence card already.  Reconcile that
                             # state immediately when the new card appears.
-                            try:
-                                reconciled = self.anki.reconcile_exact_sentence_media(
-                                    added_note_id,
-                                    baseline=capture_session.baseline_media,
-                                )
-                                capture_session.reuse_ready = bool(
-                                    not reconciled.get("missing_media_fields", ["unknown"])
-                                    and reconciled.get("available_media_fields")
-                                    and not reconciled.get("failed_note_ids")
-                                    and not reconciled.get("requires_fresh_media")
-                                )
-                            except Exception:
-                                logger.debug(
-                                    "Could not reconcile early exact-sentence media for note %s",
-                                    added_note_id,
-                                    exc_info=True,
-                                )
+                            if not native_capture or capture_session.reuse_ready:
+                                try:
+                                    reconciled = self.anki.reconcile_exact_sentence_media(
+                                        added_note_id,
+                                        baseline=capture_session.baseline_media,
+                                    )
+                                    if not native_capture:
+                                        capture_session.reuse_ready = bool(
+                                            not reconciled.get("missing_media_fields", ["unknown"])
+                                            and reconciled.get("available_media_fields")
+                                            and not reconciled.get("failed_note_ids")
+                                            and not reconciled.get("requires_fresh_media")
+                                        )
+                                    elif reconciled.get("requires_fresh_media"):
+                                        raise RuntimeError("Fresh media required; use capture-only on the created card")
+                                except Exception:
+                                    logger.debug("Could not reconcile exact-sentence media for note %s", added_note_id, exc_info=True)
+                                    if native_capture:
+                                        raise
+                            if native_capture:
+                                dispatch_to_tk(self.settings.root, browser.bind_capture_note, capture_session, added_note_id)
                     annotation_entries = self._annotation_entries_for_added_anki_note(result)
 
                     elapsed = time.perf_counter() - started
@@ -588,7 +600,9 @@ class AnkiController(_ControllerProxy):
                             annotation_entries,
                         )
                     dispatch_to_tk(self.settings.root, self._schedule_ocr_sync_after_anki)
-                    if result.get("routing_error"):
+                    if native_capture:
+                        pass  # Completion is reported after media verification.
+                    elif result.get("routing_error"):
                         dispatch_to_tk(self.settings.root, self.popup.mark_anki_warning)
                     else:
                         dispatch_to_tk(self.settings.root, self.popup.mark_anki_success)
@@ -600,8 +614,10 @@ class AnkiController(_ControllerProxy):
                     if post_add_capture and added_note_id > 0:
                         note_id = added_note_id
                         if note_id > 0:
-                            if capture_session is not None and capture_session.phase == "failed":
+                            if capture_session is not None and (capture_session.phase == "failed" or capture_session.cancelled):
                                 result["capture_delivery_failed"] = True
+                            elif native_capture:
+                                pass  # The recording already runs; note binding joins it.
                             elif early_capture:
                                 self._schedule_post_add_capture_media_copy(
                                     note_id,
@@ -616,12 +632,20 @@ class AnkiController(_ControllerProxy):
                                 )
                 except Exception as e:
                     logger.exception("Anki add failed: %s", e)
+                    if native_capture:
+                        capture_error = "Anki card creation failed: " + str(e)
+                        if completion_result is not None:
+                            completion_result["capture_delivery_failed"] = True
                     try:
                         dispatch_to_tk(self.settings.root, self.popup.mark_anki_failure)
                     except Exception:
                         pass
                 finally:
                     def finish() -> None:
+                        if native_capture and (capture_error or not completion_success):
+                            browser.capture_note_failed(capture_session, capture_error or "Anki card creation failed")
+                            if completion_success and capture_session.target_note_id is None:
+                                browser.bind_capture_note(capture_session, completion_result["note_id"])
                         self._set_busy_cursor(False)
                         if capture_session is None or not completion_success:
                             release = getattr(self.controller, "release_anki_pause_lease", None)

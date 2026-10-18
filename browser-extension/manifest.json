@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SubtitlePlayer Browser Connection",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "minimum_chrome_version": "116",
   "description": "Follow your existing video and record media for your own subtitles.",
   "permissions": ["storage", "activeTab", "tabCapture", "offscreen", "scripting"],

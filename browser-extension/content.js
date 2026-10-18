@@ -1,18 +1,43 @@
 /* One isolated-world instance per frame. No devtools or stream URL extraction. */
 (()=>{
 const existing=globalThis.subtitlePlayerContent;
-if(existing){existing.publish();return;}
+if(existing?.version===2&&existing.alive()){existing.publish();return;}
+existing?.dispose?.();
 const videos=new Map(), ids=new WeakMap(), epochs=new WeakMap(), captionSources=new WeakMap();
 let sequence=0, capture=null, suppress=0;
 let lastEpisode='',lastEpisodeAt=0;
+let disposed=false;
+const timers=new Set(),listeners=[];
+function dispose(){
+  if(disposed)return;disposed=true;
+  for(const timer of timers)clearInterval(timer);
+  for(const remove of listeners)try{remove();}catch{}
+  capture=null;videos.clear();
+  if(globalThis.subtitlePlayerContent?.dispose===dispose)delete globalThis.subtitlePlayerContent;
+}
+function alive(){
+  if(disposed)return false;
+  try{if(chrome.runtime.id)return true;}catch{}
+  dispose();return false;
+}
+function listen(target,name,callback){
+  const wrapped=(...args)=>{if(alive())callback(...args);};
+  target.addEventListener(name,wrapped);listeners.push(()=>target.removeEventListener(name,wrapped));
+}
+function every(callback,delay){const timer=setInterval(()=>{if(alive())callback();},delay);timers.add(timer);return timer;}
 const roots=()=>{
+  if(!alive())return [];
   const all=[document];
   for(let i=0;i<all.length;i++)for(const e of all[i].querySelectorAll('*'))if(e.shadowRoot)all.push(e.shadowRoot);
   return all;
 };
-const send=m=>{try{return chrome.runtime.sendMessage(m).catch(()=>{});}catch{return Promise.resolve();}};
-function publish(){discover();for(const [id,v]of videos)send(snapshot(v,id,'discover'));}
-globalThis.subtitlePlayerContent={publish};
+const send=m=>{
+  if(!alive())return Promise.resolve();
+  try{return chrome.runtime.sendMessage(m).catch(error=>{if(/context invalidated/i.test(error.message))dispose();});}
+  catch{dispose();return Promise.resolve();}
+};
+function publish(){if(!alive())return;discover();for(const [id,v]of videos)send(snapshot(v,id,'discover'));}
+globalThis.subtitlePlayerContent={version:2,publish,alive,dispose};
 function mediaKey(video){
   // Streaming duration can change as segments load without changing the episode.
   return location.href+'|'+video.currentSrc+'|'+(epochs.get(video)||0)+'|'+[...video.audioTracks||[]].map(t=>t.id+':'+t.enabled);
@@ -49,7 +74,7 @@ function discover(){
     if(ids.has(video)){publishCaptions(video,ids.get(video));continue;}
     const id=crypto.randomUUID();ids.set(video,id);videos.set(id,video);
     for(const event of ['play','playing','pause','seeking','seeked','waiting','stalled','ratechange','emptied','loadedmetadata','ended'])
-      video.addEventListener(event,()=>{
+      listen(video,event,()=>{
         if(event==='emptied')epochs.set(video,(epochs.get(video)||0)+1);
         send(snapshot(video,id,event));
         if(capture&&capture.id===id&&performance.now()>suppress&&['pause','seeking','ratechange','emptied'].includes(event))
@@ -92,7 +117,9 @@ async function command(m){
   }
   return snapshot(v,m.identity.videoId,'ack');
 }
-chrome.runtime.onMessage.addListener((m,sender,reply)=>{
+function onMessage(m,sender,respond){
+  if(!alive())return;
+  const reply=value=>{if(alive())try{respond(value);}catch{dispose();}};
   if(m.type==='DiscoverVideos'){publish();reply({ok:true});return;}
   if(m.type==='PlayerCommand'){command(m).then(state=>reply({ok:true,state}),e=>reply({ok:false,error:e.message}));return true;}
   if(m.type==='PrepareCapture'){
@@ -125,9 +152,12 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
     if(capture?.operationId===m.operationId){suppress=performance.now()+500;capture.video.pause();capture=null;}
     reply({ok:true});
   }
-});
+}
+if(!alive())return;
+chrome.runtime.onMessage.addListener(onMessage);
+listeners.push(()=>chrome.runtime.onMessage.removeListener(onMessage));
 // Translate video bounds through nested frames, including open shadow roots.
-window.addEventListener('message',e=>{
+listen(window,'message',e=>{
   const m=e.data;if(!m?.subtitlePlayerCrop)return;
   let r=m.rect;
   if(e.source!==window){
@@ -141,12 +171,12 @@ window.addEventListener('message',e=>{
 });
 let lastCaption='';
 // A crop belongs to one layout. Do not attach a stale crop after fullscreen/resize.
-document.addEventListener('fullscreenchange',()=>{
+listen(document,'fullscreenchange',()=>{
   if(capture)abort('Fullscreen changed during capture');
   send({type:'FullscreenChanged',fullscreen:!!document.fullscreenElement});
 });
-window.addEventListener('resize',()=>{if(capture)abort('Video layout changed during capture');});
-setInterval(()=>{
+listen(window,'resize',()=>{if(capture)abort('Video layout changed during capture');});
+every(()=>{
   if(window===top&&typeof subtitlePlayerEpisodeContext==='function'){
     const context=subtitlePlayerEpisodeContext(location.href);
     if(context){
@@ -175,7 +205,7 @@ setInterval(()=>{
 },100);
 // Common custom players expose text without a native TextTrack. Observe it as
 // evidence only; these approximate edges do not automatically earn confidence.
-setInterval(()=>{for(const [id,v]of videos){
+every(()=>{for(const [id,v]of videos){
   const text=roots().flatMap(r=>[...r.querySelectorAll('#subText,[data-part="cue"],.vjs-text-track-display')]).map(x=>x.textContent).join('\n').trim();
   if(text!==lastCaption){send({type:'CaptionObservation',videoId:id,text,time:v.currentTime});lastCaption=text;}
 }},100);

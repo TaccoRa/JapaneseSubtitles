@@ -1,7 +1,10 @@
 const [tab] = await chrome.tabs.query({active:true,currentWindow:true});
 const saved = await chrome.storage.local.get(['token']);
 document.querySelector('#token').value = saved.token || '';
+let autoEnableAttempt='',refreshing=false,nativeError='';
 async function refreshVideos(){
+  if(refreshing)return;refreshing=true;
+  try{
   const state = await chrome.runtime.sendMessage({type:'ListVideos',tabId:tab.id});
   const native=document.querySelector('#native');
   native.hidden=state.backend!=='native';native.disabled=state.nativeEnabled;
@@ -20,8 +23,19 @@ async function refreshVideos(){
   document.querySelector('#connect').disabled=!state.videos.length;
   if(!state.videos.length)document.querySelector('#status').textContent=state.discoveryError?'Cannot inspect this tab: '+state.discoveryError:'Looking for the video in this tab and its frames…';
   else document.querySelector('#status').textContent=state.status+(state.autoEnabled?' · automatic connection on':' · automatic connection paused');
+  if(state.backend==='native'&&!state.nativeEnabled&&state.selected?.tabId===tab.id&&state.status==='Connected'){
+    const key=JSON.stringify(state.selected);
+    if(autoEnableAttempt!==key){
+      autoEnableAttempt=key;
+      const result=await chrome.runtime.sendMessage({type:'EnableNativeRecording',identity:state.selected});
+      nativeError=result.error||'';
+      if(result.ok)native.textContent='Native recording enabled';
+    }
+    if(nativeError)document.querySelector('#status').textContent=nativeError;
+  }
+  }finally{refreshing=false;}
 }
-await refreshVideos();
+await refreshVideos().catch(e=>{document.querySelector('#status').textContent=e.message;});
 setInterval(()=>refreshVideos().catch(e=>{document.querySelector('#status').textContent=e.message;}),500);
 document.querySelector('#connect').onclick=async()=>{
   try{
@@ -34,6 +48,7 @@ document.querySelector('#connect').onclick=async()=>{
 document.querySelector('#native').onclick=async()=>{
   try{
     const result=await chrome.runtime.sendMessage({type:'EnableNativeRecording',identity:JSON.parse(document.querySelector('#video').value)});
+    nativeError=result.error||'';
     document.querySelector('#status').textContent=result.error||'Native audio recording enabled';
   }catch(e){document.querySelector('#status').textContent=e.message;}
 };

@@ -40,6 +40,20 @@ def test_disconnected_send_uses_the_recoverable_connection_error():
         bridge.send({"type": "TimingMap"})
 
 
+def test_bridge_http_readiness_contains_no_credentials_and_does_not_pair():
+    import urllib.request
+    bridge = BrowserBridge("do-not-expose-this-secret", port=0)
+    bridge.start()
+    assert bridge.ready.wait(3) and not bridge.error
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{bridge.port}/health", timeout=2) as response:
+            assert response.headers["Cache-Control"] == "no-store"
+            assert json.load(response) == {"service": "SubtitlePlayer", "version": 1}
+        assert bridge.events.empty() and not bridge.trusted_origins
+    finally:
+        bridge.close()
+
+
 def test_bridge_preserves_arrival_time_through_a_delayed_ui_queue(monkeypatch):
     import model.browser_bridge as module
     bridge = BrowserBridge("code")

@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+import pytest
 
 import SubtitlePlayer.controller.anki_controller as anki_controller_module
 from SubtitlePlayer.controller.anki_controller import AnkiController
@@ -24,16 +25,25 @@ def test_capture_only_preflight_failure_does_not_escape_into_the_voice_input_pum
     assert ("lease", False) in calls
 
 
-def test_native_capture_waits_for_the_exact_note_id_even_with_legacy_negative_delay(monkeypatch):
-    scheduled, workers = [], []
+@pytest.mark.parametrize("creation_fails", [False, True])
+def test_native_capture_starts_before_card_creation_and_binds_its_exact_note_id(monkeypatch, creation_fails):
+    scheduled, workers, recordings, bindings, failures = [], [], [], [], []
+    def commit(value):
+        if creation_fails:
+            raise RuntimeError("AnkiConnect write failed")
+        return {"note_id": 42}
     def freeze(session):
         session.backend = "native"
     owner = SimpleNamespace(
-        browser_sync=SimpleNamespace(native=True, freeze_capture=freeze),
+        browser_sync=SimpleNamespace(native=True, freeze_capture=freeze,
+            capture=lambda session: recordings.append(session),
+            capture_note_failed=lambda session, error: failures.append((session, error)),
+            bind_capture_note=lambda session, note_id: (session.set_target_note(note_id), bindings.append((session, note_id)))),
         settings=SimpleNamespace(root=object()),
         popup=SimpleNamespace(mark_anki_busy=lambda: None, mark_anki_success=lambda: None),
-        anki=SimpleNamespace(snapshot_exact_sentence_media=lambda text: {}, ping=lambda: True,
-            commit_prepared_note=lambda value: {"note_id": 42},
+        anki=SimpleNamespace(sound_field="Sound", image_field="Image",
+            snapshot_exact_sentence_media=lambda text: {}, ping=lambda: True,
+            commit_prepared_note=commit,
             reconcile_exact_sentence_media=lambda *args, **kwargs: {"missing_media_fields": ["Sound", "Image"]}))
     action = AnkiController(owner)
     for name, fn in {
@@ -57,13 +67,18 @@ def test_native_capture_waits_for_the_exact_note_id_even_with_legacy_negative_de
     monkeypatch.setattr(anki_controller_module.threading, "Thread", Worker)
     target = FrozenActionTarget.create(selected_text="word", subtitle_text="sentence", sentence_key="sentence")
     action._start_anki_commit_worker("word", prepared={}, post_add_capture=True, action_target=target)
-    assert not scheduled
+    assert not scheduled and len(recordings) == 1
+    session = recordings[0]
+    assert session.target_note_id is None
     workers[0]()
-    assert len(scheduled) == 1
-    delay, details = scheduled[0]
-    assert delay == 0 and details["note_id"] == 42
-    assert details["session"].target_note_id == 42
-    assert details["session"].backend == "native" and not details["session"].early_capture
+    assert not scheduled and len(recordings) == 1
+    if creation_fails:
+        assert not bindings and len(failures) == 1
+        assert failures[0][0] is session and "AnkiConnect write failed" in failures[0][1]
+        return
+    assert bindings == [(session, 42)]
+    assert session.target_note_id == 42
+    assert session.backend == "native" and not session.early_capture
 
 
 def test_anki_add_result_prints_plain_status_lines(capsys):

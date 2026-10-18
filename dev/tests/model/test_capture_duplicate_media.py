@@ -37,6 +37,19 @@ def test_capture_duplicate_waits_for_fresh_media(monkeypatch, same_word):
         assert updates
 
 
+@pytest.mark.parametrize("word,complete,expected", [("other", True, True), ("word", True, False), ("other", False, False)])
+def test_native_preflight_reuse_preserves_fresh_media_requirement(monkeypatch, word, complete, expected):
+    from types import SimpleNamespace
+    client = AnkiClient(ConfigManager("config.json"))
+    monkeypatch.setattr(client, "_card_headword_for_anki", lambda *args: "word")
+    target = SimpleNamespace(selected_text="word", subtitle_text="sentence", sentence_key="sentence", cue_snapshot=None)
+    baseline = {"sentence_key": "sentence", "notes": {1: {"word": word, "media": {
+        client.sound_field: "[sound:existing.wav]", client.image_field: '<img src="existing.png">' if complete else ""}}}}
+    assert client.can_reuse_capture_media(target, baseline) is expected
+    baseline["sentence_key"] = "different sentence"
+    assert not client.can_reuse_capture_media(target, baseline)
+
+
 def test_sentence_break_has_literal_ruby_boundary():
     assert AnkiClient._to_anki_html_line_breaks("ても\n結果[けっか]") == "ても<br> 結果[けっか]"
     assert AnkiClient._to_anki_html_line_breaks("ても<br> 結果[けっか]") == "ても<br> 結果[けっか]"

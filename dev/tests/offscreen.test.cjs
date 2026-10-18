@@ -24,7 +24,7 @@ function environment(){
     fetch:async()=>({blob:async()=>new Blob()}),createImageBitmap:async()=>({width:1600,height:900,close(){}}),
     navigator:{mediaDevices:{async getUserMedia(value){
       constraints.push(value);if(acquireGate)await acquireGate;
-      const track={readyState:'live',stop(){this.readyState='ended';}};
+      const track={readyState:'live',addEventListener(name,fn){this[name]=fn;},stop(){this.readyState='ended';}};
       const stream={getTracks:()=>[track],getAudioTracks:()=>[track]};streams.push(stream);return stream;
     }}},
     chrome:{runtime:{onMessage:{addListener(fn){listener=fn;}},async sendMessage(m){sent.push(m);}}}
@@ -64,6 +64,14 @@ test('native PCM encoder sends a playable mono WAV and the operation screenshot'
   assert.equal(wav.readUInt16LE(22),1);assert.equal(wav.readUInt32LE(24),16000);
   assert.equal(wav.readUInt32LE(40),3200);assert.equal(wav.length,3244);
   assert.ok(Math.abs(wav.readInt16LE(44)-3276)<2);
+});
+
+test('stream ownership survives recording completion and reports an ended audio track',async()=>{
+  const env=environment();await env.message({type:'ConnectStream',streamId:'tab',tabId:123});
+  assert.equal((await env.message('StreamState')).tabId,123);
+  const track=env.streams[0].getAudioTracks()[0];track.readyState='ended';track.ended();
+  assert.equal((await env.message('StreamState')).connected,false);
+  assert.equal(env.sent.at(-1).type,'NativeRecordingStopped');assert.equal(env.sent.at(-1).tabId,123);
 });
 
 test('a disconnect arriving during acquisition waits and releases the newly acquired stream',async()=>{

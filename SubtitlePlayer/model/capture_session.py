@@ -78,6 +78,8 @@ class CaptureSession:
     mapped_interval: tuple[float, float] | None = None
     post_capture_policy: str = "play"
     reuse_ready: bool = False
+    native_result: Mapping[str, Any] | None = None
+    media_completion_notified: bool = False
 
     def set_target_note(self, note_id: int | None) -> None:
         try:

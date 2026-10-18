@@ -103,6 +103,9 @@ class BrowserSyncController:
 
     def retry_pending_media(self):
         for session, result in list(self._pending_media.values()):
+            if not session.target_note_id:
+                self.report_error("Recording saved without a target note · Anki card creation did not finish. No media was attached.")
+                continue
             if session.phase == "failed" and not session.cancelled:
                 self._attach_media(session, result)
 
@@ -228,6 +231,8 @@ class BrowserSyncController:
     def freeze_capture(self, session):
         if not self.native:
             return
+        if self._capture:
+            raise ValueError("A recording is already in progress")
         if not self.fresh or not self.mapping:
             raise ValueError("Alignment uncertain: connect Chrome and wait for timing")
         if not self._native_enabled:
@@ -246,26 +251,76 @@ class BrowserSyncController:
         session.media_fingerprint = self.snapshot.fingerprint
         session.mapped_interval = (start, end)
 
-    def capture(self, session, note_id):
+    def capture(self, session, note_id=None):
         if self._capture:
             raise RuntimeError("A recording is already in progress")
         if not session or session.backend != "native" or session.cancelled:
             raise ValueError("Invalid native capture operation")
-        if not note_id:
-            raise ValueError("Native capture requires the exact Anki note ID")
+        if note_id is not None and int(note_id) <= 0:
+            raise ValueError("Native capture requires a valid Anki note ID")
         if not self.fresh or session.media_identity != self.identity.wire() or session.media_fingerprint != self.snapshot.fingerprint:
             raise ValueError("Connected video changed; capture cancelled")
-        session.set_target_note(note_id)
+        if note_id is not None:
+            session.set_target_note(note_id)
         session.phase = "recording"
         self._capture = session
         logger.info("Native capture %s started for note %s, interval %.3f..%.3f, map %s",
                     session.id, note_id, *session.mapped_interval, session.timing_version)
         start, end = session.mapped_interval
-        self.bridge.send(dict(type="CaptureRequest", operationId=session.id, identity=session.media_identity,
-                              fingerprint=session.media_fingerprint, timingVersion=session.timing_version,
-                              start=start, end=end, noteId=note_id, screenshotTime=(start + end) / 2,
-                              reuse=session.reuse_ready and not session.capture_only))
+        try:
+            self.bridge.send(dict(type="CaptureRequest", operationId=session.id, identity=session.media_identity,
+                                  fingerprint=session.media_fingerprint, timingVersion=session.timing_version,
+                                  start=start, end=end, noteId=note_id, screenshotTime=(start + end) / 2,
+                                  reuse=session.reuse_ready and not session.capture_only))
+        except ConnectionError:
+            session.phase = "failed"
+            self._capture = None
+            raise
         self._set_status("Recording subtitle…")
+
+    def bind_capture_note(self, session, note_id):
+        """Join independently completed recording and note creation on Tk's thread."""
+        note_id = int(note_id or 0)
+        if note_id <= 0 or (session.target_note_id and session.target_note_id != note_id):
+            raise ValueError("Capture target must be the exact newly created note")
+        session.set_target_note(note_id)
+        if session.cancelled or session.phase == "failed":
+            self._finish_native(session, False)
+            return
+        if self._capture is session and not session.cancelled and session.native_result:
+            self._complete_native_result(session)
+
+    def capture_note_failed(self, session, error="Anki card creation failed"):
+        if self._capture is not session:
+            return
+        if session.native_result and not session.native_result.get("reused"):
+            # Keep a finished recording even when card creation failed. Without
+            # an explicit note ID it must never attach to a guessed/newest note.
+            self._pending_media[session.id] = (session, session.native_result)
+            try:
+                self._save_pending_media(session, session.native_result)
+            except OSError:
+                logger.exception("Could not save recording after card creation failed")
+            self._retry_button.pack(side="right")
+        self.abort(error)
+
+    def _complete_native_result(self, session):
+        if not session.target_note_id or session.cancelled or self._capture is not session:
+            return
+        result = session.native_result
+        if not result or session.phase != "waiting_note":
+            return
+        if result.get("reused"):
+            session.phase = "verifying_media"
+            def verify():
+                try:
+                    self.controller.anki.verify_capture_media(session.target_note_id)
+                    self._results.put(("reuse", session.id, None))
+                except Exception as exc:
+                    self._results.put(("reuse", session.id, str(exc)))
+            threading.Thread(target=verify, name="verify-reused-media", daemon=True).start()
+        else:
+            self._attach_media(session, result)
 
     def abort(self, reason="Cancelled"):
         session = self._capture
@@ -280,13 +335,25 @@ class BrowserSyncController:
             self._finish_native(session, False)
 
     def _finish_native(self, session, ok):
+        if session.target_note_id and not session.media_completion_notified:
+            self.controller.hotkey_controller.notify_capture_media_finished(session.target_note_id, ok)
+            session.media_completion_notified = True
         if session.id in self._finished_operations:
             return
         self._finished_operations.add(session.id)
+        popup = getattr(self.controller, "popup", None)
+        mark = getattr(popup, "mark_anki_success" if ok else "mark_anki_failure", None)
+        if callable(mark):
+            mark()
         self.controller.anki_controller._finish_action_feedback_key(session.action_feedback_key, ok)
-        if session.target_note_id:
-            self.controller.hotkey_controller.notify_capture_media_finished(session.target_note_id, ok)
         self.controller.release_anki_pause_lease(session.pause_lease, resume=False)
+
+    def _save_pending_media(self, session, result):
+        self._pending_directory.mkdir(parents=True, exist_ok=True)
+        path = self._pending_directory / (session.id + ".json")
+        temporary = path.with_suffix(".tmp")
+        temporary.write_text(json.dumps(dict(operationId=session.id, noteId=session.target_note_id, media=result)), "utf-8")
+        temporary.replace(path)
 
     def _attach_media(self, session, result):
         self._pending_media[session.id] = (session, result)
@@ -294,11 +361,9 @@ class BrowserSyncController:
         self._set_status("Finishing Anki media…")
         def work():
             try:
-                self._pending_directory.mkdir(parents=True, exist_ok=True)
-                path = self._pending_directory / (session.id + ".json")
-                temporary = path.with_suffix(".tmp")
-                temporary.write_text(json.dumps(dict(operationId=session.id, noteId=session.target_note_id, media=result)), "utf-8")
-                temporary.replace(path)
+                self._save_pending_media(session, result)
+                if not session.target_note_id:
+                    raise RuntimeError("Recording saved without an Anki note. Card creation failed; no media was attached.")
                 if session.cancelled:
                     raise RuntimeError("Capture cancelled")
                 self.controller.anki.attach_native_capture(session.target_note_id, session.id,
@@ -460,17 +525,14 @@ class BrowserSyncController:
             if event.get("identity") != session.media_identity:
                 self.abort("Stale capture result")
                 return
-            if event.get("reused"):
-                session.phase = "verifying_media"
-                def verify():
-                    try:
-                        self.controller.anki.verify_capture_media(session.target_note_id)
-                        self._results.put(("reuse", session.id, None))
-                    except Exception as exc:
-                        self._results.put(("reuse", session.id, str(exc)))
-                threading.Thread(target=verify, name="verify-reused-media", daemon=True).start()
-                return
-            self._attach_media(session, event)
+            session.native_result = event
+            session.phase = "waiting_note"
+            if not session.target_note_id:
+                if not event.get("reused"):
+                    self._pending_media[session.id] = (session, event)
+                    self._save_pending_media(session, event)
+                self._set_status("Recording ready · waiting for Anki card…")
+            self._complete_native_result(session)
         elif kind == "CaptureFinished":
             if self._capture and event.get("operationId") == self._capture.id:
                 session = self._capture

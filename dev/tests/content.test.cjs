@@ -21,11 +21,12 @@ function environment(){
   }
   const video=new Video();
   const documentEvents=new Map();
-  const document={querySelectorAll:selector=>selector==='video'?[video]:[],addEventListener:(name,fn)=>documentEvents.set(name,fn)};
-  const window={addEventListener:(name,fn)=>windowEvents.set(name,fn),postMessage(data){windowEvents.get('message')?.({data,source:window});}};
+  const document={querySelectorAll:selector=>selector==='video'?[video]:[],addEventListener:(name,fn)=>documentEvents.set(name,fn),removeEventListener:name=>documentEvents.delete(name)};
+  const window={addEventListener:(name,fn)=>windowEvents.set(name,fn),removeEventListener:name=>windowEvents.delete(name),postMessage(data){windowEvents.get('message')?.({data,source:window});}};
+  const runtime={id:'test-extension',sendMessage:async m=>{sent.push(m);},onMessage:{addListener:fn=>{listener=fn;},removeListener:()=>{listener=null;}}};
   const scope=vm.createContext({document,window,top:window,parent:window,location:{href:'https://video.test/episode'},innerWidth:800,innerHeight:450,
     performance:{now:()=>now},crypto,console,
-    chrome:{runtime:{sendMessage:async m=>{sent.push(m);},onMessage:{addListener:fn=>{listener=fn;}}}},
+    chrome:{runtime},
     setInterval:(fn,delay)=>schedule(fn,delay,delay),setTimeout:(fn,delay)=>schedule(fn,delay,0),
     clearInterval:key=>timers.delete(key),clearTimeout:key=>timers.delete(key)});
   vm.runInContext(source,scope);
@@ -37,7 +38,7 @@ function environment(){
   }
   advance(100);
   const message=m=>new Promise(resolve=>listener(m,{},resolve));
-  return {video,sent,advance,message,reinject(){vm.runInContext(source,scope);},fullscreen(){documentEvents.get('fullscreenchange')?.();},command(action,time){
+  return {video,sent,advance,message,runtime,timers,windowEvents,documentEvents,reinject(){vm.runInContext(source,scope);},fullscreen(){documentEvents.get('fullscreenchange')?.();},command(action,time){
     const videoId=sent.find(m=>m.type==='PlaybackSnapshot').videoId;
     return new Promise(resolve=>listener({type:'PlayerCommand',identity:{videoId},action,time},{},resolve));
   }};
@@ -56,6 +57,26 @@ test('script recovery republishes a video without duplicate listeners or a new i
   const before=env.sent.length;
   env.video.dispatchEvent(new Event('pause'));
   assert.equal(env.sent.length,before+1);
+});
+
+test('invalidated extension contexts stop timers and detach old listeners',()=>{
+  const env=environment(),before=env.sent.length;
+  Object.defineProperty(env.runtime,'id',{get(){throw Error('Extension context invalidated.');},configurable:true});
+  assert.doesNotThrow(()=>env.advance(10000));
+  assert.equal(env.sent.length,before);assert.equal(env.timers.size,0);
+  assert.equal(env.windowEvents.size,0);assert.equal(env.documentEvents.size,0);
+  env.video.dispatchEvent(new Event('pause'));assert.equal(env.sent.length,before);
+  Object.defineProperty(env.runtime,'id',{value:'test-extension',configurable:true});
+  env.reinject();env.advance(100);
+  assert.ok(env.sent.length>before);assert.equal(env.timers.size,2);
+});
+
+test('runtime rejection during reload is handled and retires the old content instance',async()=>{
+  const env=environment();
+  env.runtime.sendMessage=async()=>{throw Error('Extension context invalidated.');};
+  env.advance(100);await Promise.resolve();await Promise.resolve();
+  assert.equal(env.timers.size,0);
+  assert.doesNotThrow(()=>env.advance(10000));
 });
 
 test('fullscreen during viewing preserves the video identity and clock',()=>{

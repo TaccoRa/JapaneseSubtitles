@@ -1018,6 +1018,27 @@ class AnkiClient:
             "notes": snapshot,
         }
 
+    def can_reuse_capture_media(self, target, baseline, prepared=None):
+        """Decide reuse before recording, using the same card word as creation."""
+        if not baseline or baseline.get("sentence_key") != target.sentence_key:
+            return False
+        if prepared is not None:
+            word = prepared.get("note", {}).get("fields", {}).get(self.add_rubies_to_front_field, "")
+        else:
+            cue = target.cue_snapshot
+            selection = cue.resolve_selection(target.selected_text, target.selection_spans) if cue else None
+            word = self._card_headword_from_cue_snapshot(cue, selection)
+            if not word:
+                word = self._card_headword_for_anki(target.selected_text, target.subtitle_text)
+        word = self._normalize_media_sentence_value(word)
+        notes = list(baseline.get("notes", {}).values())
+        # Adding the same word again requests fresh media, even if another word
+        # from the same sentence has already supplied audio and an image.
+        if not word or any(self._normalize_media_sentence_value(note.get("word", "")) == word for note in notes):
+            return False
+        fields = [name for name in (self.sound_field, self.image_field) if name]
+        return bool(fields) and all(any(str(note.get("media", {}).get(name) or "").strip() for note in notes) for name in fields)
+
     def reconcile_exact_sentence_media(
         self,
         target_note_id: int,

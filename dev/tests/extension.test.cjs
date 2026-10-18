@@ -23,6 +23,7 @@ async function until(predicate){
 }
 function environment(){
   let listener,socket;
+  let connectedStream=null;
   const frames=[],offscreen=[],sent=[],scripts=[],windowChanges=[],timers=new Map();let timerId=0;
   const browserWindow={state:'maximized',type:'normal'};
   class Socket{
@@ -32,16 +33,16 @@ function environment(){
     close(){}
   }
   const chrome={
-    runtime:{onMessage:{addListener(fn){listener=fn;}},async sendMessage(m){offscreen.push(m);return {ok:true};}},
+    runtime:{onMessage:{addListener(fn){listener=fn;}},async sendMessage(m){offscreen.push(m);if(m.type==='ConnectStream')connectedStream=m.tabId;if(m.type==='DisconnectStream')connectedStream=null;return {ok:true,connected:connectedStream!==null,tabId:connectedStream};}},
     storage:{local:{async get(){return {};},async set(){}}},
     offscreen:{async hasDocument(){return true;},async createDocument(){}},
     tabCapture:{async getMediaStreamId(){return 'stream';}},
     scripting:{async executeScript(value){scripts.push(value);}},
     windows:{async get(){return {...browserWindow};},async update(id,change){windowChanges.push({id,...change});Object.assign(browserWindow,change);}},
-    fetch:async()=>({ok:true,text:async()=>Array.from({length:10},(_,i)=>`${i+1}\n00:00:${String(i*5).padStart(2,'0')}.000 --> 00:00:${String(i*5+2).padStart(2,'0')}.000\ntext`).join('\n\n')}),
+    fetch:async()=>({ok:true,json:async()=>({service:'SubtitlePlayer',version:1}),text:async()=>Array.from({length:10},(_,i)=>`${i+1}\n00:00:${String(i*5).padStart(2,'0')}.000 --> 00:00:${String(i*5+2).padStart(2,'0')}.000\ntext`).join('\n\n')}),
     tabs:{async query(){return [];},async get(id){return {id,active:true,windowId:5};},async captureVisibleTab(){return 'data:image/png;base64,picture';},async sendMessage(tab,m,target){frames.push({tab,m,target});return {ok:true,state:{}};},onActivated:{addListener(){}},onRemoved:{addListener(){}},onUpdated:{addListener(){}}}
   };
-  vm.runInNewContext(source,{chrome,fetch:(...args)=>chrome.fetch(...args),WebSocket:Socket,crypto:webcrypto,TextEncoder,URL,console,setInterval:()=>1,clearInterval(){},setTimeout:(fn,delay)=>{timers.set(++timerId,{fn,delay});return timerId;},clearTimeout:id=>timers.delete(id)});
+  vm.runInNewContext(source,{chrome,fetch:(...args)=>chrome.fetch(...args),AbortSignal,WebSocket:Socket,crypto:webcrypto,TextEncoder,URL,console,setInterval:()=>1,clearInterval(){},setTimeout:(fn,delay)=>{timers.set(++timerId,{fn,delay});return timerId;},clearTimeout:id=>timers.delete(id)});
   const message=(m,s={})=>new Promise(resolve=>{const pending=listener(m,s,resolve);if(pending!==true)resolve();});
   return {chrome,frames,offscreen,sent,scripts,timers,browserWindow,windowChanges,message,get socket(){return socket;},
     async fireTimers(){const pending=[...timers.values()];timers.clear();for(const timer of pending)timer.fn();await settle();},
@@ -192,6 +193,68 @@ test('a refused bridge connection stays retryable until the app starts',async()=
   env.socket.onopen();env.socket.onmessage({data:JSON.stringify({type:'Welcome'})});await settle();
   assert.equal((await env.message({type:'ListVideos',tabId:1})).status,'Connected');
 });
+
+test('an offline desktop is retried without constructing refused WebSockets',async()=>{
+  const env=environment(),healthy=env.chrome.fetch;
+  env.chrome.fetch=async()=>{throw Error('Connection refused');};
+  assert.equal((await env.message({type:'Connect',identity,token:'code'})).ok,true);
+  assert.equal(env.socket,undefined);
+  assert.match((await env.message({type:'ListVideos',tabId:1})).status,/Start the desktop app/);
+  await env.fireTimers();assert.equal(env.socket,undefined);
+  env.chrome.fetch=healthy;await env.fireTimers();await until(()=>env.socket);
+  env.socket.onopen();env.socket.onmessage({data:JSON.stringify({type:'Welcome'})});await settle();
+  assert.equal((await env.message({type:'ListVideos',tabId:1})).status,'Connected');
+});
+
+test('a different local service is never sent the pairing token',async()=>{
+  const env=environment();env.chrome.fetch=async()=>({ok:true,json:async()=>({service:'other',version:1})});
+  await env.message({type:'Connect',identity,token:'secret'});
+  assert.equal(env.socket,undefined);assert.equal(env.sent.length,0);
+});
+
+test('same-tab reconnect and repeated enable preserve the existing native stream',async()=>{
+  const env=environment();await env.connect();const socket=env.socket;
+  env.offscreen.length=0;
+  await env.message({type:'Connect',identity,token:'code'});
+  await env.message({type:'EnableNativeRecording',identity});
+  assert.equal(env.socket,socket);
+  assert.equal(env.offscreen.filter(m=>['ConnectStream','DisconnectStream'].includes(m.type)).length,0);
+  assert.equal((await env.message({type:'ListVideos',tabId:1})).nativeEnabled,true);
+});
+
+test('a replacement episode publishes recorder readiness under its new document identity',async()=>{
+  const env=environment();await env.connect();env.offscreen.length=0;
+  await env.message({type:'PlaybackSnapshot',videoId:'next-video',sequence:1,currentTime:0,duration:1447,rate:1,paused:true,mediaKey:'next-episode',width:1000,height:500},{...sender,documentId:'new-document'});
+  await until(()=>env.sent.some(m=>m.type==='RecorderState'&&m.identity?.documentId==='new-document'));
+  assert.equal(env.sent.filter(m=>m.type==='RecorderState').at(-1).enabled,true);
+  assert.equal(env.offscreen.filter(m=>m.type==='DisconnectStream').length,0);
+});
+
+test('loss of tab audio disables readiness and aborts recording without resuming',async()=>{
+  const env=environment();await env.connect();await recording(env);
+  await env.message({type:'NativeRecordingStopped',tabId:1});await settle();
+  assert.equal(env.sent.filter(m=>m.type==='RecorderState').at(-1).enabled,false);
+  assert.equal(env.frames.filter(f=>f.m.action==='play').length,0);
+  assert.equal(env.sent.at(-1).ok,false);
+});
+
+for(const [backend,enabled,expected]of [['native',false,1],['native',true,0],['asbplayer',false,0]]){
+  test(`opening popup auto-enables native once: backend ${backend}, enabled ${enabled}`,async()=>{
+    const elements={};
+    for(const id of ['token','native','video','connect','status','disconnect'])elements[id]={value:'',options:[],replaceChildren(){this.options=[];},append(option){this.options.push(option);this.value=option.value;}};
+    const requests=[],intervals=[];let nativeEnabled=enabled;
+    const scope={document:{querySelector:selector=>elements[selector.slice(1)],createElement:()=>({})},setInterval:fn=>intervals.push(fn),
+      chrome:{tabs:{query:async()=>[{id:1}]},storage:{local:{get:async()=>({})}},runtime:{sendMessage:async m=>{
+        requests.push(m);
+        if(m.type==='EnableNativeRecording'){nativeEnabled=true;return {ok:true};}
+        return {backend,nativeEnabled,selected:identity,status:'Connected',autoEnabled:true,videos:[{identity,width:1000,height:500,duration:1000}]};
+      }}}};
+    await vm.runInNewContext('(async()=>{'+fs.readFileSync(path.join(__dirname,'../../browser-extension/popup.js'),'utf8')+'})()',scope);
+    await intervals[0]();await intervals[0]();
+    assert.equal(requests.filter(m=>m.type==='EnableNativeRecording').length,expected);
+    if(backend==='native')assert.equal(elements.native.textContent,'Native recording enabled');
+  });
+}
 
 test('captured player fullscreen expands the browser and restores its previous size',async()=>{
   const env=environment();await env.connect();

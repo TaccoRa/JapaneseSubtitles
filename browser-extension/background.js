@@ -3,6 +3,7 @@ let socket=null,selected=null,recording=null,status='Disconnected',heartbeat=nul
 let fingerprints=new Map(),captionCache=new Map(),incoming=Promise.resolve();
 let connections=Promise.resolve(),reconnectTimer=null,connectionEpoch=0;
 let backend='asbplayer',nativeEnabled=false;
+let offscreenCreation=null;
 let episodeContexts=new Map(),bindingLost=false;
 let activeTabId=null,autoEnabled=true,storedToken='',initialized=false,autoTimer=null;
 let reconnectDelay=1000;
@@ -15,6 +16,7 @@ const send=m=>{if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify
 const hash=async value=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))].map(x=>x.toString(16).padStart(2,'0')).join('');
 function publishBinding(){
   send({type:'Bound',identity:selected});
+  send({type:'RecorderState',identity:selected,enabled:nativeEnabled});
   const context=episodeContexts.get(selected?.tabId);if(context)send({...context,identity:selected});
   for(const caption of captionCache.get(key(selected))||[])send(caption);
 }
@@ -25,7 +27,13 @@ async function toFrame(type,extra={},identity=selected){
 }
 async function offscreen(message){return chrome.runtime.sendMessage({target:'offscreen',...message});}
 async function ensureOffscreen(){
-  if(!await chrome.offscreen.hasDocument())await chrome.offscreen.createDocument({url:'offscreen.html',reasons:['USER_MEDIA'],justification:'Record connected tab audio and cropped video images locally'});
+  if(offscreenCreation)return offscreenCreation;
+  if(await chrome.offscreen.hasDocument())return;
+  // Multiple initialization requests share one offscreen document creation.
+  if(!offscreenCreation)offscreenCreation=chrome.offscreen.createDocument({url:'offscreen.html',reasons:['USER_MEDIA'],justification:'Record connected tab audio and cropped video images locally'}).catch(async error=>{
+    if(!await chrome.offscreen.hasDocument())throw error;
+  }).finally(()=>{offscreenCreation=null;});
+  return offscreenCreation;
 }
 async function fail(reason){
   if(!recording)return;const r=recording;recording=null;
@@ -36,13 +44,24 @@ async function fail(reason){
   send({type:'CaptureResult',operationId:r.operationId,ok:false,error:reason,identity:r.identity});
 }
 async function connect(m){
+  if(selected?.tabId===m.identity.tabId){
+    if(recording&&key(selected)!==key(m.identity))throw Error('Finish or cancel the current recording before changing video');
+    // The stream belongs to the tab, not its replaceable video/frame. Keep it
+    // alive across episode changes and repeated clicks on Connect.
+    selected=m.identity;autoEnabled=true;bindingLost=false;
+    storedToken=m.token||storedToken;
+    await chrome.storage.local.set({token:storedToken,selected,autoConnect:true});
+    if(socket?.readyState===WebSocket.OPEN&&status==='Connected')publishBinding();
+    else await openSocket(storedToken);
+    return {ok:true};
+  }
   await disconnect();
   try{
     selected=m.identity;
     autoEnabled=true;storedToken=m.token||storedToken;
     bindingLost=false;
     await chrome.storage.local.set({token:storedToken,selected,autoConnect:true});
-    openSocket(storedToken);return {ok:true};
+    await openSocket(storedToken);return {ok:true};
   }catch(error){await disconnect();throw error;}
 }
 async function disconnect(manual=false){
@@ -121,8 +140,12 @@ async function enableNative(m){
   if(backend!=='native')throw Error('asbplayer is selected in SubtitlePlayer. Enable recording with its action button.');
   if(key(m.identity)!==key(selected))throw Error('Connect this video first');
   await ensureOffscreen();
+  const current=await offscreen({type:'StreamState'});
+  if(current?.connected&&current.tabId===selected.tabId){
+    nativeEnabled=true;send({type:'RecorderState',identity:selected,enabled:true});return {ok:true};
+  }
   const streamId=await chrome.tabCapture.getMediaStreamId({targetTabId:selected.tabId});
-  const result=await offscreen({type:'ConnectStream',streamId});
+  const result=await offscreen({type:'ConnectStream',streamId,tabId:selected.tabId});
   nativeEnabled=!!result?.ok;
   if(!nativeEnabled)throw Error(result?.error||'Cannot capture tab audio');
   send({type:'RecorderState',identity:selected,enabled:true});
@@ -148,11 +171,24 @@ async function captureScreenshot(m){
   }catch(error){if(stillCurrent())await fail(error.message);}
   finally{clearTimeout(timeout);}
 }
-function openSocket(token){
-  const epoch=++connectionEpoch;
+function scheduleReconnect(epoch,token){
+  if(epoch!==connectionEpoch)return;
+  status='Waiting for SubtitlePlayer. Start the desktop app; reconnection is automatic.';
   clearTimeout(reconnectTimer);
-  if(socket){socket.onclose=null;socket.close();}
+  reconnectTimer=setTimeout(()=>{if(selected&&epoch===connectionEpoch)openSocket(token);},reconnectDelay);
+  reconnectDelay=Math.min(15000,reconnectDelay*2);
+}
+async function openSocket(token){
+  const epoch=++connectionEpoch;
+  clearTimeout(reconnectTimer);clearInterval(heartbeat);
+  if(socket){socket.onclose=null;socket.close();socket=null;}
   status='Connecting to SubtitlePlayer…';
+  try{
+    const response=await fetch('http://127.0.0.1:8767/health',{cache:'no-store',redirect:'error',signal:AbortSignal.timeout(1500)});
+    const health=response.ok&&await response.json();
+    if(!health||health.service!=='SubtitlePlayer'||health.version!==1)throw Error('Desktop bridge is not ready');
+  }catch{scheduleReconnect(epoch,token);return;}
+  if(epoch!==connectionEpoch||!selected)return;
   const ws=new WebSocket('ws://127.0.0.1:8767');socket=ws;
   ws.onopen=()=>{if(epoch===connectionEpoch)ws.send(JSON.stringify({type:'Hello',version:1,token,pair:true}));};
   ws.onerror=()=>{if(epoch===connectionEpoch)status='Waiting for SubtitlePlayer. Start the desktop app; reconnection is automatic.';};
@@ -217,10 +253,7 @@ function openSocket(token){
     const denied=event.code===1008&&event.reason!=='Already connected';
     status=denied?'Connection not approved. Click Connect to try again.':'Waiting for SubtitlePlayer. Reconnecting automatically…';
     fail('Browser connection lost').catch(()=>{});clearInterval(heartbeat);
-    if(!denied){
-      reconnectTimer=setTimeout(()=>{if(selected&&epoch===connectionEpoch)openSocket(token);},reconnectDelay);
-      reconnectDelay=Math.min(15000,reconnectDelay*2);
-    }
+    if(!denied)scheduleReconnect(epoch,token);
   };
   clearInterval(heartbeat);heartbeat=setInterval(()=>send({type:'Heartbeat'}),20000);
 }
@@ -228,7 +261,7 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
   if(m.target==='offscreen')return;
   if(m.type==='ListVideos'){
     activeTabId=m.tabId;
-    discoverTab(m.tabId).then(discoveryError=>reply({videos:[...observed.values()].filter(v=>v.identity.tabId===m.tabId&&Date.now()-v.seen<5000),status,backend,nativeEnabled,discoveryError,autoEnabled}));return true;
+    discoverTab(m.tabId).then(discoveryError=>reply({videos:[...observed.values()].filter(v=>v.identity.tabId===m.tabId&&Date.now()-v.seen<5000),selected,status,backend,nativeEnabled,discoveryError,autoEnabled}));return true;
   }
   if(m.type==='Connect'){serializeConnection(()=>connect(m)).then(reply,e=>reply({ok:false,error:e.message}));return true;}
   if(m.type==='EnableNativeRecording'){serializeConnection(()=>enableNative(m)).then(reply,e=>reply({ok:false,error:e.message}));return true;}
@@ -236,6 +269,10 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
     serializeConnection(()=>disconnect(true)).then(reply,e=>reply({ok:false,error:e.message}));return true;
   }
   if(!sender.tab){
+    if(m.type==='NativeRecordingStopped'&&m.tabId===selected?.tabId){
+      nativeEnabled=false;send({type:'RecorderState',identity:selected,enabled:false});
+      fail('Tab audio stopped. Open the SubtitlePlayer extension to enable it again.').catch(()=>{});
+    }
     if(m.type==='AudioChunk'&&selected)send({...m,identity:selected});
     if(m.type==='EncodedCapture'){
       if(recording?.operationId===m.operationId)send({...m,type:'CaptureResult',ok:true,identity:selected});
@@ -323,11 +360,12 @@ chrome.tabs.onUpdated.addListener((tabId,change)=>{if(tabId===selected?.tabId&&c
 chrome.storage.local.get(['selected','token','autoConnect']).then(async saved=>{
   storedToken=saved.token||'';autoEnabled=saved.autoConnect!==false;initialized=true;
   if(!selected&&saved.selected&&autoEnabled){
+  let restoredNative=false;
   if(await chrome.offscreen.hasDocument()){
     const state=await offscreen({type:'StreamState'});
-    nativeEnabled=!!state?.connected;
+    restoredNative=!!state?.connected&&state.tabId===saved.selected.tabId;
   }
-  selected=saved.selected;openSocket(saved.token);
+  if(!selected){nativeEnabled=restoredNative;selected=saved.selected;openSocket(saved.token);}
   }
   const [active]=await chrome.tabs.query({active:true,lastFocusedWindow:true});
   if(active){activeTabId=active.id;await discoverTab(active.id);scheduleAutoConnect();}

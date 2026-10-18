@@ -44,7 +44,7 @@ class BrowserBridge:
             try:
                 from websockets.sync.server import serve
                 with serve(self._accept, "127.0.0.1", self.port, max_size=32 * 1024 * 1024,
-                           ping_interval=10, ping_timeout=10) as server:
+                           ping_interval=10, ping_timeout=10, process_request=self._health) as server:
                     with self._lock:
                         self._server = server
                     if self._stop.is_set():
@@ -63,6 +63,17 @@ class BrowserBridge:
                 self.ready.set()
         self._thread = threading.Thread(target=run, name="browser-bridge", daemon=True)
         self._thread.start()
+
+    @staticmethod
+    def _health(connection, request):
+        """Readiness only: never expose credentials, playback or note content."""
+        if request.path != "/health" or request.headers.get("Upgrade", "").lower() == "websocket":
+            return None
+        from http import HTTPStatus
+        response = connection.respond(HTTPStatus.OK, json.dumps({"service": "SubtitlePlayer", "version": PROTOCOL_VERSION}))
+        response.headers["Content-Type"] = "application/json"
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
     def _emit(self, event):
         event = {**event, "_received_monotonic": time.monotonic()}

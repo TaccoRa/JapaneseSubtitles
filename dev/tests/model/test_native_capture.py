@@ -107,6 +107,96 @@ def test_capture_preflight_requires_the_browser_recording_gesture_before_adding_
     assert not sync.sent
 
 
+@pytest.mark.parametrize("note_first", [True, False])
+def test_parallel_capture_joins_both_completion_orders_once(tmp_path, note_first):
+    import json
+    sync = browser()
+    sync._pending_directory, sync._pending_media = tmp_path, {}
+    attached = []
+    def attach(session, result):
+        session.phase = "pending_media"
+        attached.append((session.target_note_id, result["audio"], result["image"]))
+    sync._attach_media = attach
+    session = CaptureSession(FrozenActionTarget.create(selected_text="word", subtitle_text="sentence", sentence_key="sentence", cue_snapshot=SimpleNamespace(cue_index=0)))
+    sync.freeze_capture(session); sync.capture(session)
+    assert sync.sent[0]["noteId"] is None
+    if note_first:
+        sync.bind_capture_note(session, 123)
+    result = dict(type="CaptureResult", ok=True, operationId=session.id, identity=session.media_identity, audio="audio", image="image")
+    sync._event(result)
+    if not note_first:
+        assert not attached and session.phase == "waiting_note"
+        assert json.loads((tmp_path / (session.id + ".json")).read_text())["noteId"] is None
+        sync.bind_capture_note(session, 123)
+    assert attached == [(123, "audio", "image")]
+    sync.bind_capture_note(session, 123); sync._event(result)
+    assert len(attached) == 1
+    with pytest.raises(ValueError, match="exact"):
+        sync.bind_capture_note(session, 999)
+
+
+def test_parallel_capture_failure_does_not_attach_to_a_late_note():
+    sync = browser()
+    outcomes = []
+    sync._finish_native = lambda session, ok: outcomes.append((session.target_note_id, ok))
+    sync.report_error = lambda value: None
+    session = CaptureSession(FrozenActionTarget.create(selected_text="word", subtitle_text="sentence", sentence_key="sentence", cue_snapshot=SimpleNamespace(cue_index=0)))
+    sync.freeze_capture(session); sync.capture(session)
+    sync._event(dict(type="CaptureResult", ok=False, operationId=session.id, error="Recording cancelled"))
+    sync.bind_capture_note(session, 123)
+    assert outcomes == [(None, False), (123, False)]
+    assert not sync._capture and session.phase == "failed" and not session.native_result
+    assert not any(message["type"] == "CaptureCommit" for message in sync.sent)
+
+
+def test_parallel_capture_waits_for_note_before_verifying_reused_media(monkeypatch):
+    import queue
+    import controller.browser_sync_controller as module
+    sync = browser(); sync._results = queue.Queue()
+    verified = []
+    sync.controller.anki = SimpleNamespace(verify_capture_media=verified.append)
+    class Worker:
+        def __init__(self, target, **kwargs): self.target = target
+        def start(self): self.target()
+    monkeypatch.setattr(module.threading, "Thread", Worker)
+    session = CaptureSession(FrozenActionTarget.create(selected_text="word", subtitle_text="sentence", sentence_key="sentence", cue_snapshot=SimpleNamespace(cue_index=0)), reuse_ready=True)
+    sync.freeze_capture(session); sync.capture(session)
+    sync._event(dict(type="CaptureResult", ok=True, reused=True, operationId=session.id, identity=session.media_identity))
+    assert not verified
+    sync.bind_capture_note(session, 123)
+    assert verified == [123] and sync._results.get_nowait() == ("reuse", session.id, None)
+
+
+def test_new_capture_is_rejected_while_card_and_recording_join_is_pending():
+    sync = browser()
+    def session():
+        return CaptureSession(FrozenActionTarget.create(selected_text="word", subtitle_text="sentence", sentence_key="sentence", cue_snapshot=SimpleNamespace(cue_index=0)))
+    first = session(); sync.freeze_capture(first); sync.capture(first)
+    with pytest.raises(ValueError, match="already in progress"):
+        sync.freeze_capture(session())
+
+
+@pytest.mark.parametrize("recording_finished", [True, False])
+def test_card_creation_failure_cancels_parallel_capture_without_playing(tmp_path, recording_finished):
+    import json
+    sync = browser()
+    sync._pending_directory, sync._pending_media = tmp_path, {}
+    sync._retry_button = SimpleNamespace(pack=lambda **kwargs: None)
+    sync.bridge.command = lambda identity, action: sync.sent.append({"type": "PlayerCommand", "action": action})
+    sync._finish_native = lambda *args: None
+    session = CaptureSession(FrozenActionTarget.create(selected_text="word", subtitle_text="sentence", sentence_key="sentence", cue_snapshot=SimpleNamespace(cue_index=0)))
+    sync.freeze_capture(session); sync.capture(session)
+    if recording_finished:
+        sync._event(dict(type="CaptureResult", ok=True, operationId=session.id, identity=session.media_identity, audio="audio", image="image"))
+    sync.capture_note_failed(session)
+    assert session.cancelled and sync._capture is None
+    assert sync.sent[-1] == {"type": "PlayerCommand", "action": "abort"}
+    assert not any(message.get("action") == "play" for message in sync.sent)
+    if recording_finished:
+        saved = json.loads((tmp_path / (session.id + ".json")).read_text())
+        assert saved["noteId"] is None and saved["media"]["audio"] == "audio"
+
+
 def test_local_audio_anchor_fit_handles_drift_and_uncertain_extrapolation(tmp_path):
     source = tuple((i * 10, i * 10 + 2) for i in range(12))
     aligner = AudioAnchorAligner(tmp_path, source, ["text"] * 12, "source", "episode")
