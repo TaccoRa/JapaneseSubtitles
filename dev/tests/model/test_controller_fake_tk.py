@@ -306,6 +306,31 @@ def test_subtitle_display_respects_cue_end_time_gap():
     assert renderer.calls[-1]["top"] == [("second", "second-ruby")]
 
 
+def test_connected_cue_is_not_deleted_by_the_legacy_timeout():
+    controller, navigation, renderer = make_slider_controller()
+    controller.browser_sync = SimpleNamespace(following=True, source_time=lambda value: value)
+    controller.current_time = 1.0
+    controller.playing = True
+    navigation._update_subtitle_display(allow_auto_ruby=False)
+    assert controller.subtitle_timeout_job is None
+    navigation._hide_subtitles_temporarily()
+    assert not controller.subtitle_deleted
+    assert not renderer.canvas.deleted
+
+
+def test_connected_overlay_recovers_if_withdrawn_without_user_hiding_it():
+    controller, navigation, renderer = make_slider_controller()
+    shown = []
+    controller.browser_sync = SimpleNamespace(following=True, source_time=lambda value: value)
+    controller.current_time = 1.0
+    controller.overlay.sub_window = SimpleNamespace(state=lambda: "withdrawn")
+    controller.settings.root.state = lambda: "normal"
+    controller.overlay.show = lambda: shown.append(True)
+    navigation._update_subtitle_display(allow_auto_ruby=False)
+    assert shown == [True]
+    assert renderer.calls[-1]["top"] == [("first", "first-ruby")]
+
+
 def test_copy_text_uses_visible_rendered_subtitle_index():
     controller, navigation, _renderer = make_slider_controller()
     controller.sub_manager.display_end_times = [2.0, 12.0]

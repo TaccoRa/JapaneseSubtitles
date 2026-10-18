@@ -6,7 +6,7 @@ import queue
 import threading
 import time
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 
 from model.browser_bridge import BrowserBridge
 from model.browser_protocol import MediaIdentity, PlaybackSnapshot
@@ -26,6 +26,7 @@ class BrowserSyncController:
         self._source_key = None
         self._generation = 0
         self._analyzing = False
+        self._alignment_attempt_key = None
         self._reference = ()
         self._reference_kind = "none"
         self._results = queue.Queue()
@@ -51,7 +52,8 @@ class BrowserSyncController:
             cfg.set_many(updates)
             controller.settings.persist_active_profile_fields({"POST_CAPTURE_PLAYBACK": updates.get("POST_CAPTURE_PLAYBACK", cfg.get("POST_CAPTURE_PLAYBACK"))})
         port = cfg.get("BROWSER_BRIDGE_PORT")
-        self.bridge = BrowserBridge(cfg.get("BROWSER_PAIRING_TOKEN"), int(port if port is not None else 8767))
+        self.bridge = BrowserBridge(cfg.get("BROWSER_PAIRING_TOKEN"), int(port if port is not None else 8767),
+                                    cfg.get("BROWSER_TRUSTED_EXTENSION_ORIGINS") or ())
         base = Path(cfg.local_path).resolve().parent
         self.cache = TimingMapCache(base / "timing_maps")
         self._pending_directory = base / "pending_capture_media"
@@ -96,28 +98,19 @@ class BrowserSyncController:
     def _open_settings(self):
         root = tk.Toplevel(self.controller.settings.root)
         root.title("Browser connection")
-        root.geometry("590x390")
-        text = "1. Load browser-extension in chrome://extensions (Load unpacked).\n2. Open the extension on your video tab and enter this pairing code.\n3. Select the video and click Connect once to allow tab recording."
+        root.geometry("590x300")
+        text = "Open the companion extension on your video tab, select the video and click Connect.\nAllow its first connection here once; later connections are automatic.\nRecorder and after-capture options are in Advanced Settings → Anki → Browser Recording."
         tk.Label(root, text=text, justify="left", wraplength=560).pack(padx=12, pady=12)
+        tk.Label(root, textvariable=self._status_var, wraplength=560).pack(padx=12, pady=5)
+        ttk.Button(root, text="Show subtitles", command=lambda: self.controller.subtitle_navigation.on_refresh_subtitles(None)).pack(pady=5)
         code = ttk.Entry(root, width=65)
         code.insert(0, self.bridge.token)
-        code.pack(padx=12)
         def copy():
             root.clipboard_clear(); root.clipboard_append(self.bridge.token)
-        ttk.Button(root, text="Copy pairing code", command=copy).pack(pady=5)
-        cfg = self.controller.config
-        tk.Label(root, text="Recorder (asbplayer remains the validated default)").pack()
-        backend = tk.StringVar(value=cfg.get("CAPTURE_BACKEND") or "asbplayer")
-        ttk.Combobox(root, textvariable=backend, values=("asbplayer", "native"), state="readonly").pack()
-        tk.Label(root, text="After successful native capture").pack(pady=(8, 0))
-        policy = tk.StringVar(value=cfg.get("POST_CAPTURE_PLAYBACK") or "play")
-        ttk.Combobox(root, textvariable=policy, values=("play", "paused", "restore"), state="readonly").pack()
-        def save():
-            values = {"CAPTURE_BACKEND": backend.get(), "POST_CAPTURE_PLAYBACK": policy.get()}
-            cfg.set_many(values)
-            self.controller.settings.persist_active_profile_fields(values)
-            root.destroy()
-        ttk.Button(root, text="Save", command=save).pack(pady=12)
+        copy_button = ttk.Button(root, text="Copy pairing code", command=copy)
+        def show_manual():
+            code.pack(padx=12); copy_button.pack(pady=5)
+        ttk.Button(root, text="Manual pairing fallback", command=show_manual).pack(pady=5)
 
     def _set_status(self, value):
         self.status = value
@@ -141,6 +134,7 @@ class BrowserSyncController:
         self._generation += 1
         self.mapping = None
         self._analyzing = False
+        self._alignment_attempt_key = None
         self._audio_aligner = None
         if self._capture:
             self.abort("Subtitle or media source changed")
@@ -151,6 +145,10 @@ class BrowserSyncController:
         source_hash, source = self._source()
         fingerprint = self.snapshot.fingerprint
         reference = tuple(self._reference)
+        attempt = (source_hash, fingerprint, reference, self._reference_kind)
+        if self._alignment_attempt_key == attempt:
+            return
+        self._alignment_attempt_key = attempt
         original_source = source
         first = 0
         if self._reference_kind == "rendered":
@@ -194,7 +192,7 @@ class BrowserSyncController:
         if self._capture and action != "abort":
             self.abort("Playback changed by SubtitlePlayer")
         operation = self.bridge.command(self.identity, action, **arguments)
-        self._commands[operation] = time.monotonic()
+        self._commands[operation] = time.monotonic() + (12.0 if action == "seek" else 3.0)
         return operation
 
     def source_time(self, video_time):
@@ -286,7 +284,21 @@ class BrowserSyncController:
 
     def _event(self, event):
         kind = event["type"]
-        if kind == "Bound":
+        if kind == "PairingRequested":
+            settings = self.controller.settings
+            settings.adv_settings._set_modal_input_active(True)
+            try:
+                allowed = messagebox.askyesno("Connect browser?",
+                    "Allow the browser extension to connect to SubtitlePlayer?\n\nOnly allow this if you just clicked Connect in the SubtitlePlayer companion extension. It can control the selected video and provide Anki capture media.\n\nYou only need to approve it once.",
+                    parent=settings.root)
+            finally:
+                settings.adv_settings._set_modal_input_active(False)
+            self.bridge.approve_pairing(event["requestId"], allowed)
+        elif kind == "TrustedOrigin":
+            origins = set(self.controller.config.get("BROWSER_TRUSTED_EXTENSION_ORIGINS") or ())
+            origins.add(event["origin"])
+            self.controller.config.set("BROWSER_TRUSTED_EXTENSION_ORIGINS", sorted(origins))
+        elif kind == "Bound":
             self._connected = True
             identity = MediaIdentity.read(event["identity"])
             if identity != self.identity:
@@ -318,6 +330,8 @@ class BrowserSyncController:
                 self._caption_last = None; self._observed_intervals = []
             self.snapshot = snapshot
             self._source()
+            if self._reference and self.mapping is None:
+                self._align()
         elif kind in ("CaptionText", "CaptionIntervals"):
             if MediaIdentity.read(event["identity"]) != self.identity:
                 return
@@ -470,8 +484,8 @@ class BrowserSyncController:
                 self._set_status("Aligned · Chrome" if idx is None or self.mapping.confidence[idx] else "Alignment uncertain")
             elif not self.fresh:
                 self._set_status("Chrome disconnected or buffering · clock frozen")
-        for operation, started in list(self._commands.items()):
-            if time.monotonic() - started > 3:
+        for operation, deadline in list(self._commands.items()):
+            if time.monotonic() > deadline:
                 del self._commands[operation]
                 self._set_status("Video command not acknowledged")
         if self.bridge.error:

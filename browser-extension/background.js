@@ -34,11 +34,11 @@ async function connect(m){
 function openSocket(token){
   if(socket){socket.onclose=null;socket.close();}
   socket=new WebSocket('ws://127.0.0.1:8767');
-  socket.onopen=()=>socket.send(JSON.stringify({type:'Hello',version:1,token}));
+  socket.onopen=()=>socket.send(JSON.stringify({type:'Hello',version:1,token,pair:true}));
   const handleMessage=async({data})=>{
     const m=JSON.parse(data);
     try{
-      if(m.type==='Welcome'){status='Connected';send({type:'Bound',identity:selected});for(const c of captionCache.get(key(selected))||[])send(c);return;}
+      if(m.type==='Welcome'){if(m.token){token=m.token;await chrome.storage.local.set({token});}status='Connected';send({type:'Bound',identity:selected});for(const c of captionCache.get(key(selected))||[])send(c);return;}
       if(m.type==='TimingMap')return;
       if(m.type==='PlayerCommand'){
         if(key(m.identity)!==key(selected))throw Error('Stale video identity');
@@ -78,7 +78,7 @@ function openSocket(token){
     }
   };
   socket.onmessage=event=>{incoming=incoming.then(()=>handleMessage(event));};
-  socket.onclose=()=>{status='Disconnected';fail('Browser connection lost');clearInterval(heartbeat);setTimeout(()=>{if(selected)openSocket(token);},2000);};
+  socket.onclose=event=>{status=event.code===1008?'Connection not approved. Click Connect to try again.':'Disconnected';fail('Browser connection lost');clearInterval(heartbeat);if(event.code!==1008)setTimeout(()=>{if(selected)openSocket(token);},2000);};
   clearInterval(heartbeat);heartbeat=setInterval(()=>send({type:'Heartbeat'}),20000);
 }
 chrome.runtime.onMessage.addListener((m,sender,reply)=>{
@@ -131,7 +131,10 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
     (async()=>{try{
       const url=new URL(m.url);if(!['http:','https:'].includes(url.protocol))return;
       const response=await fetch(url.href);if(!response.ok)return;
-      const text=await response.text();if(text.length<4000000){const value={type:'CaptionText',identity,text,language:m.language};captionCache.set(key(identity),[value]);if(key(identity)===key(selected))send(value);}
+      const text=await response.text();
+      const current=observed.get(key(identity));
+      if(m.mediaKey&&current&&await hash(m.mediaKey)!==current.fingerprint)return;
+      if(text.length<4000000){const value={type:'CaptionText',identity,text,language:m.language};captionCache.set(key(identity),[value]);if(key(identity)===key(selected))send(value);}
     }catch{}})();
   }
 });

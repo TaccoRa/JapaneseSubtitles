@@ -2,6 +2,7 @@
 import hmac
 import json
 import queue
+import re
 import secrets
 import threading
 import time
@@ -11,7 +12,7 @@ from model.browser_protocol import PROTOCOL_VERSION
 
 
 class BrowserBridge:
-    def __init__(self, token=None, port=8767):
+    def __init__(self, token=None, port=8767, trusted_origins=()):
         self.token = token or secrets.token_urlsafe(32)
         self.port = port
         self.events = queue.Queue(maxsize=200)
@@ -20,6 +21,15 @@ class BrowserBridge:
         self._lock = threading.RLock()
         self.ready = threading.Event()
         self.error = None
+        self.trusted_origins = set(trusted_origins)
+        self._pairing = {}
+
+    def approve_pairing(self, request_id, allowed):
+        with self._lock:
+            request = self._pairing.get(request_id)
+            if request is not None:
+                request["allowed"] = bool(allowed)
+                request["ready"].set()
 
     def start(self):
         def run():
@@ -54,7 +64,26 @@ class BrowserBridge:
                 peer.close(1008, "Extension origin required")
                 return
             hello = json.loads(peer.recv(timeout=5))
-            if hello.get("type") != "Hello" or hello.get("version") != PROTOCOL_VERSION or not hmac.compare_digest(str(hello.get("token", "")), self.token):
+            valid = hmac.compare_digest(str(hello.get("token", "")), self.token)
+            pairing = False
+            if hello.get("type") == "Hello" and hello.get("version") == PROTOCOL_VERSION and not valid and hello.get("pair") and re.fullmatch(r"chrome-extension://[a-p]{32}", origin):
+                pairing = True
+                if origin in self.trusted_origins:
+                    valid = True
+                else:
+                    request_id = uuid.uuid4().hex
+                    request = {"ready": threading.Event(), "allowed": False}
+                    with self._lock:
+                        if self._peer is not None or self._pairing:
+                            peer.close(1008, "Connection or pairing already active")
+                            return
+                        self._pairing[request_id] = request
+                    self._emit(dict(type="PairingRequested", requestId=request_id, origin=origin))
+                    request["ready"].wait(30)
+                    with self._lock:
+                        self._pairing.pop(request_id, None)
+                    valid = request["allowed"]
+            if hello.get("type") != "Hello" or hello.get("version") != PROTOCOL_VERSION or not valid:
                 peer.close(1008, "Pairing required")
                 return
             with self._lock:
@@ -63,7 +92,13 @@ class BrowserBridge:
                     return
                 self._peer = peer
                 authenticated = True
-            peer.send(json.dumps({"type": "Welcome", "version": PROTOCOL_VERSION}))
+            welcome = {"type": "Welcome", "version": PROTOCOL_VERSION}
+            if pairing:
+                welcome["token"] = self.token
+            peer.send(json.dumps(welcome))
+            if re.fullmatch(r"chrome-extension://[a-p]{32}", origin):
+                self.trusted_origins.add(origin)
+                self._emit(dict(type="TrustedOrigin", origin=origin))
             self._emit({"type": "Connected"})
             for raw in peer:
                 value = json.loads(raw)
@@ -79,10 +114,15 @@ class BrowserBridge:
                 self._emit({"type": "Disconnected"})
 
     def send(self, message):
+        from websockets.exceptions import ConnectionClosed
+        payload = json.dumps(message)
         with self._lock:
             if self._peer is None:
                 raise ConnectionError("Chrome is disconnected")
-            self._peer.send(json.dumps(message))
+            try:
+                self._peer.send(payload)
+            except (ConnectionClosed, OSError) as exc:
+                raise ConnectionError("Chrome is disconnected") from exc
 
     def command(self, identity, action, **arguments):
         operation = uuid.uuid4().hex
@@ -92,6 +132,8 @@ class BrowserBridge:
 
     def close(self):
         with self._lock:
+            for request in self._pairing.values():
+                request["ready"].set()
             if self._peer:
                 self._peer.close()
         if self._server:

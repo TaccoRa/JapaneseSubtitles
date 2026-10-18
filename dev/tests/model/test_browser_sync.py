@@ -30,6 +30,16 @@ def test_reject_nonfinite_clock():
         snapshot(currentTime=float("nan"))
 
 
+def test_disconnected_send_uses_the_recoverable_connection_error():
+    from types import SimpleNamespace
+    bridge = BrowserBridge("test-secret")
+    def closed(_payload):
+        raise OSError("connection closed during send")
+    bridge._peer = SimpleNamespace(send=closed)
+    with pytest.raises(ConnectionError):
+        bridge.send({"type": "TimingMap"})
+
+
 def test_bridge_preserves_arrival_time_through_a_delayed_ui_queue(monkeypatch):
     import model.browser_bridge as module
     bridge = BrowserBridge("code")
@@ -111,5 +121,45 @@ def test_bridge_requires_token_and_routes_exact_identity():
             message = json.loads(peer.recv(timeout=2))
             assert message["identity"] == identity.wire()
             assert message["operationId"] == operation
+    finally:
+        bridge.close()
+
+
+def test_automatic_pairing_requires_first_approval_and_remembers_extension():
+    from websockets.sync.client import connect
+    bridge = BrowserBridge("test-secret", port=0)
+    bridge.start()
+    assert bridge.ready.wait(3)
+    origin = "chrome-extension://" + "a" * 32
+    try:
+        with connect(f"ws://127.0.0.1:{bridge.port}", origin=origin) as peer:
+            peer.send(json.dumps(dict(type="Hello", version=1, token="", pair=True)))
+            request = bridge.events.get(timeout=2)
+            assert request["type"] == "PairingRequested"
+            bridge.approve_pairing(request["requestId"], True)
+            assert json.loads(peer.recv(timeout=2))["token"] == "test-secret"
+        deadline = time.monotonic() + 2
+        while bridge._peer is not None and time.monotonic() < deadline:
+            time.sleep(.01)
+        with connect(f"ws://127.0.0.1:{bridge.port}", origin=origin) as peer:
+            peer.send(json.dumps(dict(type="Hello", version=1, token="", pair=True)))
+            assert json.loads(peer.recv(timeout=2))["type"] == "Welcome"
+    finally:
+        bridge.close()
+
+
+@pytest.mark.parametrize("origin", [None, "https://video.test"])
+def test_ordinary_pages_and_unidentified_clients_cannot_auto_pair(origin):
+    from websockets.sync.client import connect
+    from websockets.exceptions import ConnectionClosed
+    bridge = BrowserBridge("test-secret", port=0)
+    bridge.start()
+    assert bridge.ready.wait(3)
+    try:
+        with connect(f"ws://127.0.0.1:{bridge.port}", origin=origin) as peer:
+            peer.send(json.dumps(dict(type="Hello", version=1, token="", pair=True)))
+            with pytest.raises(ConnectionClosed):
+                peer.recv(timeout=2)
+        assert bridge.events.empty()
     finally:
         bridge.close()

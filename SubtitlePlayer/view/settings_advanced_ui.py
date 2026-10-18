@@ -482,6 +482,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
     def _current_local_config_snapshot(self, profile_name: str | None = None) -> dict:
         data = dict(getattr(self.config, "local_config", {}) or {})
         data.pop("BROWSER_PAIRING_TOKEN", None)
+        data.pop("BROWSER_TRUSTED_EXTENSION_ORIGINS", None)
         if profile_name:
             data["ACTIVE_SETTINGS_PROFILE"] = self._sanitize_profile_name(profile_name)
         return data
@@ -1029,6 +1030,9 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         token = self.config.get("BROWSER_PAIRING_TOKEN")
         if token:
             data["BROWSER_PAIRING_TOKEN"] = token
+        origins = self.config.get("BROWSER_TRUSTED_EXTENSION_ORIGINS")
+        if origins:
+            data["BROWSER_TRUSTED_EXTENSION_ORIGINS"] = origins
         data.setdefault("POST_CAPTURE_PLAYBACK", "play")
         data["ACTIVE_SETTINGS_PROFILE"] = name
         replacer = getattr(self.config, "replace_local_config", None)
@@ -1625,7 +1629,11 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 entry_frame.grid_columnconfigure(0, weight=1 if fill_entry else 0)
                 
                 entry_width = self._advanced_entry_width(section_name, spec)
-                entry = tk.Entry(entry_frame, textvariable=var, width=entry_width)
+                if spec.get("choices"):
+                    entry = ttk.Combobox(entry_frame, textvariable=var, width=entry_width,
+                                         values=list(spec["choices"].values()), state="readonly")
+                else:
+                    entry = tk.Entry(entry_frame, textvariable=var, width=entry_width)
                 entry.grid(row=0, column=0, sticky=("ew" if fill_entry else "w"))
                 if spec.get("tooltip"):
                     _SettingsTooltip(entry, spec["tooltip"])
@@ -2065,6 +2073,17 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 [
                     {"key": "AUDIO_PADDING", "label": "Subtitle-end audio padding (ms)", "type": "float", "default": 100},
                     {"key": "ANKI_AUTO_JUMP_AFTER_ADD", "label": "Automatically jump after Anki card was added", "type": "bool", "default": False},
+                ],
+            ),
+            (
+                "Browser Recording",
+                [
+                    {"key": "CAPTURE_BACKEND", "label": "Recorder", "type": "str", "default": "asbplayer", "width": 36,
+                     "choices": {"asbplayer": "asbplayer (existing)", "native": "Native browser capture (experimental)"}},
+                    {"key": "POST_CAPTURE_PLAYBACK", "label": "After capture", "type": "str", "default": "play", "width": 36,
+                     "choices": {"play": "Play", "paused": "Stay paused", "restore": "Restore previous play/pause state"},
+                     "tooltip": "Applies after native capture has finished and Anki media is verified. Text-only add stays paused."},
+                    {"key": "CAPTURE_PADDING_BEFORE_MS", "label": "Audio before subtitle (ms)", "type": "float", "default": 200, "min": 0, "max": 10000},
                 ],
             ),
             (
@@ -2952,7 +2971,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 allow_empty = bool(spec.get("allow_empty", False))
                 if (not text) and ((cfg_val is None) or (not allow_empty)):
                     text = str(spec.get("default", ""))
-                var.set(text)
+                var.set(spec.get("choices", {}).get(text, text))
         self._sync_advanced_startup_vars_from_runtime()
         self._sync_input_mode_runtime_flags()
         self._refresh_input_mode_button()
@@ -2998,6 +3017,14 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 continue
             if spec["type"] == "str":
                 text = str(var.get()) if bool(spec.get("preserve_whitespace", False)) else str(var.get()).strip()
+                choices = spec.get("choices", {})
+                if choices:
+                    value = next((key for key, label in choices.items() if text == label or text == key), None)
+                    if value is None:
+                        errors.append(f"{spec['label']}: choose an available option.")
+                    else:
+                        values[key] = value
+                    continue
                 allow_empty = bool(spec.get("allow_empty", False))
                 if not text and not allow_empty:
                     text = str(spec.get("default", ""))
@@ -3121,7 +3148,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                     logger.debug("Invalid default float for %s: %s", key, e, exc_info=True)
                     var.set("0")
             else:
-                var.set(str(default or ""))
+                var.set(spec.get("choices", {}).get(default, str(default or "")))
 
     @staticmethod
     def _normalize_hotkey_token(token: str) -> str:

@@ -66,8 +66,10 @@ def main():
                                      currentTime=expected(), duration=1447.829, rate=shared["rate"],
                                      paused=shared["paused"], buffering=shared["buffering"], fingerprint="isolated-fixture")
                         peer.send(json.dumps(value))
-                    snapshot()
                     peer.send(json.dumps(dict(type="CaptionText", identity=identity, text=(fixture / "source-en.vtt").read_text("utf-8-sig"))))
+                    # Exercise the startup race: captions may precede the clock.
+                    time.sleep(.2)
+                    snapshot()
                     deadline = time.monotonic() + 25
                     while sync.mapping is None and time.monotonic() < deadline:
                         snapshot(); time.sleep(.1)

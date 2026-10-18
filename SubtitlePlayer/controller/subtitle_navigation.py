@@ -386,6 +386,14 @@ class SubtitleNavigationController(_ControllerProxy):
                 self._reset_canvas()
                 return
 
+        browser = getattr(self.controller, "browser_sync", None)
+        if browser is not None and browser.following and not getattr(self, "subtitles_user_hidden", False):
+            try:
+                if self.overlay.sub_window.state() == "withdrawn" and self.settings.root.state() != "iconic":
+                    self._show_subtitle_overlay_window()
+            except (AttributeError, tk.TclError):
+                pass
+
         # KEEP HIDDEN UNTIL SUBTITLE CHANGES
         if (
             not force
@@ -438,7 +446,8 @@ class SubtitleNavigationController(_ControllerProxy):
         except Exception:
             pass
 
-        if not preview:
+        browser = getattr(self.controller, "browser_sync", None)
+        if not preview and not (browser is not None and browser.following):
             self.subtitle_timeout_job = self.overlay.root.after(
                 self.hide_subtitles_ms,
                 self._hide_subtitles_temporarily
@@ -638,6 +647,11 @@ class SubtitleNavigationController(_ControllerProxy):
         return True
 
     def _hide_subtitles_temporarily(self):
+        browser = getattr(self.controller, "browser_sync", None)
+        if browser is not None and browser.following:
+            # In connected mode the mapped cue end controls subtitle lifetime.
+            self.subtitle_timeout_job = None
+            return
         if not self.playing:
             self.subtitle_timeout_job = None
             return

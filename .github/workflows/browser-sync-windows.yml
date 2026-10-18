@@ -15,14 +15,18 @@ jobs:
       - name: Build packaged alignment helper
         run: |
           cargo build --release --manifest-path native/subtitle-align/Cargo.toml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           New-Item -ItemType Directory -Force SubtitlePlayer/bin
           Copy-Item native/subtitle-align/target/release/subtitle-align.exe SubtitlePlayer/bin/
       - name: Install and test
         run: |
           python -m pip install -r requirements.txt pytest
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m pytest dev/tests/model dev/tests/test_subtitle_alignment_probe.py -q
-          node --test dev/tests/extension.test.cjs
-          Get-ChildItem browser-extension -Filter *.js | ForEach-Object { node --check $_.FullName }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --test dev/tests/extension.test.cjs dev/tests/content.test.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-ChildItem browser-extension -Filter *.js | ForEach-Object { node --check $_.FullName; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } }
       - uses: actions/upload-artifact@v4
         with:
           name: SubtitlePlayer-browser-sync-Windows

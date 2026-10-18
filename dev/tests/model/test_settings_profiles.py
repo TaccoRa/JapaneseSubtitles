@@ -46,3 +46,23 @@ def test_runtime_episode_progress_is_written_only_to_active_profile(tmp_path):
     assert stored_b["ANIME_EPISODE_PROGRESS"]["show"]["episode"] == 9
     assert stored_a["A_ONLY"] == 1
     assert stored_b["B_ONLY"] == 2
+
+
+def test_capture_options_live_in_advanced_anki_settings_and_save_values():
+    ui = _profile_ui(_ProfileConfig("config.local.json", "A"))
+    specs = {spec["key"]: spec for column in ui._advanced_anki_columns() for _, entries in column for spec in entries}
+    keys = ("CAPTURE_BACKEND", "POST_CAPTURE_PLAYBACK")
+    ui._advanced_meta = {key: specs[key] for key in keys}
+    ui._advanced_vars = {
+        "CAPTURE_BACKEND": SimpleNamespace(get=lambda: "Native browser capture (experimental)"),
+        "POST_CAPTURE_PLAYBACK": SimpleNamespace(get=lambda: "Stay paused"),
+    }
+    assert ui._collect_advanced_values() == {"values": {"CAPTURE_BACKEND": "native", "POST_CAPTURE_PLAYBACK": "paused"}}
+
+
+def test_machine_pairing_is_not_exported_with_learning_profiles():
+    config = _ProfileConfig("config.local.json", "A")
+    config.local_config.update(BROWSER_PAIRING_TOKEN="private", BROWSER_TRUSTED_EXTENSION_ORIGINS=["origin"])
+    snapshot = _profile_ui(config)._current_local_config_snapshot("A")
+    assert "BROWSER_PAIRING_TOKEN" not in snapshot
+    assert "BROWSER_TRUSTED_EXTENSION_ORIGINS" not in snapshot

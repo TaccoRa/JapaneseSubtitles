@@ -9,10 +9,12 @@ Development: `feature/browser-sync-native-capture`. Main is unchanged.
 1. Install `requirements.txt` and restart SubtitlePlayer after stopping the old instance normally.
 2. In Chrome open `chrome://extensions`, enable Developer mode, and use **Load unpacked** to select the repository's `browser-extension` directory.
 3. Reload each prepared video page once so Chrome installs its content script in the existing nested frames.
-4. In SubtitlePlayer choose **Browser…**, copy the pairing code, open the extension on the video tab, select its video, and click **Connect video and enable recording**.
-5. Wait for **Aligned**. Choose the experimental `native` recorder in Browser settings to validate capture. The default remains `asbplayer` until live acceptance passes.
+4. Open the extension on the video tab, select its video, and click **Connect video and enable recording**. Approve the first connection in SubtitlePlayer once. The extension is remembered and reconnects automatically; copying a code is only a manual fallback.
+5. Wait for **Aligned**. Choose the experimental native recorder under **Advanced Settings → Anki → Browser Recording** to validate capture. **After capture** is in the same section. The default remains `asbplayer` until live acceptance passes.
 
 Chrome requires the extension button gesture for tab capture. No F12, stream URL, second browser, or embedded video is needed. The extension requests HTTP/HTTPS host access to read clocks in cross-origin video frames and caption resources. The bridge binds only `127.0.0.1`, authenticates before accepting messages, and rejects ordinary webpage origins. Pairing codes live in ignored local configuration, are omitted from profile exports, and never go into URLs.
+
+Automatic first pairing requires an explicit approval in the desktop app and a Chrome extension origin; ordinary pages and clients without an origin cannot use it. Approved origins and authentication tokens stay local to the computer and are excluded from learning profiles.
 
 ## Timing and capture
 
@@ -23,6 +25,8 @@ Native capture records at normal speed using the connected tab's audio and a vid
 Failed media stays in ignored `pending_capture_media/` and is retryable with **Retry media**, including after restart. Retries attach to the existing note ID and never create notes or issue playback commands. Existing exact-sentence media reconciliation and fresh-media detection remain in the Anki pipeline.
 
 Automatic OCR is bypassed while connected. OCR and manual offsets remain legacy tools.
+
+Connected cues are no longer erased by the legacy wall-clock subtitle timeout. Streaming duration updates preserve the media identity and timing map. Alignment starts once both clock and captions are available, whichever arrives first; unsuccessful evidence is not retried continuously. **Browser… → Show subtitles** restores the overlay if needed. Seek completion checks the actual clock as well as player events, and real failures include the requested and observed positions.
 
 ## Local audio fallback and packaged solver
 
