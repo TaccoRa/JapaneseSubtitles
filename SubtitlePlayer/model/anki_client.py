@@ -296,6 +296,17 @@ class AnkiClient:
             self._tagger = None
         return self._tagger
 
+    def ping_quietly(self) -> bool:
+        """Check background recovery availability without retries or error logging."""
+        try:
+            data = self._request_json(
+                "POST", self.url, timeout=min(self.http_timeout, 1.0), retries=0,
+                json={"action": "version", "version": 6, "params": {}},
+            )
+            return isinstance(data, dict) and not data.get("error") and type(data.get("result")) is int
+        except Exception:
+            return False
+
     def ping(self) -> bool:
         try:
             result = self._invoke("version")

@@ -40,6 +40,7 @@ class BrowserSyncController:
         self._control_generation = 0
         self._operations = {}
         self._retry_at = {}
+        self._restored_media = set()
         self._retry_count = {}
         self._failure_pause = None
         self._pending_seek = None
@@ -94,6 +95,8 @@ class BrowserSyncController:
                     session.media_identity = saved.get("identity")
                     session.media_fingerprint = saved.get("fingerprint", "")
                     if session.target_note_id and not session.cancelled:
+                        self._restored_media.add(session.id)
+                        session.phase = "waiting_anki"
                         self._retry_at[session.id] = time.monotonic() + 1
                     self._pending_media[session.id] = (session, saved["media"])
                 except (OSError, ValueError, KeyError, TypeError):
@@ -488,6 +491,10 @@ class BrowserSyncController:
         self._set_status("Finishing Anki media…")
         def work():
             try:
+                if session.id in getattr(self, "_restored_media", ()):
+                    if not self.controller.anki.ping_quietly():
+                        self._results.put(("waiting-anki", session.id, None))
+                        return
                 self._save_pending_media(session, result)
                 if not session.target_note_id:
                     raise RuntimeError("Recording saved without an Anki note. Card creation failed; no media was attached.")
@@ -729,6 +736,12 @@ class BrowserSyncController:
                         self.bridge.send(dict(type="TimingMap", version=value.version, video=value.video))
                 elif kind == "audio-error" and identity == self._generation:
                     self._set_status("Alignment uncertain · " + value)
+                elif kind == "waiting-anki":
+                    pending = self._pending_media.get(identity)
+                    if pending and not pending[0].cancelled:
+                        pending[0].phase = "waiting_anki"
+                        self._retry_at[identity] = time.monotonic() + 5
+                        self._set_status("Waiting for Anki - saved recordings will attach automatically")
                 elif kind == "media":
                     pending = self._pending_media.get(identity)
                     if pending is None:
@@ -750,6 +763,7 @@ class BrowserSyncController:
                             self._terminal_media_failure(session, value)
                     else:
                         del self._pending_media[identity]
+                        getattr(self, "_restored_media", set()).discard(identity)
                         (self._pending_directory / (identity + ".json")).unlink(missing_ok=True)
                         self._retry_at.pop(identity, None)
                         session.phase = "completed"

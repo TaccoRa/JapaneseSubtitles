@@ -186,3 +186,30 @@ def test_cancelled_pending_media_is_persisted_without_retry_or_player_commands(t
     assert saved["cancelled"] and saved["noteId"] == 123
     assert session.id not in sync._retry_at
     assert not any(m["type"] == "PlayerCommand" for m in sync.sent)
+
+
+def test_restored_media_waits_quietly_then_attaches_to_original_note(tmp_path):
+    from model.capture_session import CaptureSession, FrozenActionTarget
+    sync = pollable(browser(), tmp_path)
+    sync.following = False
+    session = CaptureSession(FrozenActionTarget.create(selected_text="word", subtitle_text="sentence", sentence_key="sentence"))
+    session.set_target_note(123)
+    sync._restored_media = {session.id}
+    available, attachments, failures = [False], [], []
+    sync.controller.anki_controller = NS(submit_anki_work=lambda work: work())
+    sync.controller.anki = NS(ping_quietly=lambda: available[0],
+        attach_native_capture=lambda note, *args, **kw: attachments.append(note))
+    sync.report_error = failures.append
+    media = dict(audio={"data": "saved-audio"}, image={"data": "saved-image"})
+    path = tmp_path / (session.id + ".json")
+    sync._save_pending_media(session, media)
+    original = path.read_bytes()
+    for _ in range(3):
+        sync._attach_media(session, media)
+        sync._poll()
+    assert not attachments and not failures and not sync._retry_count
+    assert session.phase == "waiting_anki" and path.read_bytes() == original
+    available[0] = True
+    sync._attach_media(session, media)
+    assert attachments == [123]
+    assert sync._results.get_nowait() == ("media", session.id, None)

@@ -1299,3 +1299,20 @@ def test_add_from_selection_reports_routing_failure_after_note_creation(monkeypa
     assert result["note_id"] == 123
     assert result["routing_error"] == "closed"
     assert result["routed_cards"] == {"reading": [], "reverse": [], "unrouted": []}
+
+
+def test_quiet_ping_does_not_retry_or_log_connection_refusal(caplog):
+    import requests
+    from types import SimpleNamespace
+    calls = []
+    def refuse(*args, **kwargs):
+        calls.append(kwargs)
+        raise requests.ConnectionError("connection refused")
+    client = object.__new__(AnkiClient)
+    client._closed = False
+    client.url = "http://127.0.0.1:8765"
+    client.http_timeout = 10
+    client._http = SimpleNamespace(request=refuse)
+    assert client.ping_quietly() is False
+    assert len(calls) == 1 and calls[0]["timeout"] == 1
+    assert not caplog.records
