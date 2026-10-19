@@ -243,7 +243,7 @@ every(()=>{
 // Common custom players expose text without a native TextTrack. Observe it as
 // evidence only; these approximate edges do not automatically earn confidence.
 every(()=>{for(const [id,v]of videos){
-  const text=roots().flatMap(r=>[...r.querySelectorAll('#subText,[data-part="cue"],.vjs-text-track-display')]).map(x=>x.textContent).join('\n').trim();
+  const text=roots().flatMap(r=>[...r.querySelectorAll('#subText,[data-part="cue"],.vjs-text-track-display,.player-timedtext')]).map(x=>x.textContent).join('\n').trim();
   if(text!==lastCaption){send({type:'CaptionObservation',videoId:id,text,time:v.currentTime});lastCaption=text;}
 }},100);
 })();

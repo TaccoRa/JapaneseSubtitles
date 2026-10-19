@@ -280,3 +280,11 @@ def test_slider_release_without_user_press_never_seeks():
     from controller.subtitle_navigation import SubtitleNavigationController
     owner = NS(slider_dragging=False,playback=NS(set_current_time=lambda *_:pytest.fail("Unrequested seek")))
     SubtitleNavigationController(owner).on_slider_release(None)
+
+
+def test_movie_episode_field_does_not_restore_old_anime_number_on_focus_loss():
+    from view.settings_ui import SettingsUI
+    values = []
+    owner = NS(_episode_is_movie=True,_last_episode_value="7",episode_var=NS(get=lambda:"Movie",set=values.append))
+    SettingsUI._on_episode_entry_focus_out(owner,None)
+    assert values == ["Movie"] and owner._last_episode_value == "Movie"

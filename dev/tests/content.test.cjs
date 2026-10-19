@@ -38,7 +38,7 @@ function environment(href="https://video.test/episode"){
   }
   advance(100);
   const message=m=>new Promise(resolve=>listener(m,{},resolve));
-  return {video,sent,advance,message,runtime,timers,windowEvents,documentEvents,reinject(){vm.runInContext(source,scope);},fullscreen(){documentEvents.get('fullscreenchange')?.();},command(action,time){
+  return {video,document,sent,advance,message,runtime,timers,windowEvents,documentEvents,reinject(){vm.runInContext(source,scope);},fullscreen(){documentEvents.get('fullscreenchange')?.();},command(action,time){
     const videoId=sent.find(m=>m.type==='PlaybackSnapshot').videoId;
     return new Promise(resolve=>listener({type:'PlayerCommand',identity:{videoId},action,time},{},resolve));
   }};
@@ -180,5 +180,17 @@ test('Netflix seek acknowledges the observed clock and capture uses the same ada
   await Promise.resolve();env.video._time=10;env.advance(50);
   assert.equal((await prepared).ok,true);
   assert.deepEqual(env.sent.filter(m=>m.type==='NetflixSeek').map(m=>m.time),[19,10]);
+  assert.equal(env.video.target,undefined);
+});
+
+
+test('Netflix rendered captions provide timing observations without changing the player',()=>{
+  const env=environment('https://www.netflix.com/watch/123');
+  let caption='Reference sentence';
+  env.document.querySelectorAll=selector=>selector==='video'?[env.video]:selector.includes('.player-timedtext')?[{textContent:caption}]:[];
+  env.advance(100);
+  env.video._time=23;caption='';env.advance(100);
+  const observations=env.sent.filter(m=>m.type==='CaptionObservation');
+  assert.deepEqual(observations.map(m=>[m.text,m.time]),[['Reference sentence',20],['',23]]);
   assert.equal(env.video.target,undefined);
 });

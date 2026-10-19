@@ -1329,6 +1329,10 @@ class SettingsUI:
         self._on_ep_dec          = on_dec
 
     def set_episode_nav_state(self, can_dec: bool, can_inc: bool, is_movie: bool = False) -> None:
+        self._episode_is_movie = bool(is_movie)
+        if is_movie:
+            self._last_episode_value = "Movie"
+            self.episode_var.set("Movie")
         if hasattr(self, "episode_type_label"):
             self.episode_type_label.configure(text="Movie" if is_movie else "Episode")
         self.episode_dec_btn.configure(state=(tk.NORMAL if can_dec else tk.DISABLED))
@@ -1360,6 +1364,10 @@ class SettingsUI:
         Restore last value if the entry is left empty (or invalid) without pressing Enter.
         This must NOT trigger subtitle loading.
         """
+        if getattr(self, "_episode_is_movie", False):
+            self._last_episode_value = "Movie"
+            self.episode_var.set("Movie")
+            return
         text = (self.episode_var.get() or "").strip() or ""
         if not text:
             self.episode_var.set(self._last_episode_value)
