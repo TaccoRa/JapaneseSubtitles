@@ -83,3 +83,5 @@ $RECYCLE.BIN/
 
 # Episode-specific subtitle trims (personal runtime data)
 subtitle_trims.json
+browser_subtitle_sources.json
+browser_subtitle_sources.tmp

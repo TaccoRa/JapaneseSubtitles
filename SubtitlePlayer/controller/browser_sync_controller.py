@@ -13,6 +13,7 @@ from tkinter import ttk, messagebox
 
 from model.browser_bridge import BrowserBridge
 from model.browser_protocol import MediaIdentity, PlaybackSnapshot
+from model.browser_sources import BrowserSources
 from model.subtitle_alignment import align_intervals, parse_intervals
 from model.timing_map import TimingMapCache, digest
 from model.capture_session import CaptureSession, FrozenActionTarget
@@ -80,6 +81,9 @@ class BrowserSyncController:
         self.bridge = BrowserBridge(cfg.get("BROWSER_PAIRING_TOKEN"), int(port if port is not None else 8767),
                                     cfg.get("BROWSER_TRUSTED_EXTENSION_ORIGINS") or ())
         base = Path(cfg.local_path).resolve().parent
+        self._source_bindings = BrowserSources(base / "browser_subtitle_sources.json")
+        self._media_key = None
+        self._last_episode_context = None
         self.cache = TimingMapCache(base / "timing_maps")
         self._trim_path = base / "subtitle_trims.json"
         try:
@@ -224,7 +228,44 @@ class BrowserSyncController:
             self._source_intervals = tuple(zip(self.controller.episode_controller._get_display_start_times(),
                                               self.controller.episode_controller._get_display_end_times()))
             self.invalidate()
+            self.remember_browser_source()
         return self._source_hash, self._source_intervals
+
+    def remember_browser_source(self, explicit=False):
+        bindings = getattr(self, "_source_bindings", None)
+        context = getattr(self, "_media_context", None)
+        if bindings is None or not context or not context.get("pageKey"):
+            return
+        manager = self.controller.sub_manager
+        normalize = lambda text: re.sub(r"[\W_]", "", str(text or "").casefold())
+        name, title = normalize(manager.get_anime_name()), normalize(context.get("title"))
+        # Initial association needs a matching title. An explicit source choice
+        # is authoritative, including Japanese/English title aliases.
+        if not explicit and (len(name) < 3 or name not in title):
+            return
+        key = digest(context["pageKey"].encode())
+        try:
+            bindings.remember(key, manager)
+        except (OSError, TypeError, ValueError):
+            logger.warning("Could not persist browser subtitle association", exc_info=True)
+        self._media_key = key
+
+    def _restore_browser_source(self, key):
+        bindings = getattr(self, "_source_bindings", None)
+        if bindings is None or key not in bindings.entries:
+            return
+        try:
+            changed = bindings.restore(key, self.controller.sub_manager)
+            self._media_key = key
+            if changed:
+                self._browser_episode = None
+                self._episode_problem = None
+                self._source_key = None
+                self.invalidate()
+                self.controller.episode_controller._after_episode_change()
+        except Exception as exc:
+            logger.exception("Could not restore browser subtitle source")
+            self.report_error("Could not restore this video's subtitles: " + str(exc))
 
     def invalidate(self):
         callbacks = getattr(self, "_command_callbacks", {})
@@ -543,6 +584,7 @@ class BrowserSyncController:
             self._connected = True
             identity = MediaIdentity.read(event["identity"])
             if identity != self.identity:
+                self._last_episode_context = None
                 had_media_context = bool(getattr(self, "_media_context", None))
                 self._media_context = None
                 if had_media_context:
@@ -571,9 +613,17 @@ class BrowserSyncController:
                 context = {key: event.get(key) for key in ("title", "kind", "episode", "season", "pageKey")}
                 if context != getattr(self, "_media_context", None):
                     self._media_context = context
+                    if context.get("pageKey"):
+                        key = digest(context["pageKey"].encode())
+                        self._restore_browser_source(key)
+                        self.remember_browser_source()
+                        pending = getattr(self, "_last_episode_context", None)
+                        if pending:
+                            self._follow_episode(pending)
                     self.controller.episode_controller.update_media_presentation()
         elif kind == "EpisodeContext":
             if self.identity and MediaIdentity.read(event["identity"]) == self.identity:
+                self._last_episode_context = event
                 self._follow_episode(event)
         elif kind == "RecorderState":
             if self.identity and MediaIdentity.read(event["identity"]) == self.identity:

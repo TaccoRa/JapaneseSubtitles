@@ -399,6 +399,9 @@ class EpisodeController(_ControllerProxy):
             path = self.sub_manager.set_new_file()
             if path:
                 self._after_episode_change()
+                browser = getattr(self.controller, "browser_sync", None)
+                if browser is not None and browser.following:
+                    browser.remember_browser_source(explicit=True)
 
     def change_episode(self, action: str):
             switch_start = time.perf_counter()
