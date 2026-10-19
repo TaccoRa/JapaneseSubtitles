@@ -1,3 +1,3 @@
-# Optional CPU-only, local Japanese speech anchors. Models download on setup,
-# not during playback. Existing translation providers are independent.
+# CPU-only local multilingual speech alignment. Model data downloads on setup,
+# never during playback. Existing translation providers are independent.
 faster-whisper>=1.2.1,<2
