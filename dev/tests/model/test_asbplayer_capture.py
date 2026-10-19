@@ -75,7 +75,7 @@ def test_legacy_needs_neither_native_permission_alignment_nor_asb_api_connection
 def test_legacy_waits_for_created_note_before_any_capture_hotkey(tmp_path):
     sync=legacy_browser();operation=session();sync.freeze_capture(operation);sync.capture(operation)
     calls=[]
-    sync.controller.anki=NS(capture_note_snapshot=lambda note:calls.append(("snapshot",note)) or {"fields":{},"tags":[]},
+    sync.controller.anki=NS(capture_note_snapshot=lambda note,**kwargs:calls.append(("snapshot",note)) or {"fields":{},"tags":[]},
                            _invoke=lambda action,params:calls.append((action,params)) or [99])
     sync.bind_capture_note(operation,99)
     kind,operation_id,result=sync._results.get(timeout=3)
@@ -88,7 +88,7 @@ def test_legacy_waits_for_created_note_before_any_capture_hotkey(tmp_path):
 
 def test_capture_only_refuses_an_unrelated_last_added_card():
     sync=legacy_browser();operation=session();sync.freeze_capture(operation)
-    sync.controller.anki=NS(capture_note_snapshot=lambda note:{"fields":{},"tags":[]},_invoke=lambda *args:[99,100])
+    sync.controller.anki=NS(capture_note_snapshot=lambda note,**kwargs:{"fields":{},"tags":[]},_invoke=lambda *args:[99,100])
     sync.capture(operation,99)
     kind,_,error=sync._results.get(timeout=3)
     assert kind=="asb-result" and "Another card was added" in error
@@ -149,3 +149,27 @@ def test_other_cards_media_cannot_finish_an_explicit_fresh_capture():
     anki._invoke=lambda action,params:calls.append((action,params)) or [note]
     assert not anki.verify_asbplayer_capture(99,{"fields":dict(Front="word",Sound="",Image=""),"tags":[]})
     assert calls==[("notesInfo",{"notes":[99]})]
+
+
+def test_legacy_capture_only_detects_new_bytes_under_the_same_filename():
+    anki=object.__new__(AnkiClient);anki.sound_field="Sound";anki.image_field="Image"
+    fields=dict(Front="word",Sound="[sound:same.wav]",Image='<img src="same.png">')
+    media={"same.wav":"b2xkIGF1ZGlv","same.png":"b2xkIGltYWdl"}
+    def invoke(action,params):
+        if action=="notesInfo":return [dict(noteId=99,fields={k:dict(value=v) for k,v in fields.items()},tags=[])]
+        assert action=="retrieveMediaFile"
+        return media[params["filename"]]
+    anki._invoke=invoke
+    original=anki.capture_note_snapshot(99,include_media=True)
+    assert not anki.verify_asbplayer_capture(99,original)
+    media["same.wav"]="bmV3IGF1ZGlv"
+    assert not anki.verify_asbplayer_capture(99,original)
+    media["same.png"]="bmV3IGltYWdl"
+    assert anki.verify_asbplayer_capture(99,original)
+
+
+def test_legacy_negative_early_delay_is_archived_but_new_card_first_delay_is_zero():
+    old={"POST_ADD_CAPTURE_DELAY_MS":-500}
+    new=migrate({"ARCHIVED_PLAYBACK_SETTINGS":old})
+    assert new["ASBPLAYER_CAPTURE_DELAY_MS"]==0
+    assert new["ARCHIVED_PLAYBACK_SETTINGS"]["POST_ADD_CAPTURE_DELAY_MS"]==-500

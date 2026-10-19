@@ -516,7 +516,7 @@ class BrowserSyncController:
         def prepare():
             try:
                 anki = self.controller.anki
-                baseline = anki.capture_note_snapshot(session.target_note_id)
+                baseline = anki.capture_note_snapshot(session.target_note_id, include_media=True)
                 # The original shortcut updates asbplayer's last-added card.
                 # Check that identity rather than mining into an unrelated note.
                 recent = anki._invoke("findNotes", {"query": "added:1"}) or []

@@ -634,7 +634,7 @@ class AnkiClient:
             raise RuntimeError("Anki media fields are incomplete")
         return True
 
-    def capture_note_snapshot(self, note_id):
+    def capture_note_snapshot(self, note_id, *, include_media=False):
         notes = self._invoke("notesInfo", {"notes": [int(note_id)]}) or []
         if len(notes) != 1 or not notes[0] or int(notes[0].get("noteId", 0)) != int(note_id):
             raise ValueError("Target Anki note no longer exists")
@@ -642,7 +642,25 @@ class AnkiClient:
         fields = {name: value.get("value", "") for name, value in note.get("fields", {}).items()}
         if any(name not in fields for name in (self.sound_field, self.image_field)):
             raise ValueError("Target note is missing required media fields")
-        return dict(fields=fields, tags=sorted(note.get("tags", [])))
+        snapshot = dict(fields=fields, tags=sorted(note.get("tags", [])))
+        if include_media:
+            snapshot["mediaHashes"] = {name: self._capture_media_digest(name, fields[name])
+                                      for name in (self.sound_field, self.image_field)}
+        return snapshot
+
+    def _capture_media_digest(self, name, value):
+        import hashlib
+        pattern = r"\[sound:([^\]]+)\]" if name == self.sound_field else r'''<img[^>]+src=["']([^"']+)["']'''
+        filenames = re.findall(pattern, value)
+        if not filenames:
+            return None
+        hashes = []
+        for filename in filenames:
+            data = self._invoke("retrieveMediaFile", {"filename": filename})
+            if not isinstance(data, str) or not data:
+                return None
+            hashes.append(filename + ":" + hashlib.sha256(data.encode("ascii")).hexdigest())
+        return hashlib.sha256("|".join(hashes).encode()).hexdigest()
 
     def verify_asbplayer_capture(self, note_id, original, *, check_protected=True):
         """A dispatch ACK or old media must never satisfy a fresh capture."""
@@ -653,12 +671,15 @@ class AnkiClient:
             raise ValueError("asbplayer changed protected note content; check its field mapping")
         for name, marker in ((self.sound_field, "[sound:"), (self.image_field, "<img")):
             value = current["fields"].get(name, "")
-            if marker not in value or value == original["fields"][name]:
+            if marker not in value:
                 return False
-            # Verify actual media, not only field markup.
-            pattern = r"\[sound:([^\]]+)\]" if name == self.sound_field else r'''<img[^>]+src=["']([^"']+)["']'''
-            match = re.search(pattern, value)
-            if not match or not self._invoke("retrieveMediaFile", {"filename": match.group(1)}):
+            current_hash = self._capture_media_digest(name, value)
+            if not current_hash:
+                return False
+            if "mediaHashes" in original:
+                if current_hash == original["mediaHashes"].get(name):
+                    return False
+            elif value == original["fields"][name]:
                 return False
         return True
 

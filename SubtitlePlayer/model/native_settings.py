@@ -27,6 +27,11 @@ def migrate(values):
     for new, (old, _default) in LEGACY_SETTINGS.items():
         if new not in result and (old in result or old in archive):
             result[new] = result.get(old, archive.get(old))
+            if new == "ASBPLAYER_CAPTURE_DELAY_MS":
+                try:
+                    result[new] = max(0, int(float(str(result[new]).replace(",", "."))))
+                except (TypeError, ValueError):
+                    result[new] = 0
     for key in list(result):
         if retired(key):
             archive[key] = result.pop(key)
