@@ -1,4 +1,4 @@
-# Browser synchronization and native recording (0.2.1)
+# Browser synchronization and native recording (0.2.2)
 
 Watch in the existing Chrome tab. SubtitlePlayer owns the chosen Japanese subtitle content, translations, furigana, learning status and Anki fields. Source SRT/ASS/VTT bytes and cue times remain unchanged. Timing corrections and episode-specific trims are separate local data.
 
@@ -26,7 +26,7 @@ Recording starts in parallel with card creation. At the mapped boundary the exte
 
 One active recording is separate from pending Anki work. Another recording can start while an earlier card finishes. Anki creation and attachment use a separate serialized queue. Frozen selections, cues, operation IDs and explicit note IDs correlate results in either completion order. Media writes change only the target audio/image fields and are verified before success. Fresh capture does not copy its media backwards onto other notes.
 
-Temporary attachment errors retry automatically against the same note (1, 3, 10 and 30 second delays). Finished bytes and explicit target IDs persist in ignored `pending_capture_media/` across restarts. After exhaustion or permanent failure, the still-bound matching video pauses once; if another clip is active, that clip finishes first. A different tab/episode is never paused because an older operation failed. Successful background recovery never resumes playback.
+Temporary attachment errors retry automatically against the same note (1, 3, 10 and 30 second delays). Finished bytes and explicit target IDs persist in ignored `pending_capture_media/` across restarts. Cancelled operations remain cancelled across restart and are not retried. After exhaustion or permanent failure, the still-bound matching video pauses once; if another clip is active, that clip finishes first. A different tab/episode is never paused because an older operation failed. Successful background recovery never resumes playback.
 
 An uncertain card-creation response is never retried automatically and never matched to an older card by text. The app reports uncertainty and retains any finished recording without assigning a guessed note ID. Check Anki's add history before repeating the add.
 

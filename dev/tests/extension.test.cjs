@@ -337,3 +337,21 @@ test('abort during a delayed screenshot discards the image and does not resume',
   assert.equal(env.offscreen.filter(m=>m.type==='StoreScreenshot').length,0);
   assert.equal(env.frames.filter(f=>f.m.type==='ScreenshotReady').length,0);
 });
+
+
+test('a late command acknowledgement never applies the previous episode clock to its replacement',async()=>{
+  const env=environment();await env.connect();
+  const original=env.chrome.tabs.sendMessage;
+  let release;
+  env.chrome.tabs.sendMessage=async(tab,m,target)=>{
+    if(m.type==='PlayerCommand')await new Promise(resolve=>{release=resolve;});
+    return original(tab,m,target);
+  };
+  const command=env.receive({type:'PlayerCommand',operationId:'old-seek',identity,action:'seek',time:30});
+  await until(()=>release);
+  await env.message({type:'PlaybackSnapshot',videoId:'next-video',sequence:1,currentTime:0,duration:1447,rate:1,paused:true,mediaKey:'next-episode',width:1000,height:500},{...sender,documentId:'new-document'});
+  await until(()=>env.sent.some(m=>m.type==='Bound'&&m.identity.documentId==='new-document'));
+  release();await command;
+  const ack=env.sent.find(m=>m.type==='CommandAck'&&m.operationId==='old-seek');
+  assert.equal(ack.ok,false);assert.equal(ack.state,undefined);
+});

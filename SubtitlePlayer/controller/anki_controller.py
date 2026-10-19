@@ -147,8 +147,8 @@ class AnkiController(_ControllerProxy):
         for session in cancelled:
             if session.backend == "native":
                 browser = getattr(self.controller, "browser_sync", None)
-                if browser is not None and browser._capture is session:
-                    browser.abort(reason)
+                if browser is not None:
+                    browser.cancel_pending(session, reason)
             self._finish_action_feedback_key(session.action_feedback_key, False)
             release = getattr(self.controller, "release_anki_pause_lease", None)
             if callable(release):

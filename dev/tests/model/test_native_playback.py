@@ -171,3 +171,18 @@ def test_alignment_refines_late_onsets_even_when_ends_match(tmp_path, monkeypatc
     mapping = align_intervals(source, reference, "source", "episode", helper=helper)
     assert mapping.video[6][0] == pytest.approx(reference[6][0], abs=.05)
     assert any(mapping.confidence)
+
+
+def test_cancelled_pending_media_is_persisted_without_retry_or_player_commands(tmp_path):
+    from model.capture_session import CaptureSession, FrozenActionTarget
+    sync = pollable(browser(), tmp_path)
+    session = CaptureSession(FrozenActionTarget.create(selected_text="word", subtitle_text="sentence", sentence_key="sentence"))
+    session.set_target_note(123)
+    sync._pending_media[session.id] = (session, {"audio": "saved", "image": "saved"})
+    sync._retry_at[session.id] = 50
+    sync._finish_native = lambda s, ok: None
+    sync.cancel_pending(session)
+    saved = json.loads((tmp_path / (session.id + ".json")).read_text())
+    assert saved["cancelled"] and saved["noteId"] == 123
+    assert session.id not in sync._retry_at
+    assert not any(m["type"] == "PlayerCommand" for m in sync.sent)

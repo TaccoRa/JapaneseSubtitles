@@ -90,9 +90,10 @@ class BrowserSyncController:
                     saved = json.loads(path.read_text("utf-8"))
                     session = CaptureSession(FrozenActionTarget.create(selected_text="", subtitle_text="", sentence_key=""), id=saved["operationId"], backend="native", phase="failed")
                     session.set_target_note(saved["noteId"])
+                    session.cancelled = bool(saved.get("cancelled"))
                     session.media_identity = saved.get("identity")
                     session.media_fingerprint = saved.get("fingerprint", "")
-                    if session.target_note_id:
+                    if session.target_note_id and not session.cancelled:
                         self._retry_at[session.id] = time.monotonic() + 1
                     self._pending_media[session.id] = (session, saved["media"])
                 except (OSError, ValueError, KeyError, TypeError):
@@ -221,6 +222,13 @@ class BrowserSyncController:
         return self._source_hash, self._source_intervals
 
     def invalidate(self):
+        callbacks = getattr(self, "_command_callbacks", {})
+        pending_callbacks = list(callbacks.values())
+        callbacks.clear()
+        getattr(self, "_commands", {}).clear()
+        self._pending_seek = None
+        for callback in pending_callbacks:
+            callback(False)
         self._generation += 1
         self.mapping = None
         self._analyzing = False
@@ -394,7 +402,12 @@ class BrowserSyncController:
     def capture_note_failed(self, session, error="Anki card creation failed"):
         if session.id not in self._operations:
             return
-        if session.native_result and not session.native_result.get("reused"):
+        if session.phase == "encoding" and not session.native_result:
+            # The clip already ended. Keep its encoding result even if Anki failed.
+            session.creation_error = error
+            self.report_error(error + ". Finished recording will be saved without a guessed target.")
+            return
+        if session.native_result:
             # Keep a finished recording even when card creation failed. Without
             # an explicit note ID it must never attach to a guessed/newest note.
             self._pending_media[session.id] = (session, session.native_result)
@@ -428,6 +441,21 @@ class BrowserSyncController:
             self._set_status("Capture cancelled · " + reason)
             self._finish_native(session, False)
 
+    def cancel_pending(self, session, reason="Cancelled"):
+        if self._capture is session:
+            self.abort(reason)
+            return
+        session.cancel(reason)
+        self._retry_at.pop(session.id, None)
+        pending = self._pending_media.get(session.id)
+        if pending:
+            self._save_pending_media(*pending)
+        self._finish_native(session, False)
+        try:
+            self.bridge.send(dict(type="CaptureCommit", operationId=session.id, ok=False, error=reason))
+        except ConnectionError:
+            pass
+
     def _finish_native(self, session, ok):
         # Sessions remain in add history; media belongs only to pending storage
         # or Anki, otherwise each completed capture would retain its WAV/PNG.
@@ -451,7 +479,7 @@ class BrowserSyncController:
         self._pending_directory.mkdir(parents=True, exist_ok=True)
         path = self._pending_directory / (session.id + ".json")
         temporary = path.with_suffix(".tmp")
-        temporary.write_text(json.dumps(dict(operationId=session.id, noteId=session.target_note_id, identity=session.media_identity, fingerprint=session.media_fingerprint, media=result)), "utf-8")
+        temporary.write_text(json.dumps(dict(operationId=session.id, noteId=session.target_note_id, identity=session.media_identity, fingerprint=session.media_fingerprint, cancelled=session.cancelled, media=result)), "utf-8")
         temporary.replace(path)
 
     def _attach_media(self, session, result):
@@ -617,6 +645,7 @@ class BrowserSyncController:
         elif kind == "RecordingEnded":
             session = self._operations.get(event.get("operationId"))
             if session and self._capture is session:
+                session.phase = "encoding"
                 self._capture = None
             self._apply_failure_pause()
         elif kind == "CaptureResult":
@@ -624,11 +653,17 @@ class BrowserSyncController:
             if not session or event.get("operationId") != session.id or session.cancelled:
                 return
             if not event.get("ok"):
+                ended = session.phase == "encoding"
                 session.phase = "failed"
                 if self._capture is session:
                     self._capture = None
-                self.report_error("Capture failed · " + event.get("error", "Unknown error"))
-                self._finish_native(session, False)
+                error = event.get("error", "Unknown error")
+                if ended:
+                    self._terminal_media_failure(session, error)
+                else:
+                    # The extension has already stopped/paused an active failed clip.
+                    self.report_error("Capture failed - " + error)
+                    self._finish_native(session, False)
                 return
             if session.phase not in ("recording", "encoding"):
                 return
@@ -643,7 +678,12 @@ class BrowserSyncController:
                     self._pending_media[session.id] = (session, event)
                     self._save_pending_media(session, event)
                 self._set_status("Recording ready · waiting for Anki card…")
-            self._complete_native_result(session)
+            if session.creation_error:
+                self._pending_media[session.id] = (session, event)
+                self._save_pending_media(session, event)
+                self._terminal_media_failure(session, session.creation_error)
+            else:
+                self._complete_native_result(session)
         elif kind == "CaptureFinished":
             pass  # Media is verified locally; this acknowledgement cannot control playback.
 
@@ -702,8 +742,11 @@ class BrowserSyncController:
                             self._retry_count[identity] = attempts + 1
                             self._retry_at[identity] = time.monotonic() + (1, 3, 10, 30)[attempts]
                             self.report_error("Media saved ? retrying Anki attachment automatically")
+                        elif session.cancelled:
+                            self._save_pending_media(session, result)
+                            self._finish_native(session, False)
                         else:
-                            self._terminal_media_failure(session, value or "Cancelled")
+                            self._terminal_media_failure(session, value)
                     else:
                         del self._pending_media[identity]
                         (self._pending_directory / (identity + ".json")).unlink(missing_ok=True)

@@ -227,3 +227,22 @@ def test_local_audio_anchor_fit_handles_corroborated_step(tmp_path):
     mapping = aligner.fit()
     assert mapping.video[2][0] == pytest.approx(21)
     assert mapping.video[12][0] == pytest.approx(112.784)
+
+
+def test_note_creation_failure_after_boundary_keeps_encoding_without_aborting_another_clip(tmp_path):
+    import json
+    sync = browser()
+    sync._pending_directory, sync._pending_media = tmp_path, {}
+    outcomes = []
+    sync.report_error = lambda message: None
+    sync._terminal_media_failure = lambda session, error: outcomes.append(error)
+    session = CaptureSession(FrozenActionTarget.create(selected_text="word", subtitle_text="sentence", sentence_key="sentence", cue_snapshot=SimpleNamespace(cue_index=0)))
+    sync.freeze_capture(session); sync.capture(session)
+    sync._event(dict(type="RecordingEnded", operationId=session.id))
+    second = object(); sync._capture = second
+    sync.capture_note_failed(session, "Anki creation uncertain")
+    sync._event(dict(type="CaptureResult", ok=True, operationId=session.id, identity=session.media_identity, audio="saved audio", image="saved image"))
+    assert sync._capture is second
+    saved = json.loads((tmp_path / (session.id + ".json")).read_text())
+    assert saved["noteId"] is None and saved["media"]["audio"] == "saved audio"
+    assert outcomes == ["Anki creation uncertain"]

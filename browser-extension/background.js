@@ -211,17 +211,21 @@ async function openSocket(token){
       }
       if(m.type==='PlaybackProbe'){
         if(key(m.identity)!==key(selected))throw Error('Stale video identity');
-        const result=await toFrame('PlaybackProbe');
+        const identity=selected,fingerprint=observed.get(key(identity))?.fingerprint;
+        const result=await toFrame('PlaybackProbe',{},identity);
+        if(key(identity)!==key(selected)||observed.get(key(identity))?.fingerprint!==fingerprint)return;
         const {mediaKey,...state}=result.state;
-        send({...state,type:'PlaybackSnapshot',identity:selected,fingerprint:observed.get(key(selected))?.fingerprint});
+        send({...state,type:'PlaybackSnapshot',identity,fingerprint});
         return;
       }
       if(m.type==='PlayerCommand'){
         if(key(m.identity)!==key(selected))throw Error('Stale video identity');
         if(m.action==='abort'){await fail('Cancelled');return;}
-        const result=await toFrame('PlayerCommand',m);
+        const identity=selected,fingerprint=observed.get(key(identity))?.fingerprint;
+        const result=await toFrame('PlayerCommand',m,identity);
+        if(key(identity)!==key(selected)||observed.get(key(identity))?.fingerprint!==fingerprint)throw Error('Video changed before command completed');
         const {mediaKey,...state}=result.state;
-        send({type:'CommandAck',operationId:m.operationId,ok:true,state:{...state,identity:selected,fingerprint:observed.get(key(selected))?.fingerprint}});
+        send({type:'CommandAck',operationId:m.operationId,ok:true,state:{...state,identity,fingerprint}});
       }
       if(m.type==='CaptureRequest'){
         if(recording?.operationId===m.operationId||finishing.has(m.operationId)||completedCaptures.has(m.operationId))return;

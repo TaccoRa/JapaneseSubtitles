@@ -72,6 +72,7 @@ class CaptureSession:
     post_capture_policy: str = "play"
     native_result: Mapping[str, Any] | None = None
     media_completion_notified: bool = False
+    creation_error: str = ""
 
     def set_target_note(self, note_id: int | None) -> None:
         try:
