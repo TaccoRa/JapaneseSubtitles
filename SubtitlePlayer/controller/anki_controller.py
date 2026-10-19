@@ -76,7 +76,10 @@ class AnkiController(_ControllerProxy):
             sentence_key = self.anki.normalize_capture_sentence_key(subtitle)
         except Exception:
             sentence_key = " ".join(subtitle.split())
+        browser = getattr(self.controller, "browser_sync", None)
+        media_key = getattr(browser, "_preference_media", lambda: "")() if browser is not None else ""
         return FrozenActionTarget.create(
+            source_hash=getattr(browser, "_source_hash", ""), media_key=media_key,
             selected_text=selected_text,
             subtitle_text=subtitle,
             sentence_key=sentence_key,
@@ -472,6 +475,13 @@ class AnkiController(_ControllerProxy):
             subtitle_text = action_target.subtitle_text
             anime_name = self._current_anki_anime_name()
             browser = getattr(self.controller, "browser_sync", None)
+            active = getattr(browser, "_capture", None)
+            if active is not None and active.backend == "asbplayer":
+                browser.report_error("Wait for the asbplayer recording and Anki media to finish before adding another card.")
+                self._finish_action_feedback(action_target, False)
+                if callable(on_complete):
+                    on_complete(False, None)
+                return
             native_capture = bool(post_add_capture)
             if not post_add_capture and browser and browser.following:
                 self.playback.set_playing(False)
@@ -843,7 +853,7 @@ class AnkiController(_ControllerProxy):
                     target, capture_only=bool(use_capture_only_resume),
                     early_capture=False, pause_lease=pause_lease, interaction_owner=owner,
                 )
-            except (ConnectionError, ValueError) as exc:
+            except (ConnectionError, ValueError, RuntimeError) as exc:
                 message = "Capture not started: " + str(exc)
                 logger.warning("%s", message)
                 browser = getattr(self.controller, "browser_sync", None)
@@ -864,6 +874,7 @@ class AnkiController(_ControllerProxy):
                 sent = True
             except (ConnectionError, ValueError, RuntimeError) as exc:
                 self.controller.browser_sync.report_error(str(exc))
+                error = str(exc)
                 sent = False
             if sent:
                 report = getattr(self.controller, "_report_voice_status", None)
@@ -883,6 +894,7 @@ class AnkiController(_ControllerProxy):
                 "source_note_id": source_note_id,
                 "session_id": session.id,
                 "reason": "sent" if sent else "capture_delivery_failed",
+                "error": "" if sent else error,
             }
 
 

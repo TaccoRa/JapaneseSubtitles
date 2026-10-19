@@ -63,13 +63,18 @@ def test_trim_moves_mapping_and_capture_but_never_browser_time(tmp_path):
     sync.controller.settings = NS(offset_var=NS(set=lambda value: None))
     sync._trim_path = tmp_path / "trims.json"
     sync._trims, sync._trim_key = {}, "episode-a"
+    from model.alignment_preferences import AlignmentPreferences
+    sync.preferences = AlignmentPreferences(tmp_path / "preferences.json", {"old": 25})
+    sync._preference_media = lambda: "episode-a"
+    sync._source_hash, sync.alignment_mode = "source", "audio"
     sync._source = lambda: None
     original_time = sync.snapshot.current_time
     sync.set_trim(-.3)
     assert sync.mapping.video[0][0] == pytest.approx(10.7)
     assert sync.video_time(10) == pytest.approx(10.7)
     assert sync.snapshot.current_time == original_time and not sync.sent
-    assert json.loads(sync._trim_path.read_text())["episode-a"] == -.3
+    assert sync.preferences.trim("episode-a", "source", "audio") == -.3
+    assert sync.preferences.data["legacyTrims"]["old"] == 25
     sync.set_trim(.4)
     assert sync.mapping.video[0][0] == pytest.approx(11.4)
     sync.set_trim(0)
@@ -156,7 +161,8 @@ def test_retired_settings_are_archived_without_touching_vocabulary_or_profiles()
     old = {"CAPTURE_BACKEND": "asbplayer", "OCR_ENABLED": True, "EXTRA_OFFSET": 3,
         "VOICE_COMMANDS": {"add": "keep"}, "DEFAULT_SKIP": 1}
     new = migrate(old)
-    assert new["ARCHIVED_PLAYBACK_SETTINGS"] == {k: old[k] for k in ("CAPTURE_BACKEND", "OCR_ENABLED", "EXTRA_OFFSET")}
+    assert new["ARCHIVED_PLAYBACK_SETTINGS"] == {k: old[k] for k in ("OCR_ENABLED", "EXTRA_OFFSET")}
+    assert new["CAPTURE_BACKEND"] == "asbplayer"
     assert new["DEFAULT_SKIP"] == 1 and new["VOICE_COMMANDS"] == old["VOICE_COMMANDS"]
     assert migrate(new) == new and old["CAPTURE_BACKEND"] == "asbplayer"
 
@@ -288,3 +294,21 @@ def test_movie_episode_field_does_not_restore_old_anime_number_on_focus_loss():
     owner = NS(_episode_is_movie=True,_last_episode_value="7",episode_var=NS(get=lambda:"Movie",set=values.append))
     SettingsUI._on_episode_entry_focus_out(owner,None)
     assert values == ["Movie"] and owner._last_episode_value == "Movie"
+
+
+def test_deleted_restored_note_is_durably_blocked_without_playback_or_feedback(tmp_path):
+    from model.capture_session import CaptureSession, FrozenActionTarget
+    sync = pollable(browser(), tmp_path)
+    sync.following = False
+    session = CaptureSession(FrozenActionTarget.create(selected_text="", subtitle_text="", sentence_key=""))
+    session.set_target_note(123)
+    sync._restored_media = {session.id}
+    sync._pending_media[session.id] = (session, {"audio": "preserved", "image": "preserved"})
+    sync.report_error = lambda error: None
+    sync.command = lambda *_: pytest.fail("Startup recovery must not pause")
+    sync._finish_native = lambda *_: pytest.fail("Old recovery owns no current feedback")
+    sync._results.put(("media", session.id, "Target Anki note no longer exists"))
+    sync._poll(); sync._poll()
+    saved = json.loads((tmp_path / (session.id + ".json")).read_text())
+    assert saved["terminalError"] == session.terminal_error
+    assert saved["media"]["audio"] == "preserved" and not sync._retry_at

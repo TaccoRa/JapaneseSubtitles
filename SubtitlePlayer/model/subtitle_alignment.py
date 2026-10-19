@@ -8,6 +8,77 @@ from statistics import median
 
 from model.timing_map import TimingMap, digest
 
+_blocked_helpers = set()
+
+
+def local_onset_offsets(source, reference, max_shift=120):
+    """Short rendered tracks need distinct onsets, not two 120-second windows.
+
+    Split/merged captions contribute only their shared starts. Unmatched internal
+    splits are not paired by row number and cannot vote for a false correction.
+    """
+    from collections import Counter
+    starts = sorted(a for a, _ in reference)
+    votes = Counter()
+    for a, _ in source:
+        lo, hi = bisect_left(starts, a-max_shift), bisect_left(starts, a+max_shift)
+        votes.update(round((t-a)/.05) for t in starts[lo:hi])
+    peaks = sorted(votes, key=lambda k: sum(votes.get(k+n, 0) for n in range(-2, 3)), reverse=True)
+    candidates = []
+    for peak in peaks:
+        offset = peak*.05
+        if any(abs(offset-other[1]) < .8 for other in candidates):
+            continue
+        pairs = []
+        for i, (a, _) in enumerate(source):
+            j = bisect_left(starts, a+offset)
+            near = [k for k in (j-1, j) if 0 <= k < len(starts) and abs(starts[k]-a-offset) < .22]
+            if len(near) == 1:
+                pairs.append((i, near[0], starts[near[0]]-a))
+        # Each onset is used once; repeated dialogue patterns are ambiguous.
+        counts = Counter(j for _, j, _ in pairs)
+        pairs = [(i,j,d) for i,j,d in pairs if counts[j] == 1]
+        if len(pairs) < 6:
+            continue
+        delta = median(d for _,_,d in pairs)
+        inliers = [pair for pair in pairs if abs(pair[2]-delta) <= .15]
+        groups = [[]]
+        for pair in inliers:
+            if groups[-1] and pair[0]-groups[-1][-1][0] > 3:
+                groups.append([])
+            groups[-1].append(pair)
+        for group in groups:
+            if len(group) >= 6 and source[group[-1][0]][0]-source[group[0][0]][0] >= 30:
+                candidates.append((len(group), median(d for _,_,d in group), tuple(i for i,_,_ in group)))
+        if len(candidates) >= 30:
+            break
+    candidates.sort(reverse=True)
+    if not candidates:
+        raise ValueError("Alignment uncertain: local speech/caption pattern is ambiguous")
+    chosen = [candidates[0]]
+    for candidate in candidates[1:]:
+        overlaps = [other for other in chosen if
+                    len(set(candidate[2]) & set(other[2])) >= .3*min(len(candidate[2]), len(other[2]))]
+        if overlaps:
+            if any(other[0] < candidate[0]+3 for other in overlaps):
+                raise ValueError("Alignment uncertain: repeated onset pattern")
+            continue
+        # A step needs its own contiguous evidence region, rather than scattered
+        # matches interleaved with another equally plausible offset.
+        def separated(other):
+            left, right = sorted((candidate, other), key=lambda c: median(c[2]))
+            unique_left, unique_right = set(left[2])-set(right[2]), set(right[2])-set(left[2])
+            return unique_left and unique_right and max(unique_left) < min(unique_right)
+        if all(separated(other) for other in chosen):
+            chosen.append(candidate)
+    chosen.sort(key=lambda c: median(c[2]))
+    boundaries = []
+    for left, right in zip(chosen, chosen[1:]):
+        lo = max(set(left[2])-set(right[2]))+1
+        hi = min(set(right[2])-set(left[2]))
+        boundaries.append(max(range(lo, hi+1), key=lambda i: source[i][0]-source[i-1][1]))
+    return [chosen[sum(i >= boundary for boundary in boundaries)][1] for i in range(len(source))]
+
 
 def parse_intervals(text):
     def seconds(value):
@@ -36,22 +107,31 @@ def align_intervals(source, reference, source_hash, media_fingerprint, *, helper
     # the transcription anchor fitter, rather than manufacturing timing steps.
     for rate in (1.0, 25 / 23.976, 23.976 / 25, 24 / 23.976, 23.976 / 24):
         scaled = [(a * rate, b * rate) for a, b in source]
-        if helper.is_file():
+        offsets = None
+        if helper.is_file() and str(helper) not in _blocked_helpers:
             request = json.dumps(dict(source=scaled, reference=reference))
-            process = subprocess.run([str(helper)], input=request, text=True, capture_output=True,
-                                     timeout=60, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-            if process.returncode:
-                raise RuntimeError("Local alignment helper failed")
-            offsets = json.loads(process.stdout)["offsets"]
-            method = "alass-core"
-        else:
+            try:
+                process = subprocess.run([str(helper)], input=request, text=True, capture_output=True,
+                                         timeout=60, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+                if process.returncode:
+                    raise RuntimeError("Local alignment helper failed")
+                offsets = json.loads(process.stdout)["offsets"]
+                method = "alass-core"
+            except OSError as exc:
+                if getattr(exc, "winerror", None) != 4551:
+                    raise
+                _blocked_helpers.add(str(helper))  # Respect application control.
+        if offsets is None:
             # Small pure-Python bootstrap keeps source installations usable.
             # The packaged Windows distribution includes the alass helper.
             from model.interval_alignment import Interval, fit
             try:
                 offsets = fit([Interval(*x) for x in scaled], [Interval(*x) for x in reference])["cue_offsets"]
             except ValueError:
-                continue
+                try:
+                    offsets = local_onset_offsets(scaled, reference)
+                except ValueError:
+                    continue
             method = "boundary-evidence"
         if len(offsets) != len(source):
             raise ValueError("Incomplete alignment response")
@@ -87,10 +167,14 @@ def align_intervals(source, reference, source_hash, media_fingerprint, *, helper
                         a, b = video[i]
                         video[i] = (a+residual, b+residual)
                         errors[i] = nearest(starts, video[i][0])
-            support = [i for i in range(first, stop) if errors[i] < 0.22]
+            support = [i for i, _ in pairs if errors[i] < 0.22]
             enough = (len(support) >= 6 and source[support[-1]][0] - source[support[0]][0] >= 30
-                      and len(support) / (stop - first) >= 0.3)
-            trusted[first:stop] = [enough] * (stop - first)
+                      and len(support) / (support[-1]-support[0]+1) >= 0.3)
+            if enough:
+                # A short observed reference says nothing about earlier/later
+                # unobserved dialogue. Avoid rejecting its valid local section
+                # because unrelated surrounding cues inflate the denominator.
+                trusted[support[0]:support[-1]+1] = [True] * (support[-1]-support[0]+1)
             first = stop
         try:
             mapping = TimingMap(source_hash, media_fingerprint, reference_hash, source, tuple(video),

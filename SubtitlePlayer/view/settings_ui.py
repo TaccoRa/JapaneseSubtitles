@@ -315,6 +315,24 @@ class SettingsUI:
         self.offset_entry.bind("<FocusOut>", self._on_entry_focus_out)
         self.offset_entry.bind("<Return>", self._on_entry_focus_out)
 
+        timing_pair = tk.Frame(options_frame, bg="#f0f0f0")
+        timing_pair.grid(row=2, column=0, columnspan=6, sticky="ew", padx=5, pady=(0, 3))
+        self.alignment_mode_var = tk.StringVar(value="Dialog/Audio")
+        alignment = ttk.Combobox(timing_pair, textvariable=self.alignment_mode_var,
+                                 values=("Dialog/Audio", "Website-Untertitel"), state="readonly", width=19)
+        alignment.pack(side="left")
+        alignment.bind("<<ComboboxSelected>>", lambda _e: getattr(self, "_on_alignment_mode", lambda *_: None)(self.alignment_mode_var.get()))
+        self.auto_offset_var = tk.StringVar(value="Auto: unbestätigt · SRT-Vorschau")
+        tk.Label(timing_pair, textvariable=self.auto_offset_var, bg="#f0f0f0").pack(side="left", padx=6)
+        self.timing_notice_var = tk.StringVar(value="")
+        self.timing_notice_label = tk.Label(options_frame, textvariable=self.timing_notice_var, bg="#f0f0f0", wraplength=410, justify="left")
+        def show_timing_notice(*_):
+            if self.timing_notice_var.get():
+                self.timing_notice_label.grid(row=3, column=0, columnspan=6, sticky="ew", padx=5)
+            else:
+                self.timing_notice_label.grid_remove()
+        self.timing_notice_var.trace_add("write", show_timing_notice)
+
         skip_pair = tk.Frame(options_frame, bg="#f0f0f0")
         skip_pair.grid(row=1, column=4, columnspan=2, padx=(2, 5), pady=(2, 5), sticky="ew")
         skip_pair.grid_columnconfigure(1, weight=1)

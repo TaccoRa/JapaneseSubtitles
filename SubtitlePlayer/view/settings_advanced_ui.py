@@ -2064,9 +2064,15 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             (
                 "Browser Recording",
                 [
-                    {"key": "CAPTURE_BACKEND", "label": "Recorder", "type": "str", "default": "asbplayer", "width": 36,
-                     "choices": {"asbplayer": "asbplayer (existing)", "native": "Native browser capture (experimental)"}},
-                    {"key": "POST_CAPTURE_PLAYBACK", "label": "After capture", "type": "str", "default": "play", "width": 36,
+                    {"key": "CAPTURE_BACKEND", "label": "Recorder", "type": "str", "default": "native", "width": 36,
+                     "choices": {"native": "Native", "asbplayer": "asbplayer (original capture shortcut)"}},
+                    {"key": "ASBPLAYER_CAPTURE_HOTKEY", "label": "asbplayer capture shortcut", "type": "str", "default": "ctrl+shift+y", "width": 36},
+                    {"key": "ASBPLAYER_TARGET_TITLE", "label": "asbplayer window title", "type": "str", "default": "ABSPlayer, Google Chrome, Chrome", "width": 36},
+                    {"key": "ASBPLAYER_CAPTURE_DELAY_MS", "label": "asbplayer wait after card creation (ms)", "type": "int", "default": 0, "min": 0, "max": 60000},
+                    {"key": "ASBPLAYER_MEDIA_POLL_MS", "label": "asbplayer media check interval (ms)", "type": "int", "default": 1500, "min": 250, "max": 10000},
+                    {"key": "ASBPLAYER_RESUME_PLAYBACK", "label": "asbplayer resume after capture", "type": "bool", "default": False},
+                    {"key": "ASBPLAYER_CAPTURE_ONLY_RESUME", "label": "asbplayer resume after Capture-only", "type": "bool", "default": False},
+                    {"key": "POST_CAPTURE_PLAYBACK", "label": "After capture (Native)", "type": "str", "default": "play", "width": 36,
                      "choices": {"play": "Play", "paused": "Stay paused", "restore": "Restore previous play/pause state"},
                      "tooltip": "Applied at the recording boundary. Play continues while Anki finishes in the background. Add only stays paused."},
                     {"key": "CAPTURE_PADDING_BEFORE_MS", "label": "Audio before subtitle (ms)", "type": "float", "default": 200, "min": 0, "max": 10000},

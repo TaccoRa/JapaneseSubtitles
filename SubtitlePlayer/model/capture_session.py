@@ -24,6 +24,8 @@ class FrozenActionTarget:
     initiator: str = "unknown"
     cue_snapshot: Any = None
     selection_spans: tuple = ()
+    source_hash: str = ""
+    media_key: str = ""
     created_monotonic: float = field(default_factory=time.monotonic)
 
     @classmethod
@@ -36,6 +38,8 @@ class FrozenActionTarget:
         initiator: str = "unknown",
         cue_snapshot: Any = None,
         selection_spans=None,
+        source_hash="",
+        media_key="",
     ) -> "FrozenActionTarget":
         return cls(
             selected_text=str(selected_text or "").strip(),
@@ -44,12 +48,14 @@ class FrozenActionTarget:
             initiator=str(initiator or "unknown"),
             cue_snapshot=cue_snapshot,
             selection_spans=tuple(selection_spans or ()),
+            source_hash=str(source_hash or ""),
+            media_key=str(media_key or ""),
         )
 
 
 @dataclass(slots=True)
 class CaptureSession:
-    """One native recording and its independently completing Anki operation."""
+    """One frozen recorder operation and its independently completing Anki work."""
 
     target: FrozenActionTarget
     capture_only: bool = False
@@ -73,6 +79,9 @@ class CaptureSession:
     native_result: Mapping[str, Any] | None = None
     media_completion_notified: bool = False
     creation_error: str = ""
+    terminal_error: str = ""
+    backend_media_id: str = ""
+    asb_dispatched: bool = False
 
     def set_target_note(self, note_id: int | None) -> None:
         try:

@@ -54,7 +54,7 @@ def test_capture_options_live_in_advanced_anki_settings_and_save_values():
     keys = ("CAPTURE_BACKEND", "POST_CAPTURE_PLAYBACK")
     ui._advanced_meta = {key: specs[key] for key in keys}
     ui._advanced_vars = {
-        "CAPTURE_BACKEND": SimpleNamespace(get=lambda: "Native browser capture (experimental)"),
+        "CAPTURE_BACKEND": SimpleNamespace(get=lambda: "Native"),
         "POST_CAPTURE_PLAYBACK": SimpleNamespace(get=lambda: "Stay paused"),
     }
     assert ui._collect_advanced_values() == {"values": {"CAPTURE_BACKEND": "native", "POST_CAPTURE_PLAYBACK": "paused"}}

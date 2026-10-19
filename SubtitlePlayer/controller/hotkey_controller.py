@@ -1546,7 +1546,7 @@ class HotkeyController(_ControllerProxy):
                         self.controller._voice_capture_pending_generation = int(feedback_generation)
                 self.controller._report_voice_status(
                     "working",
-                    f"Capture sent for note {source_note_id}; checking previous exact-sentence cards for media.",
+                    f"Capture sent for note {source_note_id}; recording fresh audio and image.",
                 )
                 return True
             lookup_running = str(result.get("reason") or "") == "latest_note_lookup_running"
@@ -1555,10 +1555,18 @@ class HotkeyController(_ControllerProxy):
                 (
                     "The latest-note lookup for capture-only is already running."
                     if lookup_running
-                    else "Capture-only failed because the configured capture window or hotkey was unavailable."
+                    else self._capture_only_failure_message(result)
                 ),
             )
             return False
+
+    @staticmethod
+    def _capture_only_failure_message(result):
+        if result.get("error"):
+            return "Capture-only: " + str(result["error"])
+        if result.get("reason") in {"no_current_run_target", "no_recent_note", "no_session_note", "missing_source_note"}:
+            return "Capture-only requires a card added by SubtitlePlayer in this app session."
+        return "Capture-only backend unavailable. Check Advanced Settings / Browser Recording."
 
     def _trigger_capture_only_hotkey(self) -> bool:
             """Run capture-only through the existing Anki backend without voice UI state."""
@@ -1573,11 +1581,7 @@ class HotkeyController(_ControllerProxy):
             if bool(result.get("accepted")) or bool(result.get("queued")):
                 logger.info("Capture-only hotkey accepted: %s", result)
                 return True
-            reason = str(result.get("reason") or "").strip().lower()
-            if reason in {"no_recent_note", "no_session_note", "missing_source_note"}:
-                message = "Capture-only requires a card added by SubtitlePlayer in this app session."
-            else:
-                message = "Capture-only failed because the configured capture window or hotkey was unavailable."
+            message = self._capture_only_failure_message(result)
             report = getattr(self.controller, "_report_voice_status", None)
             if callable(report):
                 report("error", message)
@@ -2758,6 +2762,11 @@ class HotkeyController(_ControllerProxy):
             if modifier_tokens:
                 if self._set_modifier_tokens(modifier_tokens, True):
                     self._refresh_hover_displays_if_mode_changed(old_hover_mode)
+                return
+
+            chord = getattr(self.controller, "_legacy_capture_chord", None)
+            if (chord and time.monotonic() < getattr(self.controller, "_legacy_capture_until", 0)
+                    and self._shortcut_matches(chord, key)):
                 return
 
             self._refresh_hover_displays_if_mode_changed(old_hover_mode)

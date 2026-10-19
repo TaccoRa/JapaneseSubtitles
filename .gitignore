@@ -85,3 +85,7 @@ $RECYCLE.BIN/
 subtitle_trims.json
 browser_subtitle_sources.json
 browser_subtitle_sources.tmp
+
+# Personal alignment modes and archived trims
+alignment_preferences.json
+alignment_preferences.tmp

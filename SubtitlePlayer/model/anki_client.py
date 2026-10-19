@@ -634,6 +634,34 @@ class AnkiClient:
             raise RuntimeError("Anki media fields are incomplete")
         return True
 
+    def capture_note_snapshot(self, note_id):
+        notes = self._invoke("notesInfo", {"notes": [int(note_id)]}) or []
+        if len(notes) != 1 or not notes[0] or int(notes[0].get("noteId", 0)) != int(note_id):
+            raise ValueError("Target Anki note no longer exists")
+        note = notes[0]
+        fields = {name: value.get("value", "") for name, value in note.get("fields", {}).items()}
+        if any(name not in fields for name in (self.sound_field, self.image_field)):
+            raise ValueError("Target note is missing required media fields")
+        return dict(fields=fields, tags=sorted(note.get("tags", [])))
+
+    def verify_asbplayer_capture(self, note_id, original, *, check_protected=True):
+        """A dispatch ACK or old media must never satisfy a fresh capture."""
+        current = self.capture_note_snapshot(note_id)
+        media = {self.sound_field, self.image_field}
+        if check_protected and (not set(original["tags"]) <= set(current["tags"]) or any(
+                current["fields"].get(name) != value for name, value in original["fields"].items() if name not in media)):
+            raise ValueError("asbplayer changed protected note content; check its field mapping")
+        for name, marker in ((self.sound_field, "[sound:"), (self.image_field, "<img")):
+            value = current["fields"].get(name, "")
+            if marker not in value or value == original["fields"][name]:
+                return False
+            # Verify actual media, not only field markup.
+            pattern = r"\[sound:([^\]]+)\]" if name == self.sound_field else r'''<img[^>]+src=["']([^"']+)["']'''
+            match = re.search(pattern, value)
+            if not match or not self._invoke("retrieveMediaFile", {"filename": match.group(1)}):
+                return False
+        return True
+
     def attach_native_capture(self, note_id, operation_id, audio, image, *, is_cancelled=lambda: False):
         """Retryable media-only update of one explicit note; never creates notes."""
         import base64
@@ -656,6 +684,10 @@ class AnkiClient:
                 raise ValueError("Recording interval too long")
         media = ((self.sound_field, "wav", raw_audio), (self.image_field, "png", raw_image))
         notes = self._invoke("notesInfo", {"notes": [int(note_id)]}) or []
+        if len(notes) != 1 or not notes[0]:
+            raise ValueError("Target Anki note no longer exists")
+        if notes[0].get("noteId") is not None and int(notes[0]["noteId"]) != int(note_id):
+            raise ValueError("Invalid note identity returned by Anki")
         if len(notes) != 1 or any(name not in notes[0].get("fields", {}) for name, _, _ in media):
             raise ValueError("Target note is missing required media fields")
         fields = {}

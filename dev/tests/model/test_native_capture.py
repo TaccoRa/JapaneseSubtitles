@@ -246,3 +246,17 @@ def test_note_creation_failure_after_boundary_keeps_encoding_without_aborting_an
     saved = json.loads((tmp_path / (session.id + ".json")).read_text())
     assert saved["noteId"] is None and saved["media"]["audio"] == "saved audio"
     assert outcomes == ["Anki creation uncertain"]
+
+
+@pytest.mark.parametrize("notes", [[{}], [], [{"noteId": 42, "fields": {}}]])
+def test_deleted_or_wrong_note_never_stores_media(notes):
+    client = object.__new__(AnkiClient)
+    client.sound_field, client.image_field = "Sound", "Image"
+    actions = []
+    def invoke(action, params):
+        actions.append(action)
+        return notes
+    client._invoke = invoke
+    with pytest.raises(ValueError, match="no longer exists|Invalid note"):
+        client.attach_native_capture(99, "a" * 32, wav_audio(), base64.b64encode(b"\x89PNG\r\n\x1a\n").decode())
+    assert actions == ["notesInfo"]

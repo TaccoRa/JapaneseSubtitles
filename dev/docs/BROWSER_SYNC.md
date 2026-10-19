@@ -1,4 +1,4 @@
-# Browser synchronization and native recording (0.2.3)
+# Browser synchronization, local alignment and recording
 
 Watch in the existing Chrome tab. SubtitlePlayer owns the chosen Japanese subtitle content, translations, furigana, learning status and Anki fields. Source SRT/ASS/VTT bytes and cue times remain unchanged. Timing corrections and episode-specific trims are separate local data.
 
@@ -10,11 +10,17 @@ The desktop no longer runs an independent playback clock. Offline subtitle brows
 
 Transport, binding and observation freshness are separate. Delayed samples freeze interpolation and trigger a non-mutating PlaybackProbe; they do not mean Chrome disconnected or imply buffering. Repeated bindings for the same video retain timing evidence. Video replacement and explicit episode metadata invalidate the old episode map.
 
-Alignment compares Japanese cue timing with English/German caption timing. Confidence uses subtitle onsets, rather than accepting matching ends alone. Regional onset refinement needs six unique mutual pairs spanning at least 30 seconds, consistent residuals within 150 ms, and improved onset error. Timing steps and rate conversions remain separate regions. Insufficient or ambiguous evidence remains uncertain and cannot authorize capture.
+The selector beside Offset chooses **Dialog/Audio** (default) or **Website-Untertitel** per video. Neither changes the selected Japanese text source. Analysis never issues a seek. A mode switch invalidates old workers/results and changes cache scope, while an active recording retains its frozen map/trim/backend.
 
-Offset is a trim over the automatic map: negative earlier, positive later, zero automatic. It never moves the video slider, seeks Chrome, or changes playback. The same effective map drives display, navigation and capture. Active clips retain their frozen map/version/trim. Trims live in ignored `subtitle_trims.json`, keyed by source content and stable anime/season/episode identity.
+**Dialog/Audio** uses tab PCM and a local CPU/int8 Whisper base model. Language is detected automatically. Only Japanese recognition can create Japanese text anchors; unique matches can cover up to three adjacent SRT cues. Six independent anchors spanning 30 seconds are required per accepted region. Robust rate/intercept fitting separates drift from corroborated steps. Other audio languages use corroborated speech-onset patterns, never Japanese text matching. Silence/repeated phrases cannot establish alignment. Confident language changes discard old speech anchors and revalidate. Audio-track fingerprints also invalidate maps when exposed by the player; private streaming players still need live track-switch acceptance.
 
-Captionless local audio alignment still requires the optional quantized Whisper model and alignment dependencies. It is not a cloud transcription service. The packaged alass helper uses Rust only during packaging; normal users need no Rust toolchain. Source installations retain the conservative Python interval solver.
+**Website-Untertitel** prefers complete loaded tracks, with rendered caption changes as supplemental local timing evidence. Split/merged lines contribute shared onsets rather than one-to-one row pairing. The Python local-region solver no longer requires two 120-second voting windows when six distinct mutual onsets span 30 seconds. Competing repeated patterns remain uncertain. Regions preserve corroborated breaks and frame-rate corrections; onset refinement requires consistent residuals within 150 ms and improved onset error. Only supported cue spans authorize recording.
+
+Offset is an independent manual trim: negative earlier, positive later, zero automatic. It never moves the video slider, seeks Chrome, or changes playback. The automatic offset is shown separately, with a brief inline announcement at the first confirmed model or a region transition in either direction. Continuous drift updates the number without a notice on every clock sample. Unconfirmed spans use original-time SRT preview; they cannot authorize native recording. The same confirmed map plus trim drives display, cue navigation and capture.
+
+New preferences live in ignored `alignment_preferences.json`, keyed by stable media/episode identity, source hash and mode. Old `subtitle_trims.json` remains intact and is archived in the new preferences; new per-mode trims start at zero to prevent applying a legacy +25-second estimate on top of a new automatic correction. Timing-cache scopes additionally include the observed media/audio fingerprint and reference kind. No retimed SRT is written.
+
+The one-time model-data setup is `python dev/setup_audio_alignment.py`. After download, recognition runs locally with no audio upload. The packaged alass helper is built by the existing Windows GitHub workflow, which previously passed at `b890791`. Source installations retain the Python solver. Local Rust compilation was blocked by Windows and must not be retried or bypassed. If Windows blocks the packaged helper with error 4551, this process remembers that block and uses Python without repeatedly executing the helper.
 
 ## Add, Capture and completion
 
@@ -22,7 +28,7 @@ Captionless local audio alignment still requires the optional quantized Whisper 
 - **Capture** creates a new card and always records fresh audio AND a fresh screenshot, even if another card already has media for that sentence.
 - **Capture only** records fresh media onto the explicit last note created by this app run. It never guesses the newest note in a deck.
 
-Recording starts in parallel with card creation. At the mapped boundary the extension stops collecting audio and applies the frozen After capture preference. Play continues without waiting for encoding, note creation or attachment; the previous speed is restored once at that boundary. Stay paused and Restore previous play/pause state remain available. Late Anki completions have no player ownership and never seek or resume playback.
+With Native, recording starts in parallel with card creation. At the mapped boundary the extension stops collecting audio and applies the frozen After capture preference. Play continues without waiting for encoding, note creation or attachment; the previous speed is restored once at that boundary. Stay paused and Restore previous play/pause state remain available. Late Anki completions have no player ownership and never seek or resume playback.
 
 One active recording is separate from pending Anki work. Another recording can start while an earlier card finishes. Anki creation and attachment use a separate serialized queue. Frozen selections, cues, operation IDs and explicit note IDs correlate results in either completion order. Media writes change only the target audio/image fields and are verified before success. Fresh capture does not copy its media backwards onto other notes.
 
@@ -34,11 +40,11 @@ An uncertain card-creation response is never retried automatically and never mat
 
 The compact status row, Browser button and Retry media button are removed. After capture, padding, connection/alignment evidence, pending media and recovery diagnostics are in **Advanced Settings > Anki > Browser Recording**. Existing recording and verified-completion indicators remain.
 
-Native is the only recorder, as explicitly requested. asbplayer's installed Chrome extension and existing Anki notes are untouched. Retired profile values are archived under `ARCHIVED_PLAYBACK_SETTINGS` on load/save, rather than executed. Profiles, vocabulary, decks/custom fields, histories, positions, voice recognition and display/lookup settings remain.
+Native remains the default recorder. asbplayer is the optional original-shortcut recorder, described below. The installed external extension and existing notes remain untouched. Retired profile values are archived under `ARCHIVED_PLAYBACK_SETTINGS` on load/save, rather than executed. Profiles, vocabulary, decks/custom fields, histories, positions, voice recognition and display/lookup settings remain.
 
 | Removed workaround/settings | Replacement |
 |---|---|
-| asbplayer recorder/backend selector | Native recording |
+| Global focus-dependent playback keys | Browser gateway; original external recording hotkey stays restricted to asbplayer |
 | Capture hotkey, window title/process targeting, focus restore and mouse movement | Explicit bound tab/document/frame/video commands |
 | Injected arrows/Space and synthetic-key suppression | One command gateway and ownership of real shortcuts |
 | Positive/negative capture delays and waiting for card creation | Parallel recording and Anki creation |
@@ -86,3 +92,27 @@ Local movie source correction: selecting a local subtitle exits remote source mo
 Browser tab/media associations are stored locally in ignored `browser_subtitle_sources.json`. A matching initial title or an explicit source selection records the cached file, canonical/display names, local/remote mode and remote episode-search metadata. Returning to that known media restores the source and episode controls without issuing playback commands. Associations use media page identity, not the currently active tab or an opaque video instance; a new media item is never assigned another video's subtitles by guessing. Existing selections made before this feature need one initial association. Missing cached files produce an actionable error; source loading failures restore the previous selection. Pending Anki operations keep their frozen targets.
 
 Netflix timing references now include its visible `.player-timedtext` caption container. Enabled site subtitles provide observation intervals for local alignment of the selected SRT; they do not replace its text. This path needs an analysis period and corroborated timing evidence, and no Shrek offset has been claimed measured from unit tests. Movie episode-entry focus loss preserves Movie rather than restoring a stale anime episode number.
+
+## asbplayer: original recording workflow
+
+Select **Advanced Settings → Anki → Browser Recording → Recorder → asbplayer (original capture shortcut)**. This restores the pre-sync recorder workflow: create the Anki card first, focus the configured Chrome/asbplayer window, send the existing recording shortcut, wait for both media fields, then update to the frozen subtitle end and optionally continue. There is **no asbplayer API, WebSocket server, media proxy, minimum API-version requirement or native-recording grant** for this backend. Existing asbplayer audio-recording permissions and shortcut/Anki settings still apply, exactly as for the original external recorder.
+
+The original `POST_ADD_CAPTURE_EXTERNAL_HOTKEY`, window title, post-card wait, media-check interval, resume and Capture-only resume preferences are recovered from `ARCHIVED_PLAYBACK_SETTINGS` into adapter-specific `ASBPLAYER_*` controls. Defaults are the original `ctrl+shift+y`, `ABSPlayer, Google Chrome, Chrome`, zero delay and 1500 ms polling. Old negative early-capture estimates remain archived; capture now waits for the exact newly created note. Native's After capture setting remains independent.
+
+The original shortcut updates asbplayer's last-added card. Before sending it, SubtitlePlayer checks that the expected explicit note is still the newest and prevents another SubtitlePlayer add from replacing that target during this operation. It does not silently choose a different note. Other applications can still create notes independently: the old hotkey cannot provide the explicit `noteId` guarantee of an API. Such changes, missing media, or unexpected text changes are reported without claiming success. Existing content is never blindly restored over a user edit.
+
+Capture verifies fresh audio and image on that exact target. Another same-sentence card's media cannot end the recording early. Only Add without capture reuses previous sentence media. In connected mode, the browser clock already follows asbplayer's movement to the clip end; completion issues at most one necessary end correction and optional resume. It never rewinds playback that continued while Anki finished. Normal voice/Skip/playback commands retain the browser gateway; the external recording chord is restricted to this selected backend. Native remains the default for newly migrated native-only profiles and retains parallel recording/card creation.
+
+Cancelled operations cannot send delayed shortcuts, resume later, or get retargeted. The external asbplayer recorder itself must be stopped using its own controls when necessary; no API/proxy is assumed. An app/backend restart never replays a recording hotkey automatically. Existing pending metadata can verify the exact note on recovery but cannot create a new note or seek the player.
+
+## Recovery, input and acceptance evidence
+
+Warnings stay in diagnostics/logs; no floating failure windows are created. Deleted-note recoveries persist `terminalError` and never retry or pause current playback. The two historical operations targeting missing notes are retained locally with their media. Transient attachment retries are informational, not warning popups.
+
+X1 remains Add with Capture. X2 remains Add only over subtitles and subtitle toggle elsewhere; it is not Capture-only. Shift+V and voice Capture-only target an app-created note and report missing target, changed source/video, uncertain timing, disabled recorder and unavailable backend distinctly. Voice wake-word settings and recognition behavior are unchanged.
+
+Additional regression coverage: [modes, trim, steps, drift and diagnostics](../tests/model/test_alignment_modes.py), [original asbplayer shortcut and frozen-target completion](../tests/model/test_asbplayer_capture.py), [native playback/recovery](../tests/model/test_native_playback.py), [native media and queue](../tests/model/test_native_capture.py).
+
+2026-10-19 local acceptance: the base CPU/int8 model loaded successfully and generated no speech anchors for silence. Real AnkiConnect integration verified native media attachment on isolated notes, preserving text and tags; those temporary notes/media were removed. This validates Anki attachment, **not live browser recording**. Logs also showed restoration of the Shrek source after tab binding without an app seek. Live Netflix/anime timing, audio-track changes, recorder boundaries and clock p95 remain unmeasured: computer-use safety stopped browser interaction because the current Chrome URL could not be established confidently. Do not claim the 150 ms / 250 ms targets or full site acceptance from unit tests.
+
+asbplayer acceptance: focused regressions cover card-first dispatch, the original window/shortcut settings, cancellation, explicit-target fresh media and completion without duplicate seeks. Actual external recording still needs live acceptance. Native attachment tests do not establish asbplayer recording success.

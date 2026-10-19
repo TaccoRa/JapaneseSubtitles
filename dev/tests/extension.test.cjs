@@ -51,7 +51,7 @@ function environment(){
       await settle();socket.onmessage({data:JSON.stringify({type:'RecorderConfig',backend:native?'native':'asbplayer'})});await settle();
       if(native)assert.equal((await message({type:'EnableNativeRecording',identity})).ok,true);
       await message({type:'PlaybackSnapshot',videoId:'video',sequence:1,currentTime:20,duration:1000,rate:1.5,paused,mediaKey:'episode',width:1000,height:500},sender);
-      await new Promise(resolve=>setTimeout(resolve,15));await settle();
+      await until(()=>sent.some(m=>m.type==='PlaybackSnapshot'&&m.identity.documentId==='doc'));
     },
     async receive(m){socket.onmessage({data:JSON.stringify(m)});await settle();}
   };
@@ -144,7 +144,7 @@ test('episode adapters distinguish episodes from opaque player IDs and preserve 
 test('next episode player replacement stays in the bound tab and adopts its new document',async()=>{
   const env=environment();await env.connect();
   await env.message({type:'PlaybackSnapshot',videoId:'new-video',sequence:1,currentTime:0,duration:1447,rate:1,paused:true,mediaKey:'next-episode',width:1000,height:500},{...sender,documentId:'new-document'});
-  await settle();
+  await until(()=>env.sent.some(m=>m.type==='Bound'&&m.identity.documentId==='new-document'));
   const bound=env.sent.filter(m=>m.type==='Bound').at(-1);
   assert.equal(bound.identity.documentId,'new-document');assert.equal(bound.identity.tabId,1);
   env.frames.length=0;

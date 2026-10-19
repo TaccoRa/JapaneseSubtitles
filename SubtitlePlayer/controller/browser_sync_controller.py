@@ -14,6 +14,8 @@ from tkinter import ttk, messagebox
 from model.browser_bridge import BrowserBridge
 from model.browser_protocol import MediaIdentity, PlaybackSnapshot
 from model.browser_sources import BrowserSources
+from model.alignment_preferences import AlignmentPreferences, MODES
+from model.asbplayer_legacy import LegacyAsbplayerCapture, legacy_value
 from model.subtitle_alignment import align_intervals, parse_intervals
 from model.timing_map import TimingMapCache, digest
 from model.capture_session import CaptureSession, FrozenActionTarget
@@ -30,11 +32,16 @@ class BrowserSyncController:
         self._base_mapping = None
         self._trim = 0.0
         self._trim_key = None
+        self.alignment_mode = "audio"
+        self._preference_context = None
+        self._offset_region = None
+        self._auto_offset = None
         self.status = "Chrome disconnected"
         self._source_key = None
         self._generation = 0
         self._analyzing = False
         self._alignment_attempt_key = None
+        self._alignment_problem = "Waiting for timing evidence"
         self._reference = ()
         self._reference_kind = "none"
         self._results = queue.Queue()
@@ -61,6 +68,7 @@ class BrowserSyncController:
         self._sent_backend = None
         self._shortcut_config = None
         self._native_enabled = False
+        self._asb = LegacyAsbplayerCapture(controller.config)
         self._browser_episode = None
         self._media_context = None
         self._episode_problem = None
@@ -90,17 +98,20 @@ class BrowserSyncController:
             self._trims = json.loads(self._trim_path.read_text("utf-8"))
         except (OSError, ValueError):
             self._trims = {}
+        self.preferences = AlignmentPreferences(base / "alignment_preferences.json", self._trims)
+        controller.settings._on_alignment_mode = self.set_alignment_mode
         self._pending_directory = base / "pending_capture_media"
         if self._pending_directory.exists():
             for path in self._pending_directory.glob("*.json"):
                 try:
                     saved = json.loads(path.read_text("utf-8"))
-                    session = CaptureSession(FrozenActionTarget.create(selected_text="", subtitle_text="", sentence_key=""), id=saved["operationId"], backend="native", phase="failed")
+                    session = CaptureSession(FrozenActionTarget.create(selected_text="", subtitle_text="", sentence_key=""), id=saved["operationId"], backend=saved.get("backend", "native"), phase="failed")
                     session.set_target_note(saved["noteId"])
                     session.cancelled = bool(saved.get("cancelled"))
                     session.media_identity = saved.get("identity")
                     session.media_fingerprint = saved.get("fingerprint", "")
-                    if session.target_note_id and not session.cancelled:
+                    session.terminal_error = str(saved.get("terminalError") or "")
+                    if session.target_note_id and not session.cancelled and not session.terminal_error:
                         self._restored_media.add(session.id)
                         session.phase = "waiting_anki"
                         self._retry_at[session.id] = time.monotonic() + 1
@@ -121,14 +132,95 @@ class BrowserSyncController:
     def mapping(self, value):
         self._base_mapping = value
 
-    def _load_trim(self):
+    def _preference_media(self):
+        context = getattr(self, "_media_context", None) or {}
+        if context.get("pageKey"):
+            return digest(json.dumps([context["pageKey"], context.get("season"), context.get("episode")]).encode())
         manager = self.controller.sub_manager
-        self._trim_key = digest(json.dumps([self._source_hash, manager.get_anime_name(),
-            manager.get_current_season(), manager.get_current_episode()], ensure_ascii=False).encode())
-        self._trim = float(self._trims.get(self._trim_key, 0.0))
+        return digest(json.dumps([manager.get_anime_name(), manager.get_current_season(),
+                                  manager.get_current_episode()], ensure_ascii=False).encode())
+
+    def _load_trim(self):
+        media = self._preference_media()
+        self.alignment_mode = self.preferences.mode(media)
+        self._trim_key = self.preferences.trim_key(media, self._source_hash, self.alignment_mode)
+        self._trim = self.preferences.trim(media, self._source_hash, self.alignment_mode)
+        self._preference_context = (media, self._source_hash, self.alignment_mode)
         settings = self.controller.settings
         settings._last_offset_value = self._trim
         settings.offset_var.set(f"{self._trim:g} s")
+        if hasattr(settings, "alignment_mode_var"):
+            settings.alignment_mode_var.set(MODES[self.alignment_mode])
+
+    def set_alignment_mode(self, label):
+        mode = next((key for key, value in MODES.items() if label in (key, value)), None)
+        if mode is None:
+            raise ValueError("Unknown alignment mode")
+        self.preferences.set_mode(self._preference_media(), mode)
+        self._load_trim()
+        # A running clip owns its already frozen map, trim and backend.
+        self.invalidate(cancel_capture=False)
+        self._restore_timing_cache()
+        self._align()
+        self._update_timing_ui()
+
+    def _alignment_scope(self, kind):
+        return self.preferences.scope(self._source_hash, self._preference_media(),
+                                      self.snapshot.fingerprint, self.alignment_mode, kind)
+
+    def _cache_mapping(self, mapping, kind):
+        self.cache.save(mapping)
+        self.preferences.data.setdefault("maps", {})[self._alignment_scope(kind)] = mapping.reference_hash
+        self.preferences.save()
+
+    def _restore_timing_cache(self):
+        if not self.snapshot:
+            return
+        for kind in (("audio",) if self.alignment_mode == "audio" else ("full", "rendered")):
+            reference_hash = self.preferences.data.get("maps", {}).get(self._alignment_scope(kind))
+            if reference_hash:
+                mapping = self.cache.load(self._source_hash, self.snapshot.fingerprint, reference_hash)
+                if mapping:
+                    self.mapping = mapping
+                    break
+
+    def _update_timing_ui(self):
+        settings = self.controller.settings
+        label = getattr(settings, "auto_offset_var", None)
+        if label is None:
+            return
+        base = self._base_mapping
+        if not base or not self.snapshot:
+            label.set("Auto: unbestätigt · SRT-Vorschau")
+            return
+        from bisect import bisect_right
+        now = self.snapshot.time_at()
+        idx = max(0, bisect_right([v[0] for v in base.video], now) - 1)
+        a, b = base.source[idx]
+        c, d = base.video[idx]
+        rate = (d-c)/(b-a)
+        offset = c-a + (now-c)*(rate-1)/rate
+        if not base.confidence[idx]:
+            label.set(f"Auto: geschätzt {offset:+.3f} s")
+            return
+        label.set(f"Auto: {offset:+.3f} s")
+        # Rate/intercept describe a region independently of the playback position.
+        region = (round(rate, 5), round(c-rate*a, 2))
+        if region != self._offset_region:
+            previous = self._auto_offset
+            message = (f"Auto-Offset bestätigt: {offset:+.3f} s" if previous is None else
+                       f"Auto-Offset geändert: {previous:+.3f} s → {offset:+.3f} s")
+            notice = getattr(settings, "timing_notice_var", None)
+            if notice is not None:
+                notice.set(message)
+                self._inline_until = time.monotonic() + 7
+            logger.info("%s (%s)", message, base.method)
+            self._offset_region = region
+        self._auto_offset = offset
+        if time.monotonic() > getattr(self, "_inline_until", 0):
+            notice = getattr(settings, "timing_notice_var", None)
+            if notice is not None:
+                notice.set("")
 
     def set_trim(self, value):
         import math
@@ -140,14 +232,11 @@ class BrowserSyncController:
         settings = self.controller.settings
         settings._last_offset_value = value
         settings.offset_var.set(f"{value:g} s")
-        self._trims[self._trim_key] = value
-        temporary = self._trim_path.with_suffix(".tmp")
-        temporary.write_text(json.dumps(self._trims, indent=2), "utf-8")
-        temporary.replace(self._trim_path)
+        self.preferences.set_trim(self._preference_media(), self._source_hash, self.alignment_mode, value)
 
     @property
     def native(self):
-        return True
+        return self.controller.config.get("CAPTURE_BACKEND") != "asbplayer"
 
     @property
     def fresh(self):
@@ -159,7 +248,7 @@ class BrowserSyncController:
 
     def retry_pending_media(self):
         for session, result in list(self._pending_media.values()):
-            if session.target_note_id and session.phase == "failed" and not session.cancelled:
+            if session.target_note_id and session.phase == "failed" and not session.cancelled and not session.terminal_error:
                 self._attach_media(session, result)
 
 
@@ -170,6 +259,13 @@ class BrowserSyncController:
         mapping = self.mapping
         if mapping:
             tk.Label(root, text=f"Timing evidence: {mapping.method}; {sum(mapping.confidence)}/{len(mapping.source)} supported cues; trim {self._trim:+.3f}s", wraplength=590).pack(padx=12, pady=5)
+        tk.Label(root, text=f"Alignment mode: {MODES.get(self.alignment_mode)} · language: {getattr(self._audio_aligner, 'language', None) or 'not detected'}", wraplength=590).pack(padx=12, pady=5)
+        if self._alignment_problem:
+            tk.Label(root, text=self._alignment_problem, wraplength=590).pack(padx=12, pady=4)
+        for session, _ in self._pending_media.values():
+            if session.terminal_error:
+                tk.Label(root, text=f"Blocked note {session.target_note_id}: {session.terminal_error}", wraplength=590).pack(padx=12)
+        tk.Label(root, text="asbplayer: original capture shortcut " + str(legacy_value(self.controller.config, "ASBPLAYER_CAPTURE_HOTKEY")) + "; no WebSocket/proxy setup required.", wraplength=590).pack(padx=12, pady=4)
         tk.Label(root, text=f"Pending media operations: {len(self._pending_media)}", anchor="w").pack(padx=12, pady=5)
         text = "Open the companion extension on your video tab, select the video and click Connect.\nAllow its first connection here once; later connections are automatic.\nRecorder and after-capture options are in Advanced Settings → Anki → Browser Recording."
         tk.Label(root, text=text, justify="left", wraplength=560).pack(padx=12, pady=12)
@@ -196,24 +292,7 @@ class BrowserSyncController:
         self._notice, self._notice_until = value, time.monotonic() + 20
         logger.warning("%s", value)
         self._set_status(value)
-        # Brief, non-modal failure feedback; detailed state stays in Advanced Settings.
-        root = self.controller.settings.root
-        previous = getattr(self, "_error_toast", None)
-        if previous is not None:
-            try:
-                previous.destroy()
-            except tk.TclError:
-                pass
-        toast = self._error_toast = tk.Toplevel(root)
-        toast.overrideredirect(True)
-        toast.attributes("-topmost", True)
-        tk.Label(toast, text=value[:300], justify="left", wraplength=420,
-                 bg="#fff2d5", fg="#5c3000", padx=12, pady=9).pack()
-        toast.geometry(f"+{max(0, root.winfo_rootx())}+{max(0, root.winfo_rooty() + root.winfo_height() + 6)}")
-        from utils import make_nonactivating_tool_window, show_window_no_activate
-        make_nonactivating_tool_window(toast, topmost=True)
-        show_window_no_activate(toast)
-        root.after(7000, lambda: toast.destroy() if toast.winfo_exists() else None)
+        # Recovery and failure details stay in diagnostics; no floating windows.
 
     def _source(self):
         manager = self.controller.sub_manager
@@ -267,24 +346,27 @@ class BrowserSyncController:
             logger.exception("Could not restore browser subtitle source")
             self.report_error("Could not restore this video's subtitles: " + str(exc))
 
-    def invalidate(self):
-        callbacks = getattr(self, "_command_callbacks", {})
-        pending_callbacks = list(callbacks.values())
-        callbacks.clear()
-        getattr(self, "_commands", {}).clear()
-        self._pending_seek = None
-        for callback in pending_callbacks:
-            callback(False)
+    def invalidate(self, cancel_capture=True):
+        if cancel_capture:
+            callbacks = getattr(self, "_command_callbacks", {})
+            pending_callbacks = list(callbacks.values())
+            callbacks.clear()
+            getattr(self, "_commands", {}).clear()
+            self._pending_seek = None
+            for callback in pending_callbacks:
+                callback(False)
         self._generation += 1
         self.mapping = None
         self._analyzing = False
         self._alignment_attempt_key = None
         self._audio_aligner = None
-        if self._capture:
+        self._offset_region = None
+        self._auto_offset = None
+        if cancel_capture and self._capture:
             self.abort("Subtitle or media source changed")
 
     def _align(self):
-        if self._analyzing or not self._reference or self.snapshot is None:
+        if getattr(self, "alignment_mode", "captions") != "captions" or self._analyzing or not self._reference or self.snapshot is None:
             return
         source_hash, source = self._source()
         fingerprint = self.snapshot.fingerprint
@@ -301,7 +383,7 @@ class BrowserSyncController:
                 return
             first = indices[0]
             source = source[first:indices[-1] + 1]
-        reference_hash = digest(("onsets-v2:" + json.dumps(reference)).encode())
+        reference_hash = digest((self._alignment_scope(self._reference_kind) + json.dumps(reference)).encode())
         cached = self.cache.load(source_hash, fingerprint, reference_hash)
         if cached:
             self.mapping = cached
@@ -324,7 +406,8 @@ class BrowserSyncController:
                             video.append(tuple(t + offset for t in interval)); confidence.append(False)
                     result = TimingMap(source_hash, fingerprint, result.reference_hash, original_source,
                                        tuple(video), tuple(confidence), "rendered-captions")
-                self.cache.save(result)
+                from dataclasses import replace
+                result = replace(result, reference_hash=reference_hash)
                 self._results.put(("alignment", (generation, reference_hash), result))
             except Exception as exc:
                 self._results.put(("alignment-error", (generation, reference_hash), str(exc)))
@@ -333,7 +416,8 @@ class BrowserSyncController:
     def command(self, action, **arguments):
         if not self._connected or not self.following or self.identity is None:
             raise ConnectionError("Connect a browser video to control playback")
-        if self._capture and action != "abort":
+        owner = arguments.pop("_capture_owner", None)
+        if self._capture and self._capture is not owner and action != "abort":
             self.abort("Playback changed by SubtitlePlayer")
         self._control_generation = getattr(self, "_control_generation", 0) + 1
         callback = arguments.pop("on_complete", None)
@@ -357,7 +441,9 @@ class BrowserSyncController:
 
     def _terminal_media_failure(self, session, error):
         session.phase = "cancelled" if session.cancelled else "failed"
-        self.report_error("Anki media incomplete ? " + str(error))
+        self.report_error("Anki media incomplete - " + str(error))
+        if session.id in getattr(self, "_restored_media", ()):
+            return  # Startup recovery does not own playback or current action feedback.
         self._finish_native(session, False)
         try:
             self.bridge.send(dict(type="CaptureCommit", operationId=session.id, ok=False, error=str(error)))
@@ -365,6 +451,7 @@ class BrowserSyncController:
             pass
         self._failure_pause = (session.media_identity, session.media_fingerprint)
         self._apply_failure_pause()
+        self._update_timing_ui()
 
     def _apply_failure_pause(self):
         pending = self._failure_pause
@@ -381,15 +468,131 @@ class BrowserSyncController:
     def source_time(self, video_time):
         # Browsing/lookup remains usable before alignment. Capture still
         # requires a confident timing map in freeze_capture.
-        return self.mapping.to_source(video_time) if self.mapping else video_time - self._trim
+        if self.mapping:
+            from bisect import bisect_right
+            idx = max(0, bisect_right([v[0] for v in self.mapping.video], video_time)-1)
+            if self.mapping.confidence[idx]:
+                return self.mapping.to_source(video_time)
+        return video_time - self._trim
 
     def video_time(self, source_time):
         if not self.mapping:
             return source_time + self._trim
+        from bisect import bisect_right
+        idx = max(0, bisect_right([s[0] for s in self.mapping.source], source_time)-1)
+        if not self.mapping.confidence[idx]:
+            return source_time + self._trim
         return self.mapping.to_video(source_time)
 
+    def _freeze_asb_capture(self, session):
+        if self._capture:
+            raise ValueError("An asbplayer recording is already in progress")
+        session.backend = "asbplayer"
+        session.media_identity = self.identity.wire() if self.identity else None
+        session.media_fingerprint = self.snapshot.fingerprint if self.snapshot else ""
+        session.timing_version = "asbplayer-original-shortcut"
+        cue = session.target.cue_snapshot
+        if cue is not None:
+            session.mapped_interval = (self.video_time(cue.start_time), self.video_time(cue.end_time))
+        resume_key = "ASBPLAYER_CAPTURE_ONLY_RESUME" if session.capture_only else "ASBPLAYER_RESUME_PLAYBACK"
+        session.post_capture_policy = "play" if legacy_value(self.controller.config, resume_key) else "paused"
+
+    def _capture_asb(self, session, note_id=None):
+        if self._capture is not None and self._capture is not session:
+            raise ValueError("An asbplayer recording is already in progress")
+        if session.cancelled:
+            raise ValueError("asbplayer capture cancelled")
+        self._operations[session.id] = session
+        self._capture = session
+        if note_id is None:
+            session.phase = "waiting_note"
+            return
+        if session.phase in ("preparing", "capture_sent"):
+            return
+        session.set_target_note(note_id)
+        if not session.target_note_id:
+            raise ValueError("asbplayer needs the card to be created first")
+        session.phase = "preparing"
+        def prepare():
+            try:
+                anki = self.controller.anki
+                baseline = anki.capture_note_snapshot(session.target_note_id)
+                # The original shortcut updates asbplayer's last-added card.
+                # Check that identity rather than mining into an unrelated note.
+                recent = anki._invoke("findNotes", {"query": "added:1"}) or []
+                if not recent or max(map(int, recent)) != session.target_note_id:
+                    raise ValueError("asbplayer shortcut updates the last-added Anki card. Another card was added since this target; add the intended card again first.")
+                result = dict(backend="asbplayer", baseline=baseline)
+                self._results.put(("asb-ready", session.id, result))
+            except Exception as exc:
+                self._results.put(("asb-result", session.id, str(exc)))
+        threading.Thread(target=prepare, name="asbplayer-target", daemon=True).start()
+
+    def _dispatch_asb_capture(self, session, result):
+        def send():
+            if session.cancelled or self._capture is not session:
+                return
+            try:
+                self._pending_media[session.id] = (session, result)
+                self._save_pending_media(session, result)
+                chord = self._asb.dispatch(getattr(self.controller, "hotkey_controller", None))
+                session.phase = "capture_sent"
+                session.asb_dispatched = True
+                session.dispatched_monotonic = time.monotonic()
+                logger.info("Original asbplayer hotkey %s sent for note %s", chord, session.target_note_id)
+            except Exception as exc:
+                self._results.put(("asb-result", session.id, str(exc)))
+                return
+            def poll():
+                error = None
+                try:
+                    deadline = time.monotonic() + 90
+                    while not session.cancelled:
+                        if self.controller.anki.verify_asbplayer_capture(session.target_note_id, result["baseline"]):
+                            break
+                        if time.monotonic() >= deadline:
+                            raise ValueError("asbplayer media did not arrive. Check its original capture shortcut, audio recording and Anki field settings.")
+                        time.sleep(self._asb.poll_seconds())
+                    if session.cancelled:
+                        raise RuntimeError("Capture cancelled")
+                except Exception as exc:
+                    error = str(exc)
+                self._results.put(("asb-result", session.id, error))
+            threading.Thread(target=poll, name="asbplayer-media", daemon=True).start()
+            self._set_status("asbplayer recording · waiting for audio and image")
+        self.controller.settings.root.after(self._asb.delay_ms(), send)
+
+    def _finish_asb_playback(self, session):
+        if session.cancelled or not session.mapped_interval:
+            return
+        if (not self.fresh or self.identity.wire() != session.media_identity or
+                self.snapshot.fingerprint != session.media_fingerprint):
+            return  # A completed external operation must not control another video.
+        expected_generation = [None]
+        def seek_done(ok):
+            if (ok and session.post_capture_policy == "play" and not session.cancelled
+                    and self._control_generation == expected_generation[0]
+                    and self.identity and self.identity.wire() == session.media_identity
+                    and self.snapshot and self.snapshot.fingerprint == session.media_fingerprint):
+                if self.snapshot.paused:
+                    self.command("play")
+        # asbplayer normally already moved the source to the clip end. Following
+        # that clock replaces the old independent subtitle-clock jump; never
+        # rewind continued playback just because Anki finished later.
+        if self.snapshot.time_at() < session.mapped_interval[1]-.25:
+            self.command("seek", time=session.mapped_interval[1], on_complete=seek_done)
+            expected_generation[0] = self._control_generation
+        else:
+            expected_generation[0] = getattr(self, "_control_generation", 0)
+            seek_done(True)
+
     def freeze_capture(self, session):
+        if session.target.source_hash and session.target.source_hash != getattr(self, "_source_hash", None):
+            raise ValueError("Capture target belongs to a different subtitle source; add a card for this video first")
+        if session.target.media_key and session.target.media_key != self._preference_media():
+            raise ValueError("Capture target belongs to a different video; add a card for this video first")
         if not self.native:
+            self._freeze_asb_capture(session)
             return
         if self._capture:
             raise ValueError("A recording is already in progress")
@@ -412,6 +615,9 @@ class BrowserSyncController:
         session.mapped_interval = (start, end)
 
     def capture(self, session, note_id=None):
+        if session and session.backend == "asbplayer":
+            self._capture_asb(session, note_id)
+            return
         if self._capture:
             raise RuntimeError("A recording is already in progress")
         if not session or session.backend != "native" or session.cancelled:
@@ -445,6 +651,9 @@ class BrowserSyncController:
         if note_id <= 0 or (session.target_note_id and session.target_note_id != note_id):
             raise ValueError("Capture target must be the exact newly created note")
         session.set_target_note(note_id)
+        if session.backend == "asbplayer" and not session.cancelled and session.phase == "waiting_note":
+            self._capture_asb(session, note_id)
+            return
         if session.cancelled or session.phase == "failed":
             self._finish_native(session, False)
             return
@@ -486,7 +695,8 @@ class BrowserSyncController:
         if session:
             session.cancel(reason)
             try:
-                self.bridge.command(MediaIdentity.read(session.media_identity), "abort")
+                if session.backend == "native":
+                    self.bridge.command(MediaIdentity.read(session.media_identity), "abort")
             except ConnectionError:
                 pass
             self._capture = None
@@ -531,7 +741,7 @@ class BrowserSyncController:
         self._pending_directory.mkdir(parents=True, exist_ok=True)
         path = self._pending_directory / (session.id + ".json")
         temporary = path.with_suffix(".tmp")
-        temporary.write_text(json.dumps(dict(operationId=session.id, noteId=session.target_note_id, identity=session.media_identity, fingerprint=session.media_fingerprint, cancelled=session.cancelled, media=result)), "utf-8")
+        temporary.write_text(json.dumps(dict(operationId=session.id, noteId=session.target_note_id, identity=session.media_identity, fingerprint=session.media_fingerprint, cancelled=session.cancelled, terminalError=session.terminal_error, backend=session.backend, media=result)), "utf-8")
         temporary.replace(path)
 
     def _attach_media(self, session, result):
@@ -549,8 +759,12 @@ class BrowserSyncController:
                     raise RuntimeError("Recording saved without an Anki note. Card creation failed; no media was attached.")
                 if session.cancelled:
                     raise RuntimeError("Capture cancelled")
-                self.controller.anki.attach_native_capture(session.target_note_id, session.id,
-                    result["audio"], result["image"], is_cancelled=lambda: session.cancelled)
+                if session.backend == "asbplayer":
+                    if not self.controller.anki.verify_asbplayer_capture(session.target_note_id, result["baseline"]):
+                        raise ValueError("asbplayer fresh media not verified; recording will not be repeated automatically")
+                else:
+                    self.controller.anki.attach_native_capture(session.target_note_id, session.id,
+                        result["audio"], result["image"], is_cancelled=lambda: session.cancelled)
                 logger.info("Native capture %s media verified on note %s", session.id, session.target_note_id)
                 self._results.put(("media", session.id, None))
             except Exception as exc:
@@ -617,6 +831,12 @@ class BrowserSyncController:
                         key = digest(context["pageKey"].encode())
                         self._restore_browser_source(key)
                         self.remember_browser_source()
+                        if self._source_key is not None and getattr(self, "preferences", None):
+                            expected = (self._preference_media(), self._source_hash, self.preferences.mode(self._preference_media()))
+                            if expected != self._preference_context:
+                                self._load_trim()
+                                self.invalidate(cancel_capture=False)
+                                self._restore_timing_cache()
                         pending = getattr(self, "_last_episode_context", None)
                         if pending:
                             self._follow_episode(pending)
@@ -645,6 +865,10 @@ class BrowserSyncController:
                 return
             if self.snapshot and snapshot.sequence <= self.snapshot.sequence:
                 return
+            session = self._capture
+            if (session and session.backend == "asbplayer" and session.phase == "waiting_note" and self.snapshot
+                    and (snapshot.seeking or snapshot.paused != self.snapshot.paused)):
+                self.abort("Playback changed while waiting for the asbplayer target note")
             if self.snapshot and self.snapshot.fingerprint != snapshot.fingerprint:
                 self.invalidate(); self._reference = (); self._reference_kind = "none"
                 self._caption_last = None; self._observed_intervals = []
@@ -654,6 +878,8 @@ class BrowserSyncController:
                 self._reference_kind = "none"
                 self._reference_fingerprint = None
             self._source()
+            if not self.mapping and getattr(self, "preferences", None):
+                self._restore_timing_cache()
             if self._reference and self.mapping is None:
                 self._align()
         elif kind in ("CaptionText", "CaptionIntervals"):
@@ -686,9 +912,11 @@ class BrowserSyncController:
                     self._reference = tuple(sorted(set(self._observed_intervals)))
                     self._align()
         elif kind == "AudioChunk":
+            if getattr(self, "alignment_mode", "audio") != "audio":
+                return
             if not self.snapshot or event.get("fingerprint") != self.snapshot.fingerprint or MediaIdentity.read(event["identity"]) != self.identity:
                 return
-            if self._audio_busy or (self.mapping and all(self.mapping.confidence)):
+            if self._audio_busy:
                 return
             from model.audio_alignment import AudioAnchorAligner
             if self._audio_aligner is None:
@@ -696,16 +924,21 @@ class BrowserSyncController:
                 base = Path(self.controller.config.path).resolve().parent
                 model = self.controller.config.get("AUDIO_ALIGNMENT_MODEL_PATH") or str(base / "voice_models/whisper-base")
                 self._audio_aligner = AudioAnchorAligner(model, source,
-                    [x[0] for x in self.controller.sub_manager.display_data], source_hash, self.snapshot.fingerprint)
+                    [x[0] for x in self.controller.sub_manager.display_data], source_hash, self.snapshot.fingerprint,
+                    scope=self._alignment_scope("audio"))
             worker = self._audio_aligner
             generation = self._generation
             self._audio_busy = True
             def analyze():
                 try:
                     mapping = worker.transcribe(base64.b64decode(event["audio"], validate=True), event["start"], event["rate"])
-                    self.cache.save(mapping)
+                    if worker.reference_changed:
+                        self._results.put(("audio-reference-changed", generation, worker.language))
                     self._results.put(("audio-alignment", generation, mapping))
                 except Exception as exc:
+                    if worker.reference_changed:
+                        self._results.put(("audio-reference-changed", generation, worker.language))
+                    logger.info("Local audio timing incomplete: %s", exc)
                     self._results.put(("audio-error", generation, str(exc)))
                 finally:
                     self._audio_busy = False
@@ -789,23 +1022,36 @@ class BrowserSyncController:
                     if generation != self._generation:
                         continue
                     self._analyzing = False
-                    if reference_hash != digest(("onsets-v2:" + json.dumps(tuple(self._reference))).encode()):
+                    if reference_hash != digest((self._alignment_scope(self._reference_kind) + json.dumps(tuple(self._reference))).encode()):
                         self._align()
                         continue
                     if kind == "alignment":
                         self.mapping = value
+                        self._alignment_problem = None
+                        self._cache_mapping(value, self._reference_kind)
                         logger.info("Subtitle timing aligned: %s, %s/%s confident cues, offsets %.3f..%.3f",
                                     value.method, sum(value.confidence), len(value.source),
                                     min(v[0]-s[0] for s,v in zip(value.source,value.video)),
                                     max(v[0]-s[0] for s,v in zip(value.source,value.video)))
                         self.bridge.send(dict(type="TimingMap", version=value.version, video=value.video))
                     else:
+                        self._alignment_problem = value
                         self.report_error("Alignment uncertain · " + value)
+                elif kind == "audio-reference-changed" and identity == self._generation:
+                    self.mapping = None
+                    self._offset_region = self._auto_offset = None
+                    self.preferences.data.get("maps", {}).pop(self._alignment_scope("audio"), None)
+                    self.preferences.save()
+                    self.abort("Audio language changed; revalidating timing")
+                    self._set_status("Audio language changed to " + str(value) + "; finding new timing")
                 elif kind == "audio-alignment" and identity == self._generation:
-                    if self._reference_kind != "full":
+                    if self.alignment_mode == "audio":
                         self.mapping = value
+                        self._alignment_problem = None
+                        self._cache_mapping(value, "audio")
                         self.bridge.send(dict(type="TimingMap", version=value.version, video=value.video))
                 elif kind == "audio-error" and identity == self._generation:
+                    self._alignment_problem = value
                     self._set_status("Alignment uncertain · " + value)
                 elif kind == "waiting-anki":
                     pending = self._pending_media.get(identity)
@@ -813,6 +1059,22 @@ class BrowserSyncController:
                         pending[0].phase = "waiting_anki"
                         self._retry_at[identity] = time.monotonic() + 5
                         self._set_status("Waiting for Anki - saved recordings will attach automatically")
+                elif kind == "asb-ready":
+                    session = self._operations.get(identity)
+                    if session and self._capture is session and not session.cancelled and session.phase == "preparing":
+                        self._dispatch_asb_capture(session, value)
+                elif kind == "asb-result":
+                    session = self._operations.get(identity)
+                    if session is None:
+                        continue
+                    if self._capture is session:
+                        self._capture = None
+                    if not value and not session.cancelled:
+                        self._finish_asb_playback(session)
+                    if identity not in self._pending_media:
+                        self._terminal_media_failure(session, value or "asbplayer did not return media")
+                    else:
+                        self._results.put(("media", identity, value))
                 elif kind == "media":
                     pending = self._pending_media.get(identity)
                     if pending is None:
@@ -822,15 +1084,19 @@ class BrowserSyncController:
                         session.phase = "cancelled" if session.cancelled else "failed"
                         attempts = self._retry_count.get(identity, 0)
                         permanent = any(text in str(value).lower() for text in (
-                            "missing media field", "not configured", "invalid note", "note not found", "no longer exists"))
+                            "missing media field", "missing required media fields", "not configured", "invalid note", "note not found", "no longer exists", "asbplayer"))
                         if not session.cancelled and not permanent and attempts < 4:
                             self._retry_count[identity] = attempts + 1
                             self._retry_at[identity] = time.monotonic() + (1, 3, 10, 30)[attempts]
-                            self.report_error("Media saved ? retrying Anki attachment automatically")
+                            logger.info("Media attachment pending operation=%s note=%s attempt=%s reason=%s", identity, session.target_note_id, attempts + 1, value)
+                            self._set_status("Media saved - retrying Anki attachment automatically")
                         elif session.cancelled:
                             self._save_pending_media(session, result)
                             self._finish_native(session, False)
                         else:
+                            if permanent:
+                                session.terminal_error = str(value)
+                                self._save_pending_media(session, result)
                             self._terminal_media_failure(session, value)
                     else:
                         del self._pending_media[identity]
@@ -850,7 +1116,7 @@ class BrowserSyncController:
             self._set_status("Chrome disconnected · media pending")
         if self.following and self.snapshot:
             c = self.controller
-            if self._capture and time.monotonic() - self.snapshot.received > 5.0:
+            if self._capture and getattr(self._capture, "backend", "native") == "native" and time.monotonic() - self.snapshot.received > 5.0:
                 self.abort("Video clock unavailable")
             c.current_time = self.snapshot.time_at()
             c.playing = self.fresh and not (self.snapshot.paused or self.snapshot.buffering or self.snapshot.seeking)
@@ -863,7 +1129,7 @@ class BrowserSyncController:
                 aligned = "Aligned · enable native recording" if self.native and not self._native_enabled else "Aligned · Chrome"
                 self._set_status(aligned if idx is None or self.mapping.confidence[idx] else "Alignment uncertain")
             elif not self.fresh:
-                self._set_status("Clock observation delayed ? clock frozen" if self._connected else "Chrome disconnected ? clock frozen")
+                self._set_status("Clock observation delayed - clock frozen" if self._connected else "Chrome disconnected - clock frozen")
                 now = time.monotonic()
                 if self._connected and now - self._last_probe > .5:
                     self._last_probe = now
@@ -878,6 +1144,7 @@ class BrowserSyncController:
                 if pending and pending[0].target_note_id and not pending[0].cancelled:
                     self._attach_media(*pending)
         self._apply_failure_pause()
+        self._update_timing_ui()
         if self._episode_problem:
             self._set_status(self._episode_problem)
         if time.monotonic() < getattr(self, "_notice_until", 0):
@@ -898,6 +1165,9 @@ class BrowserSyncController:
     def _send_recorder_config(self):
         hotkeys = self.controller.hotkey_controller
         bindings = [binding for _, binding in hotkeys._repeat_action_bindings() + hotkeys._single_fire_bindings()]
+        if not self.native:
+            chord = frozenset(str(legacy_value(self.controller.config, "ASBPLAYER_CAPTURE_HOTKEY")).lower().split("+"))
+            bindings = [binding for binding in bindings if frozenset(binding.lower().split("+")) != chord]
         config = tuple(bindings) if not hotkeys._hotkeys_disabled() else ()
         if config != self._shortcut_config:
             self.bridge.send(dict(type="ShortcutConfig", identity=self.identity.wire(), bindings=config))
