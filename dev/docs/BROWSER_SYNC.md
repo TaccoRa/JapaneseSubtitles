@@ -76,3 +76,5 @@ The updated app has been restarted and its compact controls and Advanced Anki pr
 | Settings/recovery | Profiles/search, positions, history/statistics, startup, diagnostics | [profiles](../tests/model/test_settings_profiles.py), [config](../tests/model/test_config_manager.py), [startup](../tests/model/test_app_startup.py), [flags](../tests/model/test_controller_flags.py) |
 
 Startup recovery checks AnkiConnect availability quietly before attaching saved recordings. When Anki is closed, recovered operations retain their media and explicit note IDs and wait five seconds between availability checks; this does not consume attachment retries or trigger playback failure handling. New capture failures retain bounded attachment retries.
+
+Netflix seeks use a site-specific adapter to the player session in the bound document. Direct `video.currentTime` writes are disabled on Netflix, including capture preparation. If the private player interface is absent or the session is ambiguous, the command fails without a raw seek fallback. The adapter requires live validation after extension reload; clock connection alone does not establish Netflix playback/capture compatibility.

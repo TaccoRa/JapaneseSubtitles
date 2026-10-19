@@ -114,7 +114,15 @@ async function waitSeek(v,t){
     // Streaming players may omit seeked or deliver it before seeking clears.
     poll=setInterval(done,50);
     timeout=setTimeout(()=>{cleanup();reject(Error('Seek timed out: requested '+t.toFixed(2)+'s, player at '+v.currentTime.toFixed(2)+'s'));},10000);
-    try{v.currentTime=t;done();}catch(e){cleanup();reject(e);}
+    try{
+      const host=new URL(location.href).hostname;
+      if(host==='netflix.com'||host.endsWith('.netflix.com')){
+        // Netflix owns its streaming pipeline. A raw currentTime write can
+        // invalidate its playback state; never fall back to that write here.
+        chrome.runtime.sendMessage({type:'NetflixSeek',videoId:ids.get(v),time:t,mediaKey:mediaKey(v),source:v.currentSrc,page:location.href})
+          .then(result=>{if(!result?.ok){cleanup();reject(Error(result?.error||'Netflix player seek unavailable'));}else done();},e=>{cleanup();reject(e);});
+      }else{v.currentTime=t;done();}
+    }catch(e){cleanup();reject(e);}
   });
 }
 function abort(reason){if(!capture)return;const old=capture;capture=null;send({type:'CaptureAborted',operationId:old.operationId,error:reason});}

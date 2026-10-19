@@ -6,7 +6,7 @@ const path=require('node:path');
 const crypto=require('node:crypto');
 const source=fs.readFileSync(path.join(__dirname,'../../browser-extension/content.js'),'utf8');
 
-function environment(){
+function environment(href="https://video.test/episode"){
   let now=0,id=0,listener;
   const timers=new Map(),sent=[],windowEvents=new Map();
   const schedule=(fn,delay,repeat)=>{timers.set(++id,{fn,at:now+delay,repeat});return id;};
@@ -24,8 +24,8 @@ function environment(){
   const document={querySelectorAll:selector=>selector==='video'?[video]:[],addEventListener:(name,fn)=>documentEvents.set(name,fn),removeEventListener:name=>documentEvents.delete(name)};
   const window={addEventListener:(name,fn)=>windowEvents.set(name,fn),removeEventListener:name=>windowEvents.delete(name),postMessage(data){windowEvents.get('message')?.({data,source:window});}};
   const runtime={id:'test-extension',sendMessage:async m=>{sent.push(m);},onMessage:{addListener:fn=>{listener=fn;},removeListener:()=>{listener=null;}}};
-  const scope=vm.createContext({document,window,top:window,parent:window,location:{href:'https://video.test/episode'},innerWidth:800,innerHeight:450,
-    performance:{now:()=>now},crypto,console,
+  const scope=vm.createContext({document,window,top:window,parent:window,location:{href},innerWidth:800,innerHeight:450,
+    performance:{now:()=>now},crypto,console,URL,
     chrome:{runtime},
     setInterval:(fn,delay)=>schedule(fn,delay,delay),setTimeout:(fn,delay)=>schedule(fn,delay,0),
     clearInterval:key=>timers.delete(key),clearTimeout:key=>timers.delete(key)});
@@ -155,4 +155,30 @@ test('caption discovery retries a resource after a temporary load failure',()=>{
   assert.equal(env.sent.filter(m=>m.type==='CaptionResource').length,1);
   env.advance(100);
   assert.equal(env.sent.filter(m=>m.type==='CaptionResource').length,2);
+});
+
+
+test('Netflix seeks use its player bridge once without assigning currentTime',async()=>{
+  const env=environment('https://www.netflix.com/watch/123');
+  const reply=env.command('seek',19);
+  await Promise.resolve();
+  assert.equal(env.video.target,undefined);
+  assert.equal(env.sent.filter(m=>m.type==='NetflixSeek').length,1);
+  // The test runtime returns no bridge response: fail safely, no raw fallback.
+  assert.equal((await reply).ok,false);
+  assert.equal(env.video.target,undefined);
+});
+
+test('Netflix seek acknowledges the observed clock and capture uses the same adapter',async()=>{
+  const env=environment('https://www.netflix.com/watch/123');
+  env.runtime.sendMessage=async m=>{env.sent.push(m);return {ok:true};};
+  const reply=env.command('seek',19);
+  await Promise.resolve();env.video._time=19;env.advance(50);
+  assert.equal((await reply).ok,true);
+  const identity={videoId:env.sent.find(m=>m.type==='PlaybackSnapshot').videoId};
+  const prepared=env.message({type:'PrepareCapture',identity,operationId:'capture',start:10,end:12});
+  await Promise.resolve();env.video._time=10;env.advance(50);
+  assert.equal((await prepared).ok,true);
+  assert.deepEqual(env.sent.filter(m=>m.type==='NetflixSeek').map(m=>m.time),[19,10]);
+  assert.equal(env.video.target,undefined);
 });

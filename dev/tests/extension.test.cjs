@@ -383,3 +383,38 @@ test('an old media caption announcement cannot fetch a URL after the episode cha
   await settle();await settle();
   assert.deepEqual(calls,[]);
 });
+
+
+test('Netflix bridge only executes in the bound document and checks episode identity',async()=>{
+  const env=environment();await env.connect();
+  env.chrome.scripting.executeScript=async value=>{env.scripts.push(value);return [{result:{ok:true}}];};
+  const request={type:'NetflixSeek',videoId:'video',mediaKey:'episode',time:19,source:'blob:video',page:'https://www.netflix.com/watch/123'};
+  const netflixSender={...sender,url:request.page};
+  assert.equal((await env.message(request,netflixSender)).ok,true);
+  const script=env.scripts.at(-1);
+  assert.equal(script.world,'MAIN');assert.deepEqual([...script.target.documentIds],['doc']);
+  assert.equal(script.target.tabId,1);assert.equal(script.args[0].time,19);
+  const before=env.scripts.length;
+  for(const [m,s] of [[request,{...netflixSender,documentId:'old'}],[{...request,mediaKey:'other'},netflixSender],[request,{...netflixSender,url:'https://netflix.com.attacker.test/'}]]){
+    assert.equal((await env.message(m,s)).ok,false);
+  }
+  assert.equal(env.scripts.length,before);
+});
+
+test('Netflix adapter uses milliseconds once and refuses missing or ambiguous sessions',async()=>{
+  const env=environment();await env.connect();
+  env.chrome.scripting.executeScript=async value=>{env.scripts.push(value);return [{result:{ok:true}}];};
+  const page='https://www.netflix.com/watch/123';
+  await env.message({type:'NetflixSeek',videoId:'video',mediaKey:'episode',time:19,source:'blob:video',page},{...sender,url:page});
+  const fn=env.scripts.at(-1).func;
+  const calls=[];
+  const player={getCurrentTime:()=>20000,seek:ms=>calls.push(ms)};
+  const api={getAllPlayerSessionIds:()=>['one'],getVideoPlayerBySessionId:()=>player};
+  const video={isConnected:true,currentSrc:'blob:video',get currentTime(){return 20;},set currentTime(_){throw Error('Unsafe raw seek');},getBoundingClientRect:()=>({width:800})};
+  const scope={location:{href:page,hostname:'www.netflix.com'},document:{querySelectorAll:()=>[video]},netflix:{appContext:{state:{playerApp:{getAPI:()=>({videoPlayer:api})}}}}};
+  const run=()=>vm.runInNewContext('('+fn.toString()+')('+JSON.stringify({time:19,source:'blob:video',page})+')',scope);
+  assert.equal(run().ok,true);assert.deepEqual(calls,[19000]);
+  api.getAllPlayerSessionIds=()=>['one','two'];
+  assert.throws(run,/safely/);assert.equal(calls.length,1);
+  scope.netflix=undefined;assert.throws(run,/unavailable/);assert.equal(calls.length,1);
+});

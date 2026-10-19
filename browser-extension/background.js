@@ -1,4 +1,21 @@
 const observed=new Map();
+// Runs only in the selected Netflix document's MAIN world. This private player
+// interface can change: reject safely instead of assigning video.currentTime.
+function seekNetflixPlayer(request){
+  if(location.href!==request.page)throw Error('Netflix page changed before seeking');
+  const host=location.hostname;
+  if(host!=='netflix.com'&&!host.endsWith('.netflix.com'))throw Error('Not a Netflix player');
+  const videos=[...document.querySelectorAll('video')].filter(v=>v.isConnected&&v.currentSrc===request.source&&v.getBoundingClientRect().width>=240);
+  if(videos.length!==1)throw Error('Netflix video is ambiguous or was replaced');
+  if(!Number.isFinite(request.time)||request.time<0)throw Error('Invalid Netflix seek time');
+  const api=globalThis.netflix?.appContext?.state?.playerApp?.getAPI?.()?.videoPlayer;
+  if(!api?.getAllPlayerSessionIds||!api?.getVideoPlayerBySessionId)throw Error('Netflix player controls unavailable. Use Netflix controls and refresh the page.');
+  const players=api.getAllPlayerSessionIds().map(id=>api.getVideoPlayerBySessionId(id))
+    .filter(p=>typeof p?.seek==='function'&&typeof p?.getCurrentTime==='function'&&Math.abs(p.getCurrentTime()/1000-videos[0].currentTime)<2);
+  if(players.length!==1)throw Error('Cannot identify the Netflix playback session safely');
+  players[0].seek(Math.round(request.time*1000));
+  return {ok:true};
+}
 const captionFetchStates=new Map();
 let socket=null,selected=null,recording=null,status='Disconnected',heartbeat=null;
 let fingerprints=new Map(),captionCache=new Map(),incoming=Promise.resolve();
@@ -289,6 +306,18 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
     return;
   }
   const identity={tabId:sender.tab.id,documentId:sender.documentId,frameId:sender.frameId,videoId:m.videoId};
+  if(m.type==='NetflixSeek'){
+    (async()=>{
+      if(key(identity)!==key(selected)||!sender.documentId)throw Error('Netflix video binding changed');
+      const url=new URL(sender.url||'');
+      if(url.protocol!=='https:'||(url.hostname!=='netflix.com'&&!url.hostname.endsWith('.netflix.com')))throw Error('Invalid Netflix seek sender');
+      if(!Number.isFinite(m.time)||m.time<0)throw Error('Invalid Netflix seek time');
+      const fingerprint=await hash(m.mediaKey);
+      if(key(identity)!==key(selected)||observed.get(key(identity))?.fingerprint!==fingerprint)throw Error('Netflix episode changed');
+      const result=await chrome.scripting.executeScript({target:{tabId:sender.tab.id,documentIds:[sender.documentId]},world:'MAIN',func:seekNetflixPlayer,args:[{time:m.time,source:m.source,page:m.page}]});
+      return result?.[0]?.result||{ok:false,error:'Netflix player seek unavailable'};
+    })().then(reply,e=>reply({ok:false,error:e.message}));return true;
+  }
   if(m.type==='FullscreenChanged'){followFullscreen(m.fullscreen,sender);return;}
   if(m.type==='EpisodeContext'&&sender.frameId===0){
     (async()=>{
