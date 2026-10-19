@@ -1,4 +1,4 @@
-# Browser synchronization and native recording (0.2.2)
+# Browser synchronization and native recording (0.2.3)
 
 Watch in the existing Chrome tab. SubtitlePlayer owns the chosen Japanese subtitle content, translations, furigana, learning status and Anki fields. Source SRT/ASS/VTT bytes and cue times remain unchanged. Timing corrections and episode-specific trims are separate local data.
 
@@ -54,7 +54,7 @@ Chrome requires invoking the extension to grant tab audio capture. Opening its p
 
 The authenticated loopback bridge uses port 8767. Its health endpoint contains only service/version information. Backoff avoids repeatedly constructing refused WebSockets while the desktop is stopped. Historical Chrome Errors entries remain historical until cleared; a service stopping between readiness check and handshake can still cause a network error.
 
-Caption fetches are limited to the bound video, omit credentials/referrers and reject automatic redirects. Captions are parsed as timing text, never executed as script. Screenshot processing accepts local PNG data only. The companion does not open advertising pages or disable browser/antivirus protections.
+Caption fetches are limited to the bound video and current media fingerprint, omit credentials/referrers and reject automatic redirects. Each resource is requested once; a network/HTTP failure stops further external caption requests for that video, preventing repeated protection alerts caused by an automatic retry loop. Already loaded caption intervals remain available. Failure diagnostics record the hostname, without URL paths or tokens. Captions are parsed as timing text, never executed as script. Screenshot processing accepts local PNG data only. The companion does not open advertising pages or disable browser/antivirus protections.
 
 ## Validation
 

@@ -1,4 +1,5 @@
 const observed=new Map();
+const captionFetchStates=new Map();
 let socket=null,selected=null,recording=null,status='Disconnected',heartbeat=null;
 let fingerprints=new Map(),captionCache=new Map(),incoming=Promise.resolve();
 let connections=Promise.resolve(),reconnectTimer=null,connectionEpoch=0;
@@ -350,12 +351,24 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
   if(m.type==='CaptionIntervals'||m.type==='CaptionObservation')send({...m,identity});
   if(m.type==='CaptionResource'&&/english|german|englisch|deutsch|\b(en|eng|de|deu|ger)\b/i.test(m.language+' '+m.label)){
     if(key(identity)!==key(selected))return;
-    (async()=>{try{
+    (async()=>{let fetchState,hostname='';try{
       const url=new URL(m.url);if(!['http:','https:'].includes(url.protocol))return;
+      hostname=url.hostname;
       const fingerprint=await hash(m.mediaKey),priority=m.priority??0;
+      if(key(identity)!==key(selected)||observed.get(key(identity))?.fingerprint!==fingerprint)return;
+      const scope=key(identity)+'|'+fingerprint;
+      fetchState=captionFetchStates.get(scope);
+      if(!fetchState){
+        fetchState={failed:false,attempted:new Set()};captionFetchStates.set(scope,fetchState);
+        if(captionFetchStates.size>128)captionFetchStates.delete(captionFetchStates.keys().next().value);
+      }
+      // A denied resource must not become an endless browser/antivirus alert loop.
+      // Claim before awaiting so repeated announcements cannot duplicate requests.
+      if(fetchState.failed||fetchState.attempted.has(url.href))return;
       const cached=captionCache.get(key(identity))?.[0];
       if(cached?.fingerprint===fingerprint&&cached.priority<=priority){if(key(identity)===key(selected))send(cached);return;}
-      const response=await fetch(url.href,{redirect:'error',credentials:'omit',referrerPolicy:'no-referrer'});if(!response.ok)throw Error('Caption request failed');
+      fetchState.attempted.add(url.href);
+      const response=await fetch(url.href,{redirect:'error',credentials:'omit',referrerPolicy:'no-referrer',signal:AbortSignal.timeout(5000)});if(!response.ok)throw Error('Caption request failed');
       const text=await response.text();
       if(key(identity)!==key(selected))return;
       const current=observed.get(key(identity));
@@ -363,7 +376,10 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
       const previous=captionCache.get(key(identity))?.[0];
       if(previous?.fingerprint===fingerprint&&previous.priority<=priority)return;
       if(text.length<4000000&&(text.match(/-->/g)||[]).length>=8){const value={type:'CaptionText',identity,text,language:m.language,priority,fingerprint:await hash(m.mediaKey)};captionCache.set(key(identity),[value]);if(key(identity)===key(selected))send(value);}
-    }catch{if(key(identity)===key(selected))send({type:'CaptionUnavailable',identity,error:'Site captions could not be loaded. Check that English captions are enabled.'});}})();
+    }catch{
+      if(fetchState)fetchState.failed=true;
+      if(key(identity)===key(selected))send({type:'CaptionUnavailable',identity,error:'External subtitle request failed'+(hostname?' ('+hostname+')':'')+'. Automatic URL requests stopped for this video. Enable English/German site captions to use already loaded timing.'});
+    }})();
   }
 });
 chrome.tabs.onActivated.addListener(({tabId})=>{activeTabId=tabId;if(recording&&selected?.tabId!==tabId)fail('Selected tab changed');if(fullscreenLease&&fullscreenLease.tabId!==tabId){fullscreenFrames.clear();fullscreenUpdates=fullscreenUpdates.then(restoreWindowFullscreen);}discoverTab(tabId);scheduleAutoConnect();});

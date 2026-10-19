@@ -355,3 +355,31 @@ test('a late command acknowledgement never applies the previous episode clock to
   const ack=env.sent.find(m=>m.type==='CommandAck'&&m.operationId==='old-seek');
   assert.equal(ack.ok,false);assert.equal(ack.state,undefined);
 });
+
+
+test('a refused subtitle URL is attempted once and stops further external caption requests for that video',async()=>{
+  const env=environment();await env.connect();
+  const calls=[];
+  env.chrome.fetch=async(url,options)=>{calls.push(url);throw Error('Blocked by browser protection');};
+  const resource={type:'CaptionResource',videoId:'video',mediaKey:'episode',url:'https://captions.test/en.vtt',language:'en',label:'English',priority:0};
+  for(let i=0;i<20;i++)await env.message(resource,sender);
+  await until(()=>env.sent.some(m=>m.type==='CaptionUnavailable'));
+  for(let i=0;i<20;i++)await env.message({...resource,url:'https://other-captions.test/de.vtt',language:'de',priority:20},sender);
+  await settle();
+  assert.deepEqual(calls,['https://captions.test/en.vtt']);
+  const errors=env.sent.filter(m=>m.type==='CaptionUnavailable');
+  assert.equal(errors.length,1);assert.match(errors[0].error,/captions.test/);assert.match(errors[0].error,/Automatic URL requests stopped/);
+  const before=env.sent.length;
+  await env.message({type:'CaptionIntervals',videoId:'video',intervals:[[1,2],[3,4]],language:'en'},sender);
+  await settle();
+  assert.equal(env.sent.at(-1).type,'CaptionIntervals');assert.equal(env.sent.length,before+1);
+});
+
+
+test('an old media caption announcement cannot fetch a URL after the episode changed',async()=>{
+  const env=environment();await env.connect();
+  const calls=[];env.chrome.fetch=async url=>{calls.push(url);throw Error('Must not fetch stale resource');};
+  await env.message({type:'CaptionResource',videoId:'video',mediaKey:'old-episode',url:'https://captions.test/old.vtt',language:'en',label:'English'},sender);
+  await settle();await settle();
+  assert.deepEqual(calls,[]);
+});

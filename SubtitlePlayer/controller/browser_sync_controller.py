@@ -591,6 +591,7 @@ class BrowserSyncController:
                 self._reference = intervals
                 self._align()
         elif kind == "CaptionUnavailable":
+            logger.warning("Browser caption resource: %s", event.get("error", "Unavailable"))
             if not self._reference:
                 self._set_status(event["error"])
         elif kind == "CaptionObservation":
