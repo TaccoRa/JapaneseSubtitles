@@ -466,6 +466,8 @@ class SubtitleController:
         except Exception:
             logger.debug("Failed to resolve current subtitle segments for popup", exc_info=True)
         snapshot = getattr(self, "current_cue_snapshot", None)
+        if not text.strip() and not (snapshot and snapshot.plain_text.strip()):
+            return "break"
         self.popup.open_copy_popup(text, line_segments=line_segments, cue_snapshot=snapshot)
         return "break"
 

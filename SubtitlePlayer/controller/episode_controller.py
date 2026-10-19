@@ -36,7 +36,7 @@ class EpisodeController(_ControllerProxy):
             """
             browser = getattr(self.controller, "browser_sync", None)
             media = getattr(browser, "_media_context", None) if browser and browser.following else None
-            if media and media.get("kind") == "movie":
+            if media and media.get("kind") == "movie" and self.sub_manager.get_current_episode() is None:
                 self.settings.episode_var.set("Movie")
                 self.settings.set_episode_nav_state(can_dec=False, can_inc=False, is_movie=True)
                 self.settings.set_episode_values([])
@@ -58,9 +58,9 @@ class EpisodeController(_ControllerProxy):
         media = getattr(browser, "_media_context", None) if browser and browser.following else None
         getter = getattr(self.sub_manager, "get_display_anime_name", None)
         name = getter() if callable(getter) else self.sub_manager.get_anime_name()
-        is_browser_movie = bool(media and media.get("kind") == "movie")
+        is_browser_movie = bool(media and media.get("kind") == "movie" and self.sub_manager.get_current_episode() is None)
         if is_browser_movie:
-            title = str(media.get("title") or name)
+            title = str(name or media.get("title") or "SubtitlePlayer")
             self.settings.episode_var.set("Movie")
             self.settings.set_episode_nav_state(can_dec=False, can_inc=False, is_movie=True)
             self.settings.root.title(f"{title} - Movie")
@@ -509,7 +509,15 @@ class EpisodeController(_ControllerProxy):
             self.update_episode_nav_controls()
 
             new_total = self.sub_manager.get_total_duration() ##maybe not needed anymore
-            self.settings.set_total_duration(new_total)
+            browser = getattr(self.controller, "browser_sync", None)
+            if browser is not None and browser.following and browser.snapshot:
+                self.settings.total_duration = new_total
+                self.settings.slider.config(to=browser.snapshot.duration)
+                source = getattr(browser, "_source", None)
+                if callable(source):
+                    source()
+            else:
+                self.settings.set_total_duration(new_total)
             self.total_duration = new_total
             self.update_max_width()
             self.update_media_presentation()
@@ -551,8 +559,8 @@ class EpisodeController(_ControllerProxy):
             self.overlay.subtitle_canvas.update_idletasks()
 
             # Immediately re-render the subtitle at current_time (same logic as _update_subtitle_display)
-            offset = self.settings._last_offset_value
-            sub_t = self.current_time - offset
+            browser = getattr(self.controller, "browser_sync", None)
+            sub_t = browser.source_time(self.current_time) if browser is not None and browser.following else self.current_time - self.settings._last_offset_value
             finder = getattr(getattr(self.controller, "subtitle_navigation", None), "_display_index_at_time", None)
             if callable(finder):
                 idx = finder(sub_t)
@@ -582,6 +590,8 @@ class EpisodeController(_ControllerProxy):
                 else None
             )
             self.current_cue_snapshot = snapshot
+            self.last_rendered_index = idx
+            self.last_subtitle_raw = snapshot.inline_ruby_text if snapshot is not None else clean
             # render freshly using updated overlay/canvas
             self.renderer.canvas.delete("all")
             self.renderer.render_subtitle(

@@ -293,6 +293,8 @@ class SubtitleManager:
                 pass
 
     def save_state(self):
+        if bool(self.config.get("REMOTE_FLAG")) != bool(self.remote_flag):
+            self.config.set("REMOTE_FLAG", bool(self.remote_flag))
         #save all the variables to config on close:
         #LAST_LOCAL_SRT_FILE, LAST_ANIME_NAME, LAST_REMOTE_SEARCH_QUERY, LAST_GITHUB_URL,
         if getattr(self, "remote_flag", False):
@@ -364,9 +366,10 @@ class SubtitleManager:
             if "subs" in parts:
                 self.anime_folder_name = parts[parts.index("subs") + 1]
             else:
-                parent = os.path.basename(os.path.dirname(local_path))
-                grandparent = os.path.basename(os.path.dirname(os.path.dirname(local_path)))
-                self.anime_folder_name = grandparent or parent or os.path.splitext(os.path.basename(local_path))[0]
+                stem = os.path.splitext(os.path.basename(local_path))[0]
+                name = re.sub(r"[._]+", " ", stem)
+                name = re.split(r"\b(?:(?:19|20)\d{2}|\d{3,4}p|S\d+\s*E\d+|BluRay|WEBRip)\b", name, maxsplit=1, flags=re.I)[0]
+                self.anime_folder_name = name.strip(" -[]") or stem
         if not getattr(self, "remote_flag", False):
             self.display_anime_name = self.anime_folder_name
         self.config.set("LAST_LOCAL_SRT_FILE", local_path)
@@ -508,7 +511,9 @@ class SubtitleManager:
                 top, bottom = [], _segments_for_line(lines[0], allow_auto=allow_auto_for_idx)
             else:
                 top = _segments_for_line(lines[0], allow_auto=allow_auto_for_idx)
-                bottom = _segments_for_line(lines[1], allow_auto=allow_auto_for_idx)
+                # Keep the two-row overlay without discarding third/further
+                # source lines (common in movie SRTs).
+                bottom = _segments_for_line(" ".join(lines[1:]), allow_auto=allow_auto_for_idx)
             display_idx = len(display_data)
             display_data.append((clean, start_times, top, bottom))
             if allow_auto_for_idx:
@@ -2482,6 +2487,8 @@ class SubtitleManager:
                 path = self.ask_local_srt_file()
                 if not path:
                     return
+                self.remote_flag = False
+                self.config.set("REMOTE_FLAG", False)
                 # Bring the startup splash back while we parse/process the chosen file.
                 show_startup_overlay()
                 _done(path)

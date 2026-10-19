@@ -68,14 +68,16 @@ def test_unrelated_anime_or_series_does_not_silently_select_wrong_subtitles():
 
 def test_loading_browser_episode_never_seeks_to_the_desktop_resume_position():
     calls = []
-    browser = SimpleNamespace(following=True, snapshot=SimpleNamespace(time_at=lambda: 18.5),
+    browser = SimpleNamespace(following=True, snapshot=SimpleNamespace(time_at=lambda: 18.5, duration=1500),
                               invalidate=lambda: calls.append("invalidate"))
     manager = SimpleNamespace(get_total_duration=lambda: 1440, get_current_season=lambda: 1,
                               get_current_episode=lambda: 6, get_anime_name=lambda: "Kimetsu no Yaiba",
                               schedule_episode_preload_around_current=lambda: calls.append("prefetch"))
     controller = SimpleNamespace(browser_sync=browser, sub_manager=manager,
         settings=SimpleNamespace(episode_var=SimpleNamespace(set=lambda value: None),
-                                 set_total_duration=lambda value: None, root=SimpleNamespace(title=lambda value: None)),
+                                 set_total_duration=lambda value: calls.append(("unexpected-source-range", value)),
+                                 slider=SimpleNamespace(config=lambda **kw: calls.append(("video-range", kw["to"]))),
+                                 root=SimpleNamespace(title=lambda value: None)),
         playback=SimpleNamespace(set_current_time=lambda value: calls.append(("unexpected-seek", value))),
         ocr_controller=SimpleNamespace(_schedule_ocr_time_jump=lambda value: calls.append("unexpected-ocr")))
     navigation = EpisodeController(controller)
@@ -86,5 +88,5 @@ def test_loading_browser_episode_never_seeks_to_the_desktop_resume_position():
     object.__setattr__(navigation, "update_max_width", lambda: None)
     object.__setattr__(navigation, "remember_current_anime_episode", lambda: calls.append("remember"))
     navigation._after_episode_change()
-    assert calls == ["invalidate", "remember", "prefetch"]
+    assert calls == [("video-range", 1500), "invalidate", "remember", "prefetch"]
     assert controller.current_time == 18.5

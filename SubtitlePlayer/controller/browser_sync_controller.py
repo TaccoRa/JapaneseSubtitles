@@ -7,6 +7,7 @@ import queue
 import re
 import threading
 import time
+import traceback
 import tkinter as tk
 from tkinter import ttk, messagebox
 
@@ -296,6 +297,10 @@ class BrowserSyncController:
         self._control_generation = getattr(self, "_control_generation", 0) + 1
         callback = arguments.pop("on_complete", None)
         operation = self.bridge.command(self.identity, action, **arguments)
+        callers = traceback.extract_stack(limit=4)[:-1]
+        origin = " > ".join(f"{Path(c.filename).name}:{c.name}:{c.lineno}" for c in callers)
+        logger.info("Browser command %s action=%s time=%s source=%s", operation, action,
+                    arguments.get("time"), origin)
         if callback:
             self._command_callbacks[operation] = callback
         self._commands[operation] = time.monotonic() + (12.0 if action == "seek" else 3.0)
@@ -333,11 +338,13 @@ class BrowserSyncController:
                 pass
 
     def source_time(self, video_time):
-        return self.mapping.to_source(video_time) if self.mapping else -1.0
+        # Browsing/lookup remains usable before alignment. Capture still
+        # requires a confident timing map in freeze_capture.
+        return self.mapping.to_source(video_time) if self.mapping else video_time - self._trim
 
     def video_time(self, source_time):
         if not self.mapping:
-            raise ValueError("Finding subtitle timing")
+            return source_time + self._trim
         return self.mapping.to_video(source_time)
 
     def freeze_capture(self, session):

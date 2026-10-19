@@ -647,3 +647,31 @@ def test_print_cleaned_subtitles():
         print(i,": ", sub)
         i += 1
     assert len(cleaned_subs) > 0  # Just to make pytest happy
+
+
+def test_local_download_name_is_from_filename_not_previous_anime(tmp_path):
+    path = tmp_path / "Shrek.2001.1080p.BluRay.x264.YIFY-ja.srt"
+    path.write_text("", encoding="utf-8")
+    manager = object.__new__(SubtitleManager)
+    manager.config = _DictConfig({})
+    manager.remote_flag = False
+    manager.anime_folder_name = manager.display_anime_name = "Old Anime"
+    manager._log_unparsed_filename = lambda **kw: None
+    manager._extract_and_set_local_episode_metadata(str(path))
+    assert manager.get_anime_name() == manager.get_display_anime_name() == "Shrek"
+    assert manager.current_episode is None and manager.current_season is None and manager.is_movie
+
+
+def test_movie_cues_keep_third_and_later_lines_without_changing_source():
+    manager = object.__new__(SubtitleManager)
+    manager.config = _DictConfig({})
+    cue = srt.Subtitle(index=1,start=datetime.timedelta(seconds=48),end=datetime.timedelta(seconds=52),
+        content="<i>first line\nsecond line\nthird line</i>")
+    manager.load_subtitles = lambda path: [cue]
+    manager._auto_ruby_enabled = lambda: False
+    manager._parse_ruby_segments = lambda text, **kw: [(text, None)]
+    payload = manager._build_subtitle_display_payload("movie.srt")
+    clean, start, top, bottom = payload["display_data"][0]
+    assert top == [("first line", None)]
+    assert bottom == [("second line third line", None)]
+    assert cue.content == "<i>first line\nsecond line\nthird line</i>"

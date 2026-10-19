@@ -218,7 +218,7 @@ def test_restored_media_waits_quietly_then_attaches_to_original_note(tmp_path):
 def test_browser_movie_title_does_not_rename_library_and_series_restores_own_name():
     from controller.episode_controller import EpisodeController
     titles, labels, nav = [], [], []
-    manager = NS(get_display_anime_name=lambda: "Our anime name", get_current_episode=lambda: 7,
+    manager = NS(get_display_anime_name=lambda: "Shrek", get_current_episode=lambda: None,
         get_current_season=lambda: 1, get_current_episode_label=lambda: "7",
         get_episode_nav_state=lambda: (True, True, False), get_episode_dropdown_items=lambda: [7])
     owner = NS(sub_manager=manager, browser_sync=NS(following=True, _media_context=dict(title="Shrek", kind="movie")),
@@ -228,7 +228,9 @@ def test_browser_movie_title_does_not_rename_library_and_series_restores_own_nam
     episode.update_media_presentation()
     assert titles[-1] == "Shrek - Movie" and labels[-1] == "Movie"
     assert nav[-1] == dict(can_dec=False, can_inc=False, is_movie=True)
-    assert manager.get_display_anime_name() == "Our anime name"
+    assert manager.get_display_anime_name() == "Shrek"
+    manager.get_display_anime_name = lambda: "Our anime name"
+    manager.get_current_episode = lambda: 7
     owner.browser_sync._media_context = dict(title="Site anime name", kind="episode")
     episode.update_media_presentation()
     assert titles[-1] == "S1E7 Our anime name" and labels[-1] == "7" and nav[-1] == dict(can_dec=True, can_inc=True, is_movie=False)
@@ -246,3 +248,35 @@ def test_media_context_from_other_video_cannot_change_title():
     assert not calls
     sync._event(event);sync._event(event)
     assert calls == [True]
+
+
+def test_original_timing_remains_browsable_before_alignment_but_capture_is_blocked():
+    sync = browser()
+    sync.mapping = None
+    sync._trim = -.5
+    assert sync.source_time(48) == 48.5
+    assert sync.video_time(48.5) == 48
+    from model.capture_session import CaptureSession, FrozenActionTarget
+    session = CaptureSession(FrozenActionTarget.create(selected_text="word",subtitle_text="sentence",sentence_key="sentence"))
+    with pytest.raises(ValueError, match="Alignment uncertain"):
+        sync.freeze_capture(session)
+
+
+def test_stale_movie_metadata_cannot_override_selected_anime():
+    from controller.episode_controller import EpisodeController
+    titles, labels, nav = [], [], []
+    owner = NS(sub_manager=NS(get_display_anime_name=lambda: "Our anime",get_current_episode=lambda: 7,
+        get_current_season=lambda: 1,get_current_episode_label=lambda: "7",
+        get_episode_nav_state=lambda: (True,True,False),get_episode_dropdown_items=lambda: [7]),
+        browser_sync=NS(following=True,_media_context=dict(kind="movie",title="Shrek")),
+        settings=NS(root=NS(title=titles.append),episode_var=NS(set=labels.append),
+            set_episode_nav_state=lambda **kw:nav.append(kw),set_episode_values=lambda values:None))
+    EpisodeController(owner).update_media_presentation()
+    assert titles == ["S1E7 Our anime"] and labels == ["7"]
+    assert nav[-1]["is_movie"] is False
+
+
+def test_slider_release_without_user_press_never_seeks():
+    from controller.subtitle_navigation import SubtitleNavigationController
+    owner = NS(slider_dragging=False,playback=NS(set_current_time=lambda *_:pytest.fail("Unrequested seek")))
+    SubtitleNavigationController(owner).on_slider_release(None)

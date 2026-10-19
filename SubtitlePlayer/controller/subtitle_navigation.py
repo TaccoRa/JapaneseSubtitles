@@ -784,6 +784,8 @@ class SubtitleNavigationController(_ControllerProxy):
             pass
 
     def on_slider_release(self, event):
+        if not self.slider_dragging:
+            return
         start = time.perf_counter()
         self._cancel_slider_render_job()
         time_job = getattr(self, "_slider_time_display_job", None)
