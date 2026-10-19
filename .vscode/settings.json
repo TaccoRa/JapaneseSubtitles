@@ -1,0 +1,18 @@
+{
+    "python.analysis.exclude": [
+        "**/.git/**",
+        "**/.venv/**",
+        "**/node_modules/**",
+        "**/__pycache__/**",
+        "**/.pytest_cache/**",
+        "logs/**",
+        "native/**/target/**",
+        "voice_models/**",
+        "SubtitlePlayer/voice_models/**",
+        "SubtitlePlayer/cache_github/**",
+        "SubtitlePlayer/github_search/**",
+        "subs/**",
+        "pending_capture_media/**",
+        "timing_maps/**"
+    ]
+}
