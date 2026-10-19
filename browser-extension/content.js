@@ -195,7 +195,7 @@ listen(window,'message',e=>{
   const next={...m,rect:r,viewport:{width:innerWidth,height:innerHeight}};
   if(window===top)send({...next,type:'CropResult'});else parent.postMessage(next,'*');
 });
-let lastCaption='';
+let lastCaption='',lastMediaContext='',lastMediaAt=0;
 // A crop belongs to one layout. Do not attach a stale crop after fullscreen/resize.
 listen(document,'fullscreenchange',()=>{
   if(capture)abort('Fullscreen changed during capture');
@@ -203,6 +203,10 @@ listen(document,'fullscreenchange',()=>{
 });
 listen(window,'resize',()=>{if(capture)abort('Video layout changed during capture');});
 every(()=>{
+  if(window===top&&typeof subtitlePlayerMediaContext==='function'){
+    const media=subtitlePlayerMediaContext(location.href,document);
+    if(media){const value=JSON.stringify(media);if(value!==lastMediaContext||performance.now()-lastMediaAt>2000){send({type:'MediaContext',...media});lastMediaContext=value;lastMediaAt=performance.now();}}
+  }
   if(window===top&&typeof subtitlePlayerEpisodeContext==='function'){
     const context=subtitlePlayerEpisodeContext(location.href);
     if(context){

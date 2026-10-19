@@ -24,6 +24,7 @@ let backend='native',nativeEnabled=false;
 const finishing=new Map(),completedCaptures=new Set();
 let offscreenCreation=null;
 let episodeContexts=new Map(),bindingLost=false;
+const mediaContexts=new Map();
 let activeTabId=null,autoEnabled=true,storedToken='',initialized=false,autoTimer=null;
 let reconnectDelay=1000;
 const discoveries=new Map();
@@ -38,6 +39,7 @@ function publishBinding(){
   send({type:'Bound',identity:selected});
   send({type:'RecorderState',identity:selected,enabled:nativeEnabled});
   const context=episodeContexts.get(selected?.tabId);if(context)send({...context,identity:selected});
+  const media=mediaContexts.get(selected?.tabId);if(media)send({...media,identity:selected});
   for(const caption of captionCache.get(key(selected))||[])send(caption);
 }
 async function toFrame(type,extra={},identity=selected){
@@ -319,6 +321,13 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
     })().then(reply,e=>reply({ok:false,error:e.message}));return true;
   }
   if(m.type==='FullscreenChanged'){followFullscreen(m.fullscreen,sender);return;}
+  if(m.type==='MediaContext'&&sender.frameId===0){
+    if(!['movie','episode'].includes(m.kind)||!m.title)return;
+    const context={type:'MediaContext',title:String(m.title).slice(0,300),kind:m.kind,episode:m.episode,season:m.season,pageKey:String(m.pageKey||'').slice(0,1000)};
+    mediaContexts.set(sender.tab.id,context);
+    if(selected?.tabId===sender.tab.id)send({...context,identity:selected});
+    return;
+  }
   if(m.type==='EpisodeContext'&&sender.frameId===0){
     (async()=>{
       const context={type:'EpisodeContext',seriesKey:await hash(m.seriesKey),episode:m.episode,season:m.season,scope:m.scope,title:String(m.title||'').slice(0,300)};
@@ -413,7 +422,7 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
 });
 chrome.tabs.onActivated.addListener(({tabId})=>{activeTabId=tabId;if(recording&&selected?.tabId!==tabId)fail('Selected tab changed');if(fullscreenLease&&fullscreenLease.tabId!==tabId){fullscreenFrames.clear();fullscreenUpdates=fullscreenUpdates.then(restoreWindowFullscreen);}discoverTab(tabId);scheduleAutoConnect();});
 chrome.tabs.onRemoved.addListener(tabId=>{if(tabId===selected?.tabId){fail('Video tab closed');selected=null;fullscreenFrames.clear();fullscreenUpdates=fullscreenUpdates.then(restoreWindowFullscreen);}});
-chrome.tabs.onUpdated.addListener((tabId,change)=>{if(tabId===selected?.tabId&&change.status==='loading'){
+chrome.tabs.onUpdated.addListener((tabId,change)=>{if(change.status==='loading'){mediaContexts.delete(tabId);episodeContexts.delete(tabId);}if(tabId===selected?.tabId&&change.status==='loading'){
   fullscreenFrames.clear();fullscreenUpdates=fullscreenUpdates.then(restoreWindowFullscreen);
   bindingLost=true;fail('Video page changed');send({type:'VideoUnavailable',identity:selected});
 }});

@@ -213,3 +213,36 @@ def test_restored_media_waits_quietly_then_attaches_to_original_note(tmp_path):
     sync._attach_media(session, media)
     assert attachments == [123]
     assert sync._results.get_nowait() == ("media", session.id, None)
+
+
+def test_browser_movie_title_does_not_rename_library_and_series_restores_own_name():
+    from controller.episode_controller import EpisodeController
+    titles, labels, nav = [], [], []
+    manager = NS(get_display_anime_name=lambda: "Our anime name", get_current_episode=lambda: 7,
+        get_current_season=lambda: 1, get_current_episode_label=lambda: "7",
+        get_episode_nav_state=lambda: (True, True, False), get_episode_dropdown_items=lambda: [7])
+    owner = NS(sub_manager=manager, browser_sync=NS(following=True, _media_context=dict(title="Shrek", kind="movie")),
+        settings=NS(root=NS(title=titles.append), episode_var=NS(set=labels.append),
+            set_episode_nav_state=lambda **kw: nav.append(kw), set_episode_values=lambda values: None))
+    episode = EpisodeController(owner)
+    episode.update_media_presentation()
+    assert titles[-1] == "Shrek - Movie" and labels[-1] == "Movie"
+    assert nav[-1] == dict(can_dec=False, can_inc=False, is_movie=True)
+    assert manager.get_display_anime_name() == "Our anime name"
+    owner.browser_sync._media_context = dict(title="Site anime name", kind="episode")
+    episode.update_media_presentation()
+    assert titles[-1] == "S1E7 Our anime name" and labels[-1] == "7" and nav[-1] == dict(can_dec=True, can_inc=True, is_movie=False)
+    owner.browser_sync.following = False
+    episode.update_media_presentation()
+    assert titles[-1] == "S1E7 Our anime name"
+
+
+def test_media_context_from_other_video_cannot_change_title():
+    sync = browser()
+    calls = []
+    sync.controller.episode_controller = NS(update_media_presentation=lambda: calls.append(True))
+    event = dict(type="MediaContext",identity=sync.identity.wire(),title="Shrek",kind="movie")
+    sync._event({**event,"identity":{**event["identity"],"videoId":"other"}})
+    assert not calls
+    sync._event(event);sync._event(event)
+    assert calls == [True]

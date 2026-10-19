@@ -34,6 +34,13 @@ class EpisodeController(_ControllerProxy):
             """
             Grey out + / - when we know from the episode maps/index that no prev/next exists.
             """
+            browser = getattr(self.controller, "browser_sync", None)
+            media = getattr(browser, "_media_context", None) if browser and browser.following else None
+            if media and media.get("kind") == "movie":
+                self.settings.episode_var.set("Movie")
+                self.settings.set_episode_nav_state(can_dec=False, can_inc=False, is_movie=True)
+                self.settings.set_episode_values([])
+                return
             try:
                 can_dec, can_inc, is_movie = self.sub_manager.get_episode_nav_state()
             except Exception:#
@@ -44,6 +51,27 @@ class EpisodeController(_ControllerProxy):
             getter = getattr(self.sub_manager, "get_episode_dropdown_items", None)
             values = getter() if callable(getter) else self.sub_manager.get_episode_dropdown_values()
             self.settings.set_episode_values(values)
+
+    def update_media_presentation(self) -> None:
+        """Browser movie titles are presentation only; library names stay authoritative for episodes."""
+        browser = getattr(self.controller, "browser_sync", None)
+        media = getattr(browser, "_media_context", None) if browser and browser.following else None
+        getter = getattr(self.sub_manager, "get_display_anime_name", None)
+        name = getter() if callable(getter) else self.sub_manager.get_anime_name()
+        is_browser_movie = bool(media and media.get("kind") == "movie")
+        if is_browser_movie:
+            title = str(media.get("title") or name)
+            self.settings.episode_var.set("Movie")
+            self.settings.set_episode_nav_state(can_dec=False, can_inc=False, is_movie=True)
+            self.settings.root.title(f"{title} - Movie")
+        else:
+            self.settings.episode_var.set(self._current_episode_label())
+            self.update_episode_nav_controls()
+            episode = self.sub_manager.get_current_episode()
+            season = self.sub_manager.get_current_season()
+            name = name or (media or {}).get("title") or "SubtitlePlayer"
+            prefix = f"S{season}E{episode}" if season is not None else f"Episode {episode}"
+            self.settings.root.title(f"{name} - Movie" if episode is None else f"{prefix} {name}")
 
     def _current_episode_label(self) -> str:
             getter = getattr(self.sub_manager, "get_current_episode_label", None)
@@ -484,10 +512,7 @@ class EpisodeController(_ControllerProxy):
             self.settings.set_total_duration(new_total)
             self.total_duration = new_total
             self.update_max_width()
-            display_name_getter = getattr(self.sub_manager, "get_display_anime_name", None)
-            anime_name = display_name_getter() if callable(display_name_getter) else self.sub_manager.get_anime_name()
-            title= f'S{self.sub_manager.get_current_season()}E{self.sub_manager.get_current_episode()} {anime_name}'
-            self.settings.root.title(title)
+            self.update_media_presentation()
             browser = getattr(self.controller, "browser_sync", None)
             if browser is not None and browser.following:
                 # Loading subtitles must not seek the browser back to a remembered

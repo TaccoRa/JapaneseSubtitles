@@ -17,3 +17,17 @@ globalThis.subtitlePlayerEpisodeContext=href=>{
   season=positive(url.searchParams.get('season'));url.searchParams.delete('episode');url.searchParams.delete('season');
   return {seriesKey:url.origin+url.pathname+'?'+url.searchParams.toString(),episode,season,scope:season?'season':'global'};
 };
+
+// Display metadata is independent of subtitle-library names and episode mapping.
+globalThis.subtitlePlayerMediaContext=(href,doc)=>{
+  const url=new URL(href),context=globalThis.subtitlePlayerEpisodeContext(href);
+  const netflix=/(^|\.)netflix\.com$/i.test(url.hostname);
+  const node=doc.querySelector(netflix?'[data-uia="video-title"]':'h1.ytd-watch-metadata,meta[property="og:title"]');
+  let title=(node?.getAttribute?.('content')||node?.textContent||(!netflix?doc.title:'')||'').trim();
+  title=title.replace(/\s*(?:[-|]\s*)?(?:YouTube|Netflix)\s*$/i,'').trim();
+  if(!title)return null; // Netflix controls fade: retain the last known title.
+  const episodeMatch=netflix?title.match(/\bS(\d+)\s*[: ]\s*[EF](\d+)\b/i):null;
+  const episode=context?.episode||(episodeMatch?Number(episodeMatch[2]):null);
+  const season=context?.season||(episodeMatch?Number(episodeMatch[1]):null);
+  return {title:title.slice(0,300),kind:episode?'episode':'movie',episode,season,pageKey:url.origin+url.pathname};
+};

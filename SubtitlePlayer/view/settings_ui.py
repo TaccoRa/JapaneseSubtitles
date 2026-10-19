@@ -230,7 +230,8 @@ class SettingsUI:
         )
         self.srt_button.grid(row=0, column=0, padx=(5, 2), pady=(5, 2), sticky="w")
 
-        tk.Label(top_row, text="Episode", font=("Arial", 12), bg="#f0f0f0").grid(
+        self.episode_type_label = tk.Label(top_row, text="Episode", font=("Arial", 12), bg="#f0f0f0")
+        self.episode_type_label.grid(
             row=0, column=1, padx=(0, 2), pady=(5, 2), sticky="w"
         )
 
@@ -1328,6 +1329,8 @@ class SettingsUI:
         self._on_ep_dec          = on_dec
 
     def set_episode_nav_state(self, can_dec: bool, can_inc: bool, is_movie: bool = False) -> None:
+        if hasattr(self, "episode_type_label"):
+            self.episode_type_label.configure(text="Movie" if is_movie else "Episode")
         self.episode_dec_btn.configure(state=(tk.NORMAL if can_dec else tk.DISABLED))
         self.episode_inc_btn.configure(state=(tk.NORMAL if can_inc else tk.DISABLED))
         self.episode_entry.configure(state=(tk.DISABLED if is_movie else tk.NORMAL))

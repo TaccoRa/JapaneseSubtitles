@@ -418,3 +418,17 @@ test('Netflix adapter uses milliseconds once and refuses missing or ambiguous se
   assert.throws(run,/safely/);assert.equal(calls.length,1);
   scope.netflix=undefined;assert.throws(run,/unavailable/);assert.equal(calls.length,1);
 });
+
+test('media labels use the Netflix player title and never treat opaque IDs as episodes',()=>{
+  const scope={URL};vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../../browser-extension/episode-context.js'),'utf8'),scope);
+  const doc={title:'Netflix',querySelector:()=>({textContent:'Shrek'})};
+  const movie=scope.subtitlePlayerMediaContext('https://www.netflix.com/watch/60020686',doc);
+  assert.equal(movie.title,'Shrek');assert.equal(movie.kind,'movie');assert.equal(movie.episode,null);
+  doc.querySelector=()=>null;
+  assert.equal(scope.subtitlePlayerMediaContext('https://www.netflix.com/watch/60020686',doc),null);
+  doc.title='Watch Demon Slayer - Miruro';
+  const anime=scope.subtitlePlayerMediaContext('https://www.miruro.to/watch/series?ep=7',doc);
+  assert.equal(anime.kind,'episode');assert.equal(anime.episode,7);
+  doc.querySelector=()=>({textContent:'Anime S2:E3 Episode name'});
+  assert.equal(scope.subtitlePlayerMediaContext('https://www.netflix.com/watch/987',doc).episode,3);
+});

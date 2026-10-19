@@ -60,6 +60,7 @@ class BrowserSyncController:
         self._shortcut_config = None
         self._native_enabled = False
         self._browser_episode = None
+        self._media_context = None
         self._episode_problem = None
         self._reference_fingerprint = None
         self._notice_until = 0.0
@@ -535,6 +536,10 @@ class BrowserSyncController:
             self._connected = True
             identity = MediaIdentity.read(event["identity"])
             if identity != self.identity:
+                had_media_context = bool(getattr(self, "_media_context", None))
+                self._media_context = None
+                if had_media_context:
+                    self.controller.episode_controller.update_media_presentation()
                 self.invalidate(); self.snapshot = None; self._reference = (); self._reference_kind = "none"
                 self._caption_last = None; self._observed_intervals = []
             self.identity = identity
@@ -554,6 +559,12 @@ class BrowserSyncController:
             self.snapshot = None
             self.invalidate()
             self._set_status("Waiting for the next browser video")
+        elif kind == "MediaContext":
+            if self.identity and MediaIdentity.read(event["identity"]) == self.identity:
+                context = {key: event.get(key) for key in ("title", "kind", "episode", "season", "pageKey")}
+                if context != getattr(self, "_media_context", None):
+                    self._media_context = context
+                    self.controller.episode_controller.update_media_presentation()
         elif kind == "EpisodeContext":
             if self.identity and MediaIdentity.read(event["identity"]) == self.identity:
                 self._follow_episode(event)
@@ -563,6 +574,9 @@ class BrowserSyncController:
         elif kind == "Unbound":
             self.abort("Disconnected by user")
             self.following = False
+            if getattr(self, "_media_context", None):
+                self._media_context = None
+                self.controller.episode_controller.update_media_presentation()
             self._connected = False
             self.snapshot = None
             self.controller.playing = False
