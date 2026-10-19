@@ -4,52 +4,24 @@ from SubtitlePlayer.model.anki_client import AnkiClient
 from SubtitlePlayer.model.config_manager import ConfigManager
 
 
-@pytest.mark.parametrize("same_word", [True, False])
-def test_capture_duplicate_waits_for_fresh_media(monkeypatch, same_word):
-    client = AnkiClient(ConfigManager("config.json"))
-
-    def note(nid, word, sound="", image=""):
-        return {"noteId": nid, "fields": {
-            client.add_rubies_to_front_field: {"value": word},
-            client.add_rubies_to_sentence_ja_field: {"value": "same sentence"},
-            client.sound_field: {"value": sound},
-            client.image_field: {"value": image},
-        }}
-
-    old = note(1, "word" if same_word else "other", "old.mp3", "old.png")
-    target = note(2, "word")
-    updates = []
-    monkeypatch.setattr(client, "_find_same_sentence_notes_for_media_copy", lambda **kw: [old])
-    monkeypatch.setattr(client, "_invoke", lambda action, params: [target] if action == "notesInfo" else updates.append(params))
-    baseline = client.snapshot_exact_sentence_media("same sentence")
-    result = client.reconcile_exact_sentence_media(2, baseline=baseline)
-    if same_word:
-        assert result["available_media_fields"] == []
-        assert updates == []
-        old["fields"][client.sound_field]["value"] = "fresh.mp3"
-        result = client.reconcile_exact_sentence_media(2, baseline=baseline)
-        assert result["missing_media_fields"] == [client.image_field]
-        old["fields"][client.image_field]["value"] = "fresh.png"
-        result = client.reconcile_exact_sentence_media(2, baseline=baseline)
-        assert result["missing_media_fields"] == []
-    else:
-        assert result["missing_media_fields"] == []
-        assert updates
 
 
-@pytest.mark.parametrize("word,complete,expected", [("other", True, True), ("word", True, False), ("other", False, False)])
-def test_native_preflight_reuse_preserves_fresh_media_requirement(monkeypatch, word, complete, expected):
-    from types import SimpleNamespace
-    client = AnkiClient(ConfigManager("config.json"))
-    monkeypatch.setattr(client, "_card_headword_for_anki", lambda *args: "word")
-    target = SimpleNamespace(selected_text="word", subtitle_text="sentence", sentence_key="sentence", cue_snapshot=None)
-    baseline = {"sentence_key": "sentence", "notes": {1: {"word": word, "media": {
-        client.sound_field: "[sound:existing.wav]", client.image_field: '<img src="existing.png">' if complete else ""}}}}
-    assert client.can_reuse_capture_media(target, baseline) is expected
-    baseline["sentence_key"] = "different sentence"
-    assert not client.can_reuse_capture_media(target, baseline)
 
 
 def test_sentence_break_has_literal_ruby_boundary():
     assert AnkiClient._to_anki_html_line_breaks("ても\n結果[けっか]") == "ても<br> 結果[けっか]"
     assert AnkiClient._to_anki_html_line_breaks("ても<br> 結果[けっか]") == "ても<br> 結果[けっか]"
+
+
+@pytest.mark.parametrize("existing_audio,existing_image", [("", ""), ("keep.wav", ""), ("", "keep.png")])
+def test_add_only_reuses_exact_sentence_media_without_overwriting_existing_fields(monkeypatch, existing_audio, existing_image):
+    client = AnkiClient(ConfigManager("config.json"))
+    fields = {client.sound_field: existing_audio, client.image_field: existing_image, client.front_field: "keep word"}
+    monkeypatch.setattr(client, "_find_existing_sentence_media", lambda *args: {
+        client.sound_field: "[sound:old.wav]", client.image_field: '<img src="old.png">'})
+    copied = client._copy_existing_sentence_media_fields(fields)
+    assert fields[client.sound_field] == (existing_audio or "[sound:old.wav]")
+    assert fields[client.image_field] == (existing_image or '<img src="old.png">')
+    assert fields[client.front_field] == "keep word"
+    assert (client.sound_field in copied) == (not existing_audio)
+    assert (client.image_field in copied) == (not existing_image)

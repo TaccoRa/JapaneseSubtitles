@@ -1,3 +1,4 @@
+import pytest
 from SubtitlePlayer.model.config_manager import ConfigManager
 import SubtitlePlayer.model.anki_client as anki_client_module
 from SubtitlePlayer.model.anki_client import AnkiClient, AnkiConnectRequestError
@@ -844,86 +845,6 @@ def test_add_from_selection_copies_media_before_creating_note(monkeypatch):
     assert capture_result["copied_media_fields"] == {}
 
 
-def test_copy_captured_sentence_media_to_all_previous_same_sentence_notes(monkeypatch):
-    client = AnkiClient(ConfigManager("config.json"))
-    update_calls = []
-
-    def fake_invoke(action, params=None):
-        if action == "notesInfo" and params == {"notes": [300]}:
-            return [
-                {
-                    "noteId": 300,
-                    "modelName": client.model_name,
-                    "fields": {
-                        client.add_rubies_to_sentence_ja_field: {"value": "\u540c\u3058\u5b57\u5e55"},
-                        client.sentence_ja_field: {"value": "ruby:\u540c\u3058\u5b57\u5e55"},
-                        client.sound_field: {"value": "[sound:new_capture.mp3]"},
-                        client.image_field: {"value": '<img src="new_capture.png">'},
-                    },
-                }
-            ]
-        if action == "findNotes":
-            return [101, 202, 300]
-        if action == "notesInfo":
-            return [
-                {
-                    "noteId": 202,
-                    "modelName": client.model_name,
-                    "fields": {
-                        client.add_rubies_to_sentence_ja_field: {"value": "\u540c\u3058\u5b57\u5e55"},
-                        client.sentence_ja_field: {"value": "ruby:\u540c\u3058\u5b57\u5e55"},
-                        client.sound_field: {"value": ""},
-                        client.image_field: {"value": ""},
-                    },
-                },
-                {
-                    "noteId": 101,
-                    "modelName": client.model_name,
-                    "fields": {
-                        client.add_rubies_to_sentence_ja_field: {"value": "\u540c\u3058\u5b57\u5e55"},
-                        client.sentence_ja_field: {"value": "ruby:\u540c\u3058\u5b57\u5e55"},
-                        client.sound_field: {"value": ""},
-                        client.image_field: {"value": ""},
-                    },
-                },
-            ]
-        if action == "updateNoteFields":
-            update_calls.append(params)
-            return None
-        return None
-
-    monkeypatch.setattr(client, "_invoke", fake_invoke)
-
-    result = client.copy_captured_sentence_media_to_previous_note(300)
-
-    assert result["target_note_id"] == 202
-    assert result["target_note_ids"] == [202, 101]
-    assert result["copied_note_ids"] == [101, 202]
-    assert result["reason"] == "copied"
-    assert result["copied"] == {
-        client.sound_field: "[sound:new_capture.mp3]",
-        client.image_field: '<img src="new_capture.png">',
-    }
-    assert update_calls == [
-        {
-            "note": {
-                "id": 202,
-                "fields": {
-                    client.sound_field: "[sound:new_capture.mp3]",
-                    client.image_field: '<img src="new_capture.png">',
-                },
-            }
-        },
-        {
-            "note": {
-                "id": 101,
-                "fields": {
-                    client.sound_field: "[sound:new_capture.mp3]",
-                    client.image_field: '<img src="new_capture.png">',
-                },
-            }
-        },
-    ]
 
 
 def test_prepare_note_does_not_add_until_commit(monkeypatch):
@@ -1336,37 +1257,19 @@ def test_ensure_decks_batches_and_caches():
     ]
 
 
-def test_add_note_dropped_response_uses_verified_existing_note():
+def test_add_note_dropped_response_never_guesses_an_old_note_or_retries():
     client = AnkiClient(ConfigManager("config.json"))
-    fields = {
-        client.add_rubies_to_front_field: "\u8a66\u9a13",
-        client.front_field: "\u8a66\u9a13[\u3057\u3051\u3093]",
-        client.back_field: "test",
-        client.add_rubies_to_sentence_ja_field: "\u8a66\u9a13\u3060",
-        client.sentence_ja_field: "\u8a66\u9a13[\u3057\u3051\u3093]\u3060",
-    }
-    calls = []
-
-    def fake_invoke(action, params=None, **kwargs):
-        calls.append(action)
+    actions = []
+    def invoke(action, params=None, **kwargs):
+        actions.append(action)
         if action == "addNote":
             raise AnkiConnectRequestError("dropped")
-        if action == "findNotes":
-            return [42]
-        if action == "notesInfo":
-            return [
-                {
-                    "noteId": 42,
-                    "modelName": client.model_name,
-                    "fields": {name: {"value": value} for name, value in fields.items()},
-                }
-            ]
-        return None
+        raise AssertionError("Must not search for an old matching card")
+    client._invoke = invoke
+    with pytest.raises(RuntimeError, match="Check Anki's add history"):
+        client._add_note_without_duplicate_retry({"fields": {"Front": "same sentence"}}, {"Front": "same sentence"})
+    assert actions == ["addNote"]
 
-    client._invoke = fake_invoke
-
-    assert client._add_note_without_duplicate_retry({"fields": fields}, fields) == 42
-    assert calls == ["addNote", "findNotes", "findNotes", "findNotes", "findNotes", "notesInfo"]
 
 
 def test_add_from_selection_reports_routing_failure_after_note_creation(monkeypatch):

@@ -4,7 +4,21 @@ const existing=globalThis.subtitlePlayerContent;
 if(existing?.version===2&&existing.alive()){existing.publish();return;}
 existing?.dispose?.();
 const videos=new Map(), ids=new WeakMap(), epochs=new WeakMap(), captionSources=new WeakMap();
-let sequence=0, capture=null, suppress=0;
+let sequence=0, capture=null, suppress=0,shortcutBindings=[];
+const typing=()=>{
+  let node=document.activeElement;
+  while(node?.shadowRoot?.activeElement)node=node.shadowRoot.activeElement;
+  return !!node&&(node.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(node.tagName));
+};
+const keyToken=value=>({arrowleft:'left',arrowright:'right',arrowup:'up',arrowdown:'down',' ':'space',control:'ctrl',escape:'esc'}[value.toLowerCase()]||value.toLowerCase());
+function ownShortcut(event){
+  if(typing())return;
+  const tokens=[];
+  if(event.ctrlKey)tokens.push('ctrl');if(event.altKey)tokens.push('alt');if(event.shiftKey)tokens.push('shift');if(event.metaKey)tokens.push('cmd');
+  const token=keyToken(event.key);if(!tokens.includes(token))tokens.push(token);
+  const combination=tokens.sort().join('+');
+  if(shortcutBindings.includes(combination)){event.preventDefault();event.stopImmediatePropagation();}
+}
 let lastEpisode='',lastEpisodeAt=0;
 let disposed=false;
 const timers=new Set(),listeners=[];
@@ -20,9 +34,9 @@ function alive(){
   try{if(chrome.runtime.id)return true;}catch{}
   dispose();return false;
 }
-function listen(target,name,callback){
+function listen(target,name,callback,capturePhase=false){
   const wrapped=(...args)=>{if(alive())callback(...args);};
-  target.addEventListener(name,wrapped);listeners.push(()=>target.removeEventListener(name,wrapped));
+  target.addEventListener(name,wrapped,capturePhase);listeners.push(()=>target.removeEventListener(name,wrapped,capturePhase));
 }
 function every(callback,delay){const timer=setInterval(()=>{if(alive())callback();},delay);timers.add(timer);return timer;}
 const roots=()=>{
@@ -61,9 +75,10 @@ function snapshot(video,id,event='tick'){
   const r=video.getBoundingClientRect();
   return {type:'PlaybackSnapshot',videoId:id,sequence:++sequence,
     currentTime:video.currentTime,duration:Number.isFinite(video.duration)?video.duration:0,
-    paused:video.paused,buffering:video.readyState<3,seeking:video.seeking,rate:video.playbackRate,
+    paused:video.paused,buffering:!video.paused&&video.readyState<3,seeking:video.seeking,rate:video.playbackRate,
     width:r.width,height:r.height,viewport:{width:innerWidth,height:innerHeight},
     fullscreen:!!document.fullscreenElement,
+    textInput:typeof document.hasFocus==='function'&&document.hasFocus()&&typing(),
     // Full URL is hashed in the worker and never sent to the desktop.
     mediaKey:mediaKey(video),event};
 }
@@ -120,7 +135,9 @@ async function command(m){
 function onMessage(m,sender,respond){
   if(!alive())return;
   const reply=value=>{if(alive())try{respond(value);}catch{dispose();}};
-  if(m.type==='DiscoverVideos'){publish();reply({ok:true});return;}
+  if(m.type==='ShortcutConfig'){shortcutBindings=(m.bindings||[]).map(b=>b.toLowerCase().split('+').map(x=>keyToken(x.trim())).sort().join('+'));reply({ok:true});return;}
+  if(m.type==='DiscoverVideos'){if(m.refreshCaptions)for(const v of videos.values())captionSources.delete(v);publish();reply({ok:true});return;}
+  if(m.type==='PlaybackProbe'){const v=videos.get(m.identity.videoId);reply(v?{ok:true,state:snapshot(v,m.identity.videoId,'probe')}:{ok:false,error:'Video replaced'});return;}
   if(m.type==='PlayerCommand'){command(m).then(state=>reply({ok:true,state}),e=>reply({ok:false,error:e.message}));return true;}
   if(m.type==='PrepareCapture'){
     (async()=>{
@@ -154,6 +171,7 @@ function onMessage(m,sender,respond){
   }
 }
 if(!alive())return;
+listen(window,'keydown',ownShortcut,true);listen(window,'keyup',ownShortcut,true);
 chrome.runtime.onMessage.addListener(onMessage);
 listeners.push(()=>chrome.runtime.onMessage.removeListener(onMessage));
 // Translate video bounds through nested frames, including open shadow roots.
@@ -199,7 +217,14 @@ every(()=>{
         send({type:'CaptureScreenshot',operationId:capture.operationId,time:v.currentTime});
       }
       send({type:'CaptureClock',operationId:capture.operationId,time:v.currentTime,buffering:v.readyState<3,paused:v.paused});
-      if(!capture.screenshotPending&&v.currentTime>=capture.end){suppress=performance.now()+500;v.pause();send({type:'CaptureBoundary',operationId:capture.operationId,time:v.currentTime});capture.started=false;}
+      if(!capture.screenshotPending&&v.currentTime>=capture.end){
+        const r=capture;capture=null;suppress=performance.now()+500;
+        // The policy belongs to the frozen clip, never a late Anki callback.
+        v.playbackRate=r.previousRate??1;
+        if(r.policy==='paused'||(r.policy==='restore'&&r.previousPaused))v.pause();
+        send({type:'CaptureBoundary',operationId:r.operationId,time:v.currentTime});
+        send(snapshot(v,id,'recording-end'));
+      }
     }
   }
 },100);

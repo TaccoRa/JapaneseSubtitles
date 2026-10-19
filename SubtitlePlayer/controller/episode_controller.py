@@ -368,15 +368,9 @@ class EpisodeController(_ControllerProxy):
 
     def on_open_srt(self, event=None):
             self.save_current_episode_position()
-            remember_offset = getattr(self.controller, "_remember_current_anime_offset", None)
-            if callable(remember_offset):
-                remember_offset()
             path = self.sub_manager.set_new_file()
             if path:
                 self._after_episode_change()
-                apply_offset = getattr(self.controller, "_apply_saved_offset_for_current_anime", None)
-                if callable(apply_offset):
-                    apply_offset()
 
     def change_episode(self, action: str):
             switch_start = time.perf_counter()
@@ -513,7 +507,6 @@ class EpisodeController(_ControllerProxy):
             self._defer_auto_ruby_once = True
             self.last_subtitle_text = ""
             self.playback.set_current_time(self.current_time)
-            self.ocr_controller._schedule_ocr_time_jump("episode_change")
             try:
                 self.sub_manager.schedule_episode_preload_around_current()
             except Exception:

@@ -46,6 +46,8 @@ class ConfigManager:
         self.defaults = self._read_json(self.path, required=True)
         self.local_config = self._read_json(self.local_path, required=False)
         self._default_key_order = list(self.defaults.keys())
+        from model.native_settings import migrate
+        self.local_config = OrderedDict(migrate(self.local_config))
         self._local_key_order = list(self.local_config.keys())
         self._rebuild_merged_config()
 
@@ -57,6 +59,8 @@ class ConfigManager:
         for key, value in self.local_config.items():
             merged[key] = value
         self.config = merged
+        from model.native_settings import retired
+        self.config = OrderedDict((key, value) for key, value in merged.items() if not retired(key))
         self._key_order = list(merged.keys())
 
     def get(self, key):
@@ -87,6 +91,8 @@ class ConfigManager:
         if not isinstance(data, dict):
             raise ValueError("Local config replacement must be a JSON object.")
         self.local_config = OrderedDict((str(key), value) for key, value in data.items())
+        from model.native_settings import migrate
+        self.local_config = OrderedDict(migrate(self.local_config))
         self._local_key_order = list(self.local_config.keys())
         self._rebuild_merged_config()
         self._save()

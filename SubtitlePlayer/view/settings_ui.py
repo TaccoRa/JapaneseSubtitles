@@ -98,7 +98,7 @@ class SettingsUI:
 
     def _init_defaults(self):
         get = self.config.get
-        self.default_offset = self._config_float("EXTRA_OFFSET", 0.0)
+        self.default_offset = 0.0
         self._last_offset_value = float(self.default_offset)
         self.default_skip = self._config_float("DEFAULT_SKIP", 1.0)
         self._last_skip_value = float(self.default_skip)
@@ -164,7 +164,7 @@ class SettingsUI:
         self.control_time_seconds = tk.DoubleVar(value=self.default_start)
         self.control_time_str     = tk.StringVar(value=format_time(self.default_start))
         self.control_time_str.trace_add("write", self._adjust_time_entry_width)
-        max_secs = self.total_duration + self._last_offset_value
+        max_secs = self.total_duration
         max_str  = format_time(max_secs)
         self._max_time_width = len(max_str)# + 1
         self._last_time_entry_width = len(self.control_time_str.get())
@@ -350,7 +350,7 @@ class SettingsUI:
         # Slider
         self.slider  = tk.Scale(
             self.slider_frame,
-            from_=0, to=(self.total_duration + self.default_offset),
+            from_=0, to=(self.total_duration),
             orient="horizontal",
             resolution=00.1,
             showvalue=False,
@@ -636,9 +636,7 @@ class SettingsUI:
             if self._last_active_input_mode != saved_last:
                 self.config.set("LAST_ACTIVE_INPUT_MODE", int(self._last_active_input_mode))
         # Persist offset and skip values
-        saved_offset = float(self.config.get("EXTRA_OFFSET") or 0.0)
-        if abs(self._last_offset_value - saved_offset) > 0.001:
-            self.config.set("EXTRA_OFFSET", self._last_offset_value)
+
         saved_skip = float(self.config.get("DEFAULT_SKIP") or 1.0)
         if abs(self._last_skip_value - saved_skip) > 0.001:
             self.config.set("DEFAULT_SKIP", self._last_skip_value)
@@ -1412,25 +1410,11 @@ class SettingsUI:
             elif entry is self.skip_entry:
                 self._apply_skip_change(value, persist=True)
 
-    def _apply_offset_change(self, value_seconds: float, persist: bool, previous_value=None, adjust_current: bool = True):
-        try:
-            previous = float(previous_value)
-            delta = float(value_seconds) - previous
-        except Exception as e:
-            logger.debug("Invalid previous offset value: %s", e, exc_info=True)
-            delta = 0.0
-        self.slider.config(to=self.total_duration + value_seconds)
-        if adjust_current and abs(delta) >= 0.001:
-            self.slider.set(float(self.slider.get()) + delta)
-        self._schedule_time_overlay_position_update()
-        self._on_slider_release(None)
-        self._sync_advanced_startup_vars_from_runtime()
+    def _apply_offset_change(self, value_seconds, persist, previous_value=None, adjust_current=True):
+        # Offset is a subtitle-only trim. Never release the slider or seek the video.
         if persist:
-            self.config.set("EXTRA_OFFSET", value_seconds)
-            try:
-                self._on_offset_change(float(value_seconds))
-            except Exception:
-                logger.debug("Offset change callback failed", exc_info=True)
+            self._on_offset_change(float(value_seconds))
+
 
     def _apply_skip_change(self, value_seconds: float, persist: bool):
         """Update skip value and optionally persist to config."""
@@ -1440,5 +1424,5 @@ class SettingsUI:
 
     def set_total_duration(self, total_duration: float):
         self.total_duration = total_duration
-        self.slider.config(to=total_duration + self._last_offset_value)
+        self.slider.config(to=total_duration)
         self._schedule_time_overlay_position_update()

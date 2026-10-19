@@ -342,33 +342,6 @@ def test_window_target_matching_requires_saved_title_and_process(monkeypatch):
     assert utils.find_window_target({**target, "title_filter": "Missing"}) is None
 
 
-def test_voice_video_target_prefers_current_anime_then_saved_title(monkeypatch):
-    controller = object.__new__(SubtitleController)
-    values = {
-        "VOICE_PLAYBACK_TARGET": {"title_filter": "Saved Player", "process": "chrome.exe"},
-        "LAST_DISPLAY_ANIME_NAME": "",
-        "LAST_ANIME_NAME": "",
-        "LAST_REMOTE_SEARCH_QUERY": "",
-        "POST_ADD_CAPTURE_TARGET_TITLE": "Google Chrome",
-    }
-    controller.config = SimpleNamespace(get=values.get)
-    controller.sub_manager = SimpleNamespace(
-        get_display_anime_name=lambda: "Current Anime",
-        get_anime_name=lambda: "Current Anime",
-    )
-    controller._app_window_hwnds = set()
-    windows = [
-        {"hwnd": 10, "title": "Saved Player - Google Chrome", "process": "chrome.exe"},
-        {"hwnd": 20, "title": "Current Anime - Google Chrome", "process": "chrome.exe"},
-    ]
-    monkeypatch.setattr(controller_module, "list_visible_windows", lambda exclude_hwnds=None: windows)
-
-    assert controller._resolve_voice_video_target()["hwnd"] == 20
-    controller.sub_manager = SimpleNamespace(
-        get_display_anime_name=lambda: "Wrong Anime",
-        get_anime_name=lambda: "Wrong Anime",
-    )
-    assert controller._resolve_voice_video_target()["hwnd"] == 10
 
 
 def test_reconfigure_ignores_non_recognition_settings(tmp_path, monkeypatch):
@@ -401,17 +374,13 @@ def test_voice_semantic_playback_and_subtitle_states_are_idempotent(monkeypatch)
 
     controller = Controller()
     playback = PlaybackController(controller)
-    playback_calls = []
-
-    def toggle_play(event_time=None):
-        playback_calls.append(event_time)
-        controller.playing = not controller.playing
-
-    playback.toggle_play = toggle_play
+    commands = []
+    controller.browser_sync = SimpleNamespace(following=True, command=lambda action: commands.append(action))
     assert playback.set_playing(False) is False
-    assert playback.set_playing(True, event_time=3.0) is True
+    assert playback.set_playing(True) is True
+    controller.playing = True  # Browser acknowledgement mirrors state.
     assert playback.set_playing(True) is False
-    assert playback_calls == [3.0]
+    assert commands == ["play"]
 
     navigation = SubtitleNavigationController(controller)
     visibility_calls = []

@@ -67,9 +67,15 @@ def browser():
     sync.controller = SimpleNamespace(config=SimpleNamespace(get=lambda key: {"CAPTURE_BACKEND": "native", "POST_CAPTURE_PLAYBACK": "play", "AUDIO_PADDING": 500}.get(key)))
     sync.mapping = TimingMap("source", "episode", "reference", ((10, 12), (30, 32)), ((11, 13), (22.784, 24.784)), (True, True))
     sync._capture = None
+    sync._trim = 0.0
+    sync._operations = {}
+    sync._failure_pause = None
+    sync._commands = {}
+    sync._command_callbacks = {}
+    sync._pending_seek = None
     sync._set_status = lambda value: None
     sync.sent = []
-    sync.bridge = SimpleNamespace(send=sync.sent.append)
+    sync.bridge = SimpleNamespace(send=sync.sent.append, command=lambda identity, action, **kwargs: "command")
     return sync
 
 
@@ -162,31 +168,26 @@ def test_failure_before_note_creation_notifies_late_note_once_and_releases_media
     assert notices == [(123, False)] and len(feedback) == len(releases) == 1
 
 
-def test_parallel_capture_waits_for_note_before_verifying_reused_media(monkeypatch):
-    import queue
-    import controller.browser_sync_controller as module
-    sync = browser(); sync._results = queue.Queue()
-    verified = []
-    sync.controller.anki = SimpleNamespace(verify_capture_media=verified.append)
-    class Worker:
-        def __init__(self, target, **kwargs): self.target = target
-        def start(self): self.target()
-    monkeypatch.setattr(module.threading, "Thread", Worker)
-    session = CaptureSession(FrozenActionTarget.create(selected_text="word", subtitle_text="sentence", sentence_key="sentence", cue_snapshot=SimpleNamespace(cue_index=0)), reuse_ready=True)
+def test_capture_always_requests_fresh_media():
+    sync = browser()
+    session = CaptureSession(FrozenActionTarget.create(selected_text="word", subtitle_text="sentence", sentence_key="sentence", cue_snapshot=SimpleNamespace(cue_index=0)))
     sync.freeze_capture(session); sync.capture(session)
-    sync._event(dict(type="CaptureResult", ok=True, reused=True, operationId=session.id, identity=session.media_identity))
-    assert not verified
-    sync.bind_capture_note(session, 123)
-    assert verified == [123] and sync._results.get_nowait() == ("reuse", session.id, None)
+    assert "reuse" not in sync.sent[0]
+    assert sync.sent[0]["start"] == 11
 
 
-def test_new_capture_is_rejected_while_card_and_recording_join_is_pending():
+
+def test_next_recording_starts_while_previous_card_is_pending():
     sync = browser()
     def session():
         return CaptureSession(FrozenActionTarget.create(selected_text="word", subtitle_text="sentence", sentence_key="sentence", cue_snapshot=SimpleNamespace(cue_index=0)))
     first = session(); sync.freeze_capture(first); sync.capture(first)
     with pytest.raises(ValueError, match="already in progress"):
         sync.freeze_capture(session())
+    sync._event(dict(type="RecordingEnded", operationId=first.id))
+    second = session(); sync.freeze_capture(second); sync.capture(second)
+    assert sync._capture is second and first.id in sync._operations
+
 
 
 @pytest.mark.parametrize("recording_finished", [True, False])

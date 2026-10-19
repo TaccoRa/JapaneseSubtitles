@@ -49,20 +49,13 @@ class FrozenActionTarget:
 
 @dataclass(slots=True)
 class CaptureSession:
-    """State for one external-media capture operation.
-
-    ``baseline_media`` is keyed by matching note id and is captured before an
-    early media hotkey is sent.  The reconciler still accepts existing media on
-    an exact-sentence note, but the baseline lets diagnostics explain whether a
-    poll observed newly written media.
-    """
+    """One native recording and its independently completing Anki operation."""
 
     target: FrozenActionTarget
     capture_only: bool = False
     early_capture: bool = False
     id: str = field(default_factory=lambda: uuid.uuid4().hex)
     target_note_id: int | None = None
-    baseline_media: Mapping[str, Any] = field(default_factory=dict)
     phase: str = "created"
     cancelled: bool = False
     pause_lease: Any = None
@@ -71,13 +64,12 @@ class CaptureSession:
     interaction_owner: str = "ui"
     action_feedback_key: int | None = None
     cancellation_reason: str = ""
-    backend: str = "asbplayer"
+    backend: str = "native"
     timing_version: str = ""
     media_identity: Any = None
     media_fingerprint: str = ""
     mapped_interval: tuple[float, float] | None = None
     post_capture_policy: str = "play"
-    reuse_ready: bool = False
     native_result: Mapping[str, Any] | None = None
     media_completion_notified: bool = False
 
@@ -92,3 +84,12 @@ class CaptureSession:
         self.cancelled = True
         self.cancellation_reason = str(reason or "aborted")
         self.phase = "cancelled"
+
+
+@dataclass(slots=True)
+class PlaybackPauseLease:
+    """Operation ownership without focus changes or synthetic playback keys."""
+    id: str = field(default_factory=lambda: uuid.uuid4().hex)
+    was_playing: bool = False
+    acquired_monotonic: float = field(default_factory=time.monotonic)
+    released: bool = False

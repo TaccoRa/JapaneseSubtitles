@@ -59,12 +59,7 @@ def test_native_capture_starts_before_card_creation_and_binds_its_exact_note_id(
     }.items():
         object.__setattr__(action, name, fn)
     monkeypatch.setattr(anki_controller_module, "dispatch_to_tk", lambda root, fn, *args: fn(*args))
-    class Worker:
-        def __init__(self, target, **kwargs):
-            workers.append(target)
-        def start(self):
-            pass
-    monkeypatch.setattr(anki_controller_module.threading, "Thread", Worker)
+    object.__setattr__(action, "submit_anki_work", workers.append)
     target = FrozenActionTarget.create(selected_text="word", subtitle_text="sentence", sentence_key="sentence")
     action._start_anki_commit_worker("word", prepared={}, post_add_capture=True, action_target=target)
     assert not scheduled and len(recordings) == 1
@@ -119,37 +114,6 @@ def test_anki_add_result_prints_plain_status_lines(capsys):
     assert "Anki " not in out
 
 
-def test_post_add_external_capture_focuses_target_and_sends_hotkey(monkeypatch):
-    calls = []
-    controller = SimpleNamespace(
-        config=SimpleNamespace(
-            get=lambda key: {
-                "POST_ADD_CAPTURE_TARGET_TITLE": "Chrome",
-                "POST_ADD_CAPTURE_EXTERNAL_HOTKEY": "ctrl+shift+y",
-            }.get(key)
-        ),
-        playback=SimpleNamespace(on_jump_sub_end=lambda: calls.append(("jump", "subtitle_end"))),
-        _suppress_external_hotkey_events=lambda hotkey, count: calls.append(("suppress", hotkey, count)),
-    )
-    anki_controller = AnkiController(controller)
-
-    monkeypatch.setattr(
-        anki_controller_module,
-        "focus_window_by_title",
-        lambda title: calls.append(("focus", title)) or True,
-    )
-    monkeypatch.setattr(
-        anki_controller_module,
-        "send_global_hotkey",
-        lambda hotkey: calls.append(("hotkey", hotkey)) or True,
-    )
-
-    assert anki_controller._run_post_add_external_capture(123) is True
-    assert calls == [
-        ("focus", "Chrome"),
-        ("suppress", "ctrl+shift+y", 1),
-        ("hotkey", "ctrl+shift+y"),
-    ]
 
 
 def test_voice_abort_cancels_only_voice_capture_follow_up_work():

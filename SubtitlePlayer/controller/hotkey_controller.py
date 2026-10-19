@@ -523,6 +523,8 @@ class HotkeyController(_ControllerProxy):
     def _process_repeat_actions(self):
             if self._shutting_down:
                 return
+            if getattr(self.controller, "_browser_text_input_focused", False):
+                return
             if self._modal_input_blocked():
                 return
             now = time.perf_counter()
@@ -716,8 +718,6 @@ class HotkeyController(_ControllerProxy):
             elif action == "popup_add_anki_capture":
                 try:
                     accepted = self._add_current_anki_hotkey_target(post_add_capture=True)
-                    if accepted and bool(self.config.get("POST_ADD_CAPTURE_MOVE_MOUSE_TO_BOTTOM") or False):
-                        move_pointer_to_monitor_bottom(getattr(self.settings, "root", None))
                 except Exception as e:
                     logger.exception("Failed to add current selection or hovered subtitle word with capture: %s", e)
             elif action == "capture_only":
@@ -834,8 +834,6 @@ class HotkeyController(_ControllerProxy):
                         post_add_capture=True,
                         subtitle_only=True,
                     )
-                    if accepted and bool(self.config.get("POST_ADD_CAPTURE_MOVE_MOUSE_TO_BOTTOM") or False):
-                        move_pointer_to_monitor_bottom(getattr(self.settings, "root", None))
                 except Exception as e:
                     logger.exception("Failed to add hovered subtitle word with capture: %s", e)
             elif action == "popup_copy_selection":
@@ -1131,10 +1129,6 @@ class HotkeyController(_ControllerProxy):
                     post_add_capture=bool(post_add_capture),
                     on_complete=completed,
                 )
-                if accepted and post_add_capture and bool(
-                    self.config.get("POST_ADD_CAPTURE_MOVE_MOUSE_TO_BOTTOM") or False
-                ):
-                    move_pointer_to_monitor_bottom(getattr(self.settings, "root", None))
                 if not accepted:
                     self._finish_voice_action_feedback(generation, False)
                     self.controller._report_voice_status(
@@ -1363,8 +1357,6 @@ class HotkeyController(_ControllerProxy):
                     selection_spans=target.get("spans"),
                     initiator="voice",
                 )
-                if post_add_capture and bool(self.config.get("POST_ADD_CAPTURE_MOVE_MOUSE_TO_BOTTOM") or False):
-                    move_pointer_to_monitor_bottom(getattr(self.settings, "root", None))
                 self.controller._report_voice_status(
                     "working",
                     f"{'Capturing' if post_add_capture else 'Adding'} subtitle word {index + 1} of {word_count}: {selected}",
@@ -1777,8 +1769,6 @@ class HotkeyController(_ControllerProxy):
                     )
                     if not accepted:
                         self._finish_voice_action_feedback(generation, False)
-                    if accepted and bool(self.config.get("POST_ADD_CAPTURE_MOVE_MOUSE_TO_BOTTOM") or False):
-                        move_pointer_to_monitor_bottom(getattr(self.settings, "root", None))
                     return
                 self._finish_voice_action_feedback(generation, True)
                 self.controller._report_voice_status(
@@ -2153,53 +2143,6 @@ class HotkeyController(_ControllerProxy):
                     changed = True
             return changed
 
-    def _is_suppressed_synthetic_key(self, key, *, pressed: bool) -> bool:
-            now = time.perf_counter()
-            key_tokens = self._key_tokens(key)
-            suppressions = getattr(self.controller, "_suppress_synthetic_tokens_until", None)
-            if isinstance(suppressions, dict):
-                for token, state in list(suppressions.items()):
-                    # Float values were used before counted suppression.  Treat
-                    # one matching press as the sole expected injected event so
-                    # an immediately following physical key is never swallowed.
-                    if isinstance(state, dict):
-                        deadline = state.get("deadline", 0.0)
-                    else:
-                        deadline = state
-                    try:
-                        deadline = float(deadline or 0.0)
-                    except Exception:
-                        deadline = 0.0
-                    if deadline < now:
-                        suppressions.pop(token, None)
-                        continue
-                    if self._normalize_shortcut_token(token) in key_tokens:
-                        if not isinstance(state, dict):
-                            if pressed:
-                                suppressions.pop(token, None)
-                                return True
-                            continue
-                        phase = "presses" if pressed else "releases"
-                        try:
-                            remaining = max(0, int(state.get(phase, 0) or 0))
-                        except Exception:
-                            remaining = 0
-                        if remaining <= 0:
-                            continue
-                        state[phase] = remaining - 1
-                        if int(state.get("presses", 0) or 0) <= 0 and int(state.get("releases", 0) or 0) <= 0:
-                            suppressions.pop(token, None)
-                        return True
-            try:
-                until = float(getattr(self.controller, "_suppress_synthetic_space_until", 0.0) or 0.0)
-            except Exception:
-                until = 0.0
-            if until <= 0.0 or now > until:
-                return False
-            if "space" not in key_tokens or not pressed:
-                return False
-            self.controller._suppress_synthetic_space_until = 0.0
-            return True
 
     def _shortcut_matches(self, binding: str, key) -> bool:
             mods, key_token = self._split_shortcut(binding)
@@ -2423,6 +2366,8 @@ class HotkeyController(_ControllerProxy):
                 self._refresh_hover_displays()
 
     def _poll_global_toggle_subtitles(self) -> None:
+            if getattr(self.controller, "_browser_text_input_focused", False):
+                return
             if self._modal_input_blocked():
                 return
             bindings = self._shortcut_bindings_for_key("SHORTCUT_TOGGLE_SUBTITLES")
@@ -2735,7 +2680,7 @@ class HotkeyController(_ControllerProxy):
             self._reset_hotkey_state(reset_shift=False)
 
     def _on_key_press(self, key):
-            if self._is_suppressed_synthetic_key(key, pressed=True):
+            if getattr(self.controller, "_browser_text_input_focused", False):
                 return
             if self._modal_input_blocked():
                 return
@@ -2860,7 +2805,7 @@ class HotkeyController(_ControllerProxy):
                 return
 
     def _on_key_release(self, key):
-            if self._is_suppressed_synthetic_key(key, pressed=False):
+            if getattr(self.controller, "_browser_text_input_focused", False):
                 return
             if self._modal_input_blocked():
                 return
@@ -3129,6 +3074,8 @@ class HotkeyController(_ControllerProxy):
 
     def _on_global_click(self, x, y, button, pressed):
             if not pressed:
+                return
+            if getattr(self.controller, "_browser_text_input_focused", False):
                 return
             if self._modal_input_blocked():
                 return

@@ -82,242 +82,28 @@ def make_controller(now: float = 0.0):
     return controller, playback, root, slider, button
 
 
-def test_pause_advances_time_since_last_update():
-    now = 100.0
-    controller, playback, root, slider, button = make_controller(now)
-    playback._now = lambda: now
-
-    controller.playing = True
-    controller.current_time = 10.0
-    controller.last_update = now
-    controller._update_loop_job = "pending-update"
-
-    now += 0.073
-    playback.toggle_play()
-
-    assert controller.playing is False
-    assert controller.current_time == pytest.approx(10.073)
-    assert controller.last_update == pytest.approx(100.073)
-    assert root.cancelled == ["pending-update"]
-    assert slider.values[-1] == pytest.approx(10.073)
-    assert button.configs[-1]["text"] == "Play"
 
 
-def test_pause_publishes_current_time_once_after_sync():
-    now = 100.0
-    controller, playback, _root, slider, _button = make_controller(now)
-    playback._now = lambda: now
-
-    controller.playing = True
-    controller.current_time = 10.0
-    controller.last_update = now
-
-    now += 0.073
-    playback.toggle_play()
-
-    assert controller.current_time == pytest.approx(10.073)
-    assert controller._display_updates == [pytest.approx(10.073)]
-    assert slider.values == [pytest.approx(10.073)]
 
 
-def test_repeated_fast_pause_play_does_not_accumulate_lost_time():
-    now = 0.0
-    controller, playback, _root, _slider, _button = make_controller(now)
-    playback._now = lambda: now
-
-    durations = [0.017, 0.083, 0.041, 0.099, 0.012, 0.064] * 50
-    expected = 0.0
-
-    for duration in durations:
-        playback.toggle_play()
-        assert controller.playing is True
-        now += duration
-        expected += duration
-        playback.toggle_play()
-        assert controller.playing is False
-
-    assert controller.current_time == pytest.approx(expected, abs=1e-9)
 
 
-def test_update_loop_uses_monotonic_delta_and_reschedules():
-    now = 5.0
-    controller, playback, root, _slider, _button = make_controller(now)
-    playback._now = lambda: now
-
-    controller.playing = True
-    controller.current_time = 20.0
-    controller.last_update = now
-
-    now += 0.125
-    playback.update_loop()
-
-    assert controller.current_time == pytest.approx(20.125)
-    assert controller.last_update == pytest.approx(5.125)
-    assert len(root.scheduled) == 1
-    assert root.scheduled[0][1] == 100
 
 
-def test_fast_forward_multiplier_advances_playback_time():
-    now = 5.0
-    controller, playback, root, _slider, button = make_controller(now)
-    playback._now = lambda: now
-    controller._coerce_fast_forward_speed = lambda value: round(float(value), 1)
-    controller.fast_forward_enabled = True
-    controller.fast_forward_speed = 1.5
-
-    playback.toggle_play()
-    now += 0.2
-    playback.update_loop()
-
-    assert controller.current_time == pytest.approx(0.3)
-    assert controller.last_update == pytest.approx(5.2)
-    assert root.scheduled[-1][1] == 100
-    assert button.configs[-1]["text"] == "Stop"
 
 
-def test_fast_forward_speed_delta_clamps_and_persists():
-    controller, playback, _root, _slider, _button = make_controller(0.0)
-    saved = {}
-    controller.config = SimpleNamespace(set=lambda key, value: saved.setdefault(key, value))
-    controller._coerce_fast_forward_speed = lambda value: max(0.1, min(8.0, round(float(value), 1)))
-    controller.fast_forward_enabled = True
-    controller.fast_forward_speed = 1.5
-
-    assert playback.change_fast_forward_speed(0.1) == pytest.approx(1.6)
-    assert controller.fast_forward_speed == pytest.approx(1.6)
-    assert saved["FAST_FORWARD_SPEED"] == pytest.approx(1.6)
-
-    playback.change_fast_forward_speed(-5.0)
-    assert controller.fast_forward_speed == pytest.approx(0.1)
-
-    controller.fast_forward_speed = 0.0
-    playback.change_fast_forward_speed(-0.1)
-    assert controller.fast_forward_speed == pytest.approx(0.1)
 
 
-def test_fast_forward_disabled_uses_normal_speed_and_ignores_speed_hotkey():
-    now = 5.0
-    controller, playback, _root, _slider, _button = make_controller(now)
-    playback._now = lambda: now
-    controller.fast_forward_enabled = False
-    controller.fast_forward_speed = 3.0
-
-    playback.toggle_play()
-    now += 0.2
-    playback.update_loop()
-
-    assert controller.current_time == pytest.approx(0.2)
-    assert playback.change_fast_forward_speed(0.1) == pytest.approx(1.0)
-    assert controller.fast_forward_speed == pytest.approx(3.0)
 
 
-def test_pause_uses_event_time_even_if_update_tick_ran_later():
-    now = 100.0
-    controller, playback, _root, _slider, _button = make_controller(now)
-    playback._now = lambda: now
-
-    controller.playing = True
-    controller.current_time = 10.0
-    controller.last_update = now
-
-    key_time = now + 0.040
-    now += 0.100
-    playback.update_loop()
-    assert controller.current_time == pytest.approx(10.100)
-
-    playback.toggle_play(event_time=key_time)
-
-    assert controller.playing is False
-    assert controller.current_time == pytest.approx(10.040)
-    assert controller.last_update == pytest.approx(key_time)
 
 
-def test_hotkey_queue_preserves_event_timestamp():
-    calls = []
-
-    class Playback:
-        def toggle_play(self, event_time=None):
-            calls.append(event_time)
-
-    class Root:
-        def after(self, *_args):
-            return "pump"
-
-    controller = SimpleNamespace(
-        _input_actions=queue.Queue(),
-        _input_pump_job=None,
-        _shutting_down=False,
-        playback=Playback(),
-        settings=SimpleNamespace(root=Root()),
-        subtitle_navigation=SimpleNamespace(toggle_subtitle_visibility=lambda: None),
-    )
-    hotkeys = HotkeyController(controller)
-
-    hotkeys._enqueue_input_action("toggle_play", event_time=12.345)
-    controller.SHORTCUT_DEFAULTS = {"SHORTCUT_TOGGLE_SUBTITLES": "s"}
-    controller.config = SimpleNamespace(get=lambda key: None)
-    hotkeys._process_input_queue()
-
-    assert calls == [pytest.approx(12.345)]
 
 
-def test_skip_back_uses_event_time_even_if_update_tick_ran_later():
-    now = 100.0
-    controller, playback, _root, _slider, _button = make_controller(now)
-    playback._now = lambda: now
-
-    controller.playing = True
-    controller.current_time = 40.0
-    controller.last_update = now
-
-    key_time = now + 0.040
-    now += 0.100
-    playback.update_loop()
-    assert controller.current_time == pytest.approx(40.100)
-
-    playback.go_back(event_time=key_time)
-
-    assert controller.playing is True
-    assert controller.current_time == pytest.approx(35.040)
-    assert controller.last_update == pytest.approx(key_time)
 
 
-def test_skip_back_publishes_current_time_once_after_sync():
-    now = 100.0
-    controller, playback, _root, slider, _button = make_controller(now)
-    playback._now = lambda: now
-
-    controller.playing = True
-    controller.current_time = 40.0
-    controller.last_update = now
-
-    playback.go_back(event_time=now + 0.040)
-
-    assert controller.current_time == pytest.approx(35.040)
-    assert controller.last_update == pytest.approx(100.040)
-    assert controller._display_updates == [pytest.approx(35.040)]
-    assert slider.values == [pytest.approx(35.040)]
 
 
-def test_skip_forward_uses_event_time_even_if_update_tick_ran_later():
-    now = 100.0
-    controller, playback, _root, _slider, _button = make_controller(now)
-    playback._now = lambda: now
-
-    controller.playing = True
-    controller.current_time = 35.0
-    controller.last_update = now
-
-    key_time = now + 0.040
-    now += 0.100
-    playback.update_loop()
-    assert controller.current_time == pytest.approx(35.100)
-
-    playback.go_forward(event_time=key_time)
-
-    assert controller.playing is True
-    assert controller.current_time == pytest.approx(40.040)
-    assert controller.last_update == pytest.approx(key_time)
 
 
 def test_hotkey_dispatch_passes_event_time_to_skip_actions():

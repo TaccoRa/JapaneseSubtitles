@@ -4,7 +4,7 @@ No code in this module writes a subtitle file. A map is scoped to the exact
 source bytes and media/reference fingerprints, never just to an anime title.
 """
 from bisect import bisect_right
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, replace
 import hashlib
 import json
 import math
@@ -62,6 +62,11 @@ class TimingMap:
             raise ValueError("Alignment uncertain for this cue; recording refused")
         a, b = self.video[cue_index]
         return max(0.0, a - before), b + after
+
+    def shifted(self, seconds):
+        if not math.isfinite(seconds):
+            raise ValueError("Invalid subtitle trim")
+        return replace(self, video=tuple((a + seconds, b + seconds) for a, b in self.video))
 
 
 class TimingMapCache:

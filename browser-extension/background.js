@@ -2,7 +2,8 @@ const observed=new Map();
 let socket=null,selected=null,recording=null,status='Disconnected',heartbeat=null;
 let fingerprints=new Map(),captionCache=new Map(),incoming=Promise.resolve();
 let connections=Promise.resolve(),reconnectTimer=null,connectionEpoch=0;
-let backend='asbplayer',nativeEnabled=false;
+let backend='native',nativeEnabled=false;
+const finishing=new Map(),completedCaptures=new Set();
 let offscreenCreation=null;
 let episodeContexts=new Map(),bindingLost=false;
 let activeTabId=null,autoEnabled=true,storedToken='',initialized=false,autoTimer=null;
@@ -15,6 +16,7 @@ const key=i=>JSON.stringify(i);
 const send=m=>{if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify(m));};
 const hash=async value=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))].map(x=>x.toString(16).padStart(2,'0')).join('');
 function publishBinding(){
+  toFrame('DiscoverVideos',{refreshCaptions:true}).catch(()=>{});
   send({type:'Bound',identity:selected});
   send({type:'RecorderState',identity:selected,enabled:nativeEnabled});
   const context=episodeContexts.get(selected?.tabId);if(context)send({...context,identity:selected});
@@ -67,6 +69,7 @@ async function connect(m){
 async function disconnect(manual=false){
   fullscreenFrames.clear();await restoreWindowFullscreen();
   if(manual){autoEnabled=false;await chrome.storage.local.set({autoConnect:false});}
+  if(selected)await chrome.tabs.sendMessage(selected.tabId,{type:'ShortcutConfig',bindings:[]}).catch(()=>{});
   send({type:'Unbound'});await fail('Disconnected');selected=null;
   connectionEpoch++;clearTimeout(reconnectTimer);clearInterval(heartbeat);
   if(socket){socket.onclose=null;socket.close();socket=null;}
@@ -137,7 +140,6 @@ function scheduleAutoConnect(){
   },300);
 }
 async function enableNative(m){
-  if(backend!=='native')throw Error('asbplayer is selected in SubtitlePlayer. Enable recording with its action button.');
   if(key(m.identity)!==key(selected))throw Error('Connect this video first');
   await ensureOffscreen();
   const current=await offscreen({type:'StreamState'});
@@ -199,12 +201,19 @@ async function openSocket(token){
       if(m.type==='Welcome'){reconnectDelay=1000;if(m.token){token=m.token;storedToken=token;await chrome.storage.local.set({token});}status='Connected';publishBinding();return;}
       if(m.type==='TimingMap')return;
       if(m.type==='RecorderConfig'){
-        backend=m.backend==='native'?'native':'asbplayer';
-        if(backend==='asbplayer')await serializeConnection(async()=>{
-          nativeEnabled=false;
-          if(await chrome.offscreen.hasDocument())await offscreen({type:'DisconnectStream'});
-        });
+        backend='native';
         send({type:'RecorderState',identity:selected,enabled:nativeEnabled});
+        return;
+      }
+      if(m.type==='ShortcutConfig'){
+        if(key(m.identity)!==key(selected))return;
+        await chrome.tabs.sendMessage(selected.tabId,{type:'ShortcutConfig',bindings:m.bindings});return;
+      }
+      if(m.type==='PlaybackProbe'){
+        if(key(m.identity)!==key(selected))throw Error('Stale video identity');
+        const result=await toFrame('PlaybackProbe');
+        const {mediaKey,...state}=result.state;
+        send({...state,type:'PlaybackSnapshot',identity:selected,fingerprint:observed.get(key(selected))?.fingerprint});
         return;
       }
       if(m.type==='PlayerCommand'){
@@ -215,32 +224,25 @@ async function openSocket(token){
         send({type:'CommandAck',operationId:m.operationId,ok:true,state:{...state,identity:selected,fingerprint:observed.get(key(selected))?.fingerprint}});
       }
       if(m.type==='CaptureRequest'){
-        if(recording?.operationId===m.operationId)return;
+        if(recording?.operationId===m.operationId||finishing.has(m.operationId)||completedCaptures.has(m.operationId))return;
         if(recording)throw Error('Another recording is in progress');
-        if(backend!=='native'||(!nativeEnabled&&!m.reuse))throw Error('Click Enable native recording in the SubtitlePlayer extension first');
+        if(!nativeEnabled)throw Error('Click Enable native recording in the SubtitlePlayer extension first');
         if(key(m.identity)!==key(selected))throw Error('Stale video identity');
         const current=observed.get(key(selected));
         if(!current||current.fingerprint!==m.fingerprint)throw Error('Media changed');
         if(!(m.end>m.start&&m.end-m.start<120))throw Error('Invalid recording interval');
         recording={...m,previousRate:current.rate,previousPaused:current.paused};
-        await toFrame('PrepareCapture',m.reuse?{...m,start:m.end}:m);
-        if(m.reuse){send({type:'CaptureResult',operationId:m.operationId,ok:true,reused:true,identity:selected});return;}
+        await toFrame('PrepareCapture',{...m,previousRate:current.rate,previousPaused:current.paused});
         const prepared=await offscreen({type:'StartRecording',operationId:m.operationId,screenshotTime:m.screenshotTime??(m.start+m.end)/2});
         if(!prepared?.ok)throw Error(prepared?.error||'Recorder failed');
         await toFrame('RunCapture',{operationId:m.operationId});
       }
       if(m.type==='CaptureCommit'){
-        if(!recording||recording.operationId!==m.operationId)return;
-        const r=recording;
-        if(!m.ok){await fail(m.error||'Anki media write failed');return;}
-        await toFrame('FinishCapture',{operationId:r.operationId});
-        if(recording!==r)throw Error('Capture cancelled');
-        await toFrame('PlayerCommand',{action:'rate',rate:r.previousRate});
-        if(recording!==r)throw Error('Capture cancelled');
-        recording=null;
-        const play=m.policy==='play'||(m.policy==='restore'&&!r.previousPaused);
-        if(play)await toFrame('PlayerCommand',{action:'play'});
-        send({type:'CaptureFinished',operationId:r.operationId,ok:true});
+        // Attachment completion has no ownership of the player.
+        if(!finishing.has(m.operationId))return;
+        finishing.delete(m.operationId);completedCaptures.add(m.operationId);
+        if(completedCaptures.size>512)completedCaptures.delete(completedCaptures.values().next().value);
+        send({type:'CaptureFinished',operationId:m.operationId,ok:!!m.ok});
       }
     }catch(e){
       if(recording&&recording.operationId===m.operationId)await fail(e.message);
@@ -252,6 +254,7 @@ async function openSocket(token){
     if(epoch!==connectionEpoch)return;
     const denied=event.code===1008&&event.reason!=='Already connected';
     status=denied?'Connection not approved. Click Connect to try again.':'Waiting for SubtitlePlayer. Reconnecting automatically…';
+    if(selected)chrome.tabs.sendMessage(selected.tabId,{type:'ShortcutConfig',bindings:[]}).catch(()=>{});
     fail('Browser connection lost').catch(()=>{});clearInterval(heartbeat);
     if(!denied)scheduleReconnect(epoch,token);
   };
@@ -275,7 +278,8 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
     }
     if(m.type==='AudioChunk'&&selected)send({...m,identity:selected});
     if(m.type==='EncodedCapture'){
-      if(recording?.operationId===m.operationId)send({...m,type:'CaptureResult',ok:true,identity:selected});
+      const r=finishing.get(m.operationId);
+      if(r)send({...m,type:'CaptureResult',ok:true,identity:r.identity});
     }
     return;
   }
@@ -330,18 +334,26 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
     if(m.type==='CaptureScreenshot')captureScreenshot(m);
     if(m.type==='CaptureClock')offscreen({...m,type:'RecordingClock'});
     if(m.type==='CaptureBoundary'){
-      offscreen({type:'StopRecording',operationId:m.operationId,time:m.time}).then(r=>{if(!r?.ok)fail(r?.error||'Encoding failed');},e=>fail(e.message));
+      const r=recording;
+      // Detach player ownership now. Encoding/Anki may finish after another clip.
+      finishing.set(r.operationId,r);recording=null;
+      send({type:'RecordingEnded',operationId:r.operationId,identity:r.identity});
+      offscreen({type:'StopRecording',operationId:m.operationId,time:m.time}).then(result=>{
+        if(!result?.ok){finishing.delete(r.operationId);send({type:'CaptureResult',operationId:r.operationId,identity:r.identity,ok:false,error:result?.error||'Encoding failed'});}
+      },e=>{finishing.delete(r.operationId);send({type:'CaptureResult',operationId:r.operationId,identity:r.identity,ok:false,error:e.message});});
     }
   }
   if(m.type==='CaptionIntervals'||m.type==='CaptionObservation')send({...m,identity});
   if(m.type==='CaptionResource'&&/english|german|englisch|deutsch|\b(en|eng|de|deu|ger)\b/i.test(m.language+' '+m.label)){
+    if(key(identity)!==key(selected))return;
     (async()=>{try{
       const url=new URL(m.url);if(!['http:','https:'].includes(url.protocol))return;
       const fingerprint=await hash(m.mediaKey),priority=m.priority??0;
       const cached=captionCache.get(key(identity))?.[0];
       if(cached?.fingerprint===fingerprint&&cached.priority<=priority){if(key(identity)===key(selected))send(cached);return;}
-      const response=await fetch(url.href);if(!response.ok)throw Error('Caption request failed');
+      const response=await fetch(url.href,{redirect:'error',credentials:'omit',referrerPolicy:'no-referrer'});if(!response.ok)throw Error('Caption request failed');
       const text=await response.text();
+      if(key(identity)!==key(selected))return;
       const current=observed.get(key(identity));
       if(m.mediaKey&&current&&await hash(m.mediaKey)!==current.fingerprint)return;
       const previous=captionCache.get(key(identity))?.[0];

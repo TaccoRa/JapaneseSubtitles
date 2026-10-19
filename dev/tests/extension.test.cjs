@@ -74,23 +74,28 @@ test('capture commands target the exact bound document, not the active tab',asyn
   assert.equal(env.offscreen.filter(x=>x.type==='StartRecording').length,1);
   assert.equal(env.offscreen.filter(x=>x.type==='CancelRecording').length,0);
 });
-for(const [policy,paused,expected]of [['play',true,true],['paused',false,false],['restore',true,false],['restore',false,true]]){
-  test(`post-capture ${policy}, previous paused ${paused}`,async()=>{
-    const env=environment();await env.connect(paused);await recording(env);
-    assert.equal(env.frames.filter(x=>x.m.action==='play').length,0);
-    await env.receive({type:'CaptureCommit',operationId:'capture',ok:true,policy});
-    assert.equal(env.frames.filter(x=>x.m.action==='play').length,expected?1:0);
-    assert.equal(env.frames.find(x=>x.m.action==='rate').m.rate,1.5);
-    assert.equal(env.sent.at(-1).type,'CaptureFinished');
-  });
-}
-test('failed media write and abort never resume',async()=>{
+test('recording boundary releases the player before delayed Anki completion',async()=>{
   const env=environment();await env.connect(false);await recording(env);
-  await env.receive({type:'CaptureCommit',operationId:'capture',ok:false,error:'Anki failed',policy:'play'});
-  assert.equal(env.frames.filter(x=>x.m.action==='play').length,0);
-  assert.equal(env.sent.at(-1).ok,false);
-  await env.receive({type:'CaptureCommit',operationId:'capture',ok:true,policy:'play'});
-  assert.equal(env.frames.filter(x=>x.m.action==='play').length,0);
+  await env.message({type:'CaptureBoundary',operationId:'capture',time:12},sender);await settle();
+  assert.equal(env.offscreen.filter(x=>x.type==='StopRecording').length,1);
+  assert.equal(env.sent.filter(x=>x.type==='RecordingEnded').length,1);
+  const before=env.frames.length;
+  const fingerprint=env.sent.find(m=>m.type==='PlaybackSnapshot').fingerprint;
+  await env.receive({type:'CaptureRequest',operationId:'second',identity,fingerprint,start:20,end:22,policy:'play'});
+  assert.equal(env.offscreen.filter(x=>x.type==='StartRecording').length,2);
+  const afterSecond=env.frames.length;
+  await env.receive({type:'CaptureCommit',operationId:'capture',ok:true});
+  assert.equal(env.frames.length,afterSecond);
+  assert.equal(env.sent.at(-1).type,'CaptureFinished');
+  assert.ok(afterSecond>before);
+});
+test('late failed attachment has no player side effects',async()=>{
+  const env=environment();await env.connect(false);await recording(env);
+  await env.message({type:'CaptureBoundary',operationId:'capture',time:12},sender);await settle();
+  const before=env.frames.length;
+  await env.receive({type:'CaptureCommit',operationId:'capture',ok:false,error:'Anki failed'});
+  await env.receive({type:'CaptureCommit',operationId:'capture',ok:true});
+  assert.equal(env.frames.length,before);
 });
 test('a user abort invalidates delayed successful completion',async()=>{
   const env=environment();await env.connect(false);await recording(env);
@@ -108,20 +113,20 @@ test('repeated connection requests serialize stream cleanup and acquisition',asy
   assert.deepEqual(env.offscreen.map(m=>m.type),['DisconnectStream','DisconnectStream','DisconnectStream']);
 });
 
-test('asbplayer mode follows the clock without acquiring or retaining tab audio',async()=>{
-  const env=environment();await env.connect(true,false);
-  assert.equal(env.offscreen.filter(m=>m.type==='ConnectStream').length,0);
-  assert.equal(env.sent.filter(m=>m.type==='PlaybackSnapshot').length,1);
-  assert.match((await env.message({type:'EnableNativeRecording',identity})).error,/asbplayer is selected/);
-});
-
-test('switching back to asbplayer releases native audio before another capture',async()=>{
+test('retired recorder configuration cannot disable native recording',async()=>{
   const env=environment();await env.connect();env.offscreen.length=0;
   await env.receive({type:'RecorderConfig',backend:'asbplayer'});
-  assert.equal(env.offscreen.filter(m=>m.type==='DisconnectStream').length,1);
+  assert.equal(env.offscreen.filter(m=>m.type==='DisconnectStream').length,0);
   await recording(env);
-  assert.equal(env.sent.at(-1).ok,false);
-  assert.equal(env.offscreen.filter(m=>m.type==='StartRecording').length,0);
+  assert.equal(env.offscreen.filter(m=>m.type==='StartRecording').length,1);
+});
+test('legacy reuse flag never skips fresh audio and screenshot',async()=>{
+  const env=environment();await env.connect();
+  const fingerprint=env.sent.find(m=>m.type==='PlaybackSnapshot').fingerprint;
+  await env.receive({type:'CaptureRequest',operationId:'fresh',identity,fingerprint,start:10,end:12,reuse:true});
+  assert.equal(env.frames.find(x=>x.m.type==='PrepareCapture').m.start,10);
+  assert.equal(env.offscreen.filter(m=>m.type==='StartRecording').length,1);
+  assert.equal(env.sent.filter(m=>m.reused).length,0);
 });
 
 test('episode adapters distinguish episodes from opaque player IDs and preserve series identity',()=>{
@@ -147,13 +152,17 @@ test('next episode player replacement stays in the bound tab and adopts its new 
   assert.equal(env.frames.length,0);assert.equal(env.sent.at(-1).ok,false);
 });
 
-test('captions arriving before the replacement video binds are replayed for alignment',async()=>{
+test('only bound video captions are fetched and caption redirects are blocked',async()=>{
   const env=environment();await env.connect();
+  const fetches=[],fetch=env.chrome.fetch;env.chrome.fetch=async(url,options)=>{fetches.push({url,options});return fetch(url,options);};
   const nextSender={...sender,documentId:'new-document'};
   await env.message({type:'CaptionResource',videoId:'new-video',mediaKey:'next',url:'https://captions.test/en.vtt',language:'en',label:'English',priority:0},nextSender);
-  await settle();
+  await settle();assert.equal(fetches.length,0);
   await env.message({type:'PlaybackSnapshot',videoId:'new-video',sequence:1,currentTime:0,duration:1447,rate:1,paused:true,mediaKey:'next',width:1000,height:500},nextSender);
+  await until(()=>env.sent.some(m=>m.type==='Bound'&&m.identity.videoId==='new-video'));
+  await env.message({type:'CaptionResource',videoId:'new-video',mediaKey:'next',url:'https://captions.test/en.vtt',language:'en',label:'English',priority:0},nextSender);
   await until(()=>env.sent.some(m=>m.type==='CaptionText'&&m.identity.documentId==='new-document'));
+  assert.equal(fetches.length,1);assert.equal(fetches[0].options.redirect,'error');assert.equal(fetches[0].options.credentials,'omit');
   const caption=env.sent.filter(m=>m.type==='CaptionText').at(-1);
   assert.equal(caption.identity.documentId,'new-document');assert.equal(caption.identity.videoId,'new-video');
 });

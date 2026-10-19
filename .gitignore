@@ -80,3 +80,6 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# Episode-specific subtitle trims (personal runtime data)
+subtitle_trims.json

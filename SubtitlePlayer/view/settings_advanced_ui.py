@@ -345,13 +345,11 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         annotation_tab = tk.Frame(notebook)
         shortcuts_tab = tk.Frame(notebook)
         voice_tab = tk.Frame(notebook)
-        ocr_tab = tk.Frame(notebook)
         notebook.add(general_tab, text="General")
         notebook.add(anki_tab, text="Anki")
         notebook.add(annotation_tab, text="Annotation")
         notebook.add(shortcuts_tab, text="Shortcuts")
         notebook.add(voice_tab, text="Voice")
-        notebook.add(ocr_tab, text="OCR")
         self._performance_tab = None
         if bool(self.config.get("DEBUGGING") or False):
             self._add_performance_tab()
@@ -360,15 +358,14 @@ class SettingsAdvancedUI(_SettingsUIProxy):
 
         general_content = self._build_advanced_tab(general_tab, self._advanced_general_columns())
         self._advanced_general_min_width = int(getattr(general_content, "_advanced_min_width", 0) or 0)
-        self._build_advanced_tab(anki_tab, self._advanced_anki_columns())
+        anki_content = self._build_advanced_tab(anki_tab, self._advanced_anki_columns())
+
         self._annotation_tab_ui = AnnotationTab(self.settings_ui, annotation_tab, str(annotation_tab))
         self._build_advanced_tab(shortcuts_tab, self._advanced_shortcut_columns())
         self._voice_tab_id = str(voice_tab)
         self._voice_tab_ui = VoiceTab(self.settings_ui, voice_tab, self._voice_tab_id)
-        ocr_content = self._build_advanced_tab(ocr_tab, self._advanced_ocr_columns())
 
         self._build_general_actions(general_content)
-        self._build_ocr_actions(ocr_content)
         self._sync_performance_tab_visibility()
 
         self._load_advanced_values_into_vars()
@@ -532,6 +529,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         return name
 
     def _write_profile_file(self, name: str, data: dict) -> str:
+        from model.native_settings import migrate
+        data = migrate(data)
         folder = self._profiles_dir()
         os.makedirs(folder, exist_ok=True)
         path = self._profile_path(name)
@@ -1026,7 +1025,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         return data
 
     def _apply_loaded_profile(self, name: str, data: dict) -> None:
-        data = dict(data)
+        from model.native_settings import migrate
+        data = migrate(data)
         token = self.config.get("BROWSER_PAIRING_TOKEN")
         if token:
             data["BROWSER_PAIRING_TOKEN"] = token
@@ -1451,6 +1451,10 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 logger.debug("Failed to update advanced scroll region", exc_info=True)
 
     def _build_advanced_tab(self, tab_parent, column_sections):
+        from model.native_settings import retired
+        column_sections = [[(name, [spec for spec in specs if not retired(spec.get("key", ""))])
+            for name, specs in sections if any(not retired(spec.get("key", "")) for spec in specs)]
+            for sections in column_sections]
         tab_id = str(tab_parent)
         if not hasattr(self, "_advanced_tab_key_map"):
             self._advanced_tab_key_map = {}
@@ -1517,8 +1521,6 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 self._advanced_vars[key] = tk.BooleanVar(value=False)
             else:
                 self._advanced_vars[key] = tk.StringVar(value="")
-            if key == "OCR_REGION_COUNT":
-                self._install_ocr_region_count_trace(self._advanced_vars[key])
             keys = self._advanced_tab_key_map.setdefault(tab_id, [])
             if key not in keys:
                 keys.append(key)
@@ -1657,6 +1659,10 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                     "text": f"{section_name} {spec.get('label', '')} {key}".casefold(),
                 })
             row += 1
+        if section_name == "Browser Recording":
+            button = ttk.Button(section, text="Connection and capture diagnostics", command=lambda: self.settings_ui._on_browser_diagnostics())
+            button.grid(row=row, column=0, columnspan=2, sticky="w", pady=(6, 0))
+            filter_info["rows"].append({"widgets": [button], "text": "browser connection alignment pending media recovery diagnostics"})
         return section
 
     def _align_shortcut_column_entries(self, sections) -> None:
@@ -1888,28 +1894,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             except Exception:
                 pass
 
-    def _install_ocr_region_count_trace(self, var) -> None:
-        if var is None or self._ocr_region_count_trace_var is var:
-            return
-        self._ocr_region_count_trace_var = var
-        var.trace_add("write", self._on_ocr_region_count_changed)
 
-    def _on_ocr_region_count_changed(self, *_args) -> None:
-        root = getattr(self, "root", None)
-        if root is None:
-            return
-        if self._ocr_region_count_refresh_job is not None:
-            root.after_cancel(self._ocr_region_count_refresh_job)
-        try:
-            self._ocr_region_count_refresh_job = root.after(80, self._refresh_ocr_count_runtime)
-        except Exception:
-            logger.debug("Failed to schedule OCR count refresh", exc_info=True)
-            self._refresh_ocr_count_runtime()
 
-    def _refresh_ocr_count_runtime(self) -> None:
-        self._ocr_region_count_refresh_job = None
-        self._refresh_ocr_area_buttons()
-        self._apply_ocr_values_runtime()
 
     def _advanced_general_columns(self):
         left = [
@@ -2082,7 +2068,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                      "choices": {"asbplayer": "asbplayer (existing)", "native": "Native browser capture (experimental)"}},
                     {"key": "POST_CAPTURE_PLAYBACK", "label": "After capture", "type": "str", "default": "play", "width": 36,
                      "choices": {"play": "Play", "paused": "Stay paused", "restore": "Restore previous play/pause state"},
-                     "tooltip": "Applies after native capture has finished and Anki media is verified. Text-only add stays paused."},
+                     "tooltip": "Applied at the recording boundary. Play continues while Anki finishes in the background. Add only stays paused."},
                     {"key": "CAPTURE_PADDING_BEFORE_MS", "label": "Audio before subtitle (ms)", "type": "float", "default": 200, "min": 0, "max": 10000},
                 ],
             ),
@@ -2365,33 +2351,6 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         ]
         return [left, right]
 
-    def _advanced_ocr_columns(self):
-        left = [
-            (
-                "OCR Settings",
-                [
-                    {"key": "OCR_ENABLED", "label": "Enable startup/episode OCR sync", "type": "bool", "default": True},
-                    {"key": "OCR_SYNC_AFTER_ANKI", "label": "OCR sync after Anki add", "type": "bool", "default": False},
-                    {"key": "OCR_TESSERACT_CMD", "label": "Tesseract path (exe or folder)", "type": "str", "default": "", "allow_empty": True, "width": 22},
-                    {"key": "OCR_TESSERACT_PSM", "label": "Tesseract PSM", "type": "int", "default": 6, "min": 0, "max": 13, "width": 5},
-                    {"key": "OCR_TESSERACT_OEM", "label": "Tesseract OEM", "type": "int", "default": 3, "min": 0, "max": 3, "width": 5},
-                    {"key": "OCR_CHAR_WHITELIST", "label": "Char whitelist", "type": "str", "default": "0123456789:/", "allow_empty": True, "width": 12},
-                    {"key": "OCR_REGION_COUNT", "label": "OCR box count", "type": "int", "default": 2, "min": 1, "max": self.OCR_MAX_REGIONS, "width": 5},
-                    {"key": "OCR_SCREEN_INDEX", "label": "Screen index", "type": "int", "default": 1, "min": 1, "max": 16, "hidden": True},
-                ],
-            ),
-        ]
-        # Hidden region coordinate fields for all supported boxes.
-        for idx in range(1, self.OCR_MAX_REGIONS + 1):
-            suffix = "" if idx == 1 else str(idx)
-            left[0][1].extend([
-                {"key": f"OCR_REGION{suffix}_SCREEN", "label": f"Region {idx} Screen", "type": "int", "default": 1, "min": 1, "max": 64, "hidden": True},
-                {"key": f"OCR_REGION{suffix}_X", "label": f"Region {idx} X", "type": "int", "default": 0, "min": 0, "max": 100000, "hidden": True},
-                {"key": f"OCR_REGION{suffix}_Y", "label": f"Region {idx} Y", "type": "int", "default": 0, "min": 0, "max": 100000, "hidden": True},
-                {"key": f"OCR_REGION{suffix}_W", "label": f"Region {idx} W", "type": "int", "default": 0, "min": 0, "max": 100000, "hidden": True},
-                {"key": f"OCR_REGION{suffix}_H", "label": f"Region {idx} H", "type": "int", "default": 0, "min": 0, "max": 100000, "hidden": True},
-            ])
-        return [left]
     @staticmethod
     def _coerce_bool(value) -> bool:
         if isinstance(value, bool):
@@ -2433,45 +2392,6 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         return int(num)
 
 
-    def _build_ocr_actions(self, ocr_tab: tk.Frame) -> None:
-        actions = tk.LabelFrame(ocr_tab, text="Actions", padx=10, pady=8)
-        actions.pack(fill="x", pady=(0, 8), anchor="n")
-
-        action_grid = tk.Frame(actions)
-        action_grid.pack(fill="x", expand=True)
-        action_grid.grid_columnconfigure(0, weight=1, uniform="ocr_action_cols")
-        action_grid.grid_columnconfigure(1, weight=1, uniform="ocr_action_cols")
-
-        area_cell = tk.Frame(action_grid)
-        area_cell.grid(row=0, column=0, sticky="ew", padx=(0, 6), pady=(0, 4))
-        area_cell.grid_columnconfigure(0, weight=1)
-        area_cell.grid_columnconfigure(1, weight=0)
-
-        self._ocr_area_select_btn = tk.Button(area_cell, text="Select OCR Area", command=self._handle_select_ocr_area)
-        self._ocr_area_select_btn.grid(row=0, column=0, sticky="ew")
-        self._ocr_area_select_var = tk.StringVar(value="1")
-        self._ocr_area_select_var.trace_add("write", self._on_ocr_area_selection_changed)
-        self._ocr_area_select_menu = tk.OptionMenu(area_cell, self._ocr_area_select_var, "1")
-        self._ocr_area_select_menu.grid(row=0, column=1, sticky="e", padx=(4, 0))
-
-        self._refresh_ocr_area_buttons()
-        tk.Button(action_grid, text="Read Now (Set Time)", command=self._handle_ocr_read_now).grid(
-            row=0, column=1, sticky="ew", padx=(6, 0), pady=(0, 4)
-        )
-        tk.Button(action_grid, text="Sync Now (5s)", command=self._handle_ocr_sync_now).grid(
-            row=1, column=1, sticky="ew", padx=(6, 0)
-        )
-        tk.Button(action_grid, text="Show Boxes", command=self._handle_ocr_show_boxes).grid(
-            row=1, column=0, sticky="ew", padx=(0, 6)
-        )
-
-        screen_row = tk.Frame(actions)
-        screen_row.pack(fill="x", pady=(8, 0))
-        tk.Label(screen_row, text="Screen:").pack(side="left")
-        self._build_ocr_screen_buttons(screen_row)
-
-        self._update_ocr_screen_button_styles()
-        self._refresh_advanced_content_min_width(ocr_tab)
 
     def _sync_performance_tab_visibility(self) -> None:
         notebook = getattr(self, "_advanced_notebook", None)
@@ -2585,352 +2505,24 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         except Exception as e:
             logger.debug("Failed to copy performance snapshot: %s", e, exc_info=True)
 
-    def _on_ocr_area_selection_changed(self, *_args):
-        values = self._get_ocr_values_from_vars()
-        self._ocr_selected_screen = self._get_ocr_screen_for_region(
-            values,
-            self._get_selected_ocr_area_index(),
-        )
-        self._update_ocr_screen_button_styles()
 
-    def _get_ocr_region_count_from_vars(self) -> int:
-        default = int(self.config.get("OCR_REGION_COUNT") or 2)
-        var = getattr(self, "_advanced_vars", {}).get("OCR_REGION_COUNT")
-        raw = var.get() if var is not None else default
-        return self._coerce_int(raw, default=default, min_v=1, max_v=self.OCR_MAX_REGIONS)
 
-    def _get_selected_ocr_area_index(self) -> int:
-        count = self._get_ocr_region_count_from_vars()
-        var = getattr(self, "_ocr_area_select_var", None)
-        raw = var.get() if var is not None else "1"
-        return self._coerce_int(raw, default=1, min_v=1, max_v=count)
 
-    @staticmethod
-    def _get_ocr_region_screen_key(index: int) -> str:
-        suffix = "" if int(index) == 1 else str(int(index))
-        return f"OCR_REGION{suffix}_SCREEN"
 
-    def _get_ocr_screen_for_region(self, values: dict, index: int) -> int:
-        default_screen = self._coerce_int(values.get("OCR_SCREEN_INDEX", 1), default=1, min_v=1, max_v=64)
-        screen_key = self._get_ocr_region_screen_key(index)
-        raw = values.get(screen_key, default_screen)
-        return self._coerce_int(raw, default=default_screen, min_v=1, max_v=64)
 
-    def _refresh_ocr_area_buttons(self) -> None:
-        select_var = getattr(self, "_ocr_area_select_var", None)
-        select_menu = getattr(self, "_ocr_area_select_menu", None)
-        if select_var is None:
-            return
-        count = self._get_ocr_region_count_from_vars()
-        options = [str(i) for i in range(1, count + 1)]
 
-        def _refresh_menu(menu_widget, var):
-            if menu_widget is None or var is None:
-                return
-            menu = menu_widget["menu"]
-            if menu is None:
-                return
-            menu.delete(0, "end")
-            for opt in options:
-                menu.add_command(label=opt, command=lambda v=opt, vv=var: vv.set(v))
 
-        if select_var.get() not in options:
-            select_var.set(options[0])
-        _refresh_menu(select_menu, select_var)
 
-    def _build_ocr_screen_buttons(self, parent: tk.Frame) -> None:
-        for child in parent.winfo_children():
-            if isinstance(child, tk.Button):
-                child.destroy()
-        monitors = get_monitor_rects(self.root)
-        count = max(1, len(monitors))
-        self._ocr_screen_buttons = {}
 
-        for idx in range(1, count + 1):
-            btn = tk.Button(parent, text=f"Screen {idx}", command=lambda i=idx: self._set_ocr_screen_index(i))
-            btn.pack(side="left", padx=(6, 0))
-            self._ocr_screen_buttons[idx] = btn
-            self._remember_ocr_button_defaults(btn)
 
-        if hasattr(self, "_ocr_area_select_btn"):
-            self._remember_ocr_button_defaults(self._ocr_area_select_btn)
 
-    def _remember_ocr_button_defaults(self, btn: tk.Button) -> None:
-        if btn is None:
-            return
-        if hasattr(self, "_ocr_button_defaults"):
-            return
-        try:
-            self._ocr_button_defaults = {
-                "bg": btn.cget("bg"),
-                "fg": btn.cget("fg"),
-                "activebackground": btn.cget("activebackground"),
-                "activeforeground": btn.cget("activeforeground"),
-            }
-        except Exception as e:
-            logger.debug("Failed to remember OCR button defaults: %s", e, exc_info=True)
-            self._ocr_button_defaults = None
 
-    def _apply_ocr_button_style(self, btn: tk.Button, active: bool) -> None:
-        if btn is None:
-            return
-        if active:
-            btn.configure(bg="#2f8f4e", fg="white", activebackground="#2f8f4e", activeforeground="white")
-            return
-        defaults = getattr(self, "_ocr_button_defaults", None)
-        if not defaults:
-            return
-        btn.configure(
-            bg=defaults.get("bg"),
-            fg=defaults.get("fg"),
-            activebackground=defaults.get("activebackground"),
-            activeforeground=defaults.get("activeforeground"),
-        )
 
-    def _update_ocr_screen_button_styles(self) -> None:
-        values = {}
-        try:
-            values = self._get_ocr_values_from_vars()
-        except Exception as e:
-            logger.debug("Failed to read OCR values for screen buttons: %s", e, exc_info=True)
-            values = {}
 
-        region_count = self._get_ocr_region_count_from_vars()
-        select_idx = self._get_selected_ocr_area_index()
-        suffix = "" if select_idx == 1 else str(select_idx)
-        rw = self._coerce_int(values.get(f"OCR_REGION{suffix}_W", 0), default=0)
-        rh = self._coerce_int(values.get(f"OCR_REGION{suffix}_H", 0), default=0)
-        area_selected = rw > 0 and rh > 0
-        screen_idx = self._get_ocr_screen_for_region(values, select_idx)
 
-        select_btn = getattr(self, "_ocr_area_select_btn", None)
-        self._apply_ocr_button_style(select_btn, area_selected)
 
-        for idx, btn in getattr(self, "_ocr_screen_buttons", {}).items():
-            active = (idx == screen_idx)
-            self._apply_ocr_button_style(btn, active)
 
-    def _set_ocr_screen_index(self, index: int) -> None:
-        self._ocr_selected_screen = int(index)
-        vars_map = getattr(self, "_advanced_vars", {})
-        global_var = vars_map.get("OCR_SCREEN_INDEX")
-        if global_var is not None:
-            global_var.set(str(int(index)))
-        selected_idx = self._get_selected_ocr_area_index()
-        region_screen_var = vars_map.get(self._get_ocr_region_screen_key(selected_idx))
-        if region_screen_var is not None:
-            region_screen_var.set(str(int(index)))
-        if hasattr(self, "_advanced_status_var"):
-            self._advanced_status_var.set(f"OCR region {selected_idx} screen set to {int(index)}.")
-        self._apply_ocr_values_runtime()
-        self._update_ocr_screen_button_styles()
 
-    def _set_ocr_region_vars(
-        self,
-        x: int,
-        y: int,
-        w: int,
-        h: int,
-        index: int = 1,
-        screen=None,
-    ) -> None:
-        suffix = "" if index == 1 else str(index)
-        label = "OCR region" if index == 1 else f"OCR region {index}"
-        mapping = {
-            f"OCR_REGION{suffix}_X": x,
-            f"OCR_REGION{suffix}_Y": y,
-            f"OCR_REGION{suffix}_W": w,
-            f"OCR_REGION{suffix}_H": h,
-        }
-        if screen is not None:
-            mapping[self._get_ocr_region_screen_key(index)] = int(screen)
-        for key, val in mapping.items():
-            var = getattr(self, "_advanced_vars", {}).get(key)
-            if var is not None:
-                var.set(str(int(val)))
-        if hasattr(self, "_advanced_status_var"):
-            if w > 0 and h > 0:
-                self._advanced_status_var.set(f"{label} set (area mode).")
-            else:
-                cleared_msg = f"{label} cleared (default bottom half)." if index == 1 else f"{label} cleared."
-                self._advanced_status_var.set(cleared_msg)
-        self._update_ocr_screen_button_styles()
-
-    def _get_ocr_values_from_vars(self) -> dict:
-        values = {}
-        meta = getattr(self, "_advanced_meta", {})
-        vars_map = getattr(self, "_advanced_vars", {})
-        for key in self.OCR_KEYS:
-            spec = meta.get(key)
-            var = vars_map.get(key)
-            if spec is None or var is None:
-                continue
-            if spec["type"] == "bool":
-                values[key] = bool(var.get())
-                continue
-            if spec["type"] == "int":
-                values[key] = self._coerce_int(var.get(), default=spec.get("default", 0),
-                                               min_v=spec.get("min"), max_v=spec.get("max"))
-                continue
-            if spec["type"] == "float":
-                try:
-                    values[key] = float(str(var.get()).strip().replace(",", "."))
-                except Exception as e:
-                    logger.debug("Invalid OCR float value for %s: %s", key, e, exc_info=True)
-                    values[key] = float(spec.get("default", 0.0))
-                continue
-            text = str(var.get()).strip()
-            allow_empty = bool(spec.get("allow_empty", False))
-            if not text and not allow_empty:
-                text = str(spec.get("default", ""))
-            values[key] = text
-        return values
-
-    def _apply_ocr_values_runtime(self):
-        try:
-            values = self._get_ocr_values_from_vars()
-        except Exception as e:
-            logger.debug("Failed to read OCR values before runtime apply: %s", e, exc_info=True)
-            return
-        if not values:
-            return
-        self._on_advanced_apply(dict(values), False)
-        self._refresh_ocr_area_buttons()
-        self._update_ocr_screen_button_styles()
-
-    def _handle_ocr_read_now(self):
-        values = self._get_ocr_values_from_vars()
-        self._on_ocr_read_now(dict(values))
-
-    def _handle_ocr_sync_now(self):
-        values = self._get_ocr_values_from_vars()
-        self._on_ocr_sync_now(dict(values))
-
-    def _handle_ocr_show_boxes(self):
-        values = self._get_ocr_values_from_vars()
-        try:
-            count = int(self._on_ocr_show_boxes(dict(values)) or 0)
-        except Exception:
-            count = 0
-        if hasattr(self, "_advanced_status_var"):
-            if count > 0:
-                self._advanced_status_var.set(f"Showing {count} OCR box(es) briefly.")
-            else:
-                self._advanced_status_var.set("No OCR boxes to show.")
-
-    def _handle_select_ocr_area(self) -> None:
-        var = getattr(self, "_ocr_area_select_var", None)
-        try:
-            index = int(var.get()) if var is not None else 1
-        except Exception as e:
-            logger.debug("Invalid OCR selected area index: %s", e, exc_info=True)
-            index = 1
-        self._select_ocr_region(index)
-
-    def _select_ocr_region(self, index: int = 1):
-        values = self._get_ocr_values_from_vars()
-        screen_idx = self._get_ocr_screen_for_region(values, index)
-        self._ocr_selected_screen = int(screen_idx)
-        monitors = get_monitor_rects(self.root)
-        if not monitors:
-            monitors = [(0, 0, 1920, 1080)]
-
-        if screen_idx <= 0:
-            min_x = min(r[0] for r in monitors)
-            min_y = min(r[1] for r in monitors)
-            max_x = max(r[0] + r[2] for r in monitors)
-            max_y = max(r[1] + r[3] for r in monitors)
-            base_x, base_y = int(min_x), int(min_y)
-            sw, sh = int(max_x - min_x), int(max_y - min_y)
-        else:
-            if screen_idx > len(monitors):
-                screen_idx = 1
-            base_x, base_y, sw, sh = monitors[screen_idx - 1]
-
-        win = tk.Toplevel(self.root)
-        win.overrideredirect(True)
-        win.attributes("-topmost", True)
-        win.attributes("-alpha", 0.25)
-        win.configure(bg="black")
-        win.geometry(f"{int(sw)}x{int(sh)}+{int(base_x)}+{int(base_y)}")
-        win.focus_set()
-        win.grab_set()
-
-        canvas = tk.Canvas(win, width=sw, height=sh, bg="black", highlightthickness=0, cursor="crosshair")
-        canvas.pack(fill="both", expand=True)
-
-        suffix = "" if index == 1 else str(index)
-        saved_x = self._coerce_int(values.get(f"OCR_REGION{suffix}_X", 0), default=0)
-        saved_y = self._coerce_int(values.get(f"OCR_REGION{suffix}_Y", 0), default=0)
-        saved_w = self._coerce_int(values.get(f"OCR_REGION{suffix}_W", 0), default=0)
-        saved_h = self._coerce_int(values.get(f"OCR_REGION{suffix}_H", 0), default=0)
-        state = {"x0": 0, "y0": 0, "rect": None}
-        if saved_w > 0 and saved_h > 0:
-            left = max(0, min(int(sw), saved_x))
-            top = max(0, min(int(sh), saved_y))
-            right = max(left, min(int(sw), saved_x + saved_w))
-            bottom = max(top, min(int(sh), saved_y + saved_h))
-            if right > left and bottom > top:
-                canvas.create_rectangle(
-                    left,
-                    top,
-                    right,
-                    bottom,
-                    outline="#ffd34d",
-                    fill="#ffd34d",
-                    stipple="gray25",
-                    width=3,
-                    tags=("saved_ocr_region",),
-                )
-                canvas.create_text(
-                    left + 8,
-                    max(8, top + 8),
-                    anchor="nw",
-                    text=f"Current OCR region {index}",
-                    fill="#ffd34d",
-                    font=("Arial", 13, "bold"),
-                    tags=("saved_ocr_region",),
-                )
-
-        def _on_press(event):
-            state["x0"] = event.x
-            state["y0"] = event.y
-            canvas.delete("saved_ocr_region")
-            if state["rect"] is not None:
-                canvas.delete(state["rect"])
-                state["rect"] = None
-            state["rect"] = canvas.create_rectangle(event.x, event.y, event.x, event.y,
-                                                    outline="#00ff66", width=2)
-
-        def _on_drag(event):
-            if state["rect"] is None:
-                return
-            canvas.coords(state["rect"], state["x0"], state["y0"], event.x, event.y)
-
-        def _finish(x1, y1, x2, y2):
-            win.grab_release()
-            win.destroy()
-            x = int(min(x1, x2))
-            y = int(min(y1, y2))
-            w = int(abs(x2 - x1))
-            h = int(abs(y2 - y1))
-            if w < 5 or h < 5:
-                self._set_ocr_region_vars(0, 0, 0, 0, index=index, screen=screen_idx)
-            else:
-                self._set_ocr_region_vars(x, y, w, h, index=index, screen=screen_idx)
-            self._apply_ocr_values_runtime()
-
-        def _on_release(event):
-            _finish(state["x0"], state["y0"], event.x, event.y)
-
-        def _on_cancel(_event=None):
-            win.grab_release()
-            win.destroy()
-
-        canvas.bind("<ButtonPress-1>", _on_press)
-        canvas.bind("<B1-Motion>", _on_drag)
-        canvas.bind("<ButtonRelease-1>", _on_release)
-        win.bind("<Escape>", _on_cancel)
 
     def _load_advanced_values_into_vars(self):
         if not hasattr(self, "_advanced_vars") or not hasattr(self, "_advanced_meta"):
@@ -2975,20 +2567,9 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         self._sync_advanced_startup_vars_from_runtime()
         self._sync_input_mode_runtime_flags()
         self._refresh_input_mode_button()
-        try:
-            values = self._get_ocr_values_from_vars()
-            self._ocr_selected_screen = self._get_ocr_screen_for_region(
-                values,
-                self._get_selected_ocr_area_index(),
-            )
-        except Exception as e:
-            logger.debug("Failed to update selected OCR screen: %s", e, exc_info=True)
-            self._ocr_selected_screen = None
         if hasattr(self, "_advanced_status_var"):
             self._advanced_status_var.set("Loaded values from config.")
         self._refresh_phone_toggle_button()
-        self._refresh_ocr_area_buttons()
-        self._update_ocr_screen_button_styles()
         annotation_tab = getattr(self, "_annotation_tab_ui", None)
         if annotation_tab is not None:
             try:

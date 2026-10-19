@@ -23,39 +23,9 @@ class PlaybackController:
         browser = self._browser()
         return browser.video_time(value) if browser else value + self.controller.get_offset_value()
 
-    def _advance_playing_time_to_now(
-        self,
-        *,
-        now: float | None = None,
-        allow_end_toggle: bool = True,
-        update_display: bool = True,
-        update_slider: bool = True,
-    ) -> float:
-        if self._browser() or not self.controller.playing:
-            return 0.0
+    def _advance_playing_time_to_now(self, **_):
+        return 0.0
 
-        if now is None:
-            now = self._now()
-        try:
-            last_update = float(self.controller.last_update)
-        except Exception:
-            last_update = now
-
-        delta = now - last_update
-        self.controller.last_update = now
-        if abs(delta) > 0.0:
-            if bool(getattr(self.controller, "fast_forward_enabled", True)):
-                try:
-                    delta *= float(getattr(self.controller, "fast_forward_speed", 1.0) or 1.0)
-                except Exception:
-                    pass
-            self.set_current_time(
-                float(self.controller.current_time or 0.0) + delta,
-                allow_end_toggle=allow_end_toggle,
-                update_display=update_display,
-                update_slider=update_slider,
-            )
-        return delta
 
     def _event_time_or_now(self, event_time: float | None = None) -> float:
         return self._now() if event_time is None else float(event_time)
@@ -78,27 +48,13 @@ class PlaybackController:
         return abs(delta) > 0.0
 
     def update_loop(self):
-        if self.controller._shutting_down:
-            self.controller._update_loop_job = None
-            return
+        # BrowserSyncController owns observations and the only timed update loop.
+        self.controller._update_loop_job = None
 
-        self._advance_playing_time_to_now()
-
-        self.schedule_update()
 
     def schedule_update(self):
-        if self.controller._shutting_down:
-            return
-        root = self.controller.overlay.root
-        if self.controller._update_loop_job is not None:
-            try:
-                root.after_cancel(self.controller._update_loop_job)
-            except Exception:
-                pass
-            self.controller._update_loop_job = None
-        self.controller._update_loop_job = self.controller.overlay.root.after(
-            self.controller.update_interval_ms, self.update_loop
-        )
+        return
+
 
     def _set_slider_value(self, value: float) -> bool:
         slider = self.controller.settings.slider
@@ -159,57 +115,27 @@ class PlaybackController:
             update_slider=update_slider,
         )
 
-    def toggle_play(self, event_time: float | None = None):
+    def toggle_play(self, event_time=None):
         if self.controller._shutting_down:
             return
+        self.set_playing(not bool(self.controller.playing), event_time=event_time)
+
+
+    def set_playing(self, playing, event_time=None):
         browser = self._browser()
-        if browser:
-            try:
-                browser.command("pause" if self.controller.playing else "play")
-            except ConnectionError as exc:
-                browser._set_status(str(exc))
-            return
-        if self.controller.entry_editing:
-            self.controller.control_time_entry_return(None)
-
-        was_playing = bool(self.controller.playing)
-        now = self._now() if event_time is None else float(event_time)
-        if was_playing:
-            self._advance_playing_time_to_now(
-                now=now,
-                allow_end_toggle=False,
-                update_display=False,
-            )
-
-        self.controller.playing = not was_playing
-
-        if self.controller.playing:
-            self.controller.last_update = now
-            self.schedule_update()
-        else:
-            if self.controller._update_loop_job:
-                try:
-                    self.controller.overlay.root.after_cancel(self.controller._update_loop_job)
-                except Exception:
-                    pass
-                self.controller._update_loop_job = None
-            if self.controller.subtitle_timeout_job:
-                self.controller.overlay.root.after_cancel(self.controller.subtitle_timeout_job)
-                self.controller.subtitle_timeout_job = None
-            if self.controller.subtitle_deleted and self.controller.last_subtitle_text:
-                self.controller.subtitle_deleted = False
-
-        self._set_play_button_state()
-        self.controller.update_time_and_subtitle_displays()
-        self.controller._schedule_hide_controls()
-
-    def set_playing(self, playing: bool, event_time: float | None = None) -> bool:
-        """Set playback idempotently and return whether the state changed."""
-        desired = bool(playing)
-        if bool(self.controller.playing) == desired:
+        if not browser:
+            self.controller.playing = False
+            self._set_play_button_state()
             return False
-        self.toggle_play(event_time=event_time)
+        if bool(self.controller.playing) == bool(playing):
+            return False
+        try:
+            browser.command("play" if playing else "pause")
+        except ConnectionError as exc:
+            browser.report_error(str(exc))
+            return False
         return True
+
 
     def _set_play_button_state(self) -> None:
         try:
@@ -232,79 +158,37 @@ class PlaybackController:
             return
         self._set_play_button_state()
 
-    def change_fast_forward_speed(self, delta: float, *, persist: bool = True) -> float:
+    def change_fast_forward_speed(self, delta, *, persist=True):
         browser = self._browser()
         if browser and browser.snapshot:
             speed = self.controller._coerce_fast_forward_speed(browser.snapshot.rate + float(delta))
             try:
                 browser.command("rate", rate=speed)
             except ConnectionError as exc:
-                browser._set_status(str(exc))
+                browser.report_error(str(exc))
             return speed
-        if self.controller._shutting_down:
-            return float(getattr(self.controller, "fast_forward_speed", 1.0) or 1.0)
-        if not bool(getattr(self.controller, "fast_forward_enabled", True)):
-            self._set_play_button_state()
-            return 1.0
-        try:
-            delta = float(delta)
-        except Exception:
-            delta = 0.0
-        if self.controller.playing:
-            now = self._now()
-            self._advance_playing_time_to_now(
-                now=now,
-                allow_end_toggle=False,
-                update_display=False,
-            )
-            self.controller.last_update = now
-        current = getattr(self.controller, "fast_forward_speed", None)
-        if current is None:
-            current = 1.5
-        self.controller.fast_forward_speed = self.controller._coerce_fast_forward_speed(float(current) + delta)
-        if persist:
+        return 1.0
+
+
+    def seek_relative(self, delta, event_time=None):
+        browser = self._browser()
+        if browser and browser.snapshot:
             try:
-                self.controller.config.set("FAST_FORWARD_SPEED", self.controller.fast_forward_speed)
-            except Exception:
-                pass
-        self._set_play_button_state()
-        self.controller.update_time_and_subtitle_displays()
-        self.controller._schedule_hide_controls()
-        return float(self.controller.fast_forward_speed)
-
-    def seek_relative(self, delta: float, event_time: float | None = None) -> None:
-        self._sync_playing_time_to_event(
-            event_time,
-            update_display=False,
-            update_slider=False,
-        )
-        self.set_current_time(float(self.controller.current_time or 0.0) + float(delta or 0.0))
+                browser.seek_relative(float(delta))
+            except ConnectionError as exc:
+                browser.report_error(str(exc))
+        else:
+            self.set_current_time(float(self.controller.current_time or 0) + float(delta))
         self.controller._schedule_hide_controls()
 
-    def go_forward(self, event_time: float | None = None):
-        if self.controller.entry_editing:
-            self.controller.control_time_entry_return(None)
 
-        if self.controller._skip_buttons_use_subtitle_segments():
-            self.jump_subtitle_segment("next", event_time=event_time)
-            return
+    def go_forward(self, event_time=None):
+        self.seek_relative(float(self.controller.settings._last_skip_value), event_time=event_time)
 
-        skip = self.controller.settings._last_skip_value
-        max_time = self.controller.total_duration + self.controller.get_offset_value()
-        if self.controller.current_time <= max_time:
-            self.seek_relative(skip, event_time=event_time)
 
-    def go_back(self, event_time: float | None = None):
-        if self.controller.entry_editing:
-            self.controller.control_time_entry_return(None)
+    def go_back(self, event_time=None):
+        self.seek_relative(-float(self.controller.settings._last_skip_value), event_time=event_time)
 
-        if self.controller._skip_buttons_use_subtitle_segments():
-            self.jump_subtitle_segment("prev", event_time=event_time)
-            return
-
-        skip = self.controller.settings._last_skip_value
-        if self.controller.current_time >= 0:
-            self.seek_relative(-skip, event_time=event_time)
 
     def jump_subtitle_segment(self, direction: str, event_time: float | None = None) -> None:
         browser = self._browser()

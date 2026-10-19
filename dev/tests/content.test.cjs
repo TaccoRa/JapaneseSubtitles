@@ -86,10 +86,10 @@ test('fullscreen during viewing preserves the video identity and clock',()=>{
   assert.equal(env.sent.filter(m=>m.type==='CaptureAborted').length,0);
 });
 
-test('capture waits for its still image at video time, then resumes and stops at its end',async()=>{
+for(const [policy,previousPaused,paused] of [['play',true,false],['paused',false,true],['restore',true,true],['restore',false,false]])test(`capture boundary policy ${policy}, previously paused ${previousPaused}`,async()=>{
   const env=environment();env.video._time=10;
   const identity={videoId:env.sent[0].videoId},operationId='card';
-  await env.message({type:'PrepareCapture',identity,operationId,start:10,end:12,screenshotTime:11});
+  await env.message({type:'PrepareCapture',identity,operationId,start:10,end:12,screenshotTime:11,policy,previousRate:1.5,previousPaused});
   await env.message({type:'RunCapture',operationId});
   env.video._time=11;env.advance(100);
   assert.equal(env.video.paused,true);
@@ -100,7 +100,8 @@ test('capture waits for its still image at video time, then resumes and stops at
   assert.equal((await env.message({type:'ScreenshotReady',operationId})).ok,true);
   assert.equal(env.video.paused,false);
   env.video._time=12;env.advance(100);
-  assert.equal(env.video.paused,true);assert.equal(env.sent.filter(m=>m.type==='CaptureBoundary').length,1);
+  assert.equal(env.video.paused,paused);assert.equal(env.video.playbackRate,1.5);assert.equal(env.sent.filter(m=>m.type==='CaptureBoundary').length,1);
+  await env.message({type:'FinishCapture',operationId});assert.equal(env.video.paused,paused);
 });
 
 test('fullscreen changing mid-capture cancels the crop rather than attaching the wrong image',async()=>{

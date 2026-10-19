@@ -108,54 +108,26 @@ class OverlayController(_ControllerProxy):
         if not self.settings.default_phone_mode:
             self._hide_controls_after(self.windows_hide_control_ms)
 
-    def _trigger_background_video_space(self, *, paused: bool) -> None:
+    def _trigger_background_video_space(self, *, paused):
         if not bool(getattr(self, "subtitle_hover_pause_video", False)):
-            if not paused:
-                self._hover_video_pause_active = False
-                self._hover_timer_pause_active = False
             return
-        now = time.perf_counter()
+        browser = getattr(self.controller, "browser_sync", None)
+        if not browser or not browser.following:
+            return
         if paused:
-            if bool(getattr(self, "_hover_video_pause_active", False)):
+            if getattr(self, "_hover_video_pause_active", False) or not self.playing:
                 return
             self._hover_video_pause_active = True
-        else:
-            if not bool(getattr(self, "_hover_video_pause_active", False)):
-                return
+            self._hover_pause_identity = browser.identity
+            self.playback.set_playing(False)
+            self._hover_pause_generation = getattr(browser, "_control_generation", 0)
+        elif getattr(self, "_hover_video_pause_active", False):
             self._hover_video_pause_active = False
-        self._sync_timer_for_hover_pause(paused=paused, event_time=now)
-        try:
-            suppress = getattr(self.controller, "_suppress_external_hotkey_events", None)
-            if callable(suppress):
-                suppress("space", 1)
-            else:
-                self._suppress_synthetic_space_until = now + 0.45
-            keyboard = getattr(self, "_hover_pause_keyboard", None)
-            if keyboard is None:
-                keyboard = KeyboardController()
-                self._hover_pause_keyboard = keyboard
-            keyboard.tap(Key.space)
-            # keyboard.press(Key.space)
-            # keyboard.release(Key.space)
-        except Exception:
-            logger.warning("Failed to send subtitle-hover spacebar toggle", exc_info=True)
+            if (browser.identity == getattr(self, "_hover_pause_identity", None) and
+                getattr(browser, "_control_generation", 0) == getattr(self, "_hover_pause_generation", 0)):
+                self.playback.set_playing(True)
 
-    def _sync_timer_for_hover_pause(self, *, paused: bool, event_time: float | None = None) -> None:
-        try:
-            if paused:
-                if bool(getattr(self, "playing", False)):
-                    self.playback.toggle_play(event_time=event_time)
-                    self._hover_timer_pause_active = True
-                else:
-                    self._hover_timer_pause_active = False
-                return
 
-            if bool(getattr(self, "_hover_timer_pause_active", False)):
-                if not bool(getattr(self, "playing", False)):
-                    self.playback.toggle_play(event_time=event_time)
-                self._hover_timer_pause_active = False
-        except Exception:
-            logger.warning("Failed to sync app timer with subtitle-hover pause", exc_info=True)
 
     def sub_handle_enter(self, event):
         if not self._windows_alive():

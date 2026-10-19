@@ -40,9 +40,8 @@ from view.subtitle_overlay import SubtitleOverlayUI
 
 from controller.anki_controller import AnkiController
 from controller.episode_controller import EpisodeController
-from controller.external_video_controller import ExternalVideoCommandService, PlaybackPauseLease
+from model.capture_session import PlaybackPauseLease
 from controller.hotkey_controller import HotkeyController
-from controller.ocr_controller import OCRController
 from controller.overlay_controller import OverlayController
 from controller.playback_controller import PlaybackController
 from controller.subtitle_navigation import SubtitleNavigationController
@@ -102,7 +101,6 @@ class SubtitleController:
         "fast_forward_speed_down": "DISABLE_HOTKEY_FAST_FORWARD_SPEED_DOWN",
         "popup_add_anki_capture": "DISABLE_HOTKEY_POPUP_ADD_ANKI_CAPTURE",
     }
-    OCR_TIME_PATTERN = re.compile(r"(\d{1,2}:\d{2}(?::\d{2})?)[/\\|](\d{1,2}:\d{2}(?::\d{2})?)")
     
     def __init__(self,
                 config: ConfigManager,
@@ -126,7 +124,6 @@ class SubtitleController:
         self._create_services_and_controllers()
         self._bind_ui_events()
         self._publish_anki_add_counts()
-        self._apply_saved_offset_for_current_anime()
         self._start_input_listeners()
         self.voice.start()
         self.anki_controller.start_anki_with_app_if_enabled()
@@ -141,7 +138,6 @@ class SubtitleController:
             self.sub_manager.schedule_episode_preload_around_current()
         except Exception:
             pass
-        self.ocr_controller._schedule_ocr_time_jump("startup")
         if self._startup_resume_play: self.playback.toggle_play()
         self.browser_sync = BrowserSyncController(self)
 
@@ -149,7 +145,7 @@ class SubtitleController:
         self.default_start_time = self.current_time = self.config.get("DEFAULT_START_TIME")
         self._startup_resume_play = self.config.get("STARTUP_RESUME_PLAY")
         self.default_skip = self.config.get("DEFAULT_SKIP")
-        self.default_offset = self.config.get("EXTRA_OFFSET")
+        self.default_offset = 0.0
         self.audio_padding = self.config.get("AUDIO_PADDING")
         self.phone_windows_hide_control_ms = self.config.get("PHONEMODE_WINDOWS_HIDE_DELAY_MS")
         self.windows_hide_control_ms = self.config.get("WINDOWS_HIDE_DELAY_MS")
@@ -276,13 +272,11 @@ class SubtitleController:
 
     def _create_services_and_controllers(self) -> None:
         self.playback = PlaybackController(self)
-        self.video_commands = ExternalVideoCommandService(self)
         self.subtitle_navigation = SubtitleNavigationController(self)
         self.episode_controller = EpisodeController(self)
         self.overlay_controller = OverlayController(self)
         self.hotkey_controller = HotkeyController(self)
         self.anki_controller = AnkiController(self)
-        self.ocr_controller = OCRController(self)
         self.word_database = None
         self.annotation_provider = None
         if self._annotation_is_enabled():
@@ -336,9 +330,6 @@ class SubtitleController:
         self.settings.bind_fast_forward_controls    (
             speed_delta=self.playback.change_fast_forward_speed,
         )
-        self.settings.bind_ocr_read_now             (self.ocr_controller.on_ocr_read_now)
-        self.settings.bind_ocr_sync_now             (self.ocr_controller.on_ocr_sync_now)
-        self.settings.bind_ocr_show_boxes           (self.ocr_controller.show_ocr_boxes)
         self.settings.bind_anki_check               (self.anki_controller.on_anki_check_connection)
         self.settings.bind_performance_snapshot     (self.get_performance_snapshot)
         self.settings.bind_performance_reset        (self.reset_performance_stats)
@@ -353,7 +344,6 @@ class SubtitleController:
             test_microphone=self.voice_test_microphone,
             stop_microphone_test=self.voice_stop_microphone_test,
             set_microphone_monitor=self.voice_set_microphone_monitor,
-            list_windows=self.voice_list_windows,
         )
         self.settings.bind_annotation_callbacks     (
             list_words=self.annotation_list_words,
@@ -418,52 +408,9 @@ class SubtitleController:
     def get_offset_value(self) -> float:
         return self.subtitle_navigation.get_offset_value()
 
-    @staticmethod
-    def _normalize_anime_offset_key(value) -> str:
-        try:
-            return re.sub(r"\s+", " ", str(value or "").strip()).casefold()
-        except Exception:
-            logger.debug("Failed to normalize anime offset key", exc_info=True)
-            return ""
 
-    def _current_anime_offset_key(self) -> str:
-        try:
-            anime = self.sub_manager.get_anime_name()
-        except Exception:
-            anime = getattr(self.sub_manager, "anime_folder_name", "")
-        return self._normalize_anime_offset_key(anime)
 
-    def _anime_offsets(self) -> dict:
-        try:
-            raw = self.config.get("ANIME_OFFSETS")
-        except Exception:
-            raw = None
-        return dict(raw) if isinstance(raw, dict) else {}
 
-    def _remember_current_anime_offset(self, value: float | None = None) -> None:
-        key = self._current_anime_offset_key()
-        if not key:
-            return
-        try:
-            offset = float(self.settings._last_offset_value if value is None else value)
-        except Exception:
-            logger.debug("Failed to read current offset for anime-specific save", exc_info=True)
-            return
-        offsets = self._anime_offsets()
-        saved = offsets.get(key)
-        try:
-            if saved is not None and abs(float(saved) - offset) < 0.001:
-                return
-        except Exception:
-            pass
-        offsets[key] = round(offset, 3)
-        try:
-            self.config.set("ANIME_OFFSETS", offsets)
-        except Exception:
-            cfg = getattr(self.config, "config", None)
-            if isinstance(cfg, dict):
-                cfg["ANIME_OFFSETS"] = offsets
-            logger.debug("Failed to persist anime-specific offset", exc_info=True)
 
     def _refresh_subtitle_after_offset_change(self) -> None:
         navigation = getattr(self, "subtitle_navigation", None)
@@ -474,60 +421,15 @@ class SubtitleController:
         except Exception:
             logger.debug("Failed to refresh subtitle after offset change", exc_info=True)
 
-    def _on_runtime_offset_changed(self, value: float) -> None:
-        self._remember_current_anime_offset(value)
-        self._refresh_subtitle_after_offset_change()
+    def _on_runtime_offset_changed(self, value):
+        browser = getattr(self, "browser_sync", None)
+        if browser:
+            browser.set_trim(float(value))
+        self.update_time_and_subtitle_displays()
 
-    def _saved_offset_for_current_anime(self) -> float | None:
-        key = self._current_anime_offset_key()
-        if not key:
-            return None
-        offsets = self._anime_offsets()
-        if key not in offsets:
-            return None
-        try:
-            return float(offsets[key])
-        except Exception:
-            logger.debug("Stored anime offset is invalid for %s", key, exc_info=True)
-            return None
 
-    def _set_runtime_offset(self, value: float, *, persist_global: bool = True, remember_anime: bool = False) -> None:
-        try:
-            offset = float(value)
-        except Exception:
-            return
-        old_offset = float(getattr(self.settings, "_last_offset_value", self.default_offset) or 0.0)
-        self.default_offset = offset
-        self.settings.default_offset = offset
-        self.settings._last_offset_value = offset
-        self.settings.offset_var.set(f"{self.settings._format_number(offset)} s")
-        try:
-            self.settings._apply_offset_change(
-                offset,
-                persist=False,
-                previous_value=old_offset,
-                adjust_current=False,
-            )
-        except TypeError:
-            self.settings._apply_offset_change(offset, persist=False, previous_value=old_offset)
-        if persist_global:
-            try:
-                self.config.set("EXTRA_OFFSET", offset)
-            except Exception:
-                logger.debug("Failed to persist global offset", exc_info=True)
-        if remember_anime:
-            self._remember_current_anime_offset(offset)
-        self._refresh_subtitle_after_offset_change()
 
-    def _apply_saved_offset_for_current_anime(self) -> bool:
-        offset = self._saved_offset_for_current_anime()
-        if offset is None:
-            return False
-        current = float(getattr(self.settings, "_last_offset_value", self.default_offset) or 0.0)
-        if abs(current - offset) < 0.001:
-            return False
-        self._set_runtime_offset(offset, persist_global=True, remember_anime=False)
-        return True
+
 
     def update_episode_nav_controls(self) -> None:
         return self.episode_controller.update_episode_nav_controls()
@@ -567,8 +469,9 @@ class SubtitleController:
         self.popup.open_copy_popup(text, line_segments=line_segments, cue_snapshot=snapshot)
         return "break"
 
-    def _skip_buttons_use_subtitle_segments(self) -> bool:
-        return self.hotkey_controller._skip_buttons_use_subtitle_segments()
+    def _skip_buttons_use_subtitle_segments(self):
+        return False
+
 
     def _add_selection_to_anki(
         self,
@@ -1469,7 +1372,6 @@ class SubtitleController:
                 f"misses={int(ruby_stats.get('cache_misses', 0) or 0)} "
                 f"generator_calls={int(ruby_stats.get('generator_calls', 0) or 0)} "
                 f"generator_time={float(ruby_stats.get('generator_time', 0.0) or 0.0) * 1000:.2f} ms",
-                f"OCR last duration: {float(getattr(self, '_last_ocr_duration_ms', 0.0) or 0.0):.2f} ms",
                 f"Queues: downloads={dl_size} episode_preload={prepare_size}",
             ]
         )
@@ -1711,15 +1613,11 @@ class SubtitleController:
                 self.update_time_and_subtitle_displays()
 
     def _apply_startup_settings(self, values: dict) -> None:
-        startup_value_keys = {"DEFAULT_START_TIME", "EXTRA_OFFSET", "DEFAULT_SKIP"}
+        startup_value_keys = {"DEFAULT_START_TIME", "DEFAULT_SKIP"}
         if not any(k in values for k in startup_value_keys):
             return
 
         self.default_start_time = float(values.get("DEFAULT_START_TIME", self.default_start_time))
-
-        if "EXTRA_OFFSET" in values:
-            off = float(values.get("EXTRA_OFFSET"))
-            self._set_runtime_offset(off, persist_global=False, remember_anime=True)
 
         if "DEFAULT_SKIP" in values:
             skip = float(values.get("DEFAULT_SKIP"))
@@ -1923,14 +1821,8 @@ class SubtitleController:
     # ---------------------------------------------------------------------
     # OCR / Anki public routing
     # ---------------------------------------------------------------------
-    def on_ocr_read_now(self, override: dict | None = None) -> None:
-        return self.ocr_controller.on_ocr_read_now(override)
 
-    def on_ocr_sync_now(self, override: dict | None = None) -> None:
-        return self.ocr_controller.on_ocr_sync_now(override)
 
-    def on_ocr_show_boxes(self, override: dict | None = None) -> int:
-        return self.ocr_controller.show_ocr_boxes(override)
 
     # ---------------------------------------------------------------------
     # Offline voice commands
@@ -2202,27 +2094,7 @@ class SubtitleController:
             thread.join(timeout=2.0)
         return True
 
-    def voice_list_windows(self) -> list[dict]:
-        excluded = set(getattr(self, "_app_window_hwnds", set()) or set())
-        windows = [dict(item) for item in list_visible_windows(exclude_hwnds=excluded)]
-        anime_candidates = self._voice_anime_title_candidates()
-        for window in windows:
-            title = self._normalize_voice_window_text(window.get("title"))
-            window["anime_match"] = any(candidate and candidate in title for candidate in anime_candidates)
-        windows.sort(
-            key=lambda item: (
-                0 if item.get("anime_match") else 1,
-                str(item.get("process") or "").casefold(),
-                str(item.get("title") or "").casefold(),
-            )
-        )
-        return windows
 
-    @staticmethod
-    def _normalize_voice_window_text(value) -> str:
-        text = unicodedata.normalize("NFKC", str(value or "")).casefold()
-        text = re.sub(r"[^\w]+", " ", text, flags=re.UNICODE)
-        return re.sub(r"\s+", " ", text).strip()
 
     def _voice_anime_title_candidates(self) -> list[str]:
         values = []
@@ -2243,67 +2115,8 @@ class SubtitleController:
                 result.append(normalized)
         return result
 
-    def _shared_external_video_target_config(self) -> dict:
-        """Return the one persisted rule used by playback and capture commands."""
-        configured = self.config.get("EXTERNAL_VIDEO_TARGET")
-        if isinstance(configured, dict) and any(
-            str(configured.get(key) or "").strip()
-            for key in ("title_filter", "title", "process", "class_name")
-        ):
-            return dict(configured)
-        legacy = self.config.get("VOICE_PLAYBACK_TARGET")
-        return dict(legacy) if isinstance(legacy, dict) else {}
 
-    def _resolve_external_video_target(self) -> dict | None:
-        return self._resolve_voice_video_target()
 
-    def _resolve_voice_video_target(self) -> dict | None:
-        windows = self.voice_list_windows()
-        if not windows:
-            return None
-        saved = self._shared_external_video_target_config()
-        saved_title = self._normalize_voice_window_text(
-            saved.get("title_filter") or saved.get("title")
-        )
-        saved_process = str(saved.get("process") or "").strip().casefold()
-
-        def process_matches(window: dict) -> bool:
-            return not saved_process or str(window.get("process") or "").casefold() == saved_process
-
-        def saved_title_matches(window: dict) -> bool:
-            return not saved_title or saved_title in self._normalize_voice_window_text(window.get("title"))
-
-        for matcher in (
-            lambda window: bool(window.get("anime_match")) and process_matches(window),
-            lambda window: bool(saved_title) and saved_title_matches(window) and process_matches(window),
-            lambda window: bool(window.get("anime_match")),
-            lambda window: bool(saved_title) and saved_title_matches(window),
-        ):
-            match = next((window for window in windows if matcher(window)), None)
-            if match is not None:
-                return match
-
-        capture_titles = [
-            self._normalize_voice_window_text(value)
-            for value in re.split(r"[,;]", str(self.config.get("POST_ADD_CAPTURE_TARGET_TITLE") or ""))
-            if self._normalize_voice_window_text(value)
-        ]
-        match = next(
-            (
-                window
-                for window in windows
-                if process_matches(window)
-                and any(
-                    title_filter in self._normalize_voice_window_text(window.get("title"))
-                    for title_filter in capture_titles
-                )
-            ),
-            None,
-        )
-        if match is not None:
-            return match
-        process_windows = [window for window in windows if process_matches(window)] if saved_process else []
-        return process_windows[0] if len(process_windows) == 1 else None
 
     @staticmethod
     def _complete_voice_video_request(request: dict, succeeded: bool) -> None:
@@ -2380,353 +2193,29 @@ class SubtitleController:
             self._anki_pause_leases.pop(lease.id, None)
             lease.released = True
 
-    def resume_video_and_subtitles_after_capture(self, note_id: int, *, session=None) -> None:
-        capture_only = bool(getattr(session, "capture_only", False))
-        resume_key = (
-            "CAPTURE_ONLY_RESUME_PLAYBACK"
-            if capture_only
-            else "POST_ADD_CAPTURE_RESUME_PLAYBACK"
-        )
-        if not bool(self.config.get(resume_key) or False):
-            return
-        try:
-            note_id = int(note_id)
-        except Exception:
-            return
-        if session is not None:
-            lease = getattr(session, "pause_lease", None)
-            self.release_anki_pause_lease(lease, resume=False)
-        if note_id != int(getattr(self, "_latest_post_add_capture_note_id", 0) or 0):
-            logger.debug("Skipping playback resume for superseded capture note %s", note_id)
-            return
-        if self._voice_playback_pending:
-            try:
-                self.settings.root.after(
-                    100,
-                    lambda: self.resume_video_and_subtitles_after_capture(note_id, session=session),
-                )
-            except Exception:
-                pass
-            return
-        self._handle_voice_video_action(
-            {
-                "kind": "playback",
-                "desired": True,
-                "repeat_count": 1,
-                "source": "capture",
-                # The final play command should leave the player focused so the
-                # user's next Space reaches both the player and our global hook.
-                "restore_foreground": False,
-                "target": {
-                    "hwnd": int(getattr(self, "_latest_post_add_capture_window_hwnd", 0) or 0),
-                },
-            }
-        )
 
-    def _handle_voice_video_action(self, request: dict) -> None:
-        if self._shutting_down:
-            self._complete_voice_video_request(request, False)
-            return
-        if self._voice_playback_pending:
-            self._report_voice_status("listening", "A voice video command is already running.")
-            self._complete_voice_video_request(request, False)
-            return
-        picker = getattr(self, "_voice_target_window", None)
-        try:
-            if picker is not None and picker.winfo_exists():
-                picker.deiconify()
-                picker.lift()
-                self._report_voice_status(
-                    "listening",
-                    "Choose the pending video target before sending another video command.",
-                )
-                self._complete_voice_video_request(request, False)
-                return
-        except Exception:
-            pass
-        requested_target = request.get("target")
-        target = (
-            dict(requested_target)
-            if isinstance(requested_target, dict) and int(requested_target.get("hwnd") or 0) > 0
-            else self._resolve_voice_video_target()
-        )
-        if target is None:
-            self._show_voice_target_picker(dict(request))
-            return
-        self._run_voice_video_delivery(dict(request), target, allow_prompt=True)
-
-    @staticmethod
-    def _voice_video_hotkey_config(request: dict) -> tuple[str, str]:
-        if str(request.get("kind") or "") == "playback":
-            return "VOICE_PLAYBACK_HOTKEY", "play / pause"
-        if str(request.get("direction") or "") == "back":
-            return "VOICE_PLAYBACK_BACK_HOTKEY", "back"
-        return "VOICE_PLAYBACK_FORWARD_HOTKEY", "forward"
-
-    def _suppress_external_hotkey_events(
-        self,
-        hotkey: str,
-        repeat_count: int,
-        repeat_interval_ms: int = 120,
-    ) -> None:
-        aliases = {
-            "arrowleft": "left",
-            "arrowright": "right",
-            "spacebar": "space",
-            "control": "ctrl",
-            "ctl": "ctrl",
-            "rightalt": "altgr",
-            "altgraph": "altgr",
-        }
-        tokens = []
-        for raw_token in re.split(r"\s*\+\s*", str(hotkey or "").strip().casefold()):
-            token = aliases.get(raw_token.strip().replace(" ", ""), raw_token.strip().replace(" ", ""))
-            if token == "altgr":
-                tokens.extend(("ctrl", "alt"))
-            elif token:
-                tokens.append(token)
-        repeat_duration = max(0, int(repeat_count) - 1) * max(0, int(repeat_interval_ms)) / 1000.0
-        deadline = time.perf_counter() + max(0.6, repeat_duration + 0.45)
-        event_count = max(1, int(repeat_count))
-        for token in tokens:
-            self._suppress_synthetic_tokens_until[token] = {
-                "deadline": deadline,
-                "presses": event_count,
-                "releases": event_count,
-            }
-        # New sends are represented by the counted token entries above.  Do not
-        # let the legacy deadline suppress an additional real Space press.
-        if "space" in tokens:
-            self._suppress_synthetic_space_until = 0.0
-
-    def _run_voice_video_delivery(self, request: dict, target: dict, *, allow_prompt: bool) -> None:
-        if self._voice_playback_pending:
-            self._complete_voice_video_request(request, False)
-            return
-        config_key, action_label = self._voice_video_hotkey_config(request)
-        default_hotkey = {"VOICE_PLAYBACK_HOTKEY": "space", "VOICE_PLAYBACK_BACK_HOTKEY": "left"}.get(
-            config_key,
-            "right",
-        )
-        hotkey = str(self.config.get(config_key) or default_hotkey).strip()
-        if not hotkey:
-            self._report_voice_status("error", f"Voice {action_label} hotkey is empty.")
+    def _handle_voice_video_action(self, request):
+        browser = getattr(self, "browser_sync", None)
+        if self._shutting_down or not browser or not browser.following or not browser.snapshot:
+            self._report_voice_status("error", "Connect a browser video first.")
             self._complete_voice_video_request(request, False)
             return
         try:
-            repeat_count = max(1, min(20, int(request.get("repeat_count") or 1)))
-        except Exception:
-            repeat_count = 1
-        try:
-            repeat_interval_ms = max(
-                40,
-                min(1000, int(self.config.get("VOICE_REPEAT_HOTKEY_INTERVAL_MS") or 120)),
-            )
-        except Exception:
-            repeat_interval_ms = 120
-        previous_playing = bool(self.playing)
-        local_state = {"applied": False}
-        self._voice_playback_pending = True
-        excluded = set(getattr(self, "_app_window_hwnds", set()) or set())
-        self._report_voice_status("working", f"Sending {action_label} command to the video window...")
-
-        def _worker() -> None:
-            def _sync_local_playback_before_send(_window: dict) -> None:
-                if str(request.get("kind") or "") != "playback":
-                    return
-                def _apply() -> None:
-                    if not self._shutting_down:
-                        self.playback.set_playing(bool(request.get("desired")))
-                        local_state["applied"] = True
-
-                dispatch_to_tk_sync(self.settings.root, _apply)
-
-            self._suppress_external_hotkey_events(hotkey, repeat_count, repeat_interval_ms)
-
-            result = send_hotkey_to_window(
-                target,
-                hotkey,
-                exclude_hwnds=excluded,
-                restore_foreground=bool(request.get("restore_foreground", True)),
-                repeat_count=repeat_count,
-                repeat_interval_ms=repeat_interval_ms,
-                before_send=(
-                    _sync_local_playback_before_send
-                    if str(request.get("kind") or "") == "playback"
-                    else None
-                ),
-            )
-
-            def _finish() -> None:
-                self._voice_playback_pending = False
-                if self._shutting_down:
-                    return
-                if result.get("ok"):
-                    if str(request.get("kind") or "") == "playback":
-                        desired = bool(request.get("desired"))
-                        self.playback.set_playing(desired)
-                        state = "playing" if desired else "paused"
-                        self._report_voice_status("listening", f"Video and subtitles are now {state}.")
-                    else:
-                        direction = "back" if str(request.get("direction") or "") == "back" else "forward"
-                        callback = self.playback.go_back if direction == "back" else self.playback.go_forward
-                        for _ in range(repeat_count):
-                            callback()
-                        repetitions = f" {repeat_count} times" if repeat_count > 1 else ""
-                        self._report_voice_status(
-                            "listening",
-                            f"Moved video and subtitles {direction}{repetitions}.",
-                        )
-                    self._complete_voice_video_request(request, True)
-                    return
-                if allow_prompt:
-                    if local_state.get("applied"):
-                        self.playback.set_playing(previous_playing)
-                    self._show_voice_target_picker(dict(request))
-                    return
-                if local_state.get("applied"):
-                    self.playback.set_playing(previous_playing)
-                reason = str(result.get("reason") or "unknown error").replace("_", " ")
-                self._report_voice_status(
-                    "error",
-                    f"Video {action_label} command failed ({reason}); subtitles were not changed.",
-                )
-                self._complete_voice_video_request(request, False)
-
-            dispatch_to_tk(self.settings.root, _finish)
-
-        threading.Thread(target=_worker, daemon=True, name="voice-video-target").start()
-
-    def _show_voice_target_picker(self, request: dict) -> None:
-        existing = getattr(self, "_voice_target_window", None)
-        try:
-            if existing is not None and existing.winfo_exists():
-                existing.deiconify()
-                existing.lift()
-                return
-        except Exception:
-            pass
-
-        windows = self.voice_list_windows()
-        if not windows:
-            self._report_voice_status(
-                "error",
-                "No external video window is available; the command was not applied.",
-            )
-            self._complete_voice_video_request(request, False)
-            return
-
-        win = tk.Toplevel(self.settings.root)
-        self._voice_target_window = win
-        win.title("Select Video Window")
-        win.attributes("-topmost", True)
-        win.resizable(True, False)
-        outer = tk.Frame(win, padx=12, pady=12)
-        outer.pack(fill="both", expand=True)
-        tk.Label(
-            outer,
-            text="The saved video window was not found. Select the window that should receive the video hotkey.",
-            justify="left",
-            anchor="w",
-            wraplength=620,
-        ).pack(fill="x", pady=(0, 8))
-        selected = tk.StringVar(value="")
-        combo = ttk.Combobox(outer, textvariable=selected, state="readonly", width=78)
-        combo.pack(fill="x")
-        mapping: dict[str, dict] = {}
-
-        def _refresh() -> None:
-            mapping.clear()
-            for item in self.voice_list_windows():
-                label = f"{item.get('title', '')} - {item.get('process', '')}".strip(" -")
-                unique = label
-                suffix = 2
-                while unique in mapping:
-                    unique = f"{label} ({suffix})"
-                    suffix += 1
-                mapping[unique] = item
-            combo.configure(values=list(mapping))
-            if mapping:
-                selected.set(next(iter(mapping)))
-
-        def _close(message: str | None = None) -> None:
-            try:
-                win.grab_release()
-            except Exception:
-                pass
-            try:
-                win.destroy()
-            except Exception:
-                pass
-            self._voice_target_window = None
-            if message:
-                self._report_voice_status("error", message)
-
-        def _use_selected() -> None:
-            item = mapping.get(selected.get())
-            if not item:
-                self.settings.root.bell()
-                return
-            target = {
-                "title_filter": str(item.get("title") or ""),
-                "process": str(item.get("process") or ""),
-            }
-            self.config.set("VOICE_PLAYBACK_TARGET", target)
-            try:
-                self.settings.set_voice_playback_target(target)
-            except Exception:
-                pass
-            _close()
-            self._run_voice_video_delivery(dict(request), target, allow_prompt=False)
-
-        def _cancel() -> None:
-            _close("Video target selection cancelled; the command was not applied.")
+            if request.get("kind") == "seek":
+                seconds = float(self.settings._last_skip_value) * max(1, min(20, int(request.get("repeat_count") or 1)))
+                browser.seek_relative(-seconds if request.get("direction") == "back" else seconds,
+                on_complete=lambda ok: self._complete_voice_video_request(request, ok))
+            else:
+                browser.command("play" if request.get("desired") else "pause",
+                on_complete=lambda ok: self._complete_voice_video_request(request, ok))
+        except (ConnectionError, ValueError) as exc:
+            self._report_voice_status("error", str(exc))
             self._complete_voice_video_request(request, False)
 
-        buttons = tk.Frame(outer)
-        buttons.pack(fill="x", pady=(10, 0))
-        tk.Button(buttons, text="Refresh", width=10, command=_refresh).pack(side="left")
-        tk.Button(buttons, text="Use Selected", width=14, command=_use_selected).pack(side="right")
-        tk.Button(
-            buttons,
-            text="Cancel",
-            width=10,
-            command=_cancel,
-        ).pack(side="right", padx=(0, 6))
-        _refresh()
-        win.protocol(
-            "WM_DELETE_WINDOW",
-            _cancel,
-        )
-        win.bind("<Return>", lambda _event: _use_selected())
-        win.bind(
-            "<Escape>",
-            lambda _event: _cancel(),
-        )
-        win.update_idletasks()
-        width = max(560, int(win.winfo_reqwidth()))
-        height = max(150, int(win.winfo_reqheight()))
-        try:
-            px, py = self.settings.root.winfo_pointerxy()
-            monitor = next(
-                (
-                    rect
-                    for rect in get_monitor_rects(self.settings.root)
-                    if rect[0] <= px < rect[0] + rect[2] and rect[1] <= py < rect[1] + rect[3]
-                ),
-                (0, 0, self.settings.root.winfo_screenwidth(), self.settings.root.winfo_screenheight()),
-            )
-            mx, my, mw, mh = monitor
-            x = mx + max(0, (mw - width) // 2)
-            y = my + max(0, (mh - height) // 2)
-            win.geometry(f"{width}x{height}+{x}+{y}")
-        except Exception:
-            pass
-        try:
-            win.grab_set()
-            win.focus_force()
-        except Exception:
-            pass
+
+
+
+
 
     # ---------------------------------------------------------------------
     # Shutdown
@@ -2786,10 +2275,6 @@ class SubtitleController:
             self.episode_controller.save_current_episode_position()
         except Exception as e:
             logger.debug("Failed to save current episode resume position: %s", e, exc_info=True)
-        try:
-            self._remember_current_anime_offset()
-        except Exception as e:
-            logger.debug("Failed to save current anime offset: %s", e, exc_info=True)
         
         x, y, w, h = _read_settings_geometry()
 
@@ -2848,7 +2333,6 @@ class SubtitleController:
         for close_call in (
             lambda: self.popup._close(),
             lambda: self.renderer.destroy_hover_windows(),
-            lambda: self.ocr_controller._close_ocr_box_previews(),
         ):
             try:
                 close_call()
@@ -2890,11 +2374,6 @@ class SubtitleController:
             pass
         try:
             self.voice.shutdown()
-        except Exception:
-            pass
-        try:
-            self._ocr_generation += 1
-            self._ocr_sync_generation += 1
         except Exception:
             pass
         try:

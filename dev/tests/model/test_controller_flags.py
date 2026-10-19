@@ -579,45 +579,6 @@ def test_set_to_commit_does_not_steal_focus():
     assert focus_calls == []
 
 
-def test_hover_pause_toggles_app_timer_with_spacebar():
-    calls = []
-
-    class _Playback:
-        def toggle_play(self, event_time=None):
-            calls.append(event_time)
-            controller.playing = not controller.playing
-
-    class _Keyboard:
-        def __init__(self):
-            self.events = []
-
-        def press(self, key):
-            self.events.append(("press", key))
-
-        def release(self, key):
-            self.events.append(("release", key))
-
-    keyboard = _Keyboard()
-    controller = SimpleNamespace(
-        subtitle_hover_pause_video=True,
-        _hover_video_pause_active=False,
-        _hover_timer_pause_active=False,
-        _hover_pause_keyboard=keyboard,
-        playing=True,
-        playback=_Playback(),
-    )
-    overlay = OverlayController(controller)
-
-    overlay._trigger_background_video_space(paused=True)
-    assert controller.playing is False
-    assert controller._hover_timer_pause_active is True
-    assert len(calls) == 1
-    assert keyboard.events == []  # External commands now use the shared video service.
-
-    overlay._trigger_background_video_space(paused=False)
-    assert controller.playing is True
-    assert controller._hover_timer_pause_active is False
-    assert len(calls) == 2
 
 
 def test_subtitle_center_snap_is_horizontal_only(monkeypatch):
@@ -643,45 +604,6 @@ def test_subtitle_center_snap_is_horizontal_only(monkeypatch):
     assert geometries == ["+400+340"]
 
 
-def test_anime_specific_offset_is_saved_and_restored():
-    class _Config:
-        def __init__(self):
-            self.values = {
-                "ANIME_OFFSETS": {"anime a": 1.25},
-                "EXTRA_OFFSET": 0.0,
-            }
-
-        def get(self, key):
-            return self.values.get(key)
-
-        def set(self, key, value):
-            self.values[key] = value
-
-    apply_calls = []
-    offset_text = []
-    controller = object.__new__(SubtitleController)
-    controller.config = _Config()
-    controller.default_offset = 0.0
-    controller.sub_manager = SimpleNamespace(get_anime_name=lambda: "Anime A")
-    controller.settings = SimpleNamespace(
-        _last_offset_value=0.0,
-        default_offset=0.0,
-        offset_var=SimpleNamespace(set=lambda text: offset_text.append(text)),
-        _format_number=lambda value: f"{float(value):g}",
-        _apply_offset_change=lambda value, persist, previous_value=None, adjust_current=True: apply_calls.append(
-            (value, persist, previous_value, adjust_current)
-        ),
-    )
-
-    assert controller._apply_saved_offset_for_current_anime() is True
-    assert controller.default_offset == 1.25
-    assert controller.settings._last_offset_value == 1.25
-    assert controller.config.values["EXTRA_OFFSET"] == 1.25
-    assert apply_calls == [(1.25, False, 0.0, False)]
-    assert offset_text == ["1.25 s"]
-
-    controller._remember_current_anime_offset(2.5)
-    assert controller.config.values["ANIME_OFFSETS"]["anime a"] == 2.5
 
 
 def test_subtitle_handle_enablement_follows_phone_mode_only():
@@ -1248,128 +1170,14 @@ def test_same_action_duplicate_shortcut_aliases_are_deduped():
     assert controller._input_actions.empty()
 
 
-def test_synthetic_space_suppression_does_not_block_the_next_real_space_press():
-    hotkeys, controller = _hotkey_runtime({"SHORTCUT_TOGGLE_PLAY": "space"})
-    controller._suppress_synthetic_tokens_until = {"space": time.perf_counter() + 1.0}
-
-    hotkeys._on_key_press(Key.space)
-    assert controller._input_actions.empty()
-
-    hotkeys._on_key_press(Key.space)
-    action, _event_time = controller._input_actions.get_nowait()
-    assert action == "toggle_play"
 
 
-def test_counted_synthetic_suppression_consumes_only_expected_key_events():
-    hotkeys, controller = _hotkey_runtime({"SHORTCUT_GO_BACK": "left"})
-    controller._suppress_synthetic_tokens_until = {
-        "left": {
-            "deadline": time.perf_counter() + 1.0,
-            "presses": 2,
-            "releases": 2,
-        }
-    }
-
-    assert hotkeys._is_suppressed_synthetic_key(Key.left, pressed=True) is True
-    assert hotkeys._is_suppressed_synthetic_key(Key.left, pressed=False) is True
-    assert hotkeys._is_suppressed_synthetic_key(Key.left, pressed=True) is True
-    assert hotkeys._is_suppressed_synthetic_key(Key.left, pressed=False) is True
-    assert hotkeys._is_suppressed_synthetic_key(Key.left, pressed=True) is False
-    assert "left" not in controller._suppress_synthetic_tokens_until
 
 
-def test_capture_resume_requests_video_focus_be_left_in_foreground():
-    requests = []
-    controller = object.__new__(SubtitleController)
-    controller.config = _DictConfig({"POST_ADD_CAPTURE_RESUME_PLAYBACK": True})
-    controller._latest_post_add_capture_note_id = 41
-    controller._latest_post_add_capture_window_hwnd = 90210
-    controller._voice_playback_pending = False
-    controller._handle_voice_video_action = requests.append
-
-    controller.resume_video_and_subtitles_after_capture(41)
-
-    assert requests == [
-        {
-            "kind": "playback",
-            "desired": True,
-            "repeat_count": 1,
-            "source": "capture",
-            "restore_foreground": False,
-            "target": {"hwnd": 90210},
-        }
-    ]
 
 
-def test_capture_resume_retry_keeps_capture_session_configuration():
-    scheduled = []
-    requests = []
-    controller = object.__new__(SubtitleController)
-    controller.config = _DictConfig(
-        {
-            "POST_ADD_CAPTURE_RESUME_PLAYBACK": False,
-            "CAPTURE_ONLY_RESUME_PLAYBACK": True,
-        }
-    )
-    controller.settings = SimpleNamespace(
-        root=SimpleNamespace(after=lambda _delay, callback: scheduled.append(callback))
-    )
-    controller._latest_post_add_capture_note_id = 42
-    controller._latest_post_add_capture_window_hwnd = 73
-    controller._voice_playback_pending = True
-    controller.release_anki_pause_lease = lambda *_args, **_kwargs: None
-    controller._handle_voice_video_action = requests.append
-    session = SimpleNamespace(capture_only=True, pause_lease=None)
-
-    controller.resume_video_and_subtitles_after_capture(42, session=session)
-    controller._voice_playback_pending = False
-    scheduled[0]()
-
-    assert requests[0]["source"] == "capture"
-    assert requests[0]["restore_foreground"] is False
 
 
-def test_video_delivery_forwards_foreground_policy(monkeypatch):
-    import SubtitlePlayer.controller.controller as controller_module
-
-    sent = []
-
-    class _ImmediateThread:
-        def __init__(self, target, **_kwargs):
-            self.target = target
-
-        def start(self):
-            self.target()
-
-    def _send(target, hotkey, **kwargs):
-        sent.append((target, hotkey, kwargs))
-        kwargs["before_send"](target)
-        return {"ok": True, "reason": "sent", "window": target, "sent_count": 1}
-
-    monkeypatch.setattr(controller_module.threading, "Thread", _ImmediateThread)
-    monkeypatch.setattr(controller_module, "send_hotkey_to_window", _send)
-    monkeypatch.setattr(controller_module, "dispatch_to_tk_sync", lambda _root, callback: callback())
-    monkeypatch.setattr(controller_module, "dispatch_to_tk", lambda _root, callback: callback())
-
-    controller = object.__new__(SubtitleController)
-    controller.config = _DictConfig({"VOICE_PLAYBACK_HOTKEY": "space"})
-    controller.settings = SimpleNamespace(root=object())
-    controller.playback = SimpleNamespace(set_playing=lambda _desired: None)
-    controller.playing = False
-    controller._shutting_down = False
-    controller._voice_playback_pending = False
-    controller._app_window_hwnds = set()
-    controller._report_voice_status = lambda *_args: None
-    controller._complete_voice_video_request = lambda *_args: None
-    controller._suppress_external_hotkey_events = lambda *_args: None
-
-    controller._run_voice_video_delivery(
-        {"kind": "playback", "desired": True, "restore_foreground": False},
-        {"hwnd": 99},
-        allow_prompt=False,
-    )
-
-    assert sent[0][2]["restore_foreground"] is False
 
 
 def test_mode2_play_shortcut_does_not_fire_in_mode1():

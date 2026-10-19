@@ -29,7 +29,7 @@ def align_intervals(source, reference, source_hash, media_fingerprint, *, helper
     source, reference = tuple(map(tuple, source)), tuple(map(tuple, reference))
     if len(source) < 8 or len(reference) < 8:
         raise ValueError("Not enough timing evidence yet")
-    reference_hash = digest(json.dumps(reference).encode())
+    reference_hash = digest(("onsets-v2:" + json.dumps(reference)).encode())
     helper = Path(helper) if helper else Path(__file__).parents[1] / "bin" / "subtitle-align.exe"
     candidates = []
     # Common broadcast/frame-rate conversions; arbitrary drift is handled by
@@ -57,20 +57,43 @@ def align_intervals(source, reference, source_hash, media_fingerprint, *, helper
             raise ValueError("Incomplete alignment response")
         video = tuple((a + float(d), b + float(d)) for (a, b), d in zip(scaled, offsets))
         starts, ends = sorted(x[0] for x in reference), sorted(x[1] for x in reference)
-        errors = [min(nearest(starts, a), nearest(ends, b)) for a, b in video]
+        errors = [nearest(starts, a) for a, b in video]
+        video = list(video)
         # Each timing region needs multiple cues in separated time windows.
         trusted = [False] * len(source)
         first = 0
         for stop in range(1, len(source) + 1):
             if stop < len(source) and abs(offsets[stop] - offsets[stop - 1]) < 0.35:
                 continue
+            # Mutual, unique onset pairs avoid matching split/merged captions or
+            # repeated close dialogue. Refine each region without moving its break.
+            pairs = []
+            for i in range(first, stop):
+                onset = video[i][0]
+                near = [j for j in (bisect_left(starts, onset)-1, bisect_left(starts, onset))
+                        if 0 <= j < len(starts) and abs(starts[j]-onset) <= .65]
+                if len(near) != 1:
+                    continue
+                j = near[0]
+                rivals = [k for k in range(first, stop) if abs(video[k][0]-starts[j]) <= .65]
+                if len(rivals) == 1:
+                    pairs.append((i, starts[j]-onset))
+            if len(pairs) >= 6 and source[pairs[-1][0]][0] - source[pairs[0][0]][0] >= 30:
+                residual = median(delta for _, delta in pairs)
+                consistent = [abs(delta-residual) for _, delta in pairs]
+                before = median(abs(delta) for _, delta in pairs)
+                if max(consistent) <= .15 and before - median(consistent) >= .025:
+                    for i in range(first, stop):
+                        a, b = video[i]
+                        video[i] = (a+residual, b+residual)
+                        errors[i] = nearest(starts, video[i][0])
             support = [i for i in range(first, stop) if errors[i] < 0.22]
             enough = (len(support) >= 6 and source[support[-1]][0] - source[support[0]][0] >= 30
                       and len(support) / (stop - first) >= 0.3)
             trusted[first:stop] = [enough] * (stop - first)
             first = stop
         try:
-            mapping = TimingMap(source_hash, media_fingerprint, reference_hash, source, video,
+            mapping = TimingMap(source_hash, media_fingerprint, reference_hash, source, tuple(video),
                                 tuple(trusted), method)
         except ValueError:
             continue

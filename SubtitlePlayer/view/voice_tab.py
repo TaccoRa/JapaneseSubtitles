@@ -32,11 +32,6 @@ VOICE_CONFIG_KEYS = [
     "VOICE_REQUIRE_WAKE_PREFIX",
     "VOICE_WAKE_PREFIXES",
     "VOICE_COMMAND_COOLDOWN_MS",
-    "VOICE_PLAYBACK_TARGET",
-    "VOICE_PLAYBACK_HOTKEY",
-    "VOICE_PLAYBACK_BACK_HOTKEY",
-    "VOICE_PLAYBACK_FORWARD_HOTKEY",
-    "VOICE_REPEAT_HOTKEY_INTERVAL_MS",
     "VOICE_COLLAPSED_SECTIONS",
     "VOICE_HIGHLIGHT_AUTO_DICTIONARY",
     "VOICE_HIGHLIGHT_AUTO_TRANSLATION",
@@ -144,7 +139,6 @@ class VoiceTab:
         self.parent.bind("<Destroy>", self._on_parent_destroy, add="+")
         self.load_values()
         self.refresh_devices()
-        self.refresh_windows()
 
     def _on_parent_destroy(self, event) -> None:
         if event.widget is self.parent:
@@ -377,68 +371,6 @@ class VoiceTab:
         self._mic_meter.bind("<Configure>", self._layout_microphone_meter, add="+")
         self._add_filter_row(recognition_info, [meter_label, self._mic_meter], "microphone input level volume meter bars")
 
-        playback, playback_info = self._section(body, "Video Playback", section_id="video_playback")
-        playback.grid_columnconfigure(1, weight=1)
-        window_label = tk.Label(playback, text="Available video window (current)")
-        window_label.grid(row=0, column=0, sticky="w", pady=2)
-        window_combo = ttk.Combobox(playback, textvariable=self.window_var, state="readonly", width=58)
-        window_combo.grid(row=0, column=1, sticky="ew", padx=(8, 0), pady=2)
-        refresh_windows = tk.Button(playback, text="Refresh", width=10, command=self.refresh_windows)
-        refresh_windows.grid(row=0, column=2, sticky="e", padx=(6, 0), pady=2)
-        self._window_combo = window_combo
-        self._add_filter_row(
-            playback_info,
-            [window_label, window_combo, refresh_windows],
-            "available current open video window target refresh",
-        )
-
-        title_label = tk.Label(playback, text="Saved title contains")
-        title_label.grid(row=1, column=0, sticky="w", pady=2)
-        title = tk.Entry(playback, textvariable=self.target_title_var, width=48)
-        title.grid(row=1, column=1, sticky="ew", padx=(8, 0), pady=2)
-        select = tk.Button(playback, text="Use Selected", width=10, command=self.select_window)
-        select.grid(row=1, column=2, sticky="e", padx=(6, 0), pady=2)
-        self._add_filter_row(playback_info, [title_label, title, select], "target window title contains select")
-
-        process_label = tk.Label(playback, text="Target process")
-        process_label.grid(row=2, column=0, sticky="w", pady=2)
-        process = ttk.Combobox(playback, textvariable=self.target_process_var, state="normal", width=24)
-        process.grid(row=2, column=1, sticky="ew", padx=(8, 0), pady=2)
-        self._process_combo = process
-        self._add_filter_row(playback_info, [process_label, process], "target process executable selectable optional")
-
-        hotkey_label = tk.Label(playback, text="Play / pause hotkey")
-        hotkey_label.grid(row=3, column=0, sticky="w", pady=2)
-        hotkey = tk.Entry(playback, textvariable=self.playback_hotkey_var, width=18)
-        hotkey.grid(row=3, column=1, sticky="w", padx=(8, 0), pady=2)
-        self._add_filter_row(playback_info, [hotkey_label, hotkey], "playback hotkey space video")
-
-        back_hotkey_label = tk.Label(playback, text="Back hotkey")
-        back_hotkey_label.grid(row=4, column=0, sticky="w", pady=2)
-        back_hotkey = tk.Entry(playback, textvariable=self.playback_back_hotkey_var, width=18)
-        back_hotkey.grid(row=4, column=1, sticky="w", padx=(8, 0), pady=2)
-        self._add_filter_row(playback_info, [back_hotkey_label, back_hotkey], "back hotkey left video")
-
-        forward_hotkey_label = tk.Label(playback, text="Forward hotkey")
-        forward_hotkey_label.grid(row=5, column=0, sticky="w", pady=2)
-        forward_hotkey = tk.Entry(playback, textvariable=self.playback_forward_hotkey_var, width=18)
-        forward_hotkey.grid(row=5, column=1, sticky="w", padx=(8, 0), pady=2)
-        self._add_filter_row(
-            playback_info,
-            [forward_hotkey_label, forward_hotkey],
-            "forward hotkey right video",
-        )
-
-        repeat_interval_label = tk.Label(playback, text="Repeated hotkey interval (ms)")
-        repeat_interval_label.grid(row=6, column=0, sticky="w", pady=2)
-        repeat_interval = tk.Entry(playback, textvariable=self.repeat_hotkey_interval_var, width=18)
-        repeat_interval.grid(row=6, column=1, sticky="w", padx=(8, 0), pady=2)
-        self._add_filter_row(
-            playback_info,
-            [repeat_interval_label, repeat_interval],
-            "repeated hotkey interval delay pacing back forward milliseconds",
-        )
-
         highlighted, highlighted_info = self._section(
             body,
             "Highlighted Words",
@@ -596,11 +528,6 @@ class VoiceTab:
             return "System default"
         return f"{name} - {host}" if host else name
 
-    @staticmethod
-    def _window_label(window: dict) -> str:
-        title = str(window.get("title") or "").strip()
-        process = str(window.get("process") or "").strip()
-        return f"{title} - {process}" if process else title
 
     def load_values(self) -> None:
         self.enabled_var.set(bool(self.ui.config.get("VOICE_ENABLED") or False))
@@ -617,16 +544,6 @@ class VoiceTab:
         except Exception:
             cooldown = 1000
         self.cooldown_var.set(str(max(0, min(60000, cooldown))))
-        self._saved_target = self.ui.config.get("VOICE_PLAYBACK_TARGET") or {}
-        self.set_playback_target(self._saved_target)
-        self.playback_hotkey_var.set(str(self.ui.config.get("VOICE_PLAYBACK_HOTKEY") or "space"))
-        self.playback_back_hotkey_var.set(str(self.ui.config.get("VOICE_PLAYBACK_BACK_HOTKEY") or "left"))
-        self.playback_forward_hotkey_var.set(str(self.ui.config.get("VOICE_PLAYBACK_FORWARD_HOTKEY") or "right"))
-        try:
-            repeat_interval = int(self.ui.config.get("VOICE_REPEAT_HOTKEY_INTERVAL_MS") or 120)
-        except Exception:
-            repeat_interval = 120
-        self.repeat_hotkey_interval_var.set(str(max(40, min(1000, repeat_interval))))
         configured_sections = self.ui.config.get("VOICE_COLLAPSED_SECTIONS")
         configured_sections = configured_sections if isinstance(configured_sections, dict) else {}
         self._collapsed_sections = {
@@ -663,13 +580,6 @@ class VoiceTab:
             errors.append("Duplicate cooldown")
         cooldown = max(0, min(60000, cooldown))
         self.cooldown_var.set(str(cooldown))
-        try:
-            repeat_interval = int(float(str(self.repeat_hotkey_interval_var.get()).strip().replace(",", ".")))
-        except Exception:
-            repeat_interval = 120
-            errors.append("Repeated hotkey interval")
-        repeat_interval = max(40, min(1000, repeat_interval))
-        self.repeat_hotkey_interval_var.set(str(repeat_interval))
         prefixes = {
             "en": normalize_voice_phrase(self.prefix_en_var.get()),
             "de": normalize_voice_phrase(self.prefix_de_var.get()),
@@ -698,10 +608,6 @@ class VoiceTab:
             "name": str(device.get("name") or ""),
             "host_api": str(device.get("host_api") or ""),
         }
-        target = {
-            "title_filter": str(self.target_title_var.get() or "").strip(),
-            "process": str(self.target_process_var.get() or "").strip(),
-        }
         values = {
             "VOICE_ENABLED": bool(self.enabled_var.get()),
             "VOICE_LANGUAGE": self._language_code(self.language_var.get()),
@@ -709,11 +615,6 @@ class VoiceTab:
             "VOICE_REQUIRE_WAKE_PREFIX": require_prefix,
             "VOICE_WAKE_PREFIXES": prefixes,
             "VOICE_COMMAND_COOLDOWN_MS": cooldown,
-            "VOICE_PLAYBACK_TARGET": target,
-            "VOICE_PLAYBACK_HOTKEY": str(self.playback_hotkey_var.get() or "").strip(),
-            "VOICE_PLAYBACK_BACK_HOTKEY": str(self.playback_back_hotkey_var.get() or "").strip(),
-            "VOICE_PLAYBACK_FORWARD_HOTKEY": str(self.playback_forward_hotkey_var.get() or "").strip(),
-            "VOICE_REPEAT_HOTKEY_INTERVAL_MS": repeat_interval,
             "VOICE_COLLAPSED_SECTIONS": self._collapsed_section_values(),
             "VOICE_HIGHLIGHT_AUTO_DICTIONARY": bool(self.highlight_dictionary_var.get()),
             "VOICE_HIGHLIGHT_AUTO_TRANSLATION": bool(self.highlight_translation_var.get()),
@@ -721,12 +622,6 @@ class VoiceTab:
             "VOICE_ACTION_INDICATOR_ENABLED": bool(self.action_indicator_var.get()),
             "VOICE_COMMANDS": commands,
         }
-        if not values["VOICE_PLAYBACK_HOTKEY"]:
-            errors.append("Play / pause hotkey")
-        if not values["VOICE_PLAYBACK_BACK_HOTKEY"]:
-            errors.append("Back hotkey")
-        if not values["VOICE_PLAYBACK_FORWARD_HOTKEY"]:
-            errors.append("Forward hotkey")
         return {"values": values, "errors": errors}
 
     def reset_defaults(self) -> None:
@@ -738,12 +633,6 @@ class VoiceTab:
         self.prefix_en_var.set(DEFAULT_WAKE_PREFIXES["en"])
         self.prefix_de_var.set(DEFAULT_WAKE_PREFIXES["de"])
         self.cooldown_var.set("1000")
-        self._saved_target = {"title_filter": "", "process": ""}
-        self.set_playback_target(self._saved_target)
-        self.playback_hotkey_var.set("space")
-        self.playback_back_hotkey_var.set("left")
-        self.playback_forward_hotkey_var.set("right")
-        self.repeat_hotkey_interval_var.set("120")
         self._collapsed_sections = {section_id: False for section_id in self._section_bodies}
         self._apply_collapsed_section_states()
         self.highlight_dictionary_var.set(False)
@@ -762,11 +651,6 @@ class VoiceTab:
     def set_enabled(self, enabled: bool) -> None:
         self.enabled_var.set(bool(enabled))
 
-    def set_playback_target(self, target: dict) -> None:
-        target = target if isinstance(target, dict) else {}
-        self._saved_target = dict(target)
-        self.target_title_var.set(str(target.get("title_filter") or target.get("title") or ""))
-        self.target_process_var.set(str(target.get("process") or ""))
 
     def _clear_conflict_highlights(self) -> None:
         for entry, background in self._command_entry_backgrounds.items():
@@ -827,73 +711,7 @@ class VoiceTab:
 
         threading.Thread(target=_worker, daemon=True, name="voice-device-list").start()
 
-    def refresh_windows(self) -> None:
-        def _worker() -> None:
-            try:
-                windows = list(self.ui._on_voice_list_windows() or [])
-                error = ""
-            except Exception as exc:
-                windows = []
-                error = str(exc)
 
-            def _finish() -> None:
-                if not self._alive():
-                    return
-                self._window_mapping = {}
-                for window in windows:
-                    label = self._window_label(window)
-                    unique = label
-                    suffix = 2
-                    while unique in self._window_mapping:
-                        unique = f"{label} ({suffix})"
-                        suffix += 1
-                    self._window_mapping[unique] = window
-                self._window_combo.configure(values=list(self._window_mapping))
-                processes = sorted(
-                    {
-                        str(window.get("process") or "").strip()
-                        for window in windows
-                        if str(window.get("process") or "").strip()
-                    },
-                    key=str.casefold,
-                )
-                self._process_combo.configure(values=["", *processes])
-                saved_title = str(self.target_title_var.get() or "").strip().casefold()
-                saved_process = str(self.target_process_var.get() or "").strip().casefold()
-                selected_label = ""
-                for label, window in self._window_mapping.items():
-                    title_matches = not saved_title or saved_title in str(window.get("title") or "").casefold()
-                    process_matches = not saved_process or saved_process == str(window.get("process") or "").casefold()
-                    if title_matches and process_matches and (saved_title or saved_process):
-                        selected_label = label
-                        break
-                if not selected_label:
-                    selected_label = next(
-                        (
-                            label
-                            for label, window in self._window_mapping.items()
-                            if bool(window.get("anime_match"))
-                        ),
-                        "",
-                    )
-                self.window_var.set(selected_label)
-                if error:
-                    self._append_status(f"Window refresh failed: {error}")
-
-            dispatch_to_tk(self.ui.root, _finish)
-
-        threading.Thread(target=_worker, daemon=True, name="voice-window-list").start()
-
-    def select_window(self) -> None:
-        selected = self._window_mapping.get(self.window_var.get())
-        if not selected:
-            self.ui.root.bell()
-            return
-        target = {
-            "title_filter": str(selected.get("title") or ""),
-            "process": str(selected.get("process") or ""),
-        }
-        self.set_playback_target(target)
 
     def refresh_model_status(self) -> None:
         language = self._language_code(self.language_var.get())

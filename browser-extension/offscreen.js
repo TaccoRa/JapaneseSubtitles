@@ -70,6 +70,7 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
     if(m.operationId!==operation)return {ok:false,error:'Stale recording operation'};
     if(m.type==='StoreScreenshot'){
       if(crop?.operationId!==operation)throw Error('Video crop is not ready');
+      if(!/^data:image\/png;base64,/.test(m.image))throw Error('Screenshot must be local PNG data');
       const id=operation,r=crop.rect,view=crop.viewport;
       const image=await createImageBitmap(await (await fetch(m.image)).blob());
       try{
@@ -100,10 +101,9 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
       view.setUint16(20,1,true);view.setUint16(22,1,true);view.setUint32(24,context.sampleRate,true);view.setUint32(28,context.sampleRate*2,true);
       view.setUint16(32,2,true);view.setUint16(34,16,true);put(36,'data');view.setUint32(40,count*2,true);
       let index=44;for(const chunk of recordedPCM)for(const value of chunk){view.setInt16(index,Math.max(-32768,Math.min(32767,value*32767)),true);index+=2;}
+      operation=null;recordedPCM=[];screenshot=null;
       const audio=await base64(new Blob([bytes],{type:'audio/wav'}));
-      if(operation!==id)throw Error('Capture cancelled during encoding');
       await notify({type:'EncodedCapture',operationId:id,audio,image:capturedImage,audioMime:'audio/wav',endTime:m.time});
-      recordedPCM=[];
       return {ok:true};
     }
     return {ok:false,error:'Unknown recorder request'};
