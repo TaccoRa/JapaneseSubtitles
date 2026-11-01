@@ -11,6 +11,16 @@ class PlaybackController:
         browser = getattr(self.controller, "browser_sync", None)
         return browser if browser is not None and browser.following else None
 
+    def _playback_is_unpaused(self) -> bool:
+        browser = self._browser()
+        if (browser and browser._connected and browser.snapshot is not None
+                and browser.snapshot.identity == browser.identity):
+            # Seeking, buffering and stale observations freeze the clock, but
+            # do not change the player's play/pause state. Use its last known
+            # paused flag for the button and for explicit playback actions.
+            return not browser.snapshot.paused
+        return bool(self.controller.playing)
+
     def source_time(self, value):
         browser = self._browser()
         return browser.source_time(value) if browser else value - self.controller.get_offset_value()
@@ -81,7 +91,7 @@ class PlaybackController:
     def toggle_play(self, event_time=None):
         if self.controller._shutting_down:
             return
-        self.set_playing(not bool(self.controller.playing), event_time=event_time)
+        self.set_playing(not self._playback_is_unpaused(), event_time=event_time)
 
 
     def set_playing(self, playing, event_time=None):
@@ -93,7 +103,7 @@ class PlaybackController:
             self.controller.playing = False
             self._set_play_button_state()
             return False
-        if bool(self.controller.playing) == bool(playing):
+        if self._playback_is_unpaused() == bool(playing):
             return False
         try:
             browser.command("play" if playing else "pause")
@@ -114,10 +124,12 @@ class PlaybackController:
             )
         except Exception:
             pass
-        if self.controller.playing:
-            self.controller.settings.play_pause_btn.config(text="Stop", bg="red", activebackground="red")
-        else:
-            self.controller.settings.play_pause_btn.config(text="Play", bg="green", activebackground="green")
+        button = self.controller.settings.play_pause_btn
+        state = (button, self._playback_is_unpaused())
+        if state != getattr(self, "_last_play_button_state", None):
+            text, color = ("Stop", "red") if state[1] else ("Play", "green")
+            button.config(text=text, bg=color, activebackground=color)
+            self._last_play_button_state = state
 
     def toggle_fast_forward(self, event_time: float | None = None) -> None:
         if self.controller._shutting_down:

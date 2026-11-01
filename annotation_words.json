@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-10-30T22:43:32+00:00",
+  "updated_at": "2026-11-01T14:55:32+00:00",
   "words": [
     {
       "surface": "(not tsu...)",
@@ -29753,6 +29753,35 @@
       }
     },
     {
+      "surface": "共",
+      "normalized": "共",
+      "base": "",
+      "reading": "共",
+      "meaning": "zusammen mit, dasselbe, beide",
+      "anime": "ONE PIECE",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-11-01T14:53:27+00:00",
+      "updated_at": "2026-11-01T14:53:27+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1793544806381,
+        "card_ids": "1793544806382,1793544806383",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "15:53 01-11-2026",
+        "sentence": "何だ? あいつ\n 共に戦いてえだ?",
+        "sentence_translated": "Was? Der Typ will mit uns kämpfen?",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "共"
+      }
+    },
+    {
       "surface": "共倒れ",
       "normalized": "共倒れ",
       "base": "",
@@ -48240,6 +48269,35 @@
       }
     },
     {
+      "surface": "引き 寄せる",
+      "normalized": "引き寄せる",
+      "base": "",
+      "reading": "引き寄せる",
+      "meaning": "(etwas) zu sich heranziehen, zu sich heranziehen, näher heranziehen",
+      "anime": "ONE PIECE",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-11-01T14:55:32+00:00",
+      "updated_at": "2026-11-01T14:55:32+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1793544932102,
+        "card_ids": "1793544932102,1793544932103",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "15:55 01-11-2026",
+        "sentence": "ルフィさんには\n 人を引き寄せる力があるから!",
+        "sentence_translated": "Weil Luffy die Fähigkeit hat, Menschen anzuziehen!",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "引き 寄せる"
+      }
+    },
+    {
       "surface": "引き 換え",
       "normalized": "引き換え",
       "base": "",
@@ -57940,6 +57998,35 @@
       }
     },
     {
+      "surface": "敵対する",
+      "normalized": "敵対する",
+      "base": "",
+      "reading": "敵対する",
+      "meaning": "sich feindlich gegenüberstehen",
+      "anime": "ONE PIECE",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-11-01T14:54:53+00:00",
+      "updated_at": "2026-11-01T14:54:53+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1793544893173,
+        "card_ids": "1793544893173,1793544893174",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "15:54 01-11-2026",
+        "sentence": "敵対すると\n 手の届かない場所に行ってしまう",
+        "sentence_translated": "Wenn man sich mit ihm anlegt, zieht er sich an einen Ort zurück, den man nicht erreichen kann.",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "敵対する"
+      }
+    },
+    {
       "surface": "文",
       "normalized": "文",
       "base": "",
@@ -58250,6 +58337,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "斧"
+      }
+    },
+    {
+      "surface": "斬り 捨てる",
+      "normalized": "斬り捨てる",
+      "base": "",
+      "reading": "斬り捨てる",
+      "meaning": "abschneiden und wegwerfen, aufgeben, missachten",
+      "anime": "ONE PIECE",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-11-01T14:53:45+00:00",
+      "updated_at": "2026-11-01T14:53:45+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1793544824706,
+        "card_ids": "1793544824706,1793544824707",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "15:53 01-11-2026",
+        "sentence": "仲間を斬り捨てて\n よく言えたもんじゃ",
+        "sentence_translated": "Wie kannst du das nur sagen, nachdem du deine Kameraden im Stich gelassen hast?",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "斬り 捨てる"
       }
     },
     {
@@ -102382,6 +102498,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "鼻"
+      }
+    },
+    {
+      "surface": "鼻血",
+      "normalized": "鼻血",
+      "base": "",
+      "reading": "鼻血",
+      "meaning": "Nasenbluten, Epistaxis",
+      "anime": "ONE PIECE",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-11-01T14:53:12+00:00",
+      "updated_at": "2026-11-01T14:53:12+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1793544791228,
+        "card_ids": "1793544791229,1793544791230",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "15:53 01-11-2026",
+        "sentence": "鼻血でカッコつけるな!",
+        "sentence_translated": "Gib nicht mit Nasenbluten an!",
+        "reading_field": "AddRubiesToFront",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "鼻血"
       }
     }
   ]

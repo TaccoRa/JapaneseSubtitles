@@ -111,6 +111,19 @@ def exchange_authorization_code(client_id, client_secret, code, redirect_uri):
     except requests.RequestException:
         raise ValueError("AniList ist momentan nicht erreichbar. Bitte erneut verbinden.") from None
     if response.status_code != 200:
+        try:
+            payload = response.json()
+            error = payload.get("error") if isinstance(payload, dict) else None
+        except ValueError:
+            error = None
+        # Only show local messages for known codes; server bodies may contain secrets.
+        if error == "invalid_client" or (response.status_code == 401 and not error):
+            raise ValueError("AniList-Anmeldung fehlgeschlagen (HTTP 401): Client ID oder Client Secret "
+                             "wurde abgelehnt. In der AniList-Einrichtung beide Werte derselben "
+                             "Anwendung erneut eintragen; das Secret ausdrücklich ersetzen.")
+        if error == "invalid_grant":
+            raise ValueError("AniList-Anmeldecode wurde abgelehnt (invalid_grant). Anmeldung neu starten "
+                             "und die Redirect URL der AniList-Anwendung prüfen: " + REDIRECT_URI)
         raise ValueError(f"AniList-Anmeldung fehlgeschlagen (HTTP {response.status_code}). "
                          "Client ID, Client Secret und Redirect URL in der Einrichtung prüfen.")
     try:

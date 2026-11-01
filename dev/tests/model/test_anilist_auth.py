@@ -110,6 +110,20 @@ def test_exchange_failures_do_not_expose_server_payloads(monkeypatch, response):
     assert 'do-not-display' not in str(raised.value) and 'client-secret' not in str(raised.value)
 
 
+@pytest.mark.parametrize('status,error,expected', [
+    (401, 'invalid_client', 'Secret ausdrücklich ersetzen'),
+    (401, None, 'Secret ausdrücklich ersetzen'),
+    (400, 'invalid_grant', auth.REDIRECT_URI),
+])
+def test_exchange_explains_recoverable_auth_errors_without_server_text(monkeypatch, status, error, expected):
+    monkeypatch.setattr(auth.requests, 'post', lambda *args, **kwargs: NS(
+        status_code=status, json=lambda: dict(error=error, message='private-code-secret')))
+    with pytest.raises(ValueError) as raised:
+        auth.exchange_authorization_code('55046', 'client-secret', 'code', auth.REDIRECT_URI)
+    assert expected in str(raised.value)
+    assert 'private-code-secret' not in str(raised.value)
+
+
 def test_client_secrets_use_separate_credentials_for_each_public_client():
     saved = {}
     class Store:

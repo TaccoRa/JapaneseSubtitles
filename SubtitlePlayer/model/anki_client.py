@@ -2790,6 +2790,13 @@ class AnkiClient:
     def _token_lookup_text(self, token, surface: str) -> str:
         feature = getattr(token, "feature", None)
         if feature is not None:
+            # UniDic proper-name lemmas can be phonetic labels (城内 -> ジョウナイ).
+            # Keep the written headword for dictionary lookup and card identity.
+            orth_base = str(getattr(feature, "orthBase", "") or "").strip()
+            lemma = str(getattr(feature, "lemma", "") or "").strip()
+            if (str(getattr(feature, "pos2", "") or "") == "固有名詞"
+                    and self._contains_kanji(orth_base) and not self._contains_kanji(lemma)):
+                return orth_base
             for attr in ("lemma", "orthBase", "formBase"):
                 value = getattr(feature, attr, None)
                 if value and value != "*":

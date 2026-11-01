@@ -26,6 +26,21 @@ def snapshot(client, text, segments=None, provider=None):
         clean_text=text, top_segments=[], bottom_segments=segments or [(text, None)], annotation_provider=provider)
 
 
+def test_castle_interior_uses_written_dictionary_headword(client, monkeypatch):
+    text = '早く城内へ急げ！ ルフィ！'
+    cue = snapshot(client, text)
+    token = next(token for token in cue.tokens if token.surface == '城内')
+    assert token.dictionary_lookup_key == '城内'
+    start = text.index('城内')
+    selection = cue.resolve_selection('城内', ((0, start, start + 2),))
+    assert selection.preferred_lookup == '城内'
+    assert client._card_headword_from_cue_snapshot(cue, selection) == '城内'
+    monkeypatch.setattr(client, '_fetch_jisho_entries', lambda query: [dict(
+        japanese=[dict(word='城内', reading='じょうない')],
+        senses=[dict(english_definitions=['inside of a castle'])])])
+    assert 'inside of a castle' in client.lookup_dictionary_entry(token.dictionary_lookup_key)
+
+
 @pytest.mark.parametrize('text', [
     '生き延びてやるぞ',  # Dr.STONE S01E01 #71
     '黙って聞きやがれ',  # Dr.STONE S01E12 #145

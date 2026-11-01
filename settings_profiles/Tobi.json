@@ -462,10 +462,11 @@
         "2026-10-24": 16,
         "2026-10-25": 9,
         "2026-10-26": 1,
-        "2026-10-30": 67
+        "2026-10-30": 67,
+        "2026-11-01": 5
     },
-    "ANKI_ADD_COUNT_DATE": "2026-10-30",
-    "ANKI_ADD_COUNT_TODAY": 67,
+    "ANKI_ADD_COUNT_DATE": "2026-11-01",
+    "ANKI_ADD_COUNT_TODAY": 5,
     "ANIME_EPISODE_PROGRESS": {
         "shokugeki no souma": {
             "anime": "Shokugeki no Souma",
@@ -518,8 +519,8 @@
         "one piece": {
             "anime": "ONE PIECE",
             "season": 1,
-            "episode": 1001,
-            "global": 1001
+            "episode": 1002,
+            "global": 1002
         },
         "tsuihou sareta cheat fuyo majutsushi wa kimama na second life wo ouka suru.: ore wa buki dake ja naku, arayuru mono ni \"kyouka point\" wo fuyo dekiru shi, ore no ishi de itsudemo kouka wo kaijo dekiru kedo, nokotta hitotachi daijoubu?": {
             "anime": "Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru.: Ore wa Buki dake ja Naku, Arayuru Mono ni \"Kyouka Point\" wo Fuyo Dekiru shi, Ore no Ishi de Itsudemo Kouka wo Kaijo Dekiru kedo, Nokotta Hitotachi Daijoubu?",
