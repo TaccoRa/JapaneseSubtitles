@@ -320,6 +320,14 @@ COUNTER_READING_OVERRIDES = {
         9: "きゅうにん",
         10: "じゅうにん",
     },
+    "分": {1: "いっぷん", 3: "さんぷん", 4: "よんぷん", 6: "ろっぷん", 8: "はっぷん", 10: "じゅっぷん"},
+    "時": {4: "よじ", 7: "しちじ", 9: "くじ"},
+    "時間": {4: "よじかん", 7: "しちじかん", 9: "くじかん"},
+    "回": {1: "いっかい", 6: "ろっかい", 8: "はっかい", 10: "じゅっかい"},
+    "階": {1: "いっかい", 3: "さんがい", 6: "ろっかい", 8: "はっかい", 10: "じゅっかい"},
+    "個": {1: "いっこ", 6: "ろっこ", 8: "はっこ", 10: "じゅっこ"},
+    "歳": {1: "いっさい", 8: "はっさい", 10: "じゅっさい", 20: "はたち"},
+    "才": {1: "いっさい", 8: "はっさい", 10: "じゅっさい", 20: "はたち"},
 }
 COUNTER_BASE_READINGS = {
     "枚": "まい",
@@ -331,13 +339,27 @@ COUNTER_BASE_READINGS = {
     "才": "さい",
     "時": "じ",
     "分": "ふん",
+    "時間": "じかん",
 }
 NUMBER_COUNTER_RE = re.compile(
     r"(?<![0-9０-９一二三四五六七八九十百千])"
     r"([0-9０-９]+|[一二三四五六七八九十]+)"
     r"([ \t\u3000]*)"
-    r"(匹|本|杯|発|人|枚|個|回|階|円|歳|才|時|分)"
+    r"(時間|回戦|匹|本|杯|発|人|枚|個|回|階|円|歳|才|時|分)"
 )
+CALENDAR_DATE_RE = re.compile(
+    r"(?<![0-9０-９一二三四五六七八九十百千])"
+    r"([0-9０-９]+|[一二三四五六七八九十]+)[ \t\u3000]*月[ \t\u3000]*"
+    r"([0-9０-９]+|[一二三四五六七八九十]+)[ \t\u3000]*日"
+)
+CALENDAR_MONTH_READINGS = ("", "いちがつ", "にがつ", "さんがつ", "しがつ", "ごがつ", "ろくがつ",
+                           "しちがつ", "はちがつ", "くがつ", "じゅうがつ", "じゅういちがつ", "じゅうにがつ")
+CALENDAR_DAY_READINGS = {1: "ついたち", 2: "ふつか", 3: "みっか", 4: "よっか", 5: "いつか",
+    6: "むいか", 7: "なのか", 8: "ようか", 9: "ここのか", 10: "とおか", 14: "じゅうよっか",
+    17: "じゅうななにち", 19: "じゅうくにち", 20: "はつか", 24: "にじゅうよっか", 29: "にじゅうくにち"}
+# Keep the final numeral of an idiom out of a following word's counter match.
+# In 万が一 + 本当に, 一 and 本 belong to different words.
+NUMBER_IDIOM_RE = re.compile(r"万が一|万一")
 
 TSU_COUNTER_READINGS = {
     1: "\u3072\u3068\u3064",
@@ -384,10 +406,24 @@ def counter_reading(number_text: str, counter: str) -> str:
     number = parse_japanese_number(number_text)
     if number is None:
         return ""
+    if counter == "回戦":
+        reading = counter_reading(number_text, "回")
+        return reading + "せん" if reading else ""
     overrides = COUNTER_READING_OVERRIDES.get(counter)
     if overrides and number in overrides:
         return overrides[number]
-    number_reading = NUMBER_READINGS.get(number)
+    if not 1 <= number < 100:
+        return ""
+    if counter == "人":
+        reading = _integer_reading(number)
+        return (reading[:-2] + "よ" if reading.endswith("よん") else reading) + "にん"
+    if overrides and number > 10:
+        tens, ones = divmod(number, 10)
+        if ones == 0 and 10 in overrides:
+            return NUMBER_READINGS[tens] + overrides[10]
+        if ones in overrides:
+            return _integer_reading(tens * 10) + overrides[ones]
+    number_reading = _integer_reading(number)
     base_reading = COUNTER_BASE_READINGS.get(counter)
     if number_reading and base_reading:
         return number_reading + base_reading
@@ -429,16 +465,43 @@ def ordinal_reading(number_text: str) -> str:
     return "だい" + number_reading if number_reading else ""
 
 
+def number_idiom_boundaries(segments: list[Segment]) -> set[int]:
+    """Segment boundaries that keep numeric idioms separate from the next word."""
+    text = ''.join(base or '' for base, _ in segments)
+    ends = {match.end() for match in NUMBER_IDIOM_RE.finditer(text)}
+    boundaries, offset = set(), 0
+    for index, (base, _) in enumerate(segments):
+        if offset in ends:
+            boundaries.add(index)
+        offset += len(base or '')
+    return boundaries
+
+
 def iter_number_counter_matches(text: str):
+    protected = [match.span() for match in NUMBER_IDIOM_RE.finditer(text or "")]
+    matches = []
+    for match in CALENDAR_DATE_RE.finditer(text or ""):
+        if any(start <= match.start() < end for start, end in protected):
+            continue
+        month, day = parse_japanese_number(match.group(1)), parse_japanese_number(match.group(2))
+        if month is not None and day is not None and 1 <= month <= 12 and 1 <= day <= 31:
+            reading = CALENDAR_MONTH_READINGS[month] + CALENDAR_DAY_READINGS.get(day, _integer_reading(day) + "にち")
+            protected.append(match.span())
+            matches.append((match, reading))
     for match in NUMBER_COUNTER_RE.finditer(text or ""):
+        if any(start <= match.start() < end for start, end in protected):
+            continue
         reading = counter_reading(match.group(1), match.group(3))
         if reading:
-            yield match, reading
+            matches.append((match, reading))
     for match in TSU_COUNTER_RE.finditer(text or ""):
+        if any(start <= match.start() < end for start, end in protected):
+            continue
         number = parse_japanese_number(match.group(1))
         reading = TSU_COUNTER_READINGS.get(number)
         if reading:
-            yield match, reading
+            matches.append((match, reading))
+    yield from sorted(matches, key=lambda item: item[0].start())
 
 
 def iter_ordinal_number_matches(text: str):

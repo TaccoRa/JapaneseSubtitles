@@ -100,17 +100,38 @@ def test_failure_pause_waits_for_active_clip_and_never_pauses_another_video():
 
 def pollable(sync, tmp_path):
     import queue
+    import time
     sync._closed = False
     sync._results = queue.Queue()
     sync._pending_media, sync._retry_at, sync._retry_count = {}, {}, {}
     sync._pending_directory = tmp_path
     sync._last_probe, sync._episode_problem = 0, None
+    sync._last_recorder_probe = time.monotonic()
     sync._send_recorder_config = lambda: None
     sync.bridge.events, sync.bridge.error = queue.Queue(), None
     sync.controller.settings = NS(root=NS(after=lambda *args: "scheduled"), slider=NS(config=lambda **kw: None))
     sync.controller.playback = NS(_set_play_button_state=lambda: None, _publish_current_time=lambda: None)
     sync.controller.slider_dragging = False
     return sync
+
+
+def test_caption_event_backlog_yields_to_tk_instead_of_draining_without_limit(tmp_path, monkeypatch):
+    import controller.browser_sync_controller as module
+    now = [0.0]
+    sync = pollable(browser(), tmp_path)
+    sync.following = False
+    handled = []
+    def event(value):
+        handled.append(value)
+        now[0] += .003
+    sync._event = event
+    for i in range(12):
+        sync.bridge.events.put({"index": i})
+    monkeypatch.setattr(module.time, "monotonic", lambda: now[0])
+    sync._poll()
+    assert 0 < len(handled) < 12
+    assert sync.bridge.events.qsize() == 12-len(handled)
+    assert sync._job == "scheduled"  # The next UI/clock turn remains scheduled.
 
 
 def test_delayed_observation_probes_without_disconnecting_buffering_or_cancelling(tmp_path):
@@ -264,7 +285,7 @@ def test_original_timing_remains_browsable_before_alignment_but_capture_is_block
     assert sync.video_time(48.5) == 48
     from model.capture_session import CaptureSession, FrozenActionTarget
     session = CaptureSession(FrozenActionTarget.create(selected_text="word",subtitle_text="sentence",sentence_key="sentence"))
-    with pytest.raises(ValueError, match="Alignment uncertain"):
+    with pytest.raises(ValueError, match="Timing is not confirmed"):
         sync.freeze_capture(session)
 
 

@@ -28,8 +28,8 @@ VOICE_ACTIONS = OrderedDict(
             {
                 "label": "Abort current voice action",
                 "dispatch": "voice_abort",
-                "en": ["abort", "cancel command"],
-                "de": ["abbrechen", "befehl abbrechen"],
+                "en": ["abort", "cancel", "cancel command", "stop"],
+                "de": ["abbrechen", "befehl abbrechen", "stop", "stopp"],
             },
         ),
         (
@@ -625,6 +625,7 @@ _LEGACY_LOOKUP_ALIAS_UPGRADES = {
 }
 
 _VOICE_ALIAS_UPGRADES = {
+    "abort": {"en": ["abort", "cancel", "stop"], "de": ["abbrechen", "stop", "stopp"]},
     "show_app": {
         "en": ("app", "show app"),
         "de": ("app", "app zeigen"),
@@ -973,6 +974,14 @@ def merge_voice_commands(raw: Any) -> dict[str, dict[str, Any]]:
         for language, aliases in language_aliases.items():
             current = split_voice_aliases(command.get(language))
             command[language] = list(dict.fromkeys([*aliases, *current]))
+    # Stop is the explicitly requested abort alias. Older profiles commonly
+    # assigned it to Pause, which otherwise makes every settings close invalid.
+    if merged.get("abort", {}).get("enabled"):
+        for action, command in merged.items():
+            if action != "abort":
+                for language in ("en", "de"):
+                    command[language] = [alias for alias in command[language]
+                        if normalize_voice_phrase(alias) not in {"stop", "stopp"}]
     return merged
 
 

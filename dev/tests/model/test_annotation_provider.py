@@ -216,7 +216,7 @@ def test_hide_ruby_for_mature_known_words(tmp_path):
     assert segments[0][2]["hidden_ruby"] == "にんげん"
 
 
-def test_partial_annotation_inside_ruby_segment_keeps_compound_ruby(tmp_path):
+def test_partial_database_entry_does_not_mark_an_unknown_compound(tmp_path):
     provider, db = _provider(tmp_path, {"ANNOTATION_RUBY_MODE": "hide_mature"})
     db.upsert(WordEntry(surface="\u91cd\u8981", source="anki", status="anki_mature"), save=False)
     db.save()
@@ -227,13 +227,7 @@ def test_partial_annotation_inside_ruby_segment_keeps_compound_ruby(tmp_path):
         lambda _text: [{"surface": "\u91cd\u8981", "lookup": "\u91cd\u8981", "start": 0, "end": 2}],
     )
 
-    assert [segment[0] for segment in segments] == ["\u91cd\u8981", "\u5668\u5b98"]
-    assert all(segment[1] is None for segment in segments)
-    assert segments[0][2]["annotation"] is True
-    assert segments[0][2]["hide_ruby"] is False
-    assert segments[0][2]["hidden_ruby"] == ""
-    assert segments[0][2]["ruby_group_ruby"] == "\u3058\u3085\u3046\u3088\u3046\u304d\u304b\u3093"
-    assert segments[1][2]["ruby_group_ruby"] == "\u3058\u3085\u3046\u3088\u3046\u304d\u304b\u3093"
+    assert segments == [("\u91cd\u8981\u5668\u5b98", "\u3058\u3085\u3046\u3088\u3046\u304d\u304b\u3093")]
 
 
 def test_renyou_form_matches_dictionary_verb_without_lookup(tmp_path):
@@ -514,7 +508,7 @@ def test_inflected_dictionary_match_ignores_expected_reading_difference(tmp_path
     assert match.status == "anki_mature"
 
 
-def test_ruby_segment_can_match_inside_combined_token(tmp_path):
+def test_known_kanji_does_not_mark_a_different_combined_word(tmp_path):
     provider, db = _provider(tmp_path)
     db.upsert(WordEntry(surface="\u524d", source="anki", status="anki_mature"), save=False)
     db.save()
@@ -544,7 +538,7 @@ def test_ruby_segment_can_match_inside_combined_token(tmp_path):
         "\u524d",
         "\u3082\u201d\uff1f",
     ]
-    assert segments[1][2]["status"] == "anki_mature"
+    assert segments[1] == ("\u524d", "\u307e\u3048")
 
 
 def test_purpose_ni_renyou_form_matches_dictionary_verb_after_object_particle(tmp_path):

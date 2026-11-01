@@ -1,4 +1,3 @@
-import time
 import bisect
 
 class PlaybackController:
@@ -7,9 +6,6 @@ class PlaybackController:
 
     def set_controller(self, controller):
         self.controller = controller
-
-    def _now(self) -> float:
-        return time.perf_counter()
 
     def _browser(self):
         browser = getattr(self.controller, "browser_sync", None)
@@ -22,39 +18,6 @@ class PlaybackController:
     def video_time(self, value):
         browser = self._browser()
         return browser.video_time(value) if browser else value + self.controller.get_offset_value()
-
-    def _advance_playing_time_to_now(self, **_):
-        return 0.0
-
-
-    def _event_time_or_now(self, event_time: float | None = None) -> float:
-        return self._now() if event_time is None else float(event_time)
-
-    def _sync_playing_time_to_event(
-        self,
-        event_time: float | None = None,
-        *,
-        update_display: bool = True,
-        update_slider: bool = True,
-    ) -> bool:
-        if not self.controller.playing:
-            return False
-        delta = self._advance_playing_time_to_now(
-            now=self._event_time_or_now(event_time),
-            allow_end_toggle=False,
-            update_display=update_display,
-            update_slider=update_slider,
-        )
-        return abs(delta) > 0.0
-
-    def update_loop(self):
-        # BrowserSyncController owns observations and the only timed update loop.
-        self.controller._update_loop_job = None
-
-
-    def schedule_update(self):
-        return
-
 
     def _set_slider_value(self, value: float) -> bool:
         slider = self.controller.settings.slider
@@ -122,6 +85,9 @@ class PlaybackController:
 
 
     def set_playing(self, playing, event_time=None):
+        overlay = getattr(self.controller, "overlay_controller", None)
+        if overlay is not None:
+            overlay.cancel_hover_resume()
         browser = self._browser()
         if not browser:
             self.controller.playing = False
@@ -183,53 +149,57 @@ class PlaybackController:
 
 
     def go_forward(self, event_time=None):
+        if self.controller._skip_buttons_use_subtitle_segments():
+            self.jump_subtitle_segment("next", event_time=event_time, strict_previous=True)
+            return
         self.seek_relative(float(self.controller.settings._last_skip_value), event_time=event_time)
 
 
     def go_back(self, event_time=None):
+        if self.controller._skip_buttons_use_subtitle_segments():
+            self.jump_subtitle_segment("prev", event_time=event_time, strict_previous=True)
+            return
         self.seek_relative(-float(self.controller.settings._last_skip_value), event_time=event_time)
 
 
-    def jump_subtitle_segment(self, direction: str, event_time: float | None = None) -> None:
+    def jump_subtitle_segment(self, direction: str, event_time: float | None = None, *, strict_previous=False) -> None:
         browser = self._browser()
         if browser:
             if not browser.mapping:
                 browser._set_status("Finding timing…")
                 return
-            starts = [x[0] for x in browser.mapping.video]
-            current = float(self.controller.current_time)
+            starts = browser.mapping.video_starts
+            current = float(browser._pending_seek[1] if browser._pending_seek else browser.snapshot.time_at()
+                            if browser.snapshot else self.controller.current_time)
             idx = bisect.bisect_right(starts, current + (.05 if direction == "next" else -.05))
             if direction == "prev":
                 idx -= 1
+                active = browser.mapping.cue_at(current)
+                if strict_previous and active is not None:
+                    idx = active-1
             if 0 <= idx < len(starts):
                 self.set_current_time(starts[idx])
             return
         start_times = self.controller._get_display_start_times()
         if not start_times:
-            self._sync_playing_time_to_event(event_time)
             return
 
-        synced = self._sync_playing_time_to_event(
-            event_time,
-            update_display=False,
-            update_slider=False,
-        )
-        offset = self.controller.get_offset_value()
         sub_t = max(0.0, self.source_time(float(self.controller.current_time)))
         epsilon = 0.05
 
         if direction == "prev":
             target_idx = bisect.bisect_right(start_times, sub_t - epsilon) - 1
+            if strict_previous:
+                current_idx = bisect.bisect_right(start_times, sub_t+epsilon)-1
+                ends = self.controller._get_display_end_times()
+                if 0 <= current_idx < len(ends) and sub_t < float(ends[current_idx]):
+                    target_idx = current_idx-1
         elif direction == "next":
             target_idx = bisect.bisect_right(start_times, sub_t + epsilon)
         else:
-            if synced:
-                self._publish_current_time()
             return
 
         if target_idx < 0 or target_idx >= len(start_times):
-            if synced:
-                self._publish_current_time()
             return
 
         self.set_current_time(self.video_time(float(start_times[target_idx])))
@@ -240,7 +210,7 @@ class PlaybackController:
         if browser:
             if not browser.mapping:
                 return
-            starts = [x[0] for x in browser.mapping.video]
+            starts = browser.mapping.video_starts
             idx = browser.mapping.cue_at(float(self.controller.current_time))
             if idx is None:
                 idx = bisect.bisect_right(starts, float(self.controller.current_time))
@@ -249,15 +219,8 @@ class PlaybackController:
             return
         start_times = self.controller._get_display_start_times()
         if not start_times:
-            self._sync_playing_time_to_event(event_time)
             return
 
-        synced = self._sync_playing_time_to_event(
-            event_time,
-            update_display=False,
-            update_slider=False,
-        )
-        offset = self.controller.get_offset_value()
         sub_t = max(0.0, self.source_time(float(self.controller.current_time)))
         epsilon = 0.05
         padding_sec = float(self.controller.audio_padding)*0.001
@@ -268,8 +231,6 @@ class PlaybackController:
         except Exception:
             end_times = getattr(self.controller.sub_manager, "display_end_times", [])
         if idx < 0 or idx >= len(start_times) or idx >= len(end_times):
-            if synced:
-                self._publish_current_time()
             return
 
         end_time = float(end_times[idx])
@@ -280,14 +241,10 @@ class PlaybackController:
                 self.set_current_time(target_time)
                 self.controller._schedule_hide_controls()
                 return
-            if synced:
-                self._publish_current_time()
             return
 
         target_time = self.video_time(end_time) + padding_sec
         if target_time < float(self.controller.current_time or 0.0) - epsilon:
-            if synced:
-                self._publish_current_time()
             return
 
         self.set_current_time(target_time)

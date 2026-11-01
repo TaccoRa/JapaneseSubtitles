@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 import time
 import uuid
 from typing import Any, Mapping
+from .screenshot_position import ScreenshotPosition
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,6 +27,7 @@ class FrozenActionTarget:
     selection_spans: tuple = ()
     source_hash: str = ""
     media_key: str = ""
+    sentence_context: Any = None
     created_monotonic: float = field(default_factory=time.monotonic)
 
     @classmethod
@@ -40,6 +42,7 @@ class FrozenActionTarget:
         selection_spans=None,
         source_hash="",
         media_key="",
+        sentence_context=None,
     ) -> "FrozenActionTarget":
         return cls(
             selected_text=str(selected_text or "").strip(),
@@ -50,6 +53,7 @@ class FrozenActionTarget:
             selection_spans=tuple(selection_spans or ()),
             source_hash=str(source_hash or ""),
             media_key=str(media_key or ""),
+            sentence_context=sentence_context,
         )
 
 
@@ -57,6 +61,7 @@ class FrozenActionTarget:
 class CaptureSession:
     """One frozen recorder operation and its independently completing Anki work."""
 
+    recording_started_at: float = field(default=0.0, init=False)
     target: FrozenActionTarget
     capture_only: bool = False
     early_capture: bool = False
@@ -75,13 +80,22 @@ class CaptureSession:
     media_identity: Any = None
     media_fingerprint: str = ""
     mapped_interval: tuple[float, float] | None = None
+    mapped_cue_start: float | None = None
+    screenshot_position: ScreenshotPosition | None = None
+    screenshot_time: float | None = None
+    recording_feedback_done: bool = False
+    feedback_generation: int = -1
     post_capture_policy: str = "play"
+    previous_paused: bool = False
+    playback_generation: int = 0
     native_result: Mapping[str, Any] | None = None
     media_completion_notified: bool = False
     creation_error: str = ""
+    replace_sentence_media: bool = False
     terminal_error: str = ""
     backend_media_id: str = ""
     asb_dispatched: bool = False
+    deferred_annotation_entries: list = field(default_factory=list)
 
     def set_target_note(self, note_id: int | None) -> None:
         try:

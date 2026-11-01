@@ -111,6 +111,7 @@ class CopyPopup:
         self._translation_state_callback = None
         self._translation_provider_callback = None
         self._anchor_window_callback = None
+        self._hover_presence_callback = None
         self._dragging = False
         self._manual_selection_active = False
 
@@ -950,7 +951,7 @@ class CopyPopup:
             return ""
 
         try:
-            if bool(region.get("is_selection")):
+            if bool(region.get("is_selection") or region.get("compound")):
                 entry_text = str(lookup(query, allow_translation_fallback=True) or "").strip()
             else:
                 entry_text = str(lookup(query) or "").strip()
@@ -1209,7 +1210,7 @@ class CopyPopup:
 
     def _keep_hover_visible(self, _event=None):
         self._cancel_hover_clear()
-        self._cancel_close()
+        self._on_popup_enter()
         if getattr(_event, "widget", None) in {self._hover_layer_window, self._hover_layer_label}:
             self._cancel_hover_layer_job()
         return None
@@ -1819,7 +1820,7 @@ class CopyPopup:
         make_draggable(drag_grip, popup, on_release=self._on_popup_drag_end)
         drag_grip.bind("<ButtonPress-1>", self._on_popup_drag_start, add="+")
         drag_grip.bind("<ButtonRelease-1>", self._on_popup_drag_end, add="+")
-        drag_grip.bind("<Enter>", lambda _event: self._cancel_close(), add="+")
+        drag_grip.bind("<Enter>", self._on_popup_enter, add="+")
         drag_grip.bind("<Leave>", lambda _event: self._on_popup_leave(), add="+")
         return drag_grip
 
@@ -1903,6 +1904,7 @@ class CopyPopup:
         selected_text: str | None = None,
         post_add_capture: bool = False,
         on_complete=None,
+        initiator="popup",
     ) -> None:
         selected = self._clean_selected_text(
             selected_text if selected_text is not None else self._get_selected_text()
@@ -1913,25 +1915,32 @@ class CopyPopup:
         if not callable(self._on_add_anki):
             logger.debug("Add Selection To Anki skipped because no callback is bound")
             return
+        cue_snapshot = getattr(self, "_cue_snapshot", None)
+        selection_spans = self._selected_cue_spans()
 
         def _run() -> None:
             try:
                 kwargs = {
                     "selected_text": selected,
                     "subtitle_text": plain_text or "",
-                    "cue_snapshot": getattr(self, "_cue_snapshot", None),
-                    "selection_spans": self._selected_cue_spans(),
+                    "cue_snapshot": cue_snapshot,
+                    "selection_spans": selection_spans,
+                    "initiator": initiator,
                 }
                 if post_add_capture:
                     kwargs["post_add_capture"] = True
                 if callable(on_complete):
                     kwargs["on_complete"] = on_complete
+                # Adapt old callbacks before calling them. Retrying a callback
+                # after its internal TypeError could create a second note.
+                import inspect
                 try:
-                    self._on_add_anki(**kwargs)
-                except TypeError:
-                    kwargs.pop("cue_snapshot", None)
-                    kwargs.pop("selection_spans", None)
-                    self._on_add_anki(**kwargs)
+                    parameters = inspect.signature(self._on_add_anki).parameters
+                    if not any(p.kind == inspect.Parameter.VAR_KEYWORD for p in parameters.values()):
+                        kwargs = {key: value for key, value in kwargs.items() if key in parameters}
+                except (TypeError, ValueError):
+                    pass
+                self._on_add_anki(**kwargs)
             except Exception:
                 logger.exception("Add Selection To Anki failed")
 
@@ -1944,6 +1953,7 @@ class CopyPopup:
         self,
         post_add_capture: bool = False,
         on_complete=None,
+        initiator="popup",
     ) -> bool:
         popup = getattr(self, "_popup", None)
         if not self._window_exists(popup):
@@ -1957,6 +1967,7 @@ class CopyPopup:
             selected_text=selected,
             post_add_capture=bool(post_add_capture),
             on_complete=on_complete,
+            initiator=initiator,
         )
         return True
 
@@ -2132,6 +2143,33 @@ class CopyPopup:
         except Exception:
             return False
 
+    def word_target_at_pointer_for_anki(self, position=None) -> dict:
+        """Hit-test a popup word without reusing a selection or an old hover panel."""
+        popup, entry = getattr(self, "_popup", None), getattr(self, "_entry_widget", None)
+        if not self._window_exists(popup):
+            return {}
+        try:
+            if not popup.winfo_viewable():
+                return {}
+            point = position or (popup.winfo_pointerx(), popup.winfo_pointery())
+            if not (popup.winfo_rootx() <= point[0] < popup.winfo_rootx()+popup.winfo_width()
+                    and popup.winfo_rooty() <= point[1] < popup.winfo_rooty()+popup.winfo_height()):
+                return {}
+            result = {"inside": True, "text": "", "snapshot": getattr(self, "_cue_snapshot", None), "spans": ()}
+            if entry is None:
+                return result
+            x, y = int(point[0]-entry.winfo_rootx()), int(point[1]-entry.winfo_rooty())
+            if not (0 <= x < entry.winfo_width() and 0 <= y < entry.winfo_height()):
+                return result
+            anchor = self._region_at_pointer(entry, self._segment_hits, x, y)
+            region = self._region_at_pointer(entry, self._word_hits, x, y, anchor=anchor)
+            if region:
+                result.update(text=str(region.get("base") or "").strip(), spans=((
+                    int(region["line_index"]), int(region["char_start"]), int(region["char_end"])),))
+            return result
+        except Exception:
+            return {"inside": True, "text": ""}
+
     def _select_word_at_pointer(self, entry: tk.Text, x: int, y: int) -> None:
         ruby_hit = self._region_at_pointer(entry, self._segment_hits, int(x), int(y))
         region = self._region_at_pointer(
@@ -2205,7 +2243,7 @@ class CopyPopup:
         entry.bind("<ButtonPress-1>", self._begin_popup_selection, add="+")
         entry.bind("<B1-Motion>", self._continue_popup_selection, add="+")
         entry.bind("<Button-3>", lambda event: self._show_context_menu(event, menu, entry))
-        entry.bind("<Enter>", lambda _event: self._cancel_close())
+        entry.bind("<Enter>", self._on_popup_enter)
         entry.bind("<Motion>", self._on_popup_motion)
         entry.bind("<Leave>", self._on_popup_leave)
         entry.bind("<ButtonRelease-1>", self._end_popup_selection, add="+")
@@ -2215,7 +2253,7 @@ class CopyPopup:
         popup.bind("<Control-a>", lambda _event: self._select_all_text(entry))
         popup.bind("<Control-A>", lambda _event: self._select_all_text(entry))
         popup.bind("<ButtonPress-1>", lambda _event: self._focus_popup_for_hotkeys(), add="+")
-        popup.bind("<Enter>", lambda _event: self._cancel_close())
+        popup.bind("<Enter>", self._on_popup_enter)
         popup.bind("<Leave>", lambda _event: self._on_popup_leave())
         popup.bind("<Destroy>", lambda event, owner=popup: self._on_popup_destroy(owner, event), add="+")
 
@@ -2576,7 +2614,20 @@ class CopyPopup:
         if target is not None:
             self._schedule_close(target, self.close_delay)
 
+    def bind_hover_presence(self, callback) -> None:
+        self._hover_presence_callback = callback
+
+    def _notify_hover_presence(self, inside) -> None:
+        callback = getattr(self, "_hover_presence_callback", None)
+        if callable(callback):
+            callback(inside)
+
+    def _on_popup_enter(self, _event=None) -> None:
+        self._cancel_close()
+        self._notify_hover_presence(True)
+
     def _on_popup_leave(self, _event=None) -> None:
+        self._notify_hover_presence(False)
         if self._pinned or self._menu_open or self._dragging:
             return
         try:
@@ -2622,6 +2673,7 @@ class CopyPopup:
         self._popup = None
         self._close_job = None
         self._reset_popup_state()
+        self._notify_hover_presence(False)
 
 
     def _group_line_width(

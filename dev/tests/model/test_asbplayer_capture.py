@@ -24,7 +24,8 @@ def test_archived_original_hotkey_title_delay_and_resume_are_restored():
     assert LegacyAsbplayerCapture(cfg).delay_ms()==500
     migrated=migrate({"ARCHIVED_PLAYBACK_SETTINGS":archive})
     assert migrated["ASBPLAYER_CAPTURE_HOTKEY"]=="ctrl+alt+y"
-    assert migrated["ASBPLAYER_RESUME_PLAYBACK"] is True
+    assert "ASBPLAYER_RESUME_PLAYBACK" not in migrated
+    assert migrated["ARCHIVED_PLAYBACK_SETTINGS"]["POST_ADD_CAPTURE_RESUME_PLAYBACK"] is True
     assert migrated["ARCHIVED_PLAYBACK_SETTINGS"]==archive
     assert not any("PROXY" in key or "BRIDGE_PORT" in key for key in migrated)
 
@@ -113,7 +114,7 @@ def test_completion_keeps_continued_source_playback_instead_of_rewinding():
     sync._finish_asb_playback(operation)
 
 
-def test_completion_has_one_end_jump_and_one_optional_play():
+def test_completion_only_plays_without_seeking():
     from controller.browser_sync_controller import BrowserSyncController
     sync=legacy_browser();operation=session();sync.freeze_capture(operation)
     sync._capture=None;sync._control_generation=0
@@ -123,9 +124,9 @@ def test_completion_has_one_end_jump_and_one_optional_play():
     calls=[]
     sync.bridge.command=lambda identity,action,**kw:calls.append((action,kw)) or str(len(calls))
     sync._finish_asb_playback(operation)
-    assert calls==[("seek",{"time":13.0})]
+    assert calls==[("play",{})]
     sync._event(dict(type="CommandAck",operationId="1",ok=True))
-    assert calls==[("seek",{"time":13.0}),("play",{})]
+    assert calls==[("play",{})]
 
 
 def test_manual_action_overrides_pending_legacy_resume():
@@ -137,9 +138,9 @@ def test_manual_action_overrides_pending_legacy_resume():
     sync.command=BrowserSyncController.command.__get__(sync)
     calls=[]
     sync.bridge.command=lambda identity,action,**kw:calls.append(action) or str(len(calls))
-    sync._finish_asb_playback(operation);sync.command("pause")
+    sync.command("pause");sync._finish_asb_playback(operation)
     sync._event(dict(type="CommandAck",operationId="1",ok=True))
-    assert calls==["seek","pause"]
+    assert calls==["pause"]
 
 
 def test_other_cards_media_cannot_finish_an_explicit_fresh_capture():

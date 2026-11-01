@@ -111,7 +111,14 @@ class AudioAnchorAligner:
         # A new step is accepted only when the following independent group can
         # establish its own model. Continuous rate drift stays in one model.
         groups, current = [], []
+        # Distant islands of recognised dialogue cannot establish a continuous
+        # rate between them. An edit can otherwise masquerade as a small drift.
+        gaps = [b[1][0]-a[1][0] for a, b in zip(anchors, anchors[1:])]
+        gap_limit = max(90.0, 4*median(gaps)) if gaps else 90.0
         for item in anchors:
+            if current and item[1][0]-current[-1][1][0] > gap_limit:
+                groups.append(current)
+                current = []
             trial = current + [item]
             model = regression(trial)
             if len(current) >= 6 and model and model[2] > .35:

@@ -1,0 +1,182 @@
+{
+  "schema_version": 3,
+  "anime_query": "Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru",
+  "last_search": "refresh:Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru",
+  "last search": "refresh:Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru",
+  "repo": "Ajatt-Tools/kitsunekko-mirror",
+  "created_at": "2026-10-24T11:18:58.121386Z",
+  "stop_reason": "manual_refresh_merge",
+  "search_plan_fingerprint": "30f730cf39aa7bc51f8bddcd99b845957e328b33394d5564e870d47ef9bf4e26",
+  "search_plan": {
+    "profiles": [
+      {
+        "id": "netflix",
+        "label": "Netflix",
+        "enabled": true,
+        "template": "{show} s{season02} Netflix",
+        "rank": 0
+      },
+      {
+        "id": "amazon",
+        "label": "Amazon",
+        "enabled": true,
+        "template": "{show} s{season02} Amazon",
+        "rank": 1
+      },
+      {
+        "id": "hulu",
+        "label": "Hulu",
+        "enabled": true,
+        "template": "{show} s{season02} Hulu",
+        "rank": 2
+      }
+    ],
+    "generic_enabled": false,
+    "unseasoned_enabled": true
+  },
+  "result_count": 19,
+  "items": [
+    {
+      "name": "[shincaps] Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru. - 01 (AT-X 1440x1080 MPEG2 AAC).srt",
+      "path": "subtitles/anime_tv/Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru.. Ore wa Buki dake ja Naku, Arayuru Mono ni Kyouka Point wo Fuyo Dekiru shi, Ore no Ishi de Itsudemo Kouka wo Kaijo Dekiru kedo, Nokotta Hitotachi Daijoubu？/[shincaps] Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru. - 01 (AT-X 1440x1080 MPEG2 AAC).srt",
+      "season": null,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "追放された.S01E01.何も上手くいかない時って誰だってあると思うんだけどそんな時俺はどうするかって .決まってるさただひたすらに叫びながら走るんだよおああああッ!.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru.. Ore wa Buki dake ja Naku, Arayuru Mono ni Kyouka Point wo Fuyo Dekiru shi, Ore no Ishi de Itsudemo Kouka wo Kaijo Dekiru kedo, Nokotta Hitotachi Daijoubu？/追放された.S01E01.何も上手くいかない時って誰だってあると思うんだけどそんな時俺はどうするかって .決まってるさただひたすらに叫びながら走るんだよおああああッ!.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "[NanakoRaws] Tsuihou sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka suru - 01 (TVA TV 1080p HEVC AAC).srt",
+      "path": "subtitles/anime_tv/Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru.. Ore wa Buki dake ja Naku, Arayuru Mono ni Kyouka Point wo Fuyo Dekiru shi, Ore no Ishi de Itsudemo Kouka wo Kaijo Dekiru kedo, Nokotta Hitotachi Daijoubu？/[NanakoRaws] Tsuihou sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka suru - 01 (TVA TV 1080p HEVC AAC).srt",
+      "season": null,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "[Nekomoe kissaten&LoliHouse] Chii Fuyo - 01 [WebRip 1080p HEVC-10bit AAC ASSx2][JPN].ass",
+      "path": "subtitles/anime_tv/Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru.. Ore wa Buki dake ja Naku, Arayuru Mono ni Kyouka Point wo Fuyo Dekiru shi, Ore no Ishi de Itsudemo Kouka wo Kaijo Dekiru kedo, Nokotta Hitotachi Daijoubu？/[Nekomoe kissaten&LoliHouse] Chii Fuyo - 01 [WebRip 1080p HEVC-10bit AAC ASSx2][JPN].ass",
+      "season": null,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "[Nekomoe kissaten&LoliHouse] Chii Fuyo - 01 [WebRip 1080p HEVC-10bit AAC ASSx2][CHS, JPN].ass",
+      "path": "subtitles/anime_tv/Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru.. Ore wa Buki dake ja Naku, Arayuru Mono ni Kyouka Point wo Fuyo Dekiru shi, Ore no Ishi de Itsudemo Kouka wo Kaijo Dekiru kedo, Nokotta Hitotachi Daijoubu？/[Nekomoe kissaten&LoliHouse] Chii Fuyo - 01 [WebRip 1080p HEVC-10bit AAC ASSx2][CHS, JPN].ass",
+      "season": null,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "[NanakoRaws] Tsuihou sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka suru - 01 (TVA TV 1080p HEVC AAC).ass",
+      "path": "subtitles/anime_tv/Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru.. Ore wa Buki dake ja Naku, Arayuru Mono ni Kyouka Point wo Fuyo Dekiru shi, Ore no Ishi de Itsudemo Kouka wo Kaijo Dekiru kedo, Nokotta Hitotachi Daijoubu？/[NanakoRaws] Tsuihou sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka suru - 01 (TVA TV 1080p HEVC AAC).ass",
+      "season": null,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "[shincaps] Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru. - 01 (AT-X 1440x1080 MPEG2 AAC).ass",
+      "path": "subtitles/anime_tv/Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru.. Ore wa Buki dake ja Naku, Arayuru Mono ni Kyouka Point wo Fuyo Dekiru shi, Ore no Ishi de Itsudemo Kouka wo Kaijo Dekiru kedo, Nokotta Hitotachi Daijoubu？/[shincaps] Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru. - 01 (AT-X 1440x1080 MPEG2 AAC).ass",
+      "season": null,
+      "episode": 1,
+      "global": 1
+    },
+    {
+      "name": "追放された.S01E02.強化した服を着ていたら痛恨の一撃で破壊されトラウマを抱えたプライベートコーデ女子に渾身の一撃を食らう。.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru.. Ore wa Buki dake ja Naku, Arayuru Mono ni Kyouka Point wo Fuyo Dekiru shi, Ore no Ishi de Itsudemo Kouka wo Kaijo Dekiru kedo, Nokotta Hitotachi Daijoubu？/追放された.S01E02.強化した服を着ていたら痛恨の一撃で破壊されトラウマを抱えたプライベートコーデ女子に渾身の一撃を食らう。.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 2,
+      "global": 2,
+      "search_provider_id": "unseasoned",
+      "search_provider_label": "Unseasoned fallback",
+      "search_provider_rank": 3,
+      "search_fallback_kind": "unseasoned"
+    },
+    {
+      "name": "[NanakoRaws] Tsuihou sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka suru. - 02 (TVA TV 1080p HEVC AAC).srt",
+      "path": "subtitles/anime_tv/Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru.. Ore wa Buki dake ja Naku, Arayuru Mono ni Kyouka Point wo Fuyo Dekiru shi, Ore no Ishi de Itsudemo Kouka wo Kaijo Dekiru kedo, Nokotta Hitotachi Daijoubu？/[NanakoRaws] Tsuihou sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka suru. - 02 (TVA TV 1080p HEVC AAC).srt",
+      "season": null,
+      "episode": 2,
+      "global": 2
+    },
+    {
+      "name": "Tsuihou sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka suru (The Laid-Off Cheat-Granting Mage Enjoys a Second Lease on Life) - S01E02.srt",
+      "path": "subtitles/anime_tv/Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru.. Ore wa Buki dake ja Naku, Arayuru Mono ni Kyouka Point wo Fuyo Dekiru shi, Ore no Ishi de Itsudemo Kouka wo Kaijo Dekiru kedo, Nokotta Hitotachi Daijoubu？/Tsuihou sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka suru (The Laid-Off Cheat-Granting Mage Enjoys a Second Lease on Life) - S01E02.srt",
+      "season": 1,
+      "episode": 2,
+      "global": 2
+    },
+    {
+      "name": "[Nekomoe kissaten&LoliHouse] Chii Fuyo - 02 [WebRip 1080p HEVC-10bit AAC ASSx2][JPN].ass",
+      "path": "subtitles/anime_tv/Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru.. Ore wa Buki dake ja Naku, Arayuru Mono ni Kyouka Point wo Fuyo Dekiru shi, Ore no Ishi de Itsudemo Kouka wo Kaijo Dekiru kedo, Nokotta Hitotachi Daijoubu？/[Nekomoe kissaten&LoliHouse] Chii Fuyo - 02 [WebRip 1080p HEVC-10bit AAC ASSx2][JPN].ass",
+      "season": null,
+      "episode": 2,
+      "global": 2
+    },
+    {
+      "name": "[Nekomoe kissaten&LoliHouse] Chii Fuyo - 02 [WebRip 1080p HEVC-10bit AAC ASSx2][CHS, JPN].ass",
+      "path": "subtitles/anime_tv/Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru.. Ore wa Buki dake ja Naku, Arayuru Mono ni Kyouka Point wo Fuyo Dekiru shi, Ore no Ishi de Itsudemo Kouka wo Kaijo Dekiru kedo, Nokotta Hitotachi Daijoubu？/[Nekomoe kissaten&LoliHouse] Chii Fuyo - 02 [WebRip 1080p HEVC-10bit AAC ASSx2][CHS, JPN].ass",
+      "season": null,
+      "episode": 2,
+      "global": 2
+    },
+    {
+      "name": "[NanakoRaws] Tsuihou sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka suru. - 02 (TVA TV 1080p HEVC AAC).ass",
+      "path": "subtitles/anime_tv/Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru.. Ore wa Buki dake ja Naku, Arayuru Mono ni Kyouka Point wo Fuyo Dekiru shi, Ore no Ishi de Itsudemo Kouka wo Kaijo Dekiru kedo, Nokotta Hitotachi Daijoubu？/[NanakoRaws] Tsuihou sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka suru. - 02 (TVA TV 1080p HEVC AAC).ass",
+      "season": null,
+      "episode": 2,
+      "global": 2
+    },
+    {
+      "name": "追放された.S01E03.二年間引きこもってた仲間の謝罪に同行したら.案外うさぎりんご出してくれたからもう許すってことだと思うんだ。.WEBRip.Netflix.ja[cc].srt",
+      "path": "subtitles/anime_tv/Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru.. Ore wa Buki dake ja Naku, Arayuru Mono ni Kyouka Point wo Fuyo Dekiru shi, Ore no Ishi de Itsudemo Kouka wo Kaijo Dekiru kedo, Nokotta Hitotachi Daijoubu？/追放された.S01E03.二年間引きこもってた仲間の謝罪に同行したら.案外うさぎりんご出してくれたからもう許すってことだと思うんだ。.WEBRip.Netflix.ja[cc].srt",
+      "season": 1,
+      "episode": 3,
+      "global": 3
+    },
+    {
+      "name": "[NanakoRaws] Tsuihou sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka suru - 03 (TVA TV 1080p HEVC AAC).srt",
+      "path": "subtitles/anime_tv/Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru.. Ore wa Buki dake ja Naku, Arayuru Mono ni Kyouka Point wo Fuyo Dekiru shi, Ore no Ishi de Itsudemo Kouka wo Kaijo Dekiru kedo, Nokotta Hitotachi Daijoubu？/[NanakoRaws] Tsuihou sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka suru - 03 (TVA TV 1080p HEVC AAC).srt",
+      "season": null,
+      "episode": 3,
+      "global": 3
+    },
+    {
+      "name": "[Nekomoe kissaten&LoliHouse] Chii Fuyo - 03 [WebRip 1080p HEVC-10bit AAC ASSx2][JPN].ass",
+      "path": "subtitles/anime_tv/Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru.. Ore wa Buki dake ja Naku, Arayuru Mono ni Kyouka Point wo Fuyo Dekiru shi, Ore no Ishi de Itsudemo Kouka wo Kaijo Dekiru kedo, Nokotta Hitotachi Daijoubu？/[Nekomoe kissaten&LoliHouse] Chii Fuyo - 03 [WebRip 1080p HEVC-10bit AAC ASSx2][JPN].ass",
+      "season": null,
+      "episode": 3,
+      "global": 3
+    },
+    {
+      "name": "[Nekomoe kissaten&LoliHouse] Chii Fuyo - 03 [WebRip 1080p HEVC-10bit AAC ASSx2][CHS, JPN].ass",
+      "path": "subtitles/anime_tv/Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru.. Ore wa Buki dake ja Naku, Arayuru Mono ni Kyouka Point wo Fuyo Dekiru shi, Ore no Ishi de Itsudemo Kouka wo Kaijo Dekiru kedo, Nokotta Hitotachi Daijoubu？/[Nekomoe kissaten&LoliHouse] Chii Fuyo - 03 [WebRip 1080p HEVC-10bit AAC ASSx2][CHS, JPN].ass",
+      "season": null,
+      "episode": 3,
+      "global": 3
+    },
+    {
+      "name": "[NanakoRaws] Tsuihou sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka suru - 03 (TVA TV 1080p HEVC AAC).ass",
+      "path": "subtitles/anime_tv/Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru.. Ore wa Buki dake ja Naku, Arayuru Mono ni Kyouka Point wo Fuyo Dekiru shi, Ore no Ishi de Itsudemo Kouka wo Kaijo Dekiru kedo, Nokotta Hitotachi Daijoubu？/[NanakoRaws] Tsuihou sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka suru - 03 (TVA TV 1080p HEVC AAC).ass",
+      "season": null,
+      "episode": 3,
+      "global": 3
+    },
+    {
+      "name": "追放されたチート付与魔術師は気ままなセカンドライフを謳歌する。~俺は武器だけじゃなく、あらゆるものに『強化ポイント』を付与できるし、俺の意思でいつでも効果を解除できるけ.srt",
+      "path": "subtitles/anime_tv/Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru.. Ore wa Buki dake ja Naku, Arayuru Mono ni Kyouka Point wo Fuyo Dekiru shi, Ore no Ishi de Itsudemo Kouka wo Kaijo Dekiru kedo, Nokotta Hitotachi Daijoubu？/追放されたチート付与魔術師は気ままなセカンドライフを謳歌する。~俺は武器だけじゃなく、あらゆるものに『強化ポイント』を付与できるし、俺の意思でいつでも効果を解除できるけ.srt",
+      "season": null,
+      "episode": null,
+      "global": null
+    }
+  ],
+  "sxexx_to_gxx": {
+    "S01E01": 1,
+    "S01E02": 2,
+    "S01E03": 3
+  }
+}

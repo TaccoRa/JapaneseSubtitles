@@ -6,6 +6,34 @@ const path=require('node:path');
 const crypto=require('node:crypto');
 const source=fs.readFileSync(path.join(__dirname,'../../browser-extension/content.js'),'utf8');
 
+test('capture digits and numpad playback suppress player defaults without claiming regular Enter or typing',async()=>{
+  const env=environment();
+  await env.message({type:'InputScope',enabled:true});
+  await env.message({type:'ShortcutConfig',bindings:['digit3','digit4','digit5','digit6','digit7',
+    'numpad3','numpad4','numpad5','numpad6','numpad7','numpad0','numpadenter']});
+  function press(key,code,extra={}){
+    let prevented=false;
+    env.windowEvents.get('keydown')({key,code,preventDefault(){prevented=true;},stopImmediatePropagation(){},...extra});
+    return prevented;
+  }
+  for(const digit of ['3','4','5','6','7']){
+    assert.equal(press(digit,'Digit'+digit),true);
+    assert.equal(press(digit,'Numpad'+digit),true);
+    assert.equal(press(digit,'Digit'+digit,{ctrlKey:true}),false);
+  }
+  assert.equal(press('0','Numpad0'),true);
+  assert.equal(press('Insert','Numpad0'),true);
+  assert.equal(press('ArrowLeft','Numpad4'),true);
+  assert.equal(press('Enter','NumpadEnter'),true);
+  assert.equal(press('Enter','Enter'),false);
+  assert.equal(press('0','Digit0'),false);
+  env.document.activeElement={tagName:'INPUT'};
+  assert.equal(press('5','Digit5'),false);
+  env.document.activeElement=null;
+  await env.message({type:'ShortcutConfig',bindings:['digit4','4']});
+  assert.equal(press('4','Numpad4'),true);
+});
+
 function environment(href="https://video.test/episode"){
   let now=0,id=0,listener;
   const timers=new Map(),sent=[],windowEvents=new Map();
@@ -38,11 +66,30 @@ function environment(href="https://video.test/episode"){
   }
   advance(100);
   const message=m=>new Promise(resolve=>listener(m,{},resolve));
-  return {video,document,sent,advance,message,runtime,timers,windowEvents,documentEvents,reinject(){vm.runInContext(source,scope);},fullscreen(){documentEvents.get('fullscreenchange')?.();},command(action,time){
+  return {video,document,sent,advance,message,runtime,timers,windowEvents,documentEvents,scope,reinject(){vm.runInContext(source,scope);},fullscreen(){documentEvents.get('fullscreenchange')?.();},command(action,time){
     const videoId=sent.find(m=>m.type==='PlaybackSnapshot').videoId;
     return new Promise(resolve=>listener({type:'PlayerCommand',identity:{videoId},action,time},{},resolve));
   }};
 }
+
+test('Netflix metadata reaches automatic episode selection without visible player controls',()=>{
+  const env=environment('https://www.netflix.com/watch/80045950');
+  vm.runInContext(fs.readFileSync(path.join(__dirname,'../../browser-extension/episode-context.js'),'utf8'),env.scope);
+  env.document.querySelector=()=>null;
+  const media={title:'Assassination Classroom',kind:'episode',episode:2,season:1};
+  const publish=page=>env.windowEvents.get('message')({source:env.scope.window,data:{channel:'SubtitlePlayerCaptionTimingV1',page,mediaContext:media}});
+  publish('https://www.netflix.com/watch/old');env.advance(100);
+  assert.equal(env.sent.filter(m=>m.type==='EpisodeContext').length,0);
+  publish(env.scope.location.href);env.advance(100);
+  const context=env.sent.find(m=>m.type==='EpisodeContext');
+  assert.equal(context.episode,2);assert.equal(context.season,1);assert.equal(context.title,media.title);
+  assert.match(context.seriesKey,/\/series\/assassination%20classroom$/);
+  env.scope.location.href='https://www.netflix.com/watch/80045951';env.advance(100);
+  assert.equal(env.sent.filter(m=>m.type==='EpisodeContext').length,1);
+  media.episode=3;publish(env.scope.location.href);env.advance(100);
+  const next=env.sent.filter(m=>m.type==='EpisodeContext').at(-1);
+  assert.equal(next.episode,3);assert.equal(next.seriesKey,context.seriesKey);
+});
 
 test('seek acknowledges a completed clock change even without seeked',async()=>{
   const env=environment(),reply=env.command('seek',100);
@@ -51,7 +98,7 @@ test('seek acknowledges a completed clock change even without seeked',async()=>{
 });
 
 test('script recovery republishes a video without duplicate listeners or a new identity',()=>{
-  const env=environment(),identity=env.sent[0].videoId;
+  const env=environment(),identity=env.sent.find(m=>m.type==='PlaybackSnapshot').videoId;
   env.reinject();env.reinject();
   assert.equal(env.sent.filter(m=>m.type==='PlaybackSnapshot').at(-1).videoId,identity);
   const before=env.sent.length;
@@ -68,7 +115,7 @@ test('invalidated extension contexts stop timers and detach old listeners',()=>{
   env.video.dispatchEvent(new Event('pause'));assert.equal(env.sent.length,before);
   Object.defineProperty(env.runtime,'id',{value:'test-extension',configurable:true});
   env.reinject();env.advance(100);
-  assert.ok(env.sent.length>before);assert.equal(env.timers.size,2);
+  assert.ok(env.sent.length>before);assert.equal(env.timers.size,3);
 });
 
 test('runtime rejection during reload is handled and retires the old content instance',async()=>{
@@ -80,7 +127,7 @@ test('runtime rejection during reload is handled and retires the old content ins
 });
 
 test('fullscreen during viewing preserves the video identity and clock',()=>{
-  const env=environment(),identity=env.sent[0].videoId;
+  const env=environment(),identity=env.sent.find(m=>m.type==='PlaybackSnapshot').videoId;
   env.fullscreen();env.video._time=30;env.advance(100);
   assert.equal(env.sent.at(-1).videoId,identity);assert.equal(env.sent.at(-1).currentTime,30);
   assert.equal(env.sent.filter(m=>m.type==='CaptureAborted').length,0);
@@ -88,25 +135,28 @@ test('fullscreen during viewing preserves the video identity and clock',()=>{
 
 for(const [policy,previousPaused,paused] of [['play',true,false],['paused',false,true],['restore',true,true],['restore',false,false]])test(`capture boundary policy ${policy}, previously paused ${previousPaused}`,async()=>{
   const env=environment();env.video._time=10;
-  const identity={videoId:env.sent[0].videoId},operationId='card';
+  const identity={videoId:env.sent.find(m=>m.type==='PlaybackSnapshot').videoId},operationId='card';
   await env.message({type:'PrepareCapture',identity,operationId,start:10,end:12,screenshotTime:11,policy,previousRate:1.5,previousPaused});
   await env.message({type:'RunCapture',operationId});
   env.video._time=11;env.advance(100);
-  assert.equal(env.video.paused,true);
+  assert.equal(env.video.paused,false); // Taking a still image never pauses audio.
   assert.equal(env.sent.filter(m=>m.type==='CaptureScreenshot').length,1);
   env.advance(1000);assert.equal(env.sent.filter(m=>m.type==='CaptureBoundary').length,0);
   assert.equal((await env.message({type:'ScreenshotReady',operationId:'stale'})).ok,false);
-  assert.equal(env.video.paused,true);
-  assert.equal((await env.message({type:'ScreenshotReady',operationId})).ok,true);
   assert.equal(env.video.paused,false);
   env.video._time=12;env.advance(100);
   assert.equal(env.video.paused,paused);assert.equal(env.video.playbackRate,1.5);assert.equal(env.sent.filter(m=>m.type==='CaptureBoundary').length,1);
+  // Encoding/image delivery can finish after the audio boundary. It has no
+  // ownership of playback, including Stay paused / Restore previous state.
+  assert.equal((await env.message({type:'CaptureCheckpoint',operationId})).ok,true);
+  assert.equal((await env.message({type:'ScreenshotReady',operationId})).ok,true);
+  assert.equal(env.video.paused,paused);
   await env.message({type:'FinishCapture',operationId});assert.equal(env.video.paused,paused);
 });
 
 test('fullscreen changing mid-capture cancels the crop rather than attaching the wrong image',async()=>{
   const env=environment();env.video._time=10;
-  const identity={videoId:env.sent[0].videoId},operationId='card';
+  const identity={videoId:env.sent.find(m=>m.type==='PlaybackSnapshot').videoId},operationId='card';
   await env.message({type:'PrepareCapture',identity,operationId,start:10,end:12});
   env.fullscreen();
   assert.equal(env.sent.filter(m=>m.type==='CaptureAborted').length,1);

@@ -139,6 +139,7 @@ def test_parse_time_value():
 
 def test_episode_dropdown_items_include_season_episode_label():
     manager = object.__new__(SubtitleManager)
+    manager.source_kind = "local"
     manager.remote_flag = False
     manager.local_srt_files = [
         {"global": 27, "season": 2, "episode": 1, "name": "Show.S02E01.srt"},
@@ -513,7 +514,7 @@ def test_auto_ruby_allows_katakana_in_hiragana_line_without_kanji():
     ]
 
 
-def test_build_display_payload_skips_empty_cleaned_duplicate_timestamp():
+def test_build_display_payload_skips_empty_cleaned_duplicate_timestamp(tmp_path):
     manager = _cleaner(
         {
             "SUBTITLE_AUTO_RUBY": False,
@@ -524,7 +525,7 @@ def test_build_display_payload_skips_empty_cleaned_duplicate_timestamp():
         }
     )
     manager._ruby_stats = {"episode_load_times": []}
-    manager.load_subtitles = lambda _path: [
+    subtitles = [
         srt.Subtitle(
             index=98,
             start=datetime.timedelta(seconds=410.993),
@@ -539,7 +540,9 @@ def test_build_display_payload_skips_empty_cleaned_duplicate_timestamp():
         ),
     ]
 
-    payload = manager._build_subtitle_display_payload("dummy.srt", allow_eager_auto=False)
+    local_path = tmp_path / "duplicate.srt"
+    local_path.write_text(srt.compose(subtitles), encoding="utf-8")
+    payload = manager._build_subtitle_display_payload(str(local_path), allow_eager_auto=False)
 
     assert payload["display_start_times"] == [410.993]
     assert payload["display_end_times"] == [414.080]
@@ -567,6 +570,7 @@ def test_set_display_data_redownloads_missing_remote_cache_file(tmp_path):
     manager._prepared_episode_cache = OrderedDict()
     manager._prepared_episode_lock = threading.Lock()
     manager._episode_prepare_seen = set()
+    manager._shutdown_event = threading.Event()
     manager._ruby_stats = {"episode_load_times": []}
     manager._get_cache_base_dir = lambda: str(tmp_path / "cache_github")
 
@@ -662,15 +666,16 @@ def test_local_download_name_is_from_filename_not_previous_anime(tmp_path):
     assert manager.current_episode is None and manager.current_season is None and manager.is_movie
 
 
-def test_movie_cues_keep_third_and_later_lines_without_changing_source():
+def test_movie_cues_keep_third_and_later_lines_without_changing_source(tmp_path):
     manager = object.__new__(SubtitleManager)
     manager.config = _DictConfig({})
     cue = srt.Subtitle(index=1,start=datetime.timedelta(seconds=48),end=datetime.timedelta(seconds=52),
         content="<i>first line\nsecond line\nthird line</i>")
-    manager.load_subtitles = lambda path: [cue]
+    local_path = tmp_path / "movie.srt"
+    local_path.write_text(srt.compose([cue]), encoding="utf-8")
     manager._auto_ruby_enabled = lambda: False
     manager._parse_ruby_segments = lambda text, **kw: [(text, None)]
-    payload = manager._build_subtitle_display_payload("movie.srt")
+    payload = manager._build_subtitle_display_payload(str(local_path))
     clean, start, top, bottom = payload["display_data"][0]
     assert top == [("first line", None)]
     assert bottom == [("second line third line", None)]

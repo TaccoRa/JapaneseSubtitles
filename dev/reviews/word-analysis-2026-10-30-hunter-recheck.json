@@ -1,0 +1,1110 @@
+{
+  "max_cues_per_file": 0,
+  "files": [
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E101.イカルゴ×ト×イカズチ.WEBRip.Netflix.ja[cc].srt",
+      "source_cues": 415,
+      "cues": 415,
+      "japanese_cues": 399,
+      "tokens": 2370,
+      "annotated_tokens": 810,
+      "compounds": 72
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E125.ブノツヨミ×ト×ブノキワミ.WEBRip.Netflix.ja[cc].srt",
+      "source_cues": 217,
+      "cues": 217,
+      "japanese_cues": 204,
+      "tokens": 1380,
+      "annotated_tokens": 557,
+      "compounds": 30
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S06E148.コレマデ×ト×コレカラ.WEBRip.Netflix.ja[cc].srt",
+      "source_cues": 232,
+      "cues": 232,
+      "japanese_cues": 208,
+      "tokens": 1297,
+      "annotated_tokens": 456,
+      "compounds": 41
+    }
+  ],
+  "totals": {
+    "source_cues": 864,
+    "cues": 864,
+    "japanese_cues": 811,
+    "tokens": 5047,
+    "annotated_tokens": 1823,
+    "compounds": 143
+  },
+  "issues": [],
+  "review_candidates": [
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E101.イカルゴ×ト×イカズチ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 91,
+      "seconds": 340.715,
+      "text": "このまま\n鍾乳石ごと かみ砕いてやる！",
+      "surface": "鍾乳石ごと",
+      "parts": [
+        "鍾乳",
+        "石",
+        "ごと"
+      ],
+      "reading": "しょうにゅうせきごと",
+      "lookup": "鍾乳石ごと"
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E101.イカルゴ×ト×イカズチ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 240,
+      "seconds": 771.645,
+      "text": "右こむら",
+      "surface": "右こむら",
+      "parts": [
+        "右",
+        "こ",
+        "むら"
+      ],
+      "reading": "みぎこむら",
+      "lookup": "右こむら"
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E101.イカルゴ×ト×イカズチ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 295,
+      "seconds": 948.906,
+      "text": "やったわ！\nこれで私たちも師団長補佐よ！",
+      "surface": "師団長補佐",
+      "parts": [
+        "師団",
+        "長",
+        "補佐"
+      ],
+      "reading": "しだんちょうほさ",
+      "lookup": "師団長補佐"
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E101.イカルゴ×ト×イカズチ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 317,
+      "seconds": 1013.887,
+      "text": "その前の ダツをつかむなんて\n超光速的な反射神経",
+      "surface": "超光速的",
+      "parts": [
+        "超",
+        "光速",
+        "的"
+      ],
+      "reading": "ちょうこうそくてき",
+      "lookup": "超光速的"
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E101.イカルゴ×ト×イカズチ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 334,
+      "seconds": 1062.77,
+      "text": "お前の１投目…",
+      "surface": "１投目",
+      "parts": [
+        "１",
+        "投",
+        "目"
+      ],
+      "reading": "とうめ",
+      "lookup": "１投目"
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E101.イカルゴ×ト×イカズチ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 336,
+      "seconds": 1069.109,
+      "text": "第１投目を\n的の いちばん外枠に入れて—",
+      "surface": "第１投目",
+      "parts": [
+        "第",
+        "１",
+        "投",
+        "目"
+      ],
+      "reading": "だいとうめ",
+      "lookup": "第１投目"
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E101.イカルゴ×ト×イカズチ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 336,
+      "seconds": 1069.109,
+      "text": "第１投目を\n的の いちばん外枠に入れて—",
+      "surface": "第１投",
+      "parts": [
+        "第",
+        "１",
+        "投"
+      ],
+      "reading": "だいとう",
+      "lookup": "第１投"
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E101.イカルゴ×ト×イカズチ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 336,
+      "seconds": 1069.109,
+      "text": "第１投目を\n的の いちばん外枠に入れて—",
+      "surface": "１投目",
+      "parts": [
+        "１",
+        "投",
+        "目"
+      ],
+      "reading": "とうめ",
+      "lookup": "１投目"
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E125.ブノツヨミ×ト×ブノキワミ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 55,
+      "seconds": 310.81,
+      "text": "１対１の勝負なら\n場所を変えるため—",
+      "surface": "１対１",
+      "parts": [
+        "１",
+        "対",
+        "１"
+      ],
+      "reading": "たい",
+      "lookup": "１対１"
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E125.ブノツヨミ×ト×ブノキワミ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 63,
+      "seconds": 339.505,
+      "text": "１対１の戦いを望む人間には—",
+      "surface": "１対１",
+      "parts": [
+        "１",
+        "対",
+        "１"
+      ],
+      "reading": "たい",
+      "lookup": "１対１"
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E125.ブノツヨミ×ト×ブノキワミ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 123,
+      "seconds": 605.396,
+      "text": "“玩具修理者”の技術は\n成長していた",
+      "surface": "玩具修理者",
+      "parts": [
+        "玩具",
+        "修理",
+        "者"
+      ],
+      "reading": "がんぐしゅうりしゃ",
+      "lookup": "玩具修理者"
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E125.ブノツヨミ×ト×ブノキワミ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 196,
+      "seconds": 1001.458,
+      "text": "“百式観音”",
+      "surface": "百式観音",
+      "parts": [
+        "百",
+        "式",
+        "観音"
+      ],
+      "reading": "ひゃくしきかんのん",
+      "lookup": "百式観音"
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S06E148.コレマデ×ト×コレカラ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 123,
+      "seconds": 645.77,
+      "text": "15のときに\n特定非営利活動法人を設立して—",
+      "surface": "特定非営利活動",
+      "parts": [
+        "特定",
+        "非",
+        "営利",
+        "活動"
+      ],
+      "reading": "とくていひえいりかつどう",
+      "lookup": "特定非営利活動"
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S06E148.コレマデ×ト×コレカラ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 123,
+      "seconds": 645.77,
+      "text": "15のときに\n特定非営利活動法人を設立して—",
+      "surface": "特定非営利",
+      "parts": [
+        "特定",
+        "非",
+        "営利"
+      ],
+      "reading": "とくていひえいり",
+      "lookup": "特定非営利"
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S06E148.コレマデ×ト×コレカラ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 123,
+      "seconds": 645.77,
+      "text": "15のときに\n特定非営利活動法人を設立して—",
+      "surface": "非営利活動法人",
+      "parts": [
+        "非",
+        "営利",
+        "活動",
+        "法人"
+      ],
+      "reading": "ひえいりかつどうほうじん",
+      "lookup": "非営利活動法人"
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S06E148.コレマデ×ト×コレカラ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 123,
+      "seconds": 645.77,
+      "text": "15のときに\n特定非営利活動法人を設立して—",
+      "surface": "非営利活動",
+      "parts": [
+        "非",
+        "営利",
+        "活動"
+      ],
+      "reading": "ひえいりかつどう",
+      "lookup": "非営利活動"
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S06E148.コレマデ×ト×コレカラ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 123,
+      "seconds": 645.77,
+      "text": "15のときに\n特定非営利活動法人を設立して—",
+      "surface": "営利活動法人",
+      "parts": [
+        "営利",
+        "活動",
+        "法人"
+      ],
+      "reading": "えいりかつどうほうじん",
+      "lookup": "営利活動法人"
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S06E148.コレマデ×ト×コレカラ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 127,
+      "seconds": 660.576,
+      "text": "考古学マニアのサイトや\nブログ巡りさ",
+      "surface": "考古学マニア",
+      "parts": [
+        "考古",
+        "学",
+        "マニア"
+      ],
+      "reading": "こうこがくまにあ",
+      "lookup": "考古学マニア"
+    }
+  ],
+  "examples": [
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E101.イカルゴ×ト×イカズチ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 1,
+      "seconds": 3.294,
+      "text": "助かったぜ 吸盤",
+      "category": "verb",
+      "ruby": [
+        [
+          "助",
+          "たす"
+        ],
+        [
+          "かったぜ",
+          null
+        ],
+        [
+          " ",
+          null
+        ],
+        [
+          "吸盤",
+          "きゅうばん"
+        ]
+      ],
+      "words": [
+        [
+          "助かっ",
+          "助かる",
+          "たすかっ",
+          false
+        ],
+        [
+          "た",
+          "た",
+          "た",
+          false
+        ],
+        [
+          "ぜ",
+          "ぜ",
+          "ぜ",
+          false
+        ],
+        [
+          "吸盤",
+          "吸盤",
+          "きゅうばん",
+          false
+        ]
+      ]
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E101.イカルゴ×ト×イカズチ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 6,
+      "seconds": 96.429,
+      "text": "選別阻止のため—",
+      "category": "compound",
+      "ruby": [
+        [
+          "選別阻止",
+          "せんべつそし"
+        ],
+        [
+          "のため—",
+          null
+        ]
+      ],
+      "words": [
+        [
+          "選別阻止",
+          "選別阻止",
+          "せんべつそし",
+          true
+        ],
+        [
+          "選別",
+          "選別",
+          "せんべつ",
+          false
+        ],
+        [
+          "阻止",
+          "阻止",
+          "そし",
+          false
+        ],
+        [
+          "の",
+          "の",
+          "の",
+          false
+        ],
+        [
+          "ため",
+          "為",
+          "ため",
+          false
+        ]
+      ]
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E101.イカルゴ×ト×イカズチ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 7,
+      "seconds": 98.223,
+      "text": "ゴンと別れて行動するキルアに\n襲いかかる刺客",
+      "category": "verb",
+      "ruby": [
+        [
+          "ゴン",
+          "ごん"
+        ],
+        [
+          "と",
+          null
+        ],
+        [
+          "別",
+          "わか"
+        ],
+        [
+          "れて",
+          null
+        ],
+        [
+          "行動",
+          "こうどう"
+        ],
+        [
+          "する",
+          null
+        ],
+        [
+          "キルア",
+          "きるあ"
+        ],
+        [
+          "に",
+          null
+        ]
+      ],
+      "words": [
+        [
+          "ゴン",
+          "ごん",
+          "ごん",
+          false
+        ],
+        [
+          "と",
+          "と",
+          "と",
+          false
+        ],
+        [
+          "別れ",
+          "別れる",
+          "わかれ",
+          false
+        ],
+        [
+          "て",
+          "て",
+          "て",
+          false
+        ],
+        [
+          "行動",
+          "行動する",
+          "こうどう",
+          false
+        ],
+        [
+          "する",
+          "する",
+          "する",
+          false
+        ],
+        [
+          "キル",
+          "キル-kill",
+          "きる",
+          false
+        ],
+        [
+          "ア",
+          "ア-a",
+          "あ",
+          false
+        ],
+        [
+          "に",
+          "に",
+          "に",
+          false
+        ]
+      ]
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E101.イカルゴ×ト×イカズチ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 7,
+      "seconds": 98.223,
+      "text": "ゴンと別れて行動するキルアに\n襲いかかる刺客",
+      "category": "verb",
+      "ruby": [
+        [
+          "襲",
+          "おそ"
+        ],
+        [
+          "いかかる",
+          null
+        ],
+        [
+          "刺客",
+          "しかく"
+        ]
+      ],
+      "words": [
+        [
+          "襲いかかる",
+          "襲いかかる",
+          "おそいかかる",
+          false
+        ],
+        [
+          "刺客",
+          "刺客",
+          "しかく",
+          false
+        ]
+      ]
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E101.イカルゴ×ト×イカズチ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 8,
+      "seconds": 102.185,
+      "text": "その中に タコ型のキメラアント\nイカルゴがいた",
+      "category": "compound",
+      "ruby": [
+        [
+          "その",
+          null
+        ],
+        [
+          "中",
+          "なか"
+        ],
+        [
+          "に",
+          null
+        ],
+        [
+          " ",
+          null
+        ],
+        [
+          "タコ",
+          "たこ"
+        ],
+        [
+          "型",
+          "がた"
+        ],
+        [
+          "の",
+          null
+        ],
+        [
+          "キメラアント",
+          "きめらあんと"
+        ]
+      ],
+      "words": [
+        [
+          "タコ型",
+          "タコ型",
+          "たこがた",
+          true
+        ],
+        [
+          "その",
+          "其の",
+          "その",
+          false
+        ],
+        [
+          "中",
+          "中",
+          "なか",
+          false
+        ],
+        [
+          "に",
+          "に",
+          "に",
+          false
+        ],
+        [
+          "タコ",
+          "蛸",
+          "たこ",
+          false
+        ],
+        [
+          "型",
+          "型",
+          "がた",
+          false
+        ],
+        [
+          "の",
+          "の",
+          "の",
+          false
+        ],
+        [
+          "キメラ",
+          "キメラ-chimera",
+          "きめら",
+          false
+        ],
+        [
+          "アント",
+          "アント-Ant",
+          "あんと",
+          false
+        ]
+      ]
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E101.イカルゴ×ト×イカズチ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 8,
+      "seconds": 102.185,
+      "text": "その中に タコ型のキメラアント\nイカルゴがいた",
+      "category": "name",
+      "ruby": [
+        [
+          "その",
+          null
+        ],
+        [
+          "中",
+          "なか"
+        ],
+        [
+          "に",
+          null
+        ],
+        [
+          " ",
+          null
+        ],
+        [
+          "タコ",
+          "たこ"
+        ],
+        [
+          "型",
+          "がた"
+        ],
+        [
+          "の",
+          null
+        ],
+        [
+          "キメラアント",
+          "きめらあんと"
+        ]
+      ],
+      "words": [
+        [
+          "タコ型",
+          "タコ型",
+          "たこがた",
+          true
+        ],
+        [
+          "その",
+          "其の",
+          "その",
+          false
+        ],
+        [
+          "中",
+          "中",
+          "なか",
+          false
+        ],
+        [
+          "に",
+          "に",
+          "に",
+          false
+        ],
+        [
+          "タコ",
+          "蛸",
+          "たこ",
+          false
+        ],
+        [
+          "型",
+          "型",
+          "がた",
+          false
+        ],
+        [
+          "の",
+          "の",
+          "の",
+          false
+        ],
+        [
+          "キメラ",
+          "キメラ-chimera",
+          "きめら",
+          false
+        ],
+        [
+          "アント",
+          "アント-Ant",
+          "あんと",
+          false
+        ]
+      ]
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E101.イカルゴ×ト×イカズチ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 14,
+      "seconds": 119.035,
+      "text": "ここはオロソ兄妹に任せよう",
+      "category": "compound",
+      "ruby": [
+        [
+          "ここは",
+          null
+        ],
+        [
+          "オロソ",
+          "おろそ"
+        ],
+        [
+          "兄妹",
+          "きょうだい"
+        ],
+        [
+          "に",
+          null
+        ],
+        [
+          "任",
+          "まか"
+        ],
+        [
+          "せよう",
+          null
+        ]
+      ],
+      "words": [
+        [
+          "オロソ兄妹",
+          "オロソ兄妹",
+          "きょうだい",
+          true
+        ],
+        [
+          "ここ",
+          "此処",
+          "ここ",
+          false
+        ],
+        [
+          "は",
+          "は",
+          "は",
+          false
+        ],
+        [
+          "オロソ",
+          "オロソ",
+          "",
+          false
+        ],
+        [
+          "兄妹",
+          "兄弟",
+          "きょうだい",
+          false
+        ],
+        [
+          "に",
+          "に",
+          "に",
+          false
+        ],
+        [
+          "任せよう",
+          "任せる",
+          "まかせよう",
+          false
+        ]
+      ]
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E101.イカルゴ×ト×イカズチ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 24,
+      "seconds": 143.685,
+      "text": "ウッ！",
+      "category": "name",
+      "ruby": [
+        [
+          "ウッ",
+          "うっ"
+        ],
+        [
+          "！",
+          null
+        ]
+      ],
+      "words": [
+        [
+          "ウッ",
+          "ウッ-外国",
+          "うっ",
+          false
+        ]
+      ]
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E101.イカルゴ×ト×イカズチ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 28,
+      "seconds": 153.82,
+      "text": "血だろう？\nウッ！",
+      "category": "name",
+      "ruby": [
+        [
+          "ウッ",
+          "うっ"
+        ],
+        [
+          "！",
+          null
+        ]
+      ],
+      "words": [
+        [
+          "ウッ",
+          "ウッ-外国",
+          "うっ",
+          false
+        ]
+      ]
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E101.イカルゴ×ト×イカズチ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 50,
+      "seconds": 205.705,
+      "text": "さすがに 洞窟で\n何十匹もトンボが飛び回っていたら",
+      "category": "counter",
+      "ruby": [
+        [
+          "何",
+          "なに"
+        ],
+        [
+          "十匹",
+          "じゅっぴき"
+        ],
+        [
+          "も",
+          null
+        ],
+        [
+          "トンボ",
+          "とんぼ"
+        ],
+        [
+          "が",
+          null
+        ],
+        [
+          "飛",
+          "と"
+        ],
+        [
+          "び",
+          null
+        ],
+        [
+          "回",
+          "まわ"
+        ],
+        [
+          "っていたら",
+          null
+        ]
+      ],
+      "words": [
+        [
+          "何十匹",
+          "何十匹",
+          "なんじゅうひき",
+          true
+        ],
+        [
+          "何十",
+          "何十",
+          "なんじゅう",
+          false
+        ],
+        [
+          "匹",
+          "匹",
+          "ひき",
+          false
+        ],
+        [
+          "も",
+          "も",
+          "も",
+          false
+        ],
+        [
+          "トンボ",
+          "蜻蛉",
+          "とんぼ",
+          false
+        ],
+        [
+          "が",
+          "が",
+          "が",
+          false
+        ],
+        [
+          "飛び回っ",
+          "飛び回る",
+          "とびまわっ",
+          false
+        ],
+        [
+          "て",
+          "て",
+          "て",
+          false
+        ],
+        [
+          "い",
+          "いる",
+          "い",
+          false
+        ],
+        [
+          "たら",
+          "た",
+          "たら",
+          false
+        ]
+      ]
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E101.イカルゴ×ト×イカズチ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 154,
+      "seconds": 517.391,
+      "text": "３匹だ",
+      "category": "counter",
+      "ruby": [
+        [
+          "３匹",
+          "さんびき"
+        ],
+        [
+          "だ",
+          null
+        ]
+      ],
+      "words": [
+        [
+          "３匹",
+          "３匹",
+          "ひき",
+          true
+        ],
+        [
+          "３",
+          "３",
+          "",
+          false
+        ],
+        [
+          "匹",
+          "匹",
+          "ひき",
+          false
+        ],
+        [
+          "だ",
+          "だ",
+          "だ",
+          false
+        ]
+      ]
+    },
+    {
+      "file": "subs/HunterxHunter/HUNTER×HUNTER.S05E101.イカルゴ×ト×イカズチ.WEBRip.Netflix.ja[cc].srt",
+      "cue": 155,
+      "seconds": 518.893,
+      "text": "一度に３匹しか攻撃できないらしい",
+      "category": "counter",
+      "ruby": [
+        [
+          "一度",
+          "いちど"
+        ],
+        [
+          "に",
+          null
+        ],
+        [
+          "３匹",
+          "さんびき"
+        ],
+        [
+          "しか",
+          null
+        ],
+        [
+          "攻撃",
+          "こうげき"
+        ],
+        [
+          "できないらしい",
+          null
+        ]
+      ],
+      "words": [
+        [
+          "一度",
+          "一度",
+          "いちど",
+          true
+        ],
+        [
+          "３匹",
+          "３匹",
+          "ひき",
+          true
+        ],
+        [
+          "一",
+          "一",
+          "いち",
+          false
+        ],
+        [
+          "度",
+          "度",
+          "ど",
+          false
+        ],
+        [
+          "に",
+          "に",
+          "に",
+          false
+        ],
+        [
+          "３",
+          "３",
+          "",
+          false
+        ],
+        [
+          "匹",
+          "匹",
+          "ひき",
+          false
+        ],
+        [
+          "しか",
+          "しか",
+          "しか",
+          false
+        ],
+        [
+          "攻撃",
+          "攻撃",
+          "こうげき",
+          false
+        ],
+        [
+          "でき",
+          "できる",
+          "でき",
+          false
+        ],
+        [
+          "ない",
+          "ない",
+          "ない",
+          false
+        ],
+        [
+          "らしい",
+          "らしい",
+          "らしい",
+          false
+        ]
+      ]
+    }
+  ]
+}

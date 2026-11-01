@@ -12,11 +12,9 @@ from typing import Any
 from model.capture_session import CaptureSession, FrozenActionTarget
 from utils import (
     dispatch_to_tk,
-    focus_window_by_title,
     get_foreground_root_hwnd,
     get_monitor_rects,
     make_nonactivating_tool_window,
-    send_global_hotkey,
     show_window_no_activate,
 )
 
@@ -51,6 +49,8 @@ class AnkiController(_ControllerProxy):
         self._last_subtitleplayer_added_card: dict[str, Any] | None = None
         self._action_feedback_generation = 0
         self._action_feedback_tokens: dict[int, int] = {}
+        from controller.mining_group import MiningGroups
+        self.mining_groups = MiningGroups(self)
 
     def submit_anki_work(self, callback):
         executor = getattr(self.controller, "_anki_work_queue", None)
@@ -67,10 +67,21 @@ class AnkiController(_ControllerProxy):
         cue_snapshot=None,
         selection_spans=None,
         initiator: str = "anki",
+        segment_range: tuple[int, int] | None = None,
     ) -> FrozenActionTarget:
         subtitle = str(subtitle_text or "")
         if not subtitle and cue_snapshot is not None:
             subtitle = str(getattr(cue_snapshot, "plain_text", "") or "")
+        from model.sentence_context import segment_range_for_cue, sentence_for_cue
+        if segment_range is not None:
+            browser = getattr(self.controller, "browser_sync", None)
+            if browser is None or not browser.native:
+                raise ValueError("Explicit segment ranges require the native browser recorder")
+            context = segment_range_for_cue(self.sub_manager, cue_snapshot, *segment_range)
+        else:
+            context = sentence_for_cue(self.sub_manager, cue_snapshot)
+        if context is not None:
+            subtitle = context.plain_text
         sentence_key = ""
         try:
             sentence_key = self.anki.normalize_capture_sentence_key(subtitle)
@@ -86,6 +97,7 @@ class AnkiController(_ControllerProxy):
             initiator=initiator,
             cue_snapshot=cue_snapshot,
             selection_spans=selection_spans,
+            sentence_context=context,
         )
 
     def _new_capture_session(
@@ -104,6 +116,7 @@ class AnkiController(_ControllerProxy):
             pause_lease=pause_lease,
             interaction_owner=str(interaction_owner or target.initiator or "ui"),
             action_feedback_key=id(target),
+            feedback_generation=int(getattr(getattr(self.controller, "renderer", None), "_voice_action_indicator_generation", -1)),
         )
         browser = getattr(self.controller, "browser_sync", None)
         if browser is not None:
@@ -112,6 +125,26 @@ class AnkiController(_ControllerProxy):
             self._capture_sessions[session.id] = session
             self._latest_capture_session_id = session.id
         return session
+
+    def _begin_word_feedback(self, target):
+        renderer = getattr(self.controller, "renderer", None)
+        begin = getattr(renderer, "begin_mining_feedback", None)
+        if callable(begin) and target is not None:
+            begin(target)
+
+    def _finish_word_feedback(self, target, succeeded):
+        renderer = getattr(self.controller, "renderer", None)
+        finish = getattr(renderer, "finish_mining_feedback", None)
+        if callable(finish) and target is not None:
+            finish(target, bool(succeeded))
+
+    def _store_mined_annotation_entries(self, entries, target):
+        result = self._store_added_anki_annotation_entries(entries)
+        if result.get("ok"):
+            renderer = getattr(self.controller, "renderer", None)
+            clear = getattr(renderer, "clear_mining_feedback", None)
+            if callable(clear):
+                clear(target)
 
     def _begin_action_feedback(self, target: FrozenActionTarget, *, force: bool = False) -> None:
         """Show progress for non-voice Anki work; voice owns its own generation."""
@@ -135,6 +168,7 @@ class AnkiController(_ControllerProxy):
             setter("success" if succeeded else "idle")
 
     def _finish_action_feedback(self, target: FrozenActionTarget | None, succeeded: bool) -> None:
+        self._finish_word_feedback(target, succeeded)
         self._finish_action_feedback_key(id(target) if target is not None else None, succeeded)
 
     def cancel_capture_sessions(self, *, interaction_owner: str = "voice", reason: str = "aborted") -> int:
@@ -177,6 +211,9 @@ class AnkiController(_ControllerProxy):
         self._last_subtitleplayer_added_card = {"note_id": note_id, "target": target}
 
     def _acquire_pause_lease(self, target: FrozenActionTarget):
+        overlay = getattr(self.controller, "overlay_controller", None)
+        if overlay is not None:
+            overlay.cancel_hover_resume()
         acquire = getattr(self.controller, "acquire_anki_pause_lease", None)
         if callable(acquire):
             try:
@@ -243,6 +280,8 @@ class AnkiController(_ControllerProxy):
                     ["tasklist", "/FI", f"IMAGENAME eq {process_name}", "/FO", "CSV", "/NH"],
                     capture_output=True,
                     text=True,
+                    encoding="oem",
+                    errors="replace",
                     timeout=3,
                     check=False,
                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
@@ -308,6 +347,7 @@ class AnkiController(_ControllerProxy):
         cue_snapshot=None,
         selection_spans=None,
         initiator: str = "anki",
+        segment_range: tuple[int, int] | None = None,
     ) -> None:
             selected = (selected_text or "").strip()
             if not selected:
@@ -322,8 +362,13 @@ class AnkiController(_ControllerProxy):
                 cue_snapshot=cue_snapshot,
                 selection_spans=selection_spans,
                 initiator=initiator,
+                segment_range=segment_range,
             )
+            if self.mining_groups.offer(action_target, bool(post_add_capture), on_complete):
+                return
             self._begin_action_feedback(action_target)
+            if not self.config.get("ANKI_PREVIEW_BEFORE_ADD"):
+                self._begin_word_feedback(action_target)
             subtitle = action_target.subtitle_text
             pause_lease = self._acquire_pause_lease(action_target)
             if not self.anki.ping():
@@ -421,6 +466,7 @@ class AnkiController(_ControllerProxy):
                         copy_existing_media=not bool(post_add_capture),
                         cue_snapshot=(action_target.cue_snapshot if action_target is not None else cue_snapshot),
                         selection_spans=(action_target.selection_spans if action_target is not None else selection_spans),
+                        sentence_context=(action_target.sentence_context if action_target is not None else None),
                     )
                     dispatch_to_tk(
                         self.settings.root,
@@ -461,6 +507,8 @@ class AnkiController(_ControllerProxy):
         selection_spans=None,
         action_target: FrozenActionTarget | None = None,
         pause_lease=None,
+        recording_session=None,
+        background=False,
     ) -> None:
             selected = (selected_text or "").strip()
             if not selected:
@@ -472,29 +520,37 @@ class AnkiController(_ControllerProxy):
                 cue_snapshot=cue_snapshot,
                 selection_spans=selection_spans,
             )
+            self._begin_word_feedback(action_target)
             subtitle_text = action_target.subtitle_text
             anime_name = self._current_anki_anime_name()
             browser = getattr(self.controller, "browser_sync", None)
             active = getattr(browser, "_capture", None)
-            if active is not None and active.backend == "asbplayer":
+            if active is not None and active.backend == "asbplayer" and recording_session is None:
                 browser.report_error("Wait for the asbplayer recording and Anki media to finish before adding another card.")
                 self._finish_action_feedback(action_target, False)
                 if callable(on_complete):
                     on_complete(False, None)
                 return
             native_capture = bool(post_add_capture)
-            if not post_add_capture and browser and browser.following:
+            if not background and not post_add_capture and browser and browser.following:
                 self.playback.set_playing(False)
             try:
-                capture_session = (
+                capture_session = recording_session or (
                     self._new_capture_session(action_target, capture_only=False,
                         early_capture=False, pause_lease=pause_lease)
                     if post_add_capture else None
                 )
-                if native_capture:
+                if native_capture and recording_session is None:
                     if browser is None:
                         raise ValueError("Connect a browser video before recording")
                     browser.capture(capture_session)
+                    if action_target.initiator in ("mouse", "popup_capture_key"):
+                        from utils import move_pointer_to_monitor_bottom
+                        move_pointer_to_monitor_bottom(self.settings.root)
+                    if capture_session.backend == "native":
+                        self.mining_groups.start(capture_session, prepared, on_complete)
+                        return
+                    self.mining_groups.start(capture_session)
             except (ConnectionError, ValueError, RuntimeError) as exc:
                 if browser is not None:
                     browser.report_error("Capture not started · " + str(exc))
@@ -529,6 +585,7 @@ class AnkiController(_ControllerProxy):
                             copy_existing_media=not bool(post_add_capture),
                             cue_snapshot=action_target.cue_snapshot,
                             selection_spans=action_target.selection_spans,
+                            sentence_context=action_target.sentence_context,
                         )
                     else:
                         result = self.anki.commit_prepared_note(prepared)
@@ -541,7 +598,9 @@ class AnkiController(_ControllerProxy):
                         self.controller._latest_added_anki_note_id = added_note_id
                         self._record_subtitleplayer_added_card(added_note_id, action_target)
                         completion_success = True
-                        dispatch_to_tk(self.settings.root, self._record_successful_anki_add)
+                        if not (native_capture and capture_session.backend == "asbplayer"):
+                            dispatch_to_tk(self.settings.root, self._finish_word_feedback, action_target, True)
+                            dispatch_to_tk(self.settings.root, self._record_successful_anki_add)
                         if not post_add_capture:
                             try:
                                 media_result = self.anki.copy_existing_sentence_media_to_note(added_note_id)
@@ -572,11 +631,14 @@ class AnkiController(_ControllerProxy):
                     lookup_text = str(result.get("selection_lookup_text") or selected).strip()
                     if fields:
                         self.anki.sync_missing_stroke_svgs_async(lookup_text or selected, fields)
-                    if annotation_entries:
+                    if annotation_entries and native_capture and capture_session.backend == "asbplayer":
+                        capture_session.deferred_annotation_entries = annotation_entries
+                    elif annotation_entries:
                         dispatch_to_tk(
                             self.settings.root,
-                            self._store_added_anki_annotation_entries,
+                            self._store_mined_annotation_entries,
                             annotation_entries,
+                            action_target,
                         )
                     if native_capture:
                         pass  # Completion is reported after media verification.
@@ -596,6 +658,8 @@ class AnkiController(_ControllerProxy):
                         pass
                 finally:
                     def finish() -> None:
+                        if not (native_capture and capture_session.backend == "asbplayer" and completion_success):
+                            self._finish_word_feedback(action_target, completion_success)
                         if native_capture and (capture_error or not completion_success):
                             browser.capture_note_failed(capture_session, capture_error or "Anki card creation failed")
                             if completion_success and capture_session.target_note_id is None:
@@ -609,6 +673,8 @@ class AnkiController(_ControllerProxy):
                             self._finish_action_feedback(action_target, bool(completion_success))
                         elif not completion_success:
                             self._finish_action_feedback_key(capture_session.action_feedback_key, False)
+                        if isinstance(completion_result, dict) and capture_session is not None:
+                            completion_result["capture_recording_feedback_done"] = capture_session.recording_feedback_done
                         if callable(on_complete):
                             on_complete(bool(completion_success), completion_result)
 
@@ -819,6 +885,7 @@ class AnkiController(_ControllerProxy):
         *,
         use_capture_only_resume: bool = True,
         interaction_owner: str = "ui",
+        segment_range: tuple[int, int] | None = None,
     ) -> dict[str, Any]:
             """Capture for the last card created by this SubtitlePlayer run.
 
@@ -845,6 +912,17 @@ class AnkiController(_ControllerProxy):
                 }
 
             owner = str(interaction_owner or "ui").strip().lower() or "ui"
+            if segment_range is not None:
+                from dataclasses import replace
+                from model.sentence_context import segment_range_for_cue
+                try:
+                    cue = getattr(self.controller, "current_cue_snapshot", None)
+                    context = segment_range_for_cue(self.sub_manager, cue, *segment_range)
+                    target = replace(target, cue_snapshot=cue, sentence_context=context)
+                    if not self.controller.browser_sync.native:
+                        raise ValueError("Explicit segment ranges require the native browser recorder")
+                except (ValueError, TypeError) as exc:
+                    return {"accepted": False, "reason": "capture_not_ready", "error": str(exc)}
             if owner != "voice":
                 self._begin_action_feedback(target, force=True)
             pause_lease = self._acquire_pause_lease(target)
@@ -869,6 +947,7 @@ class AnkiController(_ControllerProxy):
                 return {"accepted": False, "queued": False, "source_note_id": source_note_id,
                         "reason": "capture_not_ready", "error": str(exc)}
             session.set_target_note(source_note_id)
+            session.replace_sentence_media = True
             try:
                 self.controller.browser_sync.capture(session, source_note_id)
                 sent = True

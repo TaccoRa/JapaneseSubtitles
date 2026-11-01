@@ -14,5 +14,6 @@
         "subs/**",
         "pending_capture_media/**",
         "timing_maps/**"
-    ]
+    ],
+    "git.ignoreLimitWarning": true
 }

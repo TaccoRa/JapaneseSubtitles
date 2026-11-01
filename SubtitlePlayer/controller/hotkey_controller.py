@@ -12,12 +12,26 @@ from pynput.keyboard import Key
 from model.voice_commands import decode_voice_hover_layers, decode_voice_sequence
 from utils import (
     get_window_root_hwnd,
+    get_foreground_root_hwnd,
     get_window_screen_rect,
     is_any_window_foreground,
     move_pointer_to_monitor_bottom,
 )
 
 logger = logging.getLogger(__name__)
+
+
+class _NumpadEnterKey:
+    """Keep Windows' extended Enter identity that pynput otherwise discards."""
+    vk = 13
+    char = None
+    is_numpad_enter = True
+
+
+class _NumpadDigitKey:
+    def __init__(self, digit):
+        self.vk = 96 + digit
+        self.char = str(digit)
 
 
 class _QueuedInputAction(str):
@@ -29,11 +43,15 @@ class _QueuedInputAction(str):
     actions while a modal search/file dialog owns keyboard input.
     """
 
-    __slots__ = ("source",)
+    __slots__ = ("source", "focus_stamp", "pointer", "accepted_at", "media_identity")
 
     def __new__(cls, action: str, source: str = "internal"):
         value = str.__new__(cls, str(action))
         value.source = str(source or "internal").strip().lower() or "internal"
+        value.focus_stamp = None
+        value.pointer = None
+        value.accepted_at = time.monotonic()
+        value.media_identity = None
         return value
 
 
@@ -56,7 +74,7 @@ class HotkeyController(_ControllerProxy):
     """Keyboard shortcut, repeat-action, and global hotkey helper."""
 
     _SHORTCUT_DEFAULT_OVERRIDES = {
-        "SHORTCUT_CAPTURE_ONLY": "shift+v",
+        "SHORTCUT_CAPTURE_ONLY": "z, shift+v",
     }
     _HOTKEY_DISABLE_OVERRIDES = {
         "capture_only": "DISABLE_HOTKEY_CAPTURE_ONLY",
@@ -86,6 +104,97 @@ class HotkeyController(_ControllerProxy):
         if not hasattr(controller, "_voice_frozen_target_counter"):
             controller._voice_frozen_target_counter = 0
         self._active_voice_target = None
+
+    def _foreground_is_chrome(self, hwnd):
+        try:
+            from ctypes import wintypes
+            process_id = wintypes.DWORD()
+            get_process = ctypes.windll.user32.GetWindowThreadProcessId
+            get_process.argtypes = (wintypes.HWND, ctypes.POINTER(wintypes.DWORD))
+            get_process(hwnd, ctypes.byref(process_id))
+            cache = getattr(self, "_foreground_process_cache", {})
+            self._foreground_process_cache = cache
+            key = (int(hwnd), process_id.value)
+            cached = cache.get(key)
+            if cached and time.monotonic()-cached[1] < 5:
+                return cached[0]
+            kernel = ctypes.windll.kernel32
+            kernel.OpenProcess.restype = wintypes.HANDLE
+            kernel.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+            kernel.QueryFullProcessImageNameW.argtypes = (wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD))
+            kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
+            handle = kernel.OpenProcess(0x1000, False, process_id.value)
+            chrome = False
+            if handle:
+                try:
+                    buffer = ctypes.create_unicode_buffer(32768)
+                    size = wintypes.DWORD(len(buffer))
+                    if kernel.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)):
+                        chrome = buffer.value.replace("\\", "/").rsplit("/", 1)[-1].lower() == "chrome.exe"
+                finally:
+                    kernel.CloseHandle(handle)
+            if len(cache) > 32:
+                cache.clear()
+            cache[key] = (chrome, time.monotonic())
+            return chrome
+        except (AttributeError, OSError, ValueError):
+            return False
+
+    def _global_focus_stamp(self):
+        hwnd = get_foreground_root_hwnd()
+        token = None
+        if hwnd and not self._modal_input_blocked():
+            if hwnd in getattr(self.controller, "_app_window_hwnds", ()):
+                if not self._is_text_input_focused():
+                    token = ("app", hwnd)
+            else:
+                browser = getattr(self.controller, "browser_sync", None)
+                context = getattr(self.controller, "_browser_input_context", None)
+                if (browser and browser.following and getattr(browser, "_connected", False) and browser.identity
+                        and context and context["identity"] == browser.identity.wire()
+                        and context["active"] and context["focused"] and not context["text"]
+                        and context.get("hwnd") == hwnd
+                        and time.monotonic()-context["received"] < 2.5 and self._foreground_is_chrome(hwnd)):
+                    token = ("browser", hwnd, tuple(sorted(context["identity"].items())),
+                             getattr(self.controller, "_browser_focus_epoch", 0))
+        if token != getattr(self, "_global_focus_token", None):
+            if getattr(self, "_global_focus_token", None) is not None:
+                # A released key in another window must not leave a seek preview
+                # to be applied by the next shortcut after focus returns.
+                self._pending_seek_delta = 0.0
+                self._pending_seek_display_dirty = True
+            self._global_focus_token = token
+            self._global_focus_epoch = getattr(self, "_global_focus_epoch", 0) + 1
+        stamp = (token, getattr(self, "_global_focus_epoch", 0)) if token is not None else None
+        if stamp is not None:
+            browser = getattr(self.controller, "browser_sync", None)
+            self._last_permitted_mouse_focus = (stamp, time.monotonic(),
+                browser.identity.wire() if browser and browser.identity else None)
+        return stamp
+
+    def _mouse_handoff_stamp(self, point):
+        """Accept only a recent allowed focus while clicking our own overlay/popup."""
+        previous = getattr(self, "_last_permitted_mouse_focus", None)
+        if not previous or time.monotonic()-previous[1] > .250 or point is None:
+            return None
+        if not (self._point_inside_subtitle_window(*point) or self._point_inside_popup_window(*point)):
+            return None
+        browser = getattr(self.controller, "browser_sync", None)
+        identity = browser.identity.wire() if browser and browser.identity else None
+        foreground = get_foreground_root_hwnd()
+        context = getattr(self.controller, "_browser_input_context", None)
+        if previous[2] != identity or self._modal_input_blocked() or self._is_text_input_focused():
+            return None
+        if foreground in getattr(self.controller, "_app_window_hwnds", ()):
+            return previous[0]
+        if (foreground == previous[0][0][1] and context and context['active'] and not context['text']
+                and context['identity'] == identity and self._foreground_is_chrome(foreground)):
+            return previous[0]
+        return None
+
+    @staticmethod
+    def _focus_scoped_source(source):
+        return str(source).lower() in {"physical", "mouse", "synthetic"}
 
     def _focus_owner_windows(self) -> list[Any]:
             return [
@@ -126,6 +235,10 @@ class HotkeyController(_ControllerProxy):
             except Exception:
                 return False
 
+    def _point_inside_popup_window(self, x, y):
+            rect = getattr(self.controller, "_cached_popup_window_rect", None)
+            return bool(rect and rect[0] <= x < rect[2] and rect[1] <= y < rect[3])
+
     def _reset_transient_hotkey_state_for_external_click(self, x: int, y: int, button) -> None:
             if button in {Button.x1, Button.x2, Button.middle}:
                 return
@@ -141,6 +254,7 @@ class HotkeyController(_ControllerProxy):
             rects = []
             subtitle_window = getattr(getattr(self.controller, "overlay", None), "sub_window", None)
             subtitle_rect = None
+            popup_rect = None
             for owner in self._focus_owner_windows():
                 if owner is None:
                     continue
@@ -154,9 +268,12 @@ class HotkeyController(_ControllerProxy):
                     rects.append(tuple(int(value) for value in rect))
                     if owner is subtitle_window and self._window_is_shown(owner):
                         subtitle_rect = tuple(int(value) for value in rect)
+                    if owner is getattr(self.popup, "_popup", None) and self._window_is_shown(owner):
+                        popup_rect = tuple(int(value) for value in rect)
             self.controller._app_window_hwnds = hwnds
             self.controller._cached_app_window_rects = rects
             self.controller._cached_subtitle_window_rect = subtitle_rect
+            self.controller._cached_popup_window_rect = popup_rect
             return hwnds
 
     def _refresh_ui_state_cache(self) -> None:
@@ -246,11 +363,21 @@ class HotkeyController(_ControllerProxy):
         event_time: float | None = None,
         *,
         source: str = "internal",
+        pointer=None,
     ) -> None:
             if self._shutting_down:
                 return
             timestamp = time.perf_counter() if event_time is None else float(event_time)
             queued_action = _QueuedInputAction(action, source)
+            queued_action.pointer = pointer
+            browser = getattr(self.controller, "browser_sync", None)
+            queued_action.media_identity = browser.identity.wire() if browser and browser.identity else None
+            if action != "toggle_subtitles" and self._focus_scoped_source(source):
+                queued_action.focus_stamp = self._global_focus_stamp()
+                if source == "mouse" and queued_action.focus_stamp is None:
+                    queued_action.focus_stamp = self._mouse_handoff_stamp(pointer)
+                if queued_action.focus_stamp is None:
+                    return
             self._input_actions.put_nowait((queued_action, timestamp))
 
     def enqueue_action(
@@ -272,7 +399,12 @@ class HotkeyController(_ControllerProxy):
             if self._shutting_down:
                 return
             timestamp = time.perf_counter() if event_time is None else float(event_time)
-            self._input_actions.put_nowait((_QueuedInputAction(action, source), timestamp, count))
+            queued_action = _QueuedInputAction(action, source)
+            if action != "toggle_subtitles" and self._focus_scoped_source(source):
+                queued_action.focus_stamp = self._global_focus_stamp()
+                if queued_action.focus_stamp is None:
+                    return
+            self._input_actions.put_nowait((queued_action, timestamp, count))
 
     @staticmethod
     def _voice_action_uses_lookup_target(action: str) -> bool:
@@ -412,7 +544,7 @@ class HotkeyController(_ControllerProxy):
             return {action}
 
     def _queue_repeat_step(self, action: str) -> None:
-            step_name = self._seek_step_action_name(action)
+            step_name = self._seek_step_action_name(action) if self._is_seek_repeat_action(action) else None
             if step_name:
                 self._enqueue_input_action(step_name, source="physical")
             else:
@@ -518,14 +650,16 @@ class HotkeyController(_ControllerProxy):
                                 )
                     else:
                         if abs(pending) >= 0.000001:
-                            self._enqueue_input_action("clear_pending_seek", source="physical")
+                            self._enqueue_input_action("clear_pending_seek", source="internal")
 
     def _process_repeat_actions(self):
             if self._shutting_down:
                 return
-            if getattr(self.controller, "_browser_text_input_focused", False):
-                return
-            if self._modal_input_blocked():
+            if self._global_focus_stamp() is None:
+                with self._repeat_lock:
+                    held = set(self._held_repeat_next_fire)
+                self._release_repeat_actions(held, settle_seek=False)
+                self._repeat_job = self.settings.root.after(16, self._process_repeat_actions)
                 return
             now = time.perf_counter()
             due_actions = []
@@ -556,6 +690,13 @@ class HotkeyController(_ControllerProxy):
                     self._refresh_ui_state_cache()
                 except Exception as e:
                     logger.debug("Failed to refresh hotkey UI state: %s", e, exc_info=True)
+                if self._global_focus_stamp() is None:
+                    with self._repeat_lock:
+                        held = set(self._held_repeat_next_fire)
+                    self._release_repeat_actions(held, settle_seek=False)
+                if getattr(self, "_pending_seek_display_dirty", False):
+                    self._pending_seek_display_dirty = False
+                    self._update_pending_seek_display()
                 self._poll_hover_mode()
                 self._poll_global_toggle_subtitles()
                 for _ in range(50):
@@ -571,15 +712,27 @@ class HotkeyController(_ControllerProxy):
                         action, event_time = item
                     else:
                         action, event_time = item, None
+                    if action != "toggle_subtitles" and self._focus_scoped_source(source):
+                        current_stamp = self._global_focus_stamp()
+                        same_stamp = getattr(action, "focus_stamp", None) == current_stamp and current_stamp is not None
+                        browser = getattr(self.controller, "browser_sync", None)
+                        identity = browser.identity.wire() if browser and browser.identity else None
+                        mouse_handoff = (source == "mouse" and (current_stamp is not None or self._mouse_handoff_stamp(action.pointer) is not None)
+                            and getattr(action, "focus_stamp", None) is not None
+                            and time.monotonic()-action.accepted_at <= .250
+                            and action.media_identity == identity)
+                        if not same_stamp and not mouse_handoff:
+                            continue
                     if self._modal_input_blocked() and self._is_modal_blocked_source(source):
                         self._discard_frozen_voice_target(action)
                         continue
-                    self._dispatch_input_action(
-                        action,
-                        event_time=event_time,
-                        repeat_count=repeat_count,
-                        source=source,
-                    )
+                    self._pointer_action_position = getattr(action, "pointer", None)
+                    self._accepted_mouse_handoff = source == "mouse" and action != "toggle_subtitles" and mouse_handoff
+                    try:
+                        self._dispatch_input_action(action, event_time=event_time, repeat_count=repeat_count, source=source)
+                    finally:
+                        self._pointer_action_position = None
+                        self._accepted_mouse_handoff = False
             finally:
                 try:
                     self._input_pump_job = self.settings.root.after(15, self._process_input_queue)
@@ -595,6 +748,9 @@ class HotkeyController(_ControllerProxy):
         *,
         source: str = "ui",
     ) -> None:
+            if action != "toggle_subtitles" and self._focus_scoped_source(source) and self._global_focus_stamp() is None and not (
+                    source == "mouse" and getattr(self, "_accepted_mouse_handoff", False)):
+                return
             if self._modal_input_blocked() and self._is_modal_blocked_source(source):
                 self._discard_frozen_voice_target(action)
                 return
@@ -611,6 +767,13 @@ class HotkeyController(_ControllerProxy):
                     )
                 finally:
                     self._active_voice_target = previous_target
+                return
+            browser = getattr(self.controller, "browser_sync", None)
+            mining_voice = re.match(r"^voice_(?:add|capture)(?:_together)?_(?:index|range|selection):", str(action))
+            if browser and browser._capture and not mining_voice and action not in {
+                "popup_add_anki", "popup_add_anki_capture", "subtitle_hover_add_anki",
+                "subtitle_hover_add_anki_capture", "voice_add", "voice_add_together",
+                "voice_capture", "voice_capture_together", "voice_abort", "toggle_subtitles"}:
                 return
             try:
                 repeat_count = max(1, min(20, int(repeat_count)))
@@ -717,11 +880,15 @@ class HotkeyController(_ControllerProxy):
                     logger.exception("Failed to add current selection or hovered subtitle word to Anki: %s", e)
             elif action == "popup_add_anki_capture":
                 try:
-                    accepted = self._add_current_anki_hotkey_target(post_add_capture=True)
+                    accepted = self._add_current_anki_hotkey_target(post_add_capture=True,
+                        initiator="popup_capture_key" if source == "physical" else source)
                 except Exception as e:
                     logger.exception("Failed to add current selection or hovered subtitle word with capture: %s", e)
             elif action == "capture_only":
                 self._trigger_capture_only_hotkey()
+            elif str(action).startswith("capture_segments:"):
+                digit = int(str(action).split(":", 1)[1])
+                self._trigger_capture_only_hotkey(segment_range=(max(0, 5-digit), max(0, digit-5)))
             elif action == "voice_add":
                 self._start_voice_anki_command(post_add_capture=False, together=False)
             elif action == "voice_add_together":
@@ -833,6 +1000,7 @@ class HotkeyController(_ControllerProxy):
                     accepted = self._add_current_anki_hotkey_target(
                         post_add_capture=True,
                         subtitle_only=True,
+                        initiator=source,
                     )
                 except Exception as e:
                     logger.exception("Failed to add hovered subtitle word with capture: %s", e)
@@ -895,7 +1063,9 @@ class HotkeyController(_ControllerProxy):
         *,
         post_add_capture: bool,
     ) -> None:
-            """Keep the voice action indicator alive until capture media is ready."""
+            """Capture feedback confirms recording independently of Anki attachment."""
+            if bool((result or {}).get("capture_recording_feedback_done")):
+                return
             if bool((result or {}).get("capture_delivery_failed")):
                 succeeded = False
             if not post_add_capture or not succeeded:
@@ -945,6 +1115,10 @@ class HotkeyController(_ControllerProxy):
                 self._finish_voice_action_feedback(int(generation), bool(succeeded))
 
     def _abort_voice_action(self) -> None:
+            browser = getattr(self.controller, "browser_sync", None)
+            had_capture = bool(browser and browser._capture)
+            if had_capture:
+                browser.abort("Cancelled by user")
             self.controller._voice_action_generation = int(
                 getattr(self.controller, "_voice_action_generation", 0) or 0
             ) + 1
@@ -955,7 +1129,7 @@ class HotkeyController(_ControllerProxy):
             self.controller._voice_capture_pending_generation = None
             self.controller._voice_capture_feedback = {}
             cancel_sessions = getattr(getattr(self.controller, "anki_controller", None), "cancel_capture_sessions", None)
-            if callable(cancel_sessions):
+            if callable(cancel_sessions) and not had_capture:
                 try:
                     cancel_sessions(interaction_owner="voice", reason="voice_abort")
                 except Exception:
@@ -965,10 +1139,17 @@ class HotkeyController(_ControllerProxy):
                 abort_feedback()
             self.controller._report_voice_status(
                 "listening",
-                "Current voice action aborted. A request already sent to Anki cannot be undone.",
+                "Current recording/action cancelled. Existing Capture-only target notes are retained.",
             )
 
     def _voice_anki_action_in_flight(self) -> bool:
+            browser = getattr(self.controller, "browser_sync", None)
+            if browser and browser._capture:
+                return False
+            groups = getattr(getattr(self.controller, "anki_controller", None), "mining_groups", None)
+            if groups and any(not group.get("done") and not group["session"].cancelled
+                              for group in groups.groups.values()):
+                return False  # Saved clips and note writes do not own the recorder.
             if bool(getattr(self.controller, "_anki_add_busy", False)) or bool(
                 getattr(self.controller, "_voice_anki_action_queued", False)
             ) or bool(getattr(self.controller, "_voice_anki_batch_running", False)):
@@ -1568,11 +1749,46 @@ class HotkeyController(_ControllerProxy):
             return "Capture-only requires a card added by SubtitlePlayer in this app session."
         return "Capture-only backend unavailable. Check Advanced Settings / Browser Recording."
 
-    def _trigger_capture_only_hotkey(self) -> bool:
-            """Run capture-only through the existing Anki backend without voice UI state."""
+    def _recording_word_at_pointer(self) -> dict:
+            """Only a live word hit can turn a recording key into a new-card action."""
+            position = getattr(self, "_pointer_action_position", None)
+            popup = getattr(self.controller, "popup", None)
+            popup_target = getattr(popup, "word_target_at_pointer_for_anki", None)
+            if callable(popup_target):
+                target = dict(popup_target(position) or {})
+                if target.get("inside"):
+                    return target  # Blank popup space must not hit a subtitle underneath.
+            renderer = getattr(self.controller, "renderer", None)
+            getter = getattr(renderer, "subtitle_target_at_pointer_for_anki", None)
+            if callable(getter):
+                return dict(getter(position) or {})
+            getter = getattr(renderer, "hovered_subtitle_target_for_anki", None)
+            return dict(getter() or {}) if callable(getter) else {}
+
+    def _trigger_capture_only_hotkey(self, *, segment_range=None) -> bool:
+            """Mine the hovered word with this clip, or retain recording-only behavior."""
+            try:
+                hovered = self._recording_word_at_pointer()
+                word = str(hovered.get("text") or "").strip()
+                if word:
+                    if hovered.get("snapshot") is None:
+                        raise ValueError("Hovered word has no current subtitle segment")
+                    self.controller._add_selection_to_anki(
+                        selected_text=word,
+                        subtitle_text=str(getattr(hovered.get("snapshot"), "plain_text", "") or ""),
+                        cue_snapshot=hovered.get("snapshot"), selection_spans=hovered.get("spans"),
+                        post_add_capture=True, segment_range=segment_range or (0, 0), initiator="physical")
+                    return True
+            except (ValueError, TypeError, RuntimeError) as exc:
+                report = getattr(self.controller, "_report_voice_status", None)
+                if callable(report):
+                    report("error", "Recording not started: " + str(exc))
+                logger.warning("Hovered-word recording not started: %s", exc)
+                return False
             capture = getattr(getattr(self.controller, "anki_controller", None), "trigger_external_capture_only", None)
+            options = {} if segment_range is None else {"segment_range": segment_range}
             result = (
-                capture(use_capture_only_resume=True, interaction_owner="physical")
+                capture(use_capture_only_resume=True, interaction_owner="physical", **options)
                 if callable(capture)
                 else {"accepted": False, "reason": "unavailable"}
             )
@@ -1836,8 +2052,23 @@ class HotkeyController(_ControllerProxy):
         subtitle_only: bool = False,
         prefer_highlight: bool = False,
         on_complete=None,
+        initiator="physical",
     ) -> bool:
             renderer = getattr(self, "renderer", None)
+            position = getattr(self, "_pointer_action_position", None)
+            popup = getattr(self.popup, "_popup", None)
+            if self._window_exists(popup):
+                point = position or (popup.winfo_pointerx(), popup.winfo_pointery())
+                if (popup.winfo_rootx() <= point[0] < popup.winfo_rootx()+popup.winfo_width()
+                        and popup.winfo_rooty() <= point[1] < popup.winfo_rooty()+popup.winfo_height()):
+                    selected = self.popup._get_selected_text()
+                    if selected:
+                        self.controller._add_selection_to_anki(selected_text=selected,
+                            subtitle_text=self.popup._plain_popup_text(), post_add_capture=post_add_capture,
+                            cue_snapshot=getattr(self.popup, "_cue_snapshot", None),
+                            selection_spans=self.popup._selected_cue_spans(), on_complete=on_complete,
+                            initiator=initiator)
+                        return True
 
             def add_highlighted() -> bool:
                 payload = self._highlighted_anki_payload()
@@ -1852,6 +2083,7 @@ class HotkeyController(_ControllerProxy):
                     on_complete=on_complete,
                     cue_snapshot=payload.get("snapshot"),
                     selection_spans=payload.get("spans"),
+                    initiator=initiator,
                 )
                 return True
 
@@ -1859,7 +2091,8 @@ class HotkeyController(_ControllerProxy):
                 return True
 
             hovered_target_getter = getattr(renderer, "hovered_subtitle_target_for_anki", None)
-            hovered_target = hovered_target_getter() if callable(hovered_target_getter) else {}
+            hovered_target = (renderer.subtitle_target_at_pointer_for_anki(position) if position is not None
+                else hovered_target_getter() if callable(hovered_target_getter) else {})
             hovered_word = str(hovered_target.get("text") or "").strip()
             if hovered_word:
                 subtitle_text = ""
@@ -1876,6 +2109,7 @@ class HotkeyController(_ControllerProxy):
                     on_complete=on_complete,
                     cue_snapshot=hovered_target.get("snapshot"),
                     selection_spans=hovered_target.get("spans"),
+                    initiator=initiator,
                 )
                 return True
 
@@ -1884,14 +2118,14 @@ class HotkeyController(_ControllerProxy):
             add_selected = getattr(self.popup, "add_selected_to_anki_if_pointer_inside", None)
             if callable(add_selected):
                 if post_add_capture:
-                    if bool(add_selected(post_add_capture=True, on_complete=on_complete)):
+                    if bool(add_selected(post_add_capture=True, on_complete=on_complete, initiator=initiator)):
                         return True
-                elif bool(add_selected(on_complete=on_complete)):
+                elif bool(add_selected(on_complete=on_complete, initiator=initiator)):
                     return True
             return add_highlighted() if not prefer_highlight else False
 
     def _skip_buttons_use_subtitle_segments(self) -> bool:
-            return bool(self.config.get("SKIP_BUTTONS_USE_SUBTITLE_SEGMENTS") or False)
+            return self.config.get("SKIP_NAVIGATION_MODE") == "segments"
 
     def _hotkey_action_disabled(self, action: str) -> bool:
             normalized_action = str(action or "").strip()
@@ -2084,7 +2318,8 @@ class HotkeyController(_ControllerProxy):
             return False
 
     def _is_text_input_focused(self) -> bool:
-            return bool(getattr(self.controller, "_cached_text_input_focused", False))
+            return (get_foreground_root_hwnd() in getattr(self.controller, "_app_window_hwnds", ())
+                    and bool(getattr(self.controller, "_cached_text_input_focused", False)))
 
     def _key_tokens(self, key) -> set[str]:
             tokens = set()
@@ -2109,14 +2344,32 @@ class HotkeyController(_ControllerProxy):
                     ch = chr(ord(ch) + 96)
                 _add(ch.lower())
 
-            if self._is_numpad_vk_key(key, 96, 45):
+            if getattr(key, "is_numpad_enter", False):
+                _add("numpadenter")
+            if self._is_numpad_vk_key(key, 96):
                 _add("numpad0", "0")
-            if self._is_numpad_vk_key(key, 100):
-                _add("numpad4", "4")
-            if self._is_numpad_vk_key(key, 102):
-                _add("numpad6", "6")
+            for digit in range(1, 10):
+                if self._is_numpad_vk_key(key, 96+digit):
+                    _add(f"numpad{digit}", str(digit))
 
             return {self._normalize_shortcut_token(t) for t in tokens}
+
+    def _windows_keyboard_event_filter(self, msg, data):
+        """Route keypad Enter separately without suppressing OS key delivery."""
+        extended = bool(int(data.flags) & 1)
+        scan_digits = {0x52: 0, 0x4f: 1, 0x50: 2, 0x51: 3, 0x4b: 4,
+                       0x4c: 5, 0x4d: 6, 0x47: 7, 0x48: 8, 0x49: 9}
+        if int(data.vkCode) == 13 and extended:
+            key = _NumpadEnterKey()
+        elif not extended and int(getattr(data, "scanCode", 0)) in scan_digits:
+            key = _NumpadDigitKey(scan_digits[int(data.scanCode)])
+        else:
+            return True
+        if msg in (0x100, 0x104):
+            self._on_key_press(key)
+        elif msg in (0x101, 0x105):
+            self._on_key_release(key)
+        return False  # Skip pynput's second callback, retaining the physical identity.
 
     @staticmethod
     def _modifier_tokens_for_key(key) -> set[str]:
@@ -2189,6 +2442,8 @@ class HotkeyController(_ControllerProxy):
                 pressed_tokens.difference_update(tokens)
 
     def _hold_binding_active(self, binding: str) -> bool:
+            if self._global_focus_stamp() is None:
+                return False
             physical_state = self._physical_hold_binding_active(binding)
             if physical_state is not None:
                 return physical_state
@@ -2370,10 +2625,6 @@ class HotkeyController(_ControllerProxy):
                 self._refresh_hover_displays()
 
     def _poll_global_toggle_subtitles(self) -> None:
-            if getattr(self.controller, "_browser_text_input_focused", False):
-                return
-            if self._modal_input_blocked():
-                return
             bindings = self._shortcut_bindings_for_key("SHORTCUT_TOGGLE_SUBTITLES")
             physical_states = [self._physical_hold_binding_active(binding) for binding in bindings]
             supported_states = [state for state in physical_states if state is not None]
@@ -2387,7 +2638,7 @@ class HotkeyController(_ControllerProxy):
                 if was_active:
                     self._single_fire_actions.discard("toggle_subtitles")
                 return
-            if was_active or self._is_text_input_focused():
+            if was_active:
                 return
             if self._hotkeys_disabled() or self._hotkey_action_disabled("toggle_subtitles"):
                 return
@@ -2456,6 +2707,10 @@ class HotkeyController(_ControllerProxy):
                     continue
                 for binding in self._shortcut_bindings_for_key(config_key):
                     bindings.append((action, binding))
+            if not self._hotkey_action_disabled("capture_only"):
+                bindings.extend((f"capture_segments:{digit}", str(digit)) for digit in range(3, 8))
+            if not self._mode2_numpad_enabled() and not self._hotkey_action_disabled("toggle_play"):
+                bindings.extend(("toggle_play", binding) for binding in ("numpad0", "numpadenter"))
             return bindings
 
     def _always_available_single_fire_bindings(self):
@@ -2648,7 +2903,11 @@ class HotkeyController(_ControllerProxy):
                                 "single_fire": False,
                             }
                         )
-            return candidates
+            # Range capture owns these digits on both keyboard sections,
+            # including numpad mode's legacy "4"/"6" navigation bindings.
+            ranges = [candidate for candidate in candidates
+                      if str(candidate.get("action", "")).startswith("capture_segments:")]
+            return ranges or candidates
 
     def _hotkeys_disabled(self) -> bool:
             return bool(self.config.get("SHORTCUTS_DISABLED") or False)
@@ -2684,7 +2943,16 @@ class HotkeyController(_ControllerProxy):
             self._reset_hotkey_state(reset_shift=False)
 
     def _on_key_press(self, key):
-            if getattr(self.controller, "_browser_text_input_focused", False):
+            if key == Key.esc and self._global_focus_stamp() is not None:
+                browser = getattr(self.controller, "browser_sync", None)
+                if browser and browser._capture:
+                    self._enqueue_input_action("voice_abort", source="physical")
+                    return
+            if self._global_focus_stamp() is None:
+                modifiers = self._modifier_tokens_for_key(key)
+                if modifiers:
+                    self._set_pressed_key_tokens(key, True)
+                    self._set_modifier_tokens(modifiers, True)
                 return
             if self._modal_input_blocked():
                 return
@@ -2769,6 +3037,9 @@ class HotkeyController(_ControllerProxy):
                     and self._shortcut_matches(chord, key)):
                 return
 
+            overlay = getattr(self.controller, "overlay_controller", None)
+            if overlay is not None and any(self._shortcut_matches(chord, key) for chord in ("space", "left", "right")):
+                overlay.cancel_hover_resume()
             self._refresh_hover_displays_if_mode_changed(old_hover_mode)
 
             if self._copy_popup_selection_shortcut(key):
@@ -2814,9 +3085,19 @@ class HotkeyController(_ControllerProxy):
                 return
 
     def _on_key_release(self, key):
-            if getattr(self.controller, "_browser_text_input_focused", False):
-                return
-            if self._modal_input_blocked():
+            self._set_pressed_key_tokens(key, False)
+            modifiers = self._modifier_tokens_for_key(key)
+            if self._global_focus_stamp() is None:
+                self._set_modifier_tokens(modifiers, False)
+                active_translation_action = getattr(self, "_active_translation_action", None)
+                if active_translation_action and self._translation_release_matches(active_translation_action, key):
+                    self.translation_pressed = False
+                    self._active_translation_action = None
+                    self._active_translation_binding = None
+                self._single_fire_actions.clear()
+                with self._repeat_lock:
+                    held = set(self._held_repeat_next_fire)
+                self._release_repeat_actions(held, settle_seek=False)
                 return
             if self._is_text_input_focused():
                 self._set_hover_hold_key_state(key, False)
@@ -3082,10 +3363,12 @@ class HotkeyController(_ControllerProxy):
                 pass
 
     def _on_global_click(self, x, y, button, pressed):
-            if not pressed:
+            if not pressed or (self._global_focus_stamp() is None and self._mouse_handoff_stamp((x,y)) is None):
                 return
-            if getattr(self.controller, "_browser_text_input_focused", False):
-                return
+            overlay = getattr(self.controller, "overlay_controller", None)
+            lease = getattr(self.controller, "_hover_pause_lease", None)
+            if overlay is not None and lease and lease.get("backend") == "legacy" and not self._point_inside_subtitle_window(x, y):
+                overlay.cancel_hover_resume()
             if self._modal_input_blocked():
                 return
             self._reset_transient_hotkey_state_for_external_click(x, y, button)
@@ -3094,11 +3377,11 @@ class HotkeyController(_ControllerProxy):
                 return
             if button == Button.x1:
                 if not self._hotkeys_disabled() and not self._hotkey_action_disabled("popup_add_anki_capture"):
-                    self._enqueue_input_action("subtitle_hover_add_anki_capture", source="mouse")
+                    self._enqueue_input_action("popup_add_anki_capture", source="mouse", pointer=(x,y))
             elif button == Button.x2:
-                if self._point_inside_subtitle_window(x, y):
+                if self._point_inside_subtitle_window(x, y) or self._point_inside_popup_window(x,y):
                     if not self._hotkeys_disabled():
-                        self._enqueue_input_action("subtitle_hover_add_anki", source="mouse")
+                        self._enqueue_input_action("popup_add_anki", source="mouse", pointer=(x,y))
                 elif not self._hotkey_action_disabled("clear_subtitle"):
                     self._enqueue_input_action("clear_subtitle", source="mouse")
             elif button == Button.middle:

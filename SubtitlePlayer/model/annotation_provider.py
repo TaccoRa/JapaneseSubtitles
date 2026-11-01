@@ -336,10 +336,18 @@ class AnnotationProvider:
         selected = unicodedata.normalize("NFKC", str(text or "")).strip()
         token_dicts = [self._token_to_mapping(token) for token in (tokens or ()) if token is not None]
         token_dicts = [token for token in token_dicts if str(token.get("surface") or "").strip()]
-        reading = "".join(str(token.get("reading") or "").strip() for token in token_dicts)
+        exact_tokens = [token for token in token_dicts
+                        if normalize_word(token.get("surface")) == normalize_word(selected)]
+        primary = next((token for token in exact_tokens if token.get("compound")), None)
+        primary = primary or (exact_tokens[0] if exact_tokens else None)
+        if primary is None and len(token_dicts) == 1:
+            primary = token_dicts[0]
+        base_tokens = [token for token in token_dicts if not token.get("compound")]
+        reading_tokens = [primary] if primary is not None else base_tokens
+        reading = "".join(str(token.get("reading") or "").strip() for token in reading_tokens)
         canonical = ""
-        if len(token_dicts) == 1:
-            canonical = str(token_dicts[0].get("lookup") or token_dicts[0].get("surface") or "").strip()
+        if primary is not None:
+            canonical = str(primary.get("lookup") or primary.get("surface") or "").strip()
         elif token_dicts:
             canonical = " ".join(
                 str(token.get("lookup") or token.get("surface") or "").strip()
@@ -348,9 +356,9 @@ class AnnotationProvider:
             ).strip()
 
         direct = None
-        if len(token_dicts) == 1:
+        if primary is not None:
             try:
-                direct = self.match_token(token_dicts[0])
+                direct = self.match_token(primary)
             except Exception:
                 direct = None
         if direct is None and selected:
@@ -542,7 +550,9 @@ class AnnotationProvider:
         if AnnotationProvider._is_kana_only(surface):
             return False
         if isinstance(token, dict) and str(token.get("pos1") or "") == "\u540d\u8a5e":
-            return False
+            # The shared tokenizer adds this exact suffix only for a sahen
+            # noun followed by an actual suru verb in the displayed sentence.
+            return normalize_word(lookup) == normalize_word(surface + "する")
         return True
 
     def _allow_canonical_kana_lookup_candidate(
@@ -744,7 +754,13 @@ class AnnotationProvider:
                 token["end"] = end
                 tokens.append(token)
             tokens = self._expand_annotation_tokens(line_text, tokens)
+        lexical_tokens = list(tokens)
         tokens = self._merge_annotation_tokens(tokens, self._ruby_segment_tokens(segments))
+        # Ruby pieces are display boundaries, not independently collected words.
+        word_spans = self._whole_word_spans(lexical_tokens)
+        tokens = [t for t in tokens if not (t.get('ruby_segment') and any(
+            left <= int(t['start']) and int(t['end']) <= right
+            and (int(t['start']), int(t['end'])) != (left, right) for left, right in word_spans))]
         intervals = self._matched_intervals(tokens, line_text=line_text)
         if not intervals:
             return segments, tokens, []
@@ -1353,6 +1369,29 @@ class AnnotationProvider:
                 start_compact = compact_line.find(compact_phrase, start_compact + 1)
         return intervals
 
+    @classmethod
+    def _whole_word_spans(cls, tokens: list[dict[str, Any]]) -> list[tuple[int, int]]:
+        lexical = [(int(token.get("start") or 0), int(token.get("end") or 0))
+                   for token in tokens if not token.get("ruby_segment")]
+        result = []
+        for token in tokens:
+            surface = str(token.get("surface") or "").strip()
+            start, end = int(token.get("start") or 0), int(token.get("end") or 0)
+            if end <= start or len(surface) < 2 or not (cls._contains_cjk(surface) or token.get("compound")):
+                continue
+            if token.get("ruby_segment"):
+                # A display ruby group may span several lexical words. Trust
+                # the tokenizer when it covers the entire group; otherwise the
+                # source ruby can provide a conservative fallback boundary.
+                covered = start
+                for left, right in sorted(lexical):
+                    if left <= covered < right:
+                        covered = right
+                if covered >= end and (start, end) not in lexical:
+                    continue
+            result.append((start, end))
+        return result
+
     def _matched_intervals(
         self,
         tokens: list[dict[str, Any]],
@@ -1373,6 +1412,16 @@ class AnnotationProvider:
                 continue
             if end > start:
                 candidates.append((start, end, match, 1))
+
+        # Knowing component words or individual kanji does not imply knowing
+        # the containing lexical word. Apply this before overlap resolution so
+        # a partial match cannot hide a complete word's actual database status.
+        word_spans = self._whole_word_spans(tokens)
+        candidates = [candidate for candidate in candidates if not any(
+            left <= candidate[0] and candidate[1] <= right
+            and (candidate[0], candidate[1]) != (left, right)
+            for left, right in word_spans
+        )]
 
         candidates.sort(
             key=lambda item: (

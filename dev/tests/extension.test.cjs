@@ -45,6 +45,7 @@ function environment(){
   vm.runInNewContext(source,{chrome,fetch:(...args)=>chrome.fetch(...args),AbortSignal,WebSocket:Socket,crypto:webcrypto,TextEncoder,URL,console,setInterval:()=>1,clearInterval(){},setTimeout:(fn,delay)=>{timers.set(++timerId,{fn,delay});return timerId;},clearTimeout:id=>timers.delete(id)});
   const message=(m,s={})=>new Promise(resolve=>{const pending=listener(m,s,resolve);if(pending!==true)resolve();});
   return {chrome,frames,offscreen,sent,scripts,timers,browserWindow,windowChanges,message,get socket(){return socket;},
+    stopStream(){connectedStream=null;},
     async fireTimers(){const pending=[...timers.values()];timers.clear();for(const timer of pending)timer.fn();await settle();},
     async connect(paused=true,native=true){
       await message({type:'Connect',identity,token:'code'});socket.onopen();socket.onmessage({data:JSON.stringify({type:'Welcome'})});
@@ -170,9 +171,10 @@ test('only bound video captions are fetched and caption redirects are blocked',a
 test('opening the popup recovers scripts in existing frames and refreshes the video list',async()=>{
   const env=environment();await env.connect();
   const reply=await env.message({type:'ListVideos',tabId:1});
-  assert.equal(reply.videos.length,1);assert.equal(env.scripts.length,1);
+  assert.equal(reply.videos.length,1);assert.equal(env.scripts.length,2);
   assert.equal(env.scripts[0].target.tabId,1);assert.equal(env.scripts[0].target.allFrames,true);
-  assert.deepEqual(Array.from(env.scripts[0].files),['episode-context.js','content.js']);
+  assert.deepEqual(Array.from(env.scripts[0].files),['caption-observer.js']);assert.equal(env.scripts[0].world,'MAIN');
+  assert.deepEqual(Array.from(env.scripts[1].files),['episode-context.js','content.js']);
 });
 
 test('the single visible video automatically connects without acquiring audio',async()=>{
@@ -241,10 +243,29 @@ test('a replacement episode publishes recorder readiness under its new document 
 
 test('loss of tab audio disables readiness and aborts recording without resuming',async()=>{
   const env=environment();await env.connect();await recording(env);
+  env.stopStream();
   await env.message({type:'NativeRecordingStopped',tabId:1});await settle();
   assert.equal(env.sent.filter(m=>m.type==='RecorderState').at(-1).enabled,false);
   assert.equal(env.frames.filter(f=>f.m.action==='play').length,0);
   assert.equal(env.sent.at(-1).ok,false);
+});
+
+test('delayed stop from an old stream cannot disable or cancel its live replacement',async()=>{
+  const env=environment();await env.connect();await recording(env);
+  await env.message({type:'NativeRecordingStopped',tabId:1});await settle();
+  assert.equal(env.sent.filter(m=>m.type==='RecorderState').at(-1).enabled,true);
+  assert.equal(env.offscreen.filter(m=>m.type==='CancelRecording').length,0);
+  assert.equal(env.sent.filter(m=>m.type==='CaptureResult').length,0);
+});
+
+test('recorder probe reports live tab audio without reacquiring permission or controlling playback',async()=>{
+  const env=environment();await env.connect();env.frames.length=0;env.offscreen.length=0;
+  await env.receive({type:'RecorderProbe',identity});
+  assert.equal(env.sent.filter(m=>m.type==='RecorderState').at(-1).enabled,true);
+  assert.deepEqual(env.offscreen.map(m=>m.type),['StreamState']);
+  assert.equal(env.frames.length,0);
+  env.stopStream();await env.receive({type:'RecorderProbe',identity});
+  assert.equal(env.sent.filter(m=>m.type==='RecorderState').at(-1).enabled,false);
 });
 
 for(const [backend,enabled,expected]of [['native',false,1],['native',true,0],['asbplayer',false,0]]){
@@ -352,6 +373,7 @@ test('a late command acknowledgement never applies the previous episode clock to
   await env.message({type:'PlaybackSnapshot',videoId:'next-video',sequence:1,currentTime:0,duration:1447,rate:1,paused:true,mediaKey:'next-episode',width:1000,height:500},{...sender,documentId:'new-document'});
   await until(()=>env.sent.some(m=>m.type==='Bound'&&m.identity.documentId==='new-document'));
   release();await command;
+  await until(()=>env.sent.some(m=>m.type==='CommandAck'&&m.operationId==='old-seek'));
   const ack=env.sent.find(m=>m.type==='CommandAck'&&m.operationId==='old-seek');
   assert.equal(ack.ok,false);assert.equal(ack.state,undefined);
 });
@@ -370,9 +392,24 @@ test('a refused subtitle URL is attempted once and stops further external captio
   const errors=env.sent.filter(m=>m.type==='CaptionUnavailable');
   assert.equal(errors.length,1);assert.match(errors[0].error,/captions.test/);assert.match(errors[0].error,/Automatic URL requests stopped/);
   const before=env.sent.length;
-  await env.message({type:'CaptionIntervals',videoId:'video',intervals:[[1,2],[3,4]],language:'en'},sender);
-  await settle();
+  await env.message({type:'CaptionIntervals',videoId:'video',intervals:Array.from({length:8},(_,i)=>[i*5+1,i*5+2]),language:'en'},sender);
+  await until(()=>env.sent.at(-1).type==='CaptionIntervals');
   assert.equal(env.sent.at(-1).type,'CaptionIntervals');assert.equal(env.sent.length,before+1);
+});
+
+test('passive timing is merged, cached for reconnect and cannot cross media identities',async()=>{
+  const env=environment();await env.connect();
+  const intervals=Array.from({length:12},(_,i)=>[i*7+1,i*7+3]);
+  const message={type:'CaptionIntervals',videoId:'video',mediaKey:'episode',language:'en',priority:0,intervals:intervals.slice(0,8)};
+  await env.message(message,sender);await until(()=>env.sent.some(m=>m.type==='CaptionIntervals'));
+  await env.message({...message,intervals:intervals.slice(4)},sender);
+  await until(()=>env.sent.filter(m=>m.type==='CaptionIntervals').at(-1).intervals.length===12);
+  const before=env.sent.filter(m=>m.type==='CaptionIntervals').length;
+  await env.message({...message,mediaKey:'previous-episode'},sender);await settle();
+  assert.equal(env.sent.filter(m=>m.type==='CaptionIntervals').length,before);
+  await env.message({type:'Connect',identity},{});await settle();
+  assert.equal(env.sent.filter(m=>m.type==='CaptionIntervals').at(-1).intervals.length,12);
+  assert.equal(env.sent.filter(m=>m.type==='PlayerCommand').length,0);
 });
 
 
@@ -421,7 +458,7 @@ test('Netflix adapter uses milliseconds once and refuses missing or ambiguous se
 
 test('media labels use the Netflix player title and never treat opaque IDs as episodes',()=>{
   const scope={URL};vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../../browser-extension/episode-context.js'),'utf8'),scope);
-  const doc={title:'Netflix',querySelector:()=>({textContent:'Shrek'})};
+  const doc={title:'Netflix',querySelector:selector=>selector==='[data-uia="video-title"]'?{textContent:'Shrek'}:null};
   const movie=scope.subtitlePlayerMediaContext('https://www.netflix.com/watch/60020686',doc);
   assert.equal(movie.title,'Shrek');assert.equal(movie.kind,'movie');assert.equal(movie.episode,null);
   doc.querySelector=()=>null;
@@ -429,6 +466,21 @@ test('media labels use the Netflix player title and never treat opaque IDs as ep
   doc.title='Watch Demon Slayer - Miruro';
   const anime=scope.subtitlePlayerMediaContext('https://www.miruro.to/watch/series?ep=7',doc);
   assert.equal(anime.kind,'episode');assert.equal(anime.episode,7);
-  doc.querySelector=()=>({textContent:'Anime S2:E3 Episode name'});
+  doc.querySelector=selector=>selector==='[data-uia="video-title"]'?{textContent:'Anime S2:E3 Episode name'}:null;
   assert.equal(scope.subtitlePlayerMediaContext('https://www.netflix.com/watch/987',doc).episode,3);
+});
+
+test('Netflix paused metadata selects the numbered episode and keeps a stable series key',()=>{
+  const scope={URL};vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../../browser-extension/episode-context.js'),'utf8'),scope);
+  let episode='Baseball Time: Ep. 2',season='Season 1';
+  const overlay={querySelector:selector=>({textContent:selector==='h2'?'Assassination Classroom':selector.includes('episode')?episode:season})};
+  const doc={querySelector:selector=>selector==='[data-uia="evidence-overlay"]'?overlay:null};
+  const two=scope.subtitlePlayerMediaContext('https://www.netflix.com/watch/80045950',doc);
+  assert.equal(two.title,'Assassination Classroom');assert.equal(two.episode,2);assert.equal(two.season,1);assert.equal(two.kind,'episode');
+  episode='Karma Time: Ep. 3';
+  const three=scope.subtitlePlayerMediaContext('https://www.netflix.com/watch/80045951',doc);
+  assert.equal(three.episode,3);assert.equal(three.seriesKey,two.seriesKey);assert.notEqual(three.pageKey,two.pageKey);
+  episode='Folge 4';season='Staffel 2';
+  const german=scope.subtitlePlayerMediaContext('https://www.netflix.com/watch/80045952',doc);
+  assert.equal(german.episode,4);assert.equal(german.season,2);
 });

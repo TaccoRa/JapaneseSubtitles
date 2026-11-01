@@ -89,6 +89,8 @@ class SubtitleRenderer:
         self._hover_mode_callback: Callable[[], str] | None = None
         self._annotation_provider = None
         self._cue_snapshot: CueSnapshot | None = None
+        self._mining_feedback = {}
+        self._mining_glyphs = []
 
         self.font: Optional[tkFont.Font] = None
         self.ruby_font: Optional[tkFont.Font] = None
@@ -164,6 +166,7 @@ class SubtitleRenderer:
 
             self._hover_regions = []
             self._word_regions = []
+            self._mining_glyphs = []
             self._hover_active_region = None
             self._hover_active_mode = None
             self._cue_snapshot = cue_snapshot
@@ -229,7 +232,7 @@ class SubtitleRenderer:
             if len(lines) <= 2:
                 try:
                     if int(overlay.max_h) != int(base_height):
-                        overlay.update_geometry(int(overlay.max_w), int(base_height))
+                        overlay.update_geometry(int(overlay.max_w), int(base_height), defer_layout=True)
                 except Exception:
                     pass
             else:
@@ -246,7 +249,7 @@ class SubtitleRenderer:
                 target_h = min(target_h, max_h_allowed)
 
                 if int(overlay.max_h) != int(target_h):
-                    overlay.update_geometry(int(overlay.max_w), int(target_h))
+                    overlay.update_geometry(int(overlay.max_w), int(target_h), defer_layout=True)
 
             preview_cache_key = None
             preview_tag = None
@@ -265,7 +268,10 @@ class SubtitleRenderer:
             finally:
                 self._current_render_tags = ()
             if not preview:
+                self._draw_mining_feedback()
                 self._restore_voice_word_highlights()
+                if self._voice_action_indicator_state in ("working", "success"):
+                    self._draw_voice_action_indicator()
             if preview and preview_cache_key is not None and preview_tag:
                 self._store_preview_render(preview_cache_key, preview_tag)
             self._finish_hover_bindings(preview=preview)
@@ -760,6 +766,8 @@ class SubtitleRenderer:
                     }
                 )
 
+            if not preview and meta.get("_cue_line_index") is not None and meta.get("_cue_start") is not None:
+                self._mining_glyphs.append((int(meta["_cue_line_index"]), int(meta["_cue_start"]), base, base_left, base_y))
             fill, outline, thickness = self._text_style_for_segment(meta)
             self._draw_outlined_text(
                 self.canvas,
@@ -1733,6 +1741,8 @@ class SubtitleRenderer:
         return active_key != (None, None) and active_key == self._hover_active_region
 
     def _schedule_hover_clear(self, _event=None, delay_ms: int | None = None) -> None:
+        if _event is not None:
+            self._notify_hover_presence(False)
         self._cancel_hover_clear()
         cue_generation = self._hover_cue_generation
         hover_generation = self._hover_generation
@@ -2059,7 +2069,15 @@ class SubtitleRenderer:
         if not query:
             return ""
         try:
-            text = str(lookup(query) or "").strip()
+            if bool(region.get("compound")):
+                text = str(lookup(query, allow_translation_fallback=True) or "").strip()
+            else:
+                text = str(lookup(query) or "").strip()
+        except TypeError:
+            try:
+                text = str(lookup(query) or "").strip()
+            except Exception:
+                text = ""
         except Exception:
             text = ""
         return text
@@ -2431,6 +2449,7 @@ class SubtitleRenderer:
             pass
 
     def _keep_hover_text_visible(self, _event=None) -> None:
+        self._notify_hover_presence(True)
         self._cancel_hover_clear()
         self._cancel_hover_layer_job()
         self._raise_hover_text_window()
@@ -2578,7 +2597,7 @@ class SubtitleRenderer:
         """Return the exact visible subtitle token currently under the pointer."""
         return str(self.hovered_subtitle_target_for_anki().get("text") or "")
 
-    def subtitle_target_at_pointer_for_anki(self) -> dict:
+    def subtitle_target_at_pointer_for_anki(self, position=None) -> dict:
         """Hit-test the canvas at the live pointer location for an Anki action.
 
         This intentionally does not consult the delayed hover-panel state.  A
@@ -2586,8 +2605,9 @@ class SubtitleRenderer:
         hidden, while the pointer still identifies the word the user chose.
         """
         try:
-            x = int(self.canvas.winfo_pointerx() - self.canvas.winfo_rootx())
-            y = int(self.canvas.winfo_pointery() - self.canvas.winfo_rooty())
+            point = position or (self.canvas.winfo_pointerx(), self.canvas.winfo_pointery())
+            x = int(point[0] - self.canvas.winfo_rootx())
+            y = int(point[1] - self.canvas.winfo_rooty())
             width = int(self.canvas.winfo_width())
             height = int(self.canvas.winfo_height())
         except Exception:
@@ -2810,6 +2830,76 @@ class SubtitleRenderer:
                 tags=("voice_word_highlight",),
             )
         self.canvas.tag_raise("voice_word_highlight")
+
+    @staticmethod
+    def _mining_cue_key(snapshot):
+        return (snapshot.cue_index, snapshot.start_time, snapshot.end_time, snapshot.plain_text) if snapshot is not None else None
+
+    def begin_mining_feedback(self, target):
+        """Immediate, operation-owned colour; never writes learning status."""
+        key = id(target)
+        if key not in self._mining_feedback and target.cue_snapshot is not None:
+            snapshot = target.cue_snapshot
+            spans = tuple(target.selection_spans)
+            if not spans:
+                selected = target.selected_text
+                found = []
+                for line in snapshot.lines:
+                    start = 0
+                    while selected and (start := line.text.find(selected, start)) >= 0:
+                        found.append((line.index, start, start + len(selected)))
+                        start += len(selected)
+                spans = tuple(found)
+            self._mining_feedback[key] = (self._mining_cue_key(snapshot), spans, False)
+            # Bound transient confirmed entries; pending operations retain ownership.
+            for old in list(self._mining_feedback):
+                if len(self._mining_feedback) <= 256:
+                    break
+                if self._mining_feedback[old][2]:
+                    del self._mining_feedback[old]
+        self._draw_mining_feedback()
+        self.canvas.update_idletasks()
+
+    def clear_mining_feedback(self, target):
+        self._mining_feedback.pop(id(target), None)
+        self._draw_mining_feedback()
+
+    def finish_mining_feedback(self, target, succeeded):
+        key = id(target)
+        previous = self._mining_feedback.get(key)
+        if previous is not None:
+            if succeeded:
+                self._mining_feedback[key] = (*previous[:2], True)
+            elif not previous[2]:
+                self._mining_feedback.pop(key, None)
+        self._draw_mining_feedback()
+
+    def _draw_mining_feedback(self):
+        self.canvas.delete("mining_word_feedback")
+        current = self._mining_cue_key(self._cue_snapshot)
+        if current is None:
+            return
+        from model.annotation_styles import load_style_config
+        style = load_style_config(self.config.get("ANNOTATION_STYLES")).get("anki_unknown", {})
+        color = str(style.get("text_color") or "#ff6b6b")
+        ranges = set(span for cue, spans, _confirmed in self._mining_feedback.values() if cue == current for span in spans)
+        # Draw only the selected glyph range, keeping original text, ruby and layout.
+        for line, source_start, base, x, y in self._mining_glyphs:
+            selected = set()
+            for line_index, begin, end in ranges:
+                if line_index == line:
+                    selected.update(range(max(0, begin-source_start), min(len(base), end-source_start)))
+            begin = None
+            for index in range(len(base) + 1):
+                if index in selected and begin is None:
+                    begin = index
+                elif index not in selected and begin is not None:
+                    prefix = self._measure_text(self.font, base[:begin])
+                    width = self._measure_text(self.font, base[begin:index])
+                    self.canvas.create_text(x + prefix + width/2, y, text=base[begin:index], font=self.font,
+                                            fill=color, tags=("mining_word_feedback",))
+                    begin = None
+        self.canvas.tag_raise("mining_word_feedback")
 
     def _voice_action_indicator_enabled(self) -> bool:
         try:
@@ -3431,6 +3521,7 @@ class SubtitleRenderer:
                 self._hover_text_current = ""
         except Exception:
             pass
+        self._notify_hover_presence(False)
 
     def destroy_hover_windows(self) -> None:
         win = self._hover_text_window
@@ -3443,6 +3534,7 @@ class SubtitleRenderer:
                     win.destroy()
             except Exception:
                 pass
+        self._notify_hover_presence(False)
 
     def refresh_hover_display(self) -> None:
         if self._hover_suspended or self._hover_requires_fresh_motion:
@@ -3485,6 +3577,14 @@ class SubtitleRenderer:
 
     def bind_hover_mode(self, callback) -> None:
         self._hover_mode_callback = callback
+
+    def bind_hover_presence(self, callback) -> None:
+        self._hover_presence_callback = callback
+
+    def _notify_hover_presence(self, inside):
+        callback = getattr(self, "_hover_presence_callback", None)
+        if callable(callback):
+            callback(inside)
 
     def bind_annotation_provider(self, provider) -> None:
         self._annotation_provider = provider

@@ -59,6 +59,7 @@ class SubtitleOverlayUI:
 
     def build_overlay(self) -> None:
         self.sub_window = tk.Toplevel(self.root)
+        self.sub_window.title("SubtitlePlayer subtitles")
         self.sub_window.overrideredirect(True)
         self.sub_window.attributes("-topmost", True)
         self.sub_window.attributes("-transparentcolor", "grey")
@@ -140,7 +141,7 @@ class SubtitleOverlayUI:
         except Exception:
             logger.debug("Subtitle-overlay drag-end callback failed", exc_info=True)
 
-    def update_geometry(self, new_w, new_h):
+    def update_geometry(self, new_w, new_h, *, defer_layout=False):
         """Resize overlay window and internal canvas to the new width/height (integers)."""
         sw = self.root.winfo_vrootwidth()
         margin = 20  # keep at least 20px visible margin on left+right
@@ -161,10 +162,15 @@ class SubtitleOverlayUI:
 
         # Apply geometry
         self.sub_window.geometry(f"{self.max_w}x{self.max_h}+{x}+{y}")
-        self._sync_handle_to_subtitle()
-        # Resize canvas to match coordinate system the renderer expects
+        if defer_layout:
+            if self.subtitle_handle and self.subtitle_handle.winfo_exists():
+                self.subtitle_handle.geometry(f"{int(self._handle_width)}x{self.max_h}+{x}+{y}")
+        else:
+            self._sync_handle_to_subtitle()
+        # Queue geometry and completed canvas together, avoiding an old-frame resize.
         self.subtitle_canvas.config(width=self.max_w, height=self.max_h)
-        self.subtitle_canvas.update_idletasks()
+        if not defer_layout:
+            self.subtitle_canvas.update_idletasks()
 
     def _sync_handle_to_subtitle(self):
         if not self.subtitle_handle:

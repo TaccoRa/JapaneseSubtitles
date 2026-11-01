@@ -3,7 +3,7 @@
 This adapter intentionally needs neither the companion's native recording grant
 nor an asbplayer WebSocket/proxy. Normal browser playback keeps its own gateway.
 """
-from utils import focus_window_by_title, send_global_hotkey
+from utils import focus_window_by_title, send_global_hotkey, send_hotkey_to_window, list_visible_windows
 import time
 
 LEGACY_SETTINGS = {
@@ -46,6 +46,24 @@ class LegacyAsbplayerCapture:
             return min(10, max(.25, float(legacy_value(self.config, "ASBPLAYER_MEDIA_POLL_MS"))/1000))
         except (TypeError, ValueError):
             return 1.5
+
+    def toggle_hover_playback(self, hotkeys=None, window=None):
+        """Disconnected compatibility only; pair toggles to the same window."""
+        if window is not None:
+            current = next((item for item in list_visible_windows() if item.get("hwnd") == window.get("hwnd")), None)
+            if current is None or current.get("title") != window.get("title"):
+                raise ValueError("asbplayer hover target changed; automatic resume cancelled")
+        target = window or str(legacy_value(self.config, "ASBPLAYER_TARGET_TITLE") or "").strip()
+        if not target:
+            raise ValueError("Set the asbplayer window title before using disconnected hover pause")
+        def suppress(_window):
+            if hotkeys is not None:
+                hotkeys._legacy_capture_chord = "space"
+                hotkeys._legacy_capture_until = time.monotonic() + .5
+        result = send_hotkey_to_window(target, "space", restore_foreground=True, before_send=suppress)
+        if not result.get("ok"):
+            raise ValueError("asbplayer hover playback: " + str(result.get("reason")))
+        return result["window"]
 
     def dispatch(self, hotkeys=None):
         hotkey = str(legacy_value(self.config, "ASBPLAYER_CAPTURE_HOTKEY") or "").strip()

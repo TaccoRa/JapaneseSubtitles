@@ -7,6 +7,7 @@ SubtitleManager (model) handles:
 """
 
 import os
+from pathlib import Path
 import re
 import shutil
 import requests
@@ -37,6 +38,7 @@ except ImportError:
     from furigana_splitter import split_furigana
 
 from model.config_manager import ConfigManager
+from model.jimaku_library import JimakuLibrary
 from model.remote_search_cache import (
     REMOTE_SEARCH_CACHE_SCHEMA_VERSION,
     build_remote_search_cache_payload,
@@ -149,8 +151,32 @@ class SubtitleManager:
 
     def __init__(self, config: ConfigManager) -> None:
         self.config = config
+        # Cancellation/network failure may leave the app with no selected source.
+        # Keep a valid empty model so the source picker remains usable.
+        self.subtitles, self.display_data = [], []
+        self.display_start_times, self.display_end_times = [], []
+        self._auto_ruby_ready_indices = set()
+        self.srt_file = None
+        self.current_season = self.current_episode = None
+        self.anime_folder_name = self.config.get("LAST_ANIME_NAME") or ""
+        self.display_anime_name = self.config.get("LAST_DISPLAY_ANIME_NAME") or self.anime_folder_name
+        self.is_movie = False
+        self.local_srt_files = []
+        self.github_owner = self.config.get("GITHUB_OWNER") or "Ajatt-Tools"
+        self.github_repo = self.config.get("GITHUB_REPO") or "kitsunekko-mirror"
+        self.github_ref = self.config.get("GITHUB_REF") or "main"
+        self.remote_path = self.remote_url = self.file_name = None
         self.github_token = os.environ.get("GITHUB_TOKEN")
         self.remote_flag = self.config.get("REMOTE_FLAG")
+        self.source_kind = "github" if self.remote_flag else "local"
+        self.source_descriptor = None
+        self.jimaku = JimakuLibrary(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cache_jimaku"),
+                                   os.path.dirname(os.path.abspath(self.config.local_path)))
+        self.jimaku.config = self.config
+        self.jimaku.prepare_display = self.prepare_subtitle_display
+        self.jimaku_radius_migrated = not bool(self.config.get("JIMAKU_PRIMARY_MIGRATED"))
+        if self.jimaku_radius_migrated:
+            self.config.set_many({"DOWNLOAD_WINDOW": 2, "JIMAKU_PRIMARY_MIGRATED": True})
         self._ruby_generator = None
         self._ruby_generator_failed = False
         self._auto_ruby_cache: Dict[str, object] = {}
@@ -175,18 +201,47 @@ class SubtitleManager:
         self._episode_prepare_worker_started = False
         self._search_dialog_lock = threading.Lock()
         self._shutdown_event = threading.Event()
-
+        self._register_cache_cleanup()
+        self.startup_needs_source = True
+        self.remote_search_query = self.config.get("LAST_REMOTE_SEARCH_QUERY") or ""
+        self.all_results_items = []
+        # Startup is disk-only. Searches/downloads require a choice after the UI
+        # is visible, rather than trapping startup in an obsolete remote query.
+        local_srt_path = self.config.get("LAST_LOCAL_SRT_FILE")
         if self.remote_flag:
             url = self.config.get("LAST_GITHUB_URL")
-            # If we don't have a URL yet, fall back to the same "choose source" dialog used by set_new_file().
-            # This gives the user local/remote-url/remote-search options at startup too.
-            local_srt_path = self._initialize_remote_path(url) if url else None
-            if self._config_bool("REMOTE_CACHE_CLEANUP_ON_EXIT", False):
-                self._register_cache_cleanup()
-        else:
-            local_srt_path = self.config.get("LAST_LOCAL_SRT_FILE")
-        self._load_local_and_process(local_srt_path)
-        # self._trying_search_queries()#debugging
+            if url:
+                try:
+                    self._extract_and_set_remote_episode_metadata(url)
+                    expected_name = self.sanitize_filename(os.path.basename(self.remote_path or ""))
+                    if local_srt_path and os.path.basename(local_srt_path) != expected_name:
+                        local_srt_path = None
+                    if not local_srt_path or not os.path.isfile(local_srt_path):
+                        local_srt_path = self._remote_item_cache_path({"path": self.remote_path,
+                            "season": self.current_season})
+                except Exception:
+                    logger.info("Saved remote source needs user selection", exc_info=True)
+                    local_srt_path = None
+            try:
+                record = next((row for row in self._list_cached_github_search_records()
+                               if row.get("query", "").casefold() == self.remote_search_query.casefold()), None)
+                if record:
+                    self.all_results_items = remote_search_cache_items(load_remote_search_cache_payload(record["path"]))
+                    self.build_remote_episode_maps()
+            except Exception:
+                logger.info("Saved episode map unavailable; no startup search performed")
+        if local_srt_path and os.path.isfile(local_srt_path):
+            try:
+                self._load_local_and_process(local_srt_path)
+            except Exception:
+                logger.exception("Saved subtitles could not be loaded; opening source selection after startup")
+                self.srt_file = None
+                self.subtitles, self.display_data = [], []
+                self.display_start_times, self.display_end_times = [], []
+                self.startup_needs_source = True
+        if self.startup_needs_source:
+            self.current_season = self.current_episode = None
+            logger.info("No usable local subtitle source; waiting for user choice after startup")
 
     def _config_bool(self, key: str, default: bool = False) -> bool:
         try:
@@ -222,17 +277,48 @@ class SubtitleManager:
         return value
     
     def _register_cache_cleanup(self) -> None:
+        if getattr(self, "_cache_cleanup_registered", False):
+            return
+        self._cache_cleanup_registered = True
+
         def _cleanup():
-            try:
-                base = self._get_cache_base_dir()
-                if os.path.exists(base):
-                    shutil.rmtree(base, ignore_errors=True)
-                    logger.debug("Removed runtime cache: %s", base)
-            except Exception:
-                logger.debug("Failed to cleanup cache on exit", exc_info=True)
+            # Read the current setting at exit, including changes made during
+            # this session. Keep maps, account state and title catalogs intact.
+            if not self._config_bool("REMOTE_CACHE_CLEANUP_ON_EXIT", False):
+                return
+            module_dir = Path(__file__).absolute().parent
+            roots = (module_dir / "cache_github", module_dir.parent / "cache_jimaku")
+            for root in roots:
+                try:
+                    if not root.exists() or root.is_symlink() or root.is_junction():
+                        continue
+                    resolved_root = root.resolve()
+                    for child in root.iterdir():
+                        if root.name == "cache_jimaku" and child.name in {
+                                "catalog_anime.json", "catalog_drama.json",
+                                "catalog_anime.tmp", "catalog_drama.tmp"}:
+                            continue
+                        # Never follow a redirected cache directory outside its
+                        # intended root. Only provider-owned cache children qualify.
+                        if child.is_symlink() or child.is_junction():
+                            continue
+                        resolved = child.resolve()
+                        if not resolved.is_relative_to(resolved_root) or resolved == resolved_root:
+                            continue
+                        try:
+                            if child.is_dir():
+                                shutil.rmtree(child)
+                            else:
+                                child.unlink(missing_ok=True)
+                        except OSError:
+                            logger.warning("Could not remove downloaded subtitle cache: %s", child)
+                    logger.debug("Cleaned downloaded subtitle cache: %s", root)
+                except OSError:
+                    logger.debug("Failed to clean cache on exit: %s", root, exc_info=True)
         atexit.register(_cleanup)
 
     def shutdown(self) -> None:
+        self.jimaku.prefetch_epoch += 1
         try:
             self._shutdown_event.set()
         except Exception:
@@ -293,6 +379,8 @@ class SubtitleManager:
                 pass
 
     def save_state(self):
+        if getattr(self, "startup_needs_source", False):
+            return  # No new source was chosen; retain the previous source settings.
         if bool(self.config.get("REMOTE_FLAG")) != bool(self.remote_flag):
             self.config.set("REMOTE_FLAG", bool(self.remote_flag))
         #save all the variables to config on close:
@@ -334,6 +422,37 @@ class SubtitleManager:
         self.srt_file = local_srt_path
         self._extract_and_set_local_episode_metadata(local_srt_path)
         self.set_subtitle_display_data(local_srt_path)
+        self.startup_needs_source = False
+        descriptor = self.jimaku.descriptor_for_path(local_srt_path, self.config.get("JIMAKU_SOURCES"))
+        if descriptor:
+            descriptor = self.jimaku.series.describe_path(local_srt_path, descriptor, self.extract_season_episode_global)
+        self.source_kind = "github" if self.remote_flag else ("jimaku" if descriptor else "local")
+        self.source_descriptor = descriptor if self.source_kind == "jimaku" else None
+        if self.source_kind == "jimaku":
+            self.anime_folder_name = self.display_anime_name = descriptor["title"]
+            season, episode, _absolute = self.jimaku.episode_for_path(
+                local_srt_path, descriptor, self.extract_season_episode_global)
+            if episode is not None:
+                self.current_season, self.current_episode = season, episode
+                self.is_movie = False
+            if descriptor.get("episode_key") and self.jimaku.series.get(descriptor):
+                selected = self.jimaku.series.resolve(descriptor)
+                self.current_season, self.current_episode = selected["season"], selected["episode"]
+            if descriptor.get("movie"):
+                self.current_season = self.current_episode = None
+                self.is_movie = True
+        self.config.set_many({"LAST_SUBTITLE_SOURCE_KIND": self.source_kind,
+                              "LAST_SUBTITLE_SOURCE_DESCRIPTOR": self.source_descriptor})
+        sources = self.config.get("JIMAKU_SOURCES") or []
+        source = next((row for row in sources if isinstance(row, dict)
+                       and os.path.normcase(str(row.get("directory", ""))) == os.path.normcase(os.path.dirname(os.path.abspath(local_srt_path)))), None)
+        if source and not self.remote_flag and not (descriptor and descriptor.get("series_id")):
+            self.anime_folder_name = self.display_anime_name = source["title"]
+            if source.get("movie"):
+                self.current_season = self.current_episode = None
+                self.is_movie = True
+            self.config.set("LAST_ANIME_NAME", self.anime_folder_name)
+            self.config.set("LAST_DISPLAY_ANIME_NAME", self.display_anime_name)
         if self.is_movie:
             logger.info(f"Loaded subtitle: Movie | {local_srt_path}")
         else:
@@ -442,9 +561,22 @@ class SubtitleManager:
     def _take_prepared_episode_payload(self, local_path: str) -> Optional[dict]:
         key = self._prepared_episode_key(local_path)
         with self._prepared_episode_lock:
-            payload = self._prepared_episode_cache.pop(key, None)
+            payload = self._prepared_episode_cache.get(key)
+            if payload is not None:
+                self._prepared_episode_cache.move_to_end(key)
             self._episode_prepare_seen.discard(key)
         return payload
+
+    def prepare_subtitle_display(self, local_path):
+        """Background callers reuse the same bounded, settings-scoped payload cache."""
+        key = self._prepared_episode_key(local_path)
+        payload = self._take_prepared_episode_payload(local_path)
+        if payload is None:
+            payload = self._build_subtitle_display_payload(local_path, allow_eager_auto=False)
+            if key != self._prepared_episode_key(local_path):
+                raise ValueError("Subtitle file or display settings changed while preparing it; try again")
+            self._store_prepared_episode_payload(local_path, payload, key)
+        return key, payload
 
     def _store_prepared_episode_payload(self, local_path: str, payload: dict, key: tuple) -> None:
         if self._shutdown_event.is_set():
@@ -459,6 +591,9 @@ class SubtitleManager:
                 self._prepared_episode_cache.popitem(last=False)
 
     def _build_subtitle_display_payload(self, local_path: str, allow_eager_auto: bool = True) -> dict:
+        from hashlib import sha256
+        identity = self._subtitle_file_identity_for_path(local_path)
+        source_hash = sha256(Path(local_path).read_bytes()).hexdigest()
         subtitles = self.load_subtitles(local_path)
 
         auto_ruby_enabled = self._auto_ruby_enabled()
@@ -520,6 +655,8 @@ class SubtitleManager:
                 auto_ruby_ready_indices.add(int(display_idx))
         
         episode_time = time.time() - episode_start
+        if identity != self._subtitle_file_identity_for_path(local_path):
+            raise ValueError("Subtitle file changed while loading it; try again")
         return {
             "subtitles": subtitles,
             "display_data": display_data,
@@ -527,6 +664,8 @@ class SubtitleManager:
             "display_end_times": display_end_times,
             "auto_ruby_ready_indices": auto_ruby_ready_indices,
             "episode_time": episode_time,
+            "source_file_identity": identity,
+            "source_content_hash": source_hash,
         }
 
     def _apply_subtitle_display_payload(self, payload: dict) -> None:
@@ -535,6 +674,9 @@ class SubtitleManager:
         self.display_start_times = payload["display_start_times"]
         self.display_end_times = payload.get("display_end_times") or self._display_end_times_from_subtitles()
         self._auto_ruby_ready_indices = payload["auto_ruby_ready_indices"]
+        self.display_revision = getattr(self, "display_revision", 0) + 1
+        self.display_file_identity = payload.get("source_file_identity")
+        self.display_source_hash = payload.get("source_content_hash")
         episode_time = float(payload.get("episode_time", 0.0))
         if hasattr(self, '_ruby_stats'):
             self._ruby_stats["episode_load_times"].append(episode_time)
@@ -567,6 +709,7 @@ class SubtitleManager:
         payload = self._take_prepared_episode_payload(local_path)
         if payload is None:
             payload = self._build_subtitle_display_payload(local_path, allow_eager_auto=True)
+            self._store_prepared_episode_payload(local_path, payload, self._prepared_episode_key(local_path))
         self._apply_subtitle_display_payload(payload)
 
     def load_subtitles(self, local_path: str) -> List[srt.Subtitle]:
@@ -698,6 +841,10 @@ class SubtitleManager:
         return items
 
     def _clean_text(self, text: str) -> str:
+        # Some SRT exports retain ASS line/space escapes, including doubled
+        # backslashes. Decode these before speaker/note cleanup and analysis.
+        text = re.sub(r"\\+[Nn]", "\n", text or "")
+        text = re.sub(r"\\+h", " ", text)
         cleaned = self.CLEAN_PATTERN.sub('', text)
         cleaned = normalize_ruby_spacing(self._clean_html_tags(cleaned))
 
@@ -1123,7 +1270,9 @@ class SubtitleManager:
         if i in ready:
             return
 
-        clean, start_times, top, bottom = self.display_data[i]
+        source_data = self.display_data
+        source_ready = ready
+        clean, start_times, top, bottom = source_data[i]
         lines = [l for l in (clean or "").splitlines() if l.strip()]
         if not lines:
             ready.add(i)
@@ -1135,7 +1284,9 @@ class SubtitleManager:
             new_top = self._parse_ruby_segments(lines[0], allow_auto=True)
             new_bottom = self._parse_ruby_segments(lines[1], allow_auto=True)
 
-        self.display_data[i] = (clean, start_times, new_top, new_bottom)
+        if self.display_data is not source_data or self._auto_ruby_ready_indices is not source_ready:
+            return  # An old episode's background result cannot replace the new one.
+        source_data[i] = (clean, start_times, new_top, new_bottom)
         self._invalidate_geometry_cache()
         ready.add(i)
 
@@ -1412,7 +1563,8 @@ class SubtitleManager:
 
     def get_episode_metadata(self): return (self.github_owner, self.github_repo, self.remote_path,
                                             self.anime_folder_name, self.file_name, self.current_season, self.current_episode)
-    def get_total_duration(self) -> float: return self.subtitles[-1].end.total_seconds()
+    def get_total_duration(self) -> float:
+        return max((subtitle.end.total_seconds() for subtitle in self.subtitles), default=0.0)
     def get_current_season(self) -> int: return self.current_season
     def get_current_episode(self) -> int: return self.current_episode
 # ---------------------- get data -------------------------
@@ -1514,6 +1666,9 @@ class SubtitleManager:
         raw: Optional[int] = None,
         target_season: Optional[int] = None,
     ) -> Tuple[Optional[int], Optional[int]]:
+        if self.source_kind == "jimaku":
+            # Downloads are requested asynchronously by EpisodeController.
+            return self.current_season, self.current_episode
         if self.remote_flag:
             return self.change_episode_remote(action, raw, target_season)
         return self.change_episode_local(action, raw, target_season)
@@ -1627,6 +1782,15 @@ class SubtitleManager:
         Returns (can_dec, can_inc, is_movie) for UI.
         We only disable buttons when we *know* there is no prev/next episode from the current maps/index.
         """
+        if self.source_kind == "jimaku" and not self.is_movie:
+            if self.source_descriptor and self.source_descriptor.get("episode_key") and self.jimaku.series.get(self.source_descriptor):
+                record = self.jimaku.series.get(self.source_descriptor)
+                rows = self.jimaku.series.episodes(record)
+                index = next((i for i, row in enumerate(rows) if row["key"] == self.source_descriptor["episode_key"]), 0)
+                return index > 0, index < len(rows)-1 or not record["parts"][-1]["end_confirmed"], False
+            values = self.get_episode_dropdown_values()
+            current = self.get_current_global() or self.current_episode or 0
+            return any(value < current for value in values), any(value > current for value in values), False
         if getattr(self, "is_movie", False):
             return False, False, True
 
@@ -1680,6 +1844,14 @@ class SubtitleManager:
         Remote mode: show *all* global episodes from the remote episode map (even if not downloaded yet).
         Local mode: show global episodes if available, otherwise local episodes (prefer current season).
         """
+        if self.source_kind == "jimaku":
+            if (self.source_descriptor or {}).get("series_separate"):
+                return sorted({row["episode"] for row in self.jimaku.cached_candidates(
+                    self.source_descriptor, self.extract_season_episode_global)
+                    if row["season"] == self.current_season and row["episode"] is not None})
+            return sorted({row.get("global") or row["episode"] for row in self.jimaku.cached_candidates(
+                self.source_descriptor, self.extract_season_episode_global)
+                if row.get("global") or row.get("episode")})
         # Remote: prefer complete global map.
         if getattr(self, "remote_flag", False):
             m = getattr(self, "remote_episode_map_global", None)
@@ -1748,6 +1920,11 @@ class SubtitleManager:
         Rich dropdown rows for UI display. The plain integer API above remains
         available for older callers/tests.
         """
+        if self.source_kind == "jimaku":
+            record = self.jimaku.series.get(self.source_descriptor)
+            if record:
+                return [{"label": row["label"], "value": row["key"]} for row in self.jimaku.series.episodes(record)]
+            return [{"label": str(value), "value": value} for value in self.get_episode_dropdown_values()]
         items: List[dict] = []
 
         def add(global_value, season, episode, name=""):
@@ -1823,6 +2000,9 @@ class SubtitleManager:
         ]
 
     def get_current_episode_label(self) -> str:
+        if (self.source_kind == "jimaku" and (self.source_descriptor or {}).get("episode_key")
+                and self.jimaku.series.get(self.source_descriptor)):
+            return self.jimaku.series.resolve(self.source_descriptor)["label"]
         if getattr(self, "current_episode", None) is None:
             return "Movie"
         season = getattr(self, "current_season", None)
@@ -2452,7 +2632,110 @@ class SubtitleManager:
             e = int(g)
         return s, e
 
-    def choose_new_file(self) -> Optional[str]:
+    def choose_jimaku_source(self, parent=None, *, query="", valid=None, expected=None, entry_id=None, anilist_id=None):
+        from view.jimaku_search import choose_jimaku
+        browser_context = dict(getattr(self, "_browser_source_context", {}) or {})
+        if not query:
+            from model.browser_titles import browser_search_title
+            query = browser_search_title(browser_context.get("title"), browser_context.get("pageUrl"))
+        if expected is None and browser_context.get("episode"):
+            expected = {key: browser_context.get(key) for key in ("episode", "season", "scope")}
+        path, entry = choose_jimaku(parent or getattr(tk, "_default_root", None), self.config,
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cache_jimaku"),
+            initial_query=query, client=self.jimaku.client, parser=self.extract_season_episode_global,
+            initial_entry_id=entry_id, initial_anilist_id=anilist_id)
+        if entry and entry.get("_github_backup"):
+            if valid is not None and not valid():
+                return None
+            return self.choose_new_file(backup_only=True)
+        if not path or not entry or (valid is not None and not valid()):
+            return None
+        if self.source_kind == "jimaku" and self.source_descriptor and self.source_descriptor.get("entry_id") == entry["id"]:
+            entry["display_name"] = self.display_anime_name or self.anime_folder_name
+        elif self.jimaku.client.normalized(self.anime_folder_name) in {
+                self.jimaku.client.normalized(alias) for alias in self.jimaku.aliases(entry)}:
+            entry["display_name"] = self.display_anime_name or self.anime_folder_name
+        expected = expected or getattr(self, "_jimaku_expected_context", None)
+        mapping = None
+        if expected and expected.get("episode") and not entry.get("flags", {}).get("movie"):
+            selection = entry.get("_selection") or {}
+            selected_file = selection.get("file") or {}
+            original_name = selection.get("member_names", {}).get(path)
+            if not original_name and not str(selected_file.get("name", "")).lower().endswith(".zip"):
+                original_name = selected_file.get("name")
+            s, e, g = self.extract_season_episode_global(original_name or os.path.basename(path))
+            use_absolute = expected.get("scope") == "global" or (not expected.get("season") and g is not None)
+            actual = (g or e) if use_absolute else (e or g)
+            if actual is None:
+                messagebox.showinfo("Jimaku episode", "Die Episodennummer dieser Datei ist nicht erkennbar. Bitte eine eindeutig nummerierte Datei wählen.", parent=parent)
+                return None
+            mismatch = actual != int(expected["episode"]) or (expected.get("season") and s and int(expected["season"]) != s)
+            if mismatch and not messagebox.askyesno("Jimaku episode mapping",
+                    f"Browser: Staffel {expected.get('season') or '?'} / Folge {expected['episode']}\n"
+                    f"Datei: Staffel {s or '?'} / Folge {e or '?'}"
+                    + (f" / Gesamtfolge {g}" if g is not None else "")
+                    + "\n\nDiese Zuordnung für weitere Folgen verwenden?", parent=parent):
+                return None
+            if mismatch:
+                mapping = {"scope": expected.get("scope") or "season", "browser_season": expected.get("season"),
+                           "browser_base": int(expected["episode"]), "source_season": None if use_absolute else s,
+                           "source_base": actual, "source_scope": "global" if use_absolute else "season"}
+        descriptor = {"entry_id": int(entry["id"]), "title": entry.get("display_name") or entry.get("name") or "Jimaku",
+                      "anime": bool(entry.get("flags", {}).get("anime", True)), "movie": bool(entry.get("flags", {}).get("movie"))}
+        selected_info = entry.get("_selection") or {}
+        selected_name = selected_info.get("member_names", {}).get(path) or (selected_info.get("file") or {}).get("name") or os.path.basename(path)
+        separate = self.extract_season_episode_global(selected_name)[0] == 0
+        if descriptor.get("anime", True) and not descriptor.get("movie") and not self.jimaku.series.get(descriptor):
+            if not separate and not self.jimaku.series.excluded_entry(descriptor["entry_id"]):
+                confirmation = self.confirm_jimaku_series(parent or tk._default_root, descriptor, valid=valid, seed=entry)
+                if not confirmation:
+                    return None
+                separate = bool(confirmation.get("separate"))
+        descriptor = self.jimaku.remember_selection(entry, path, self.extract_season_episode_global, mapping=mapping)
+        if separate:
+            descriptor["series_separate"] = True
+        descriptor = self.jimaku.series.describe_path(path, descriptor, self.extract_season_episode_global)
+        self.jimaku.remember_path(path, descriptor)
+        # The explicit user selection binds the browser's stable series identity,
+        # including when startup had no cached subtitle file to restore.
+        current_context = getattr(self, "_browser_source_context", {}) or {}
+        if (browser_context.get("pageKey") and
+                browser_context.get("pageUrl") == current_context.get("pageUrl")):
+            from model.timing_map import digest
+            self.jimaku.bind(digest(browser_context["pageKey"].encode()), descriptor, browser_context.get("title", ""))
+            self.jimaku.bind(browser_context.get("seriesKey"), descriptor, browser_context.get("title", ""))
+        directory = os.path.dirname(os.path.abspath(path))
+        sources = [row for row in (self.config.get("JIMAKU_SOURCES") or [])
+                   if isinstance(row, dict) and row.get("directory") != directory]
+        sources.append({"directory": directory, "title": descriptor.get("title") or entry.get("name") or "Jimaku",
+                        "entry_id": entry["id"], "movie": bool(entry.get("flags", {}).get("movie"))})
+        self.config.set("JIMAKU_SOURCES", sources[-50:])
+        self.remote_flag = False
+        self.config.set("REMOTE_FLAG", False)
+        return path
+
+    def confirm_jimaku_series(self, parent, descriptor=None, *, proposal=None, refresh=False, valid=None, seed=None):
+        from view.jimaku_series import choose_series_map
+        selected = descriptor or self.source_descriptor
+        if not selected or selected.get("movie") or not selected.get("anime", True):
+            return None
+        result = choose_series_map(parent, self.jimaku, selected, self.extract_season_episode_global,
+                                   proposal=proposal, refresh=refresh, valid=valid, seed=seed)
+        if result and result.get("separate"):
+            return result
+        if result and self.source_descriptor and self.jimaku.series.get(self.source_descriptor):
+            self.source_descriptor = self.jimaku.series.describe_path(self.srt_file, self.source_descriptor,
+                                                                    self.extract_season_episode_global)
+            if self.source_descriptor.get("episode_key"):
+                row = self.jimaku.series.resolve(self.source_descriptor)
+                self.current_season, self.current_episode = row["season"], row["episode"]
+                record = self.jimaku.series.get(self.source_descriptor)
+                self.anime_folder_name = self.display_anime_name = record["title"]
+        if result:
+            self._jimaku_map_changed = True
+        return result
+
+    def choose_new_file(self, *, backup_only=False) -> Optional[str]:
         """
         Prompt the user to select a new subtitle source.
 
@@ -2468,11 +2751,26 @@ class SubtitleManager:
         try:
             popup = tk.Toplevel()
             popup.title("Choose Source")
+            dialog_root = popup._root()
+            previous_source_window = getattr(dialog_root, "_subtitleplayer_source_window", None)
+            dialog_root._subtitleplayer_source_window = popup
+            def restore_source_window(event):
+                if event.widget is popup and getattr(dialog_root, "_subtitleplayer_source_window", None) is popup:
+                    dialog_root._subtitleplayer_source_window = previous_source_window
+            popup.bind("<Destroy>", restore_source_window, add="+")
             popup.attributes("-topmost", True)
-            popup.grab_set()
+            pass  # Keep the subtitle overlay draggable while this dialog is open.
             popup.resizable(True, True)
 
             tk.Label(popup, text="Select source for subtitle file:", font=("Arial", 12)).pack(pady=(12, 8))
+            if self.startup_needs_source:
+                context = getattr(self, "_browser_source_context", {}) or {}
+                from model.browser_titles import browser_search_title
+                current_title = browser_search_title(context.get("title"), context.get("pageUrl"))
+                previous = current_title or self.config.get("LAST_ANIME_NAME") or ""
+                tk.Label(popup, text="No downloaded subtitle file is available. Choose a source."
+                         + (("\nBrowser anime: " if current_title else "\nLast anime: ")+previous if previous else ""),
+                         wraplength=400, justify="left").pack(fill="x", padx=16, pady=(0, 8))
             button_frame = tk.Frame(popup)
             button_frame.pack(pady=8)
 
@@ -2492,6 +2790,27 @@ class SubtitleManager:
                 # Bring the startup splash back while we parse/process the chosen file.
                 show_startup_overlay()
                 _done(path)
+
+            def choose_jimaku_search():
+                path = self.choose_jimaku_source(popup)
+                if not path:
+                    pass  # Keep the subtitle overlay draggable while this dialog is open.
+                    return
+                _done(path)
+
+            def choose_personal_list():
+                choose = getattr(self, "choose_anilist_list", None)
+                path = choose(popup) if choose else None
+                if path:
+                    _done(path)
+                elif popup.winfo_exists():
+                    pass  # Keep the subtitle overlay draggable while this dialog is open.
+            def refresh_jimaku_map():
+                if self.source_kind != "jimaku" or not self.source_descriptor:
+                    return
+                if self.confirm_jimaku_series(popup, refresh=True):
+                    self.source_descriptor = self.jimaku.series.describe_path(self.srt_file, self.source_descriptor,
+                                                                            self.extract_season_episode_global)
 
             def choose_remote_url():
                 url, s, e, is_movie_mode = self.ask_remote_srt_with_hint()
@@ -2523,6 +2842,12 @@ class SubtitleManager:
                         movie_mode=is_movie_mode,
                         preserve_search_query=False,
                     )
+                    if not result["path"] or not os.path.isfile(result["path"]):
+                        if overlay:
+                            overlay.close()
+                            overlay = None
+                        hide_startup_overlay()
+                        result["path"] = self.choose_jimaku_source(query=self.anime_folder_name or "")
                 except Exception as exc:
                     logger.exception("Remote URL initialization failed")
                     try:
@@ -2560,6 +2885,12 @@ class SubtitleManager:
                         hint=hint,
                         movie_mode=is_movie_mode,
                     )
+                    if not result["path"] or not os.path.isfile(result["path"]):
+                        if overlay:
+                            overlay.close()
+                            overlay = None
+                        hide_startup_overlay()
+                        result["path"] = self.choose_jimaku_source(query=anime_query)
                 except Exception as exc:
                     logger.exception("Remote search initialization failed")
                     try:
@@ -2597,6 +2928,12 @@ class SubtitleManager:
                         hint=hint,
                         movie_mode=is_movie_mode,
                     )
+                    if not result["path"] or not os.path.isfile(result["path"]):
+                        if overlay:
+                            overlay.close()
+                            overlay = None
+                        hide_startup_overlay()
+                        result["path"] = self.choose_jimaku_source(query=record.get("query") or "")
                 except Exception as exc:
                     logger.exception("Saved remote search initialization failed")
                     try:
@@ -2628,15 +2965,31 @@ class SubtitleManager:
                 messagebox.showinfo("Refresh Episodes", f"Episode map refreshed. Added {added} episode(s).", parent=popup)
                 _done(getattr(self, "srt_file", None))
 
-            tk.Button(button_frame, text="Local File", width=15, command=choose_local).grid(row=0, column=0, padx=6, pady=4)
-            tk.Button(button_frame, text="Remote URL", width=15, command=choose_remote_url).grid(row=0, column=1, padx=6, pady=4)
-            tk.Button(button_frame, text="Remote Search", width=15, command=choose_remote_search).grid(row=1, column=0, padx=6, pady=4)
-            tk.Button(button_frame, text="Use Saved Search", width=15, command=choose_saved_remote_search).grid(row=1, column=1, padx=6, pady=4)
-            tk.Button(button_frame, text="Refresh Current Anime", width=32, command=refresh_current_anime).grid(
-                row=2, column=0, columnspan=2, padx=6, pady=4, sticky="ew"
-            )
+            tk.Button(button_frame, text="Jimaku Search", width=32, command=choose_jimaku_search).grid(
+                row=0, column=0, columnspan=2, padx=6, pady=4, sticky="ew")
+            if backup_only:
+                for widget in button_frame.grid_slaves(row=0):
+                    widget.destroy()
+            else:
+                tk.Button(button_frame, text="Local File", width=32, command=choose_local).grid(row=1, column=0, columnspan=2, padx=6, pady=4, sticky="ew")
+            backup_frame = tk.LabelFrame(button_frame, text="GitHub — Backup")
+            if not backup_only:
+                tk.Button(button_frame, text="Meine AniList-Liste…", width=32, command=choose_personal_list).grid(
+                    row=2, column=0, columnspan=2, padx=6, pady=4, sticky="ew")
+                if self.source_kind == "jimaku":
+                    saved_map = self.jimaku.series.get(self.source_descriptor)
+                    additions = len((saved_map or {}).get("pending_parts", []))
+                    label = f"Jimaku: Map aktualisieren (+{additions})…" if additions else "Jimaku: Map aktualisieren…"
+                    tk.Button(button_frame, text=label, width=32, command=refresh_jimaku_map).grid(
+                        row=3, column=0, columnspan=2, padx=6, pady=4, sticky="ew")
+            backup_frame.grid(row=4 if not backup_only else 2, column=0, columnspan=2, padx=6, pady=(10, 4), sticky="ew")
+            tk.Button(backup_frame, text="URL", width=15, command=choose_remote_url).grid(row=0, column=0, padx=4, pady=4)
+            tk.Button(backup_frame, text="Search", width=15, command=choose_remote_search).grid(row=0, column=1, padx=4, pady=4)
+            tk.Button(backup_frame, text="Saved searches", width=15, command=choose_saved_remote_search).grid(row=1, column=0, padx=4, pady=4)
+            tk.Button(backup_frame, text="Refresh map", width=15, command=refresh_current_anime).grid(row=1, column=1, padx=4, pady=4)
 
-            self._fit_dialog_to_screen(popup, min_w=330, min_h=150)
+            self._fit_dialog_to_screen(popup, min_w=440, min_h=180)
+            popup.minsize(popup.winfo_width(), popup.winfo_height())
             popup.wait_window(popup)
             return result["path"]
         finally:
@@ -2652,7 +3005,7 @@ class SubtitleManager:
             dlg = tk.Toplevel()
             dlg.title("Remote subtitle (URL + sXeY)")
             dlg.attributes("-topmost", True)
-            dlg.grab_set()
+            pass  # Keep the subtitle overlay draggable while this dialog is open.
             dlg.resizable(True, True)
             dlg.grid_columnconfigure(1, weight=1)
 
@@ -2858,7 +3211,7 @@ class SubtitleManager:
             chooser.title("Choose cached search")
             chooser.attributes("-topmost", True)
             chooser.transient(parent)
-            chooser.grab_set()
+            pass  # Keep the subtitle overlay draggable while this dialog is open.
             chooser.resizable(True, True)
 
             tk.Label(chooser, text="Select a cached anime query:", anchor="w").pack(padx=8, pady=(8, 4), fill="x")
@@ -2999,7 +3352,7 @@ class SubtitleManager:
             chooser.title("Use Saved Search")
             chooser.attributes("-topmost", True)
             chooser.transient(parent)
-            chooser.grab_set()
+            pass  # Keep the subtitle overlay draggable while this dialog is open.
             chooser.resizable(True, True)
             chooser.grid_columnconfigure(0, weight=1)
 
@@ -3250,7 +3603,7 @@ class SubtitleManager:
                     dlg.transient(root)
                 except Exception:
                     pass
-            dlg.grab_set()
+            pass  # Keep the subtitle overlay draggable while this dialog is open.
             dlg.resizable(True, True)
             dlg.grid_columnconfigure(0, weight=1)
 
@@ -3262,6 +3615,8 @@ class SubtitleManager:
             query_row.grid_columnconfigure(0, weight=1)
             query_entry = tk.Entry(query_row, width=25)
             query_entry.grid(row=0, column=0, sticky="ew")
+            query_entry.insert(0, self.config.get("LAST_REMOTE_SEARCH_QUERY") or "")
+            query_entry.selection_range(0, "end")
             try:
                 dlg.after(0, lambda: query_entry.focus_set())
             except Exception:
@@ -4067,6 +4422,9 @@ class SubtitleManager:
         Search GitHub code API for subtitle files under a specific path.
         Returns normalized items with parsed season/episode/global metadata.
         """
+        if time.time() < getattr(type(self), "_github_search_retry_until", 0):
+            self._last_remote_search_failure = "GitHub search rate limit; existing map retained"
+            return []
         anime_query = self._normalize_search_query_text(anime_query or "")
         repo_sub_path = (repo_sub_path or "").strip().strip("/")
         if not anime_query or not repo_sub_path:
@@ -4101,11 +4459,18 @@ class SubtitleManager:
                 try:
                     resp = session.get(api_url, params=params, timeout=15)
                 except requests.RequestException:
+                    self._last_remote_search_failure = "GitHub network error; existing map retained"
                     logger.exception("GitHub path search failed: query=%s", q)
                     break
 
                 if resp.status_code != 200:
+                    if resp.status_code in (403, 429):
+                        self._defer_github_search(resp.headers)
+                        self._last_remote_search_failure = "GitHub search rate limit; existing map retained"
+                        logger.warning("GitHub search paused after HTTP %s; existing map retained", resp.status_code)
+                        return out
                     logger.error("GitHub path search failed (%s): %s", resp.status_code, resp.text)
+                    self._last_remote_search_failure = f"GitHub search failed (HTTP {resp.status_code}); existing map retained"
                     break
 
                 data = resp.json()
@@ -4533,9 +4898,14 @@ class SubtitleManager:
 
         old_items = [dict(item) for item in (getattr(self, "all_results_items", None) or []) if isinstance(item, dict)]
         old_count = len(old_items)
+        self._last_remote_search_failure = None
 
         try:
             self._create_remote_episode_map_per_season(force_refresh=bool(force))
+            if self._last_remote_search_failure:
+                self.all_results_items = old_items
+                self.build_remote_episode_maps()
+                return {"ok": False, "reason": self._last_remote_search_failure}
             new_items = [dict(item) for item in (getattr(self, "all_results_items", None) or []) if isinstance(item, dict)]
 
             # A forced manual/auto refresh should also search the base anime path. This
@@ -4546,6 +4916,10 @@ class SubtitleManager:
                     self.anime_folder_name,
                     "subtitles/anime_tv",
                 )
+                if self._last_remote_search_failure:
+                    self.all_results_items = old_items
+                    self.build_remote_episode_maps()
+                    return {"ok": False, "reason": self._last_remote_search_failure}
                 if broad_items:
                     new_items = self._merge_remote_episode_items(new_items, broad_items)
 
@@ -4571,6 +4945,14 @@ class SubtitleManager:
                 logger.debug("Failed to restore previous remote episode map after refresh error", exc_info=True)
             logger.exception("Failed to refresh remote episode map")
             return {"ok": False, "reason": str(exc)}
+
+    def _defer_github_search(self, headers):
+        try:
+            reset = float(headers.get("X-RateLimit-Reset") or 0) + 3
+            retry = float(headers.get("Retry-After") or 60)
+        except (ValueError, TypeError):
+            reset, retry = 0, 60
+        type(self)._github_search_retry_until = max(time.time() + max(60, retry), reset)
 
     def _create_remote_episode_map_per_season(self, force_refresh: bool = False):
         #add end_season and anime name searches in the gui
@@ -4643,6 +5025,11 @@ class SubtitleManager:
             except Exception:
                 logger.exception("Failed to load cached GitHub search results from: %s", cache_path)
 
+        if time.time() < getattr(type(self), "_github_search_retry_until", 0):
+            self._last_remote_search_failure = "GitHub search rate limit; existing map retained"
+            if stale_cached_items:
+                self.all_results_items = stale_cached_items
+            return
         all_results_items: List[Dict] = []
         stop_reason = None
         last_rate_info = {}
@@ -4668,35 +5055,6 @@ class SubtitleManager:
             logger.debug("GitHub rate: limit=%s remaining=%s reset=%s", limit, remaining, reset_time)
             return {"limit": limit, "remaining": remaining, "reset": reset, "retry_after": retry_after}
 
-        def _wait_until_reset(hdr_info):
-            # honor Retry-After first
-            ra = hdr_info.get("retry_after")
-            if ra:
-                try:
-                    wait = int(ra) + 1
-                except Exception:
-                    wait = 60
-                logger.info("GitHub requested Retry-After %ss; sleeping %ss", ra, wait)
-                time.sleep(wait)
-                return
-            # otherwise use X-RateLimit-Reset
-            reset = hdr_info.get("reset")
-            if reset:
-                try:
-                    reset_ts = int(reset)
-                    now_ts = int(time.time())
-                    wait = max(reset_ts - now_ts + 3, 3)
-                    reset_time = datetime.datetime.utcfromtimestamp(reset_ts).isoformat() + "Z"
-                    logger.info("Sleeping %ss until GitHub rate reset at %s", wait, reset_time)
-                    time.sleep(wait)
-                    return
-                except Exception:
-                    pass
-            # fallback
-            logger.info("No GitHub rate reset info available; sleeping 60s as fallback")
-            time.sleep(60)
-            return
-        
         session = requests.Session()
         session.headers.update(headers)
 
@@ -4764,6 +5122,7 @@ class SubtitleManager:
                         params["page"] = page
                         try: resp = session.get(api_url, params=params, timeout=15)
                         except requests.RequestException as e:# network error: retain stale cache where possible
+                            self._last_remote_search_failure = "GitHub network error; existing map retained"
                             logger.error(f"network error: {e}")
                             if stale_cached_items:
                                 logger.warning("Using stale remote search cache after GitHub network failure.")
@@ -4813,43 +5172,25 @@ class SubtitleManager:
                             except Exception:
                                 rem_i = None
                             if rem_i is not None and rem_i <= 0:
-                                _wait_until_reset(last_rate_info)
+                                self._defer_github_search(hdr)
+                                self._last_remote_search_failure = "GitHub search rate limit; existing map retained"
+                                stop_reason, stop_season_loop = "rate_limit", True
+                                break
 
                             time.sleep(0.1)
                             continue
                         # Rate-limited or retryable responses: 403 / 429
                         if resp.status_code == 403 or resp.status_code == 429:
-                            # try to parse message
-                            try:
-                                msg = resp.json().get("message", "")
-                            except Exception:
-                                msg = resp.text or ""
-                            # honor Retry-After header if provided
-                            if hdr.get("Retry-After"):
-                                logger.info("GitHub Retry-After header present; waiting")
-                                _wait_until_reset(last_rate_info)
-                                continue
-                            # if remaining==0 or message mentions rate limit -> wait until reset
-                            rem = last_rate_info.get("remaining")
-                            if rem == "0" or (rem is not None and int(rem) == 0) or "rate limit" in msg.lower():
-                                logger.info("GitHub rate limit reached; waiting until reset")
-                                _wait_until_reset(last_rate_info)
-                                continue
-                            # abuse detection -> wait a longer time then retry
-                            if "abuse" in msg.lower():
-                                logger.warning("GitHub abuse detection triggered: %s. Sleeping 120s then retrying.", msg)
-                                time.sleep(120)
-                                continue
-                            logger.error("GitHub search failed: %s, %s", resp.status_code, resp.text)
-                            stop_reason = f"http_{resp.status_code}"
-                            stop_season_loop = True
+                            self._defer_github_search(hdr)
+                            self._last_remote_search_failure = "GitHub search unavailable/rate limited; existing map retained"
+                            stop_reason, stop_season_loop = "rate_limit", True
                             break
                         # Search API 1000-results cap
                         if resp.status_code == 422:
                             logger.warning("GitHub search API 422 cap reached; returning partial results")
+                            self._last_remote_search_failure = "GitHub search reached its 1000-result limit; existing map retained"
                             stop_reason = "search_api_1000_cap"
-                            if not season_searching:
-                                stop_season_loop = True
+                            stop_season_loop = True
                             break
                         logger.error("GitHub search failed: %s, %s", resp.status_code, resp.text)
                         stop_reason = f"http_{resp.status_code}"
@@ -5241,6 +5582,14 @@ class SubtitleManager:
 
     def get_current_global(self) -> Optional[int]:
         """Try to determine a global index for the currently loaded subtitle."""
+        if self.source_kind == "jimaku":
+            if (self.source_descriptor or {}).get("episode_key") and self.jimaku.series.get(self.source_descriptor):
+                return self.jimaku.series.resolve(self.source_descriptor)["global"]
+            if self.srt_file:
+                _s, _e, absolute = self.jimaku.episode_for_path(
+                    self.srt_file, self.source_descriptor, self.extract_season_episode_global)
+                return absolute or self.current_episode
+            return self.current_episode
         # 1) try to parse from the current filename
         if getattr(self, "srt_file", None):
             _, _, g = self.extract_season_episode_global(os.path.basename(self.srt_file))
@@ -5336,7 +5685,16 @@ class SubtitleManager:
         Downloads use the normal throttled queue. Parsing runs on one background
         worker and stores a small prepared payload cache for near-instant switches.
         """
-        if self._shutdown_event.is_set() or not getattr(self, "remote_flag", False):
+        if self.source_kind == "jimaku" and not self.startup_needs_source and self.current_episode is not None:
+            _season, _episode, absolute = self.jimaku.episode_for_path(
+                self.srt_file, self.source_descriptor, self.extract_season_episode_global)
+            scope = "global" if absolute is not None or self.current_season is None else "season"
+            self.jimaku.prefetch(self.source_descriptor, absolute or self.current_episode,
+                None if scope == "global" else self.current_season, scope,
+                self.extract_season_episode_global, self._config_int("DOWNLOAD_WINDOW", 2, minimum=0, maximum=50))
+            return
+        if (self._shutdown_event.is_set() or not getattr(self, "remote_flag", False)
+                or getattr(self, "startup_needs_source", False)):
             return
         if not getattr(self, "remote_episode_map_global", None):
             return
@@ -5936,7 +6294,7 @@ class SubtitleManager:
             except Exception:
                 logger.debug("Failed to remove cached file: %s", fn, exc_info=True)
 
-    def _download_file(self,remote_path, local_path, session=None):
+    def _download_file(self,remote_path, local_path, session=None, *, raise_errors=False):
         if os.path.exists(local_path):
             return
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
@@ -5951,6 +6309,8 @@ class SubtitleManager:
                 f.write(r.content)
         except Exception as e:
             logger.error(f"Download failed for {remote_path}: {e}")
+            if raise_errors:
+                raise
 # ---------------------- GitHub searching / downloading ----------------------
 #endregion -------------------------remote handling-----------------------------
 

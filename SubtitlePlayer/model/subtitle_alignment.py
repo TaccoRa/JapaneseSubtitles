@@ -11,6 +11,13 @@ from model.timing_map import TimingMap, digest
 _blocked_helpers = set()
 
 
+def normalized_reference(intervals):
+    # Parsed VTT and a player's cue API can represent the same millisecond as
+    # 165.456 or 165.45600000000002. Those are one observation, not competing
+    # onsets. Keep microsecond precision without altering source cue times.
+    return tuple(sorted({(round(a, 6), round(b, 6)) for a, b in intervals}))
+
+
 def local_onset_offsets(source, reference, max_shift=120):
     """Short rendered tracks need distinct onsets, not two 120-second windows.
 
@@ -96,11 +103,11 @@ def nearest(times, value):
     return min((abs(times[j] - value) for j in (i - 1, i) if 0 <= j < len(times)), default=float("inf"))
 
 
-def align_intervals(source, reference, source_hash, media_fingerprint, *, helper=None):
-    source, reference = tuple(map(tuple, source)), tuple(map(tuple, reference))
+def align_intervals(source, reference, source_hash, media_fingerprint, *, helper=None, _onset_only=False):
+    source, reference = tuple(map(tuple, source)), normalized_reference(reference)
     if len(source) < 8 or len(reference) < 8:
         raise ValueError("Not enough timing evidence yet")
-    reference_hash = digest(("onsets-v2:" + json.dumps(reference)).encode())
+    reference_hash = digest(("onsets-v4:" + json.dumps(reference)).encode())
     helper = Path(helper) if helper else Path(__file__).parents[1] / "bin" / "subtitle-align.exe"
     candidates = []
     # Common broadcast/frame-rate conversions; arbitrary drift is handled by
@@ -108,10 +115,10 @@ def align_intervals(source, reference, source_hash, media_fingerprint, *, helper
     for rate in (1.0, 25 / 23.976, 23.976 / 25, 24 / 23.976, 23.976 / 24):
         scaled = [(a * rate, b * rate) for a, b in source]
         offsets = None
-        if helper.is_file() and str(helper) not in _blocked_helpers:
+        if not _onset_only and helper.is_file() and str(helper) not in _blocked_helpers:
             request = json.dumps(dict(source=scaled, reference=reference))
             try:
-                process = subprocess.run([str(helper)], input=request, text=True, capture_output=True,
+                process = subprocess.run([str(helper)], input=request, text=True, encoding="utf-8", errors="replace", capture_output=True,
                                          timeout=60, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
                 if process.returncode:
                     raise RuntimeError("Local alignment helper failed")
@@ -126,8 +133,13 @@ def align_intervals(source, reference, source_hash, media_fingerprint, *, helper
             # The packaged Windows distribution includes the alass helper.
             from model.interval_alignment import Interval, fit
             try:
-                offsets = fit([Interval(*x) for x in scaled], [Interval(*x) for x in reference])["cue_offsets"]
+                if _onset_only:
+                    offsets = local_onset_offsets(scaled, reference)
+                else:
+                    offsets = fit([Interval(*x) for x in scaled], [Interval(*x) for x in reference])["cue_offsets"]
             except ValueError:
+                if _onset_only:
+                    continue
                 try:
                     offsets = local_onset_offsets(scaled, reference)
                 except ValueError:
@@ -141,6 +153,7 @@ def align_intervals(source, reference, source_hash, media_fingerprint, *, helper
         video = list(video)
         # Each timing region needs multiple cues in separated time windows.
         trusted = [False] * len(source)
+        preview = [False] * len(source)
         first = 0
         for stop in range(1, len(source) + 1):
             if stop < len(source) and abs(offsets[stop] - offsets[stop - 1]) < 0.35:
@@ -170,21 +183,57 @@ def align_intervals(source, reference, source_hash, media_fingerprint, *, helper
             support = [i for i, _ in pairs if errors[i] < 0.22]
             enough = (len(support) >= 6 and source[support[-1]][0] - source[support[0]][0] >= 30
                       and len(support) / (support[-1]-support[0]+1) >= 0.3)
+            if enough and rate != 1.0:
+                # A slightly different frame rate can accidentally fit isolated
+                # onsets around an edit. Do not turn those into continuous drift.
+                # Require distributed, consistent evidence and a real improvement
+                # over the best constant offset within this timing region.
+                corrections = [delta for _, delta in pairs]
+                center = median(corrections)
+                inliers = [(i, delta) for i, delta in pairs if abs(delta-center) <= .15]
+                span = source[support[-1]][0]-source[support[0]][0]
+                bins = [0, 0, 0, 0]
+                for i, _ in inliers:
+                    bucket = min(3, int(4*(source[i][0]-source[support[0]][0])/span))
+                    if bucket >= 0:
+                        bins[bucket] += 1
+                after = median(abs(delta-center) for _, delta in pairs)
+                constant = [delta + (rate-1)*source[i][0] for i, delta in pairs]
+                constant_center = median(constant)
+                before = median(abs(delta-constant_center) for delta in constant)
+                enough = (len(inliers) >= 12 and len(inliers) >= .85*len(pairs)
+                          and min(bins) >= 3 and abs(rate-1)*span >= .25
+                          and before-after >= .08)
             if enough:
                 # A short observed reference says nothing about earlier/later
                 # unobserved dialogue. Avoid rejecting its valid local section
                 # because unrelated surrounding cues inflate the denominator.
                 trusted[support[0]:support[-1]+1] = [True] * (support[-1]-support[0]+1)
+                # Missing/merged translations near a known edit must not jump
+                # back to the original clock. Keep the regional correction as
+                # an estimated preview inside the observed reference window.
+                for i in range(first, stop):
+                    preview[i] = starts[0] <= video[i][0] <= max(ends)
             first = stop
         try:
             mapping = TimingMap(source_hash, media_fingerprint, reference_hash, source, tuple(video),
-                                tuple(trusted), method)
+                                tuple(trusted), method, tuple(preview))
         except ValueError:
+            continue
+        # Untrusted solver output is not a candidate. It must not displace a
+        # supported model merely because coincidental onset hits score well.
+        if not any(trusted):
             continue
         score = sum(e < 0.22 for e in errors) - sum(not x for x in trusted)
         candidates.append((score, mapping))
     if not candidates:
-        raise ValueError("Alignment uncertain: insufficient corroborating evidence")
+        if not _onset_only:
+            # The interval solver may return a mathematically valid fit driven
+            # by caption ends. Rejection by onset validation must also trigger
+            # the independent onset solver, not only a solver exception.
+            return align_intervals(source, reference, source_hash, media_fingerprint,
+                                   helper=helper, _onset_only=True)
+        raise ValueError("Alignment uncertain: no corroborated subtitle-onset region")
     result = max(candidates, key=lambda x: x[0])[1]
     if not any(result.confidence):
         raise ValueError("Alignment uncertain: no supported timing region")

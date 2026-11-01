@@ -1,0 +1,11 @@
+.card { font-family: Arial, sans-serif; font-size: 24px; text-align: center;
+color: #202124; background: #faf9f6; line-height: 1.6; margin: 0; padding: 24px 16px; }
+.listening-card { max-width: 850px; margin: 0 auto; }
+.audio { font-size: 40px; margin: 12px 0 30px; }
+.translation { font-size: 1.1em; margin: 18px 0; }
+.hint { margin: 22px 0; padding: 14px 18px; border: 1px solid #aaa6; border-radius: 12px; }
+.hint summary { cursor: pointer; font-size: .75em; opacity: .8; }
+.japanese { margin-top: 16px; font-size: 1.15em; line-height: 2.1; }
+ruby rt { font-size: .5em; }
+.picture img { display: block; max-width: 100%; max-height: 55vh; object-fit: contain; margin: 24px auto; }
+.nightMode, .night_mode { color: #eee; background: #202124; }

@@ -53,10 +53,15 @@ def fit(target: list[Interval], reference: list[Interval], *, max_shift: float =
 
     costs = [score(target[0], offset) for offset in offsets]
     parents = [[-1] * len(offsets)]
-    for cue in target[1:]:
+    for index, cue in enumerate(target[1:], 1):
         next_costs, row = [], []
         for k, offset in enumerate(offsets):
-            choices = [v - (6.0 if prev != k else 0.0) for prev, v in enumerate(costs)]
+            # Repeated dialogue can resemble both sides of an edit. A timing
+            # step must not put the next source cue before the previous one;
+            # otherwise TimingMap correctly rejects the entire episode.
+            choices = [v - (6.0 if prev != k else 0.0)
+                       if target[index-1].start + offsets[prev] <= cue.start + offset
+                       else float("-inf") for prev, v in enumerate(costs)]
             prev = max(range(len(offsets)), key=lambda p: choices[p])
             next_costs.append(choices[prev] + score(cue, offset))
             row.append(prev)
@@ -77,7 +82,9 @@ def fit(target: list[Interval], reference: list[Interval], *, max_shift: float =
         old, new = labels[i - 1], labels[i]
         left = next((k for k in range(i - 1, -1, -1) if score(target[k], offsets[old]) >= 0.75), i - 1)
         right = next((k for k in range(i, len(target)) if score(target[k], offsets[new]) >= 0.75), i)
-        boundary = max(range(left + 1, right + 1), key=lambda k: target[k].start - target[k - 1].end)
+        boundaries = [k for k in range(left + 1, right + 1)
+                      if target[k-1].start + offsets[old] <= target[k].start + offsets[new]]
+        boundary = max(boundaries, key=lambda k: target[k].start - target[k - 1].end)
         for k in range(left + 1, right):
             labels[k] = old if k < boundary else new
 

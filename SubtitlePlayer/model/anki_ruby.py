@@ -15,16 +15,17 @@ try:
     from SubtitlePlayer.furigana_splitter import (
         iter_number_counter_matches,
         iter_ordinal_number_matches,
+        number_idiom_boundaries,
         split_furigana,
     )
 except ImportError:
     try:
-        from furigana_splitter import iter_number_counter_matches, iter_ordinal_number_matches, split_furigana
+        from furigana_splitter import iter_number_counter_matches, iter_ordinal_number_matches, number_idiom_boundaries, split_furigana
     except ImportError:
         _package_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
         if _package_dir not in sys.path:
             sys.path.insert(0, _package_dir)
-        from furigana_splitter import iter_number_counter_matches, iter_ordinal_number_matches, split_furigana
+        from furigana_splitter import iter_number_counter_matches, iter_ordinal_number_matches, number_idiom_boundaries, split_furigana
 
 IS_WIN = sys.platform == "win32"
 IS_MAC = sys.platform == "darwin"
@@ -46,6 +47,7 @@ ALNUM_RE = re.compile(r"^[A-Za-z0-9]+$")
 ARABIC_NUMERAL_CHARS = set("0123456789０１２３４５６７８９")
 WHOLE_RUBY_OVERRIDES = {
     "十分": "じゅうぶん",
+    "年間": "ねんかん",
 }
 
 Segment = Tuple[str, Optional[str]]
@@ -364,6 +366,11 @@ class MecabController:
             expr = self._raw_reading(expr)
             return self._format_mecab_output(expr)
 
+    def word_nodes(self, text: str) -> List[Tuple[str, str]]:
+        """Lexical boundaries before ruby formatting splits off okurigana."""
+        with self._lock:
+            return self._parse_mecab_nodes(self._raw_reading(escape_text(text))) or []
+
     def _raw_reading(self, expr: str) -> str:
         for attempt in range(2):
             try:
@@ -489,6 +496,7 @@ class AddonRubyGenerator:
         self.kakasi_readings = KakasiController(self.support_dir, extra_args=["-p"])
         self.mecab = MecabController(self.support_dir, self.kakasi)
         self._single_kanji_reading_cache: dict[str, str] = {}
+        self._okurigana_cache: dict[tuple[str, str], bool] = {}
         self._closed = False
 
     def close(self) -> None:
@@ -564,7 +572,18 @@ class AddonRubyGenerator:
         segments = self._align_generated_spacing_to_source(segments, text)
         segments = self._apply_ruby_overrides(segments)
         if not split_flag:
-            segments = self._merge_adjacent_kanji_ruby_compounds(segments)
+            # Formatting separates the okurigana from a lexical adjective or
+            # verb. Do not then join its kanji stem to the preceding noun.
+            word_starts = set()
+            cursor = 0
+            for surface, _reading in self.mecab.word_nodes(text):
+                start = text.find(surface, cursor)
+                if start < 0:
+                    continue
+                cursor = start + len(surface)
+                if surface and _is_kanji_char(surface[0]) and any("\u3040" <= char <= "\u309f" for char in surface):
+                    word_starts.add(start)
+            segments = self._merge_adjacent_kanji_ruby_compounds(segments, stop_offsets=word_starts)
         if collapse_inline:
             return self._collapse_repeated_inline_readings(segments)
         return segments
@@ -574,46 +593,29 @@ class AddonRubyGenerator:
         source = source_text or ""
         if not source or not segments:
             return segments
+        canonical = lambda value: re.sub(r"\s+", "", value).replace("\uff5e", "~")
+        if canonical("".join(base for base, _ruby in segments)) != canonical(source):
+            # A backend formatting failure must not alter the subtitle itself.
+            return [(source, None)]
         out: List[Segment] = []
         pos = 0
         for base, ruby in segments:
-            text = base or ""
+            text = re.sub(r"\s+", "", base or "")
             if not text:
                 continue
-            if not text.strip():
-                if source.startswith(text, pos):
-                    out.append((base, ruby))
-                    pos += len(text)
-                continue
-            if pos < len(source) and source[pos].isspace() and text and not text[0].isspace():
-                ws_end = pos
-                while ws_end < len(source) and source[ws_end].isspace():
-                    ws_end += 1
-                if source.startswith(text, ws_end):
-                    out.append((source[pos:ws_end], None))
-                    out.append((base, ruby))
-                    pos = ws_end + len(text)
-                    continue
-            if source.startswith(text, pos):
-                out.append((base, ruby))
-                pos += len(text)
-                continue
-            stripped = text.lstrip()
-            if stripped != text and source.startswith(stripped, pos):
-                out.append((stripped, ruby))
-                pos += len(stripped)
-                continue
-            stripped = text.rstrip()
-            if stripped != text and source.startswith(stripped, pos):
-                out.append((stripped, ruby))
-                pos += len(stripped)
-                continue
-            stripped = text.strip()
-            if stripped != text and source.startswith(stripped, pos):
-                out.append((stripped, ruby))
-                pos += len(stripped)
-                continue
-            out.append((base, ruby))
+            whitespace_start = pos
+            while pos < len(source) and source[pos].isspace():
+                pos += 1
+            if pos > whitespace_start:
+                out.append((source[whitespace_start:pos], None))
+            start = pos
+            for _character in text:
+                while pos < len(source) and source[pos].isspace():
+                    pos += 1
+                pos += 1
+            out.append((source[start:pos], ruby))
+        if pos < len(source):
+            out.append((source[pos:], None))
         return out
 
     def _plain_segments(self, text: str, split_kanji_compounds: bool | None = None) -> List[Segment]:
@@ -847,6 +849,10 @@ class AddonRubyGenerator:
             if j < len(segments):
                 next_base, next_ruby = segments[j]
                 if next_base and next_ruby is None and _is_kana_text(next_base[0]):
+                    if self._has_lexical_okurigana("".join(base for base, _ruby in group), next_base):
+                        collapsed.extend(group)
+                        i = j
+                        continue
                     group_ruby = "".join(part_ruby or "" for _part_base, part_ruby in group)
                     if group_ruby and next_base.startswith(group_ruby):
                         collapsed.extend(group)
@@ -874,15 +880,25 @@ class AddonRubyGenerator:
     def _apply_ruby_overrides(segments: List[Segment]) -> List[Segment]:
         if not segments:
             return segments
-        return [
-            (base, WHOLE_RUBY_OVERRIDES.get(base, ruby))
-            for base, ruby in segments
-        ]
+        out: List[Segment] = []
+        for base, ruby in segments:
+            if base == "間" and out and out[-1][0] == "年" and out[-1][1]:
+                ruby = "かん"
+            out.append((base, WHOLE_RUBY_OVERRIDES.get(base, ruby)))
+        return out
 
     @staticmethod
-    def _merge_adjacent_kanji_ruby_compounds(segments: List[Segment]) -> List[Segment]:
+    def _merge_adjacent_kanji_ruby_compounds(
+        segments: List[Segment], *, stop_offsets: set[int] | None = None,
+    ) -> List[Segment]:
         if not segments:
             return segments
+        boundaries = number_idiom_boundaries(segments)
+        offset = 0
+        for index, (base, _ruby) in enumerate(segments):
+            if offset in (stop_offsets or ()):
+                boundaries.add(index)
+            offset += len(base)
         out: List[Segment] = []
         i = 0
         while i < len(segments):
@@ -892,6 +908,8 @@ class AddonRubyGenerator:
                 merged_ruby = ruby
                 j = i + 1
                 while j < len(segments):
+                    if j in boundaries:
+                        break
                     next_base, next_ruby = segments[j]
                     if not (
                         next_ruby
@@ -918,6 +936,30 @@ class AddonRubyGenerator:
         base_text = "".join(base or "" for base, _ruby in ruby_group)
         return self._source_inline_reading_override_for_base(base_text, following_plain)
 
+    def _has_lexical_okurigana(self, base: str, following: str) -> bool:
+        if following.startswith(("なんて", "なんか", "など", "なぞ", "なら", "まで", "でも", "とか",
+                                 "しか", "だけ", "って", "より", "ほど", "くらい", "ぐらい", "ばかり", "すら", "さえ")):
+            return True
+        # A one-kana particle can also be a reading of the preceding kanji
+        # (何か食べて). Ambiguity must not delete real sentence text.
+        if (len(base) == 1 and following[:1] in {"は", "が", "を", "に", "へ", "で", "と", "も", "の", "や", "か"}
+                and (len(following) == 1 or not _is_kana_text(following[1]))):
+            return True
+        key = (base, following)
+        cache = self._okurigana_cache
+        if key not in cache:
+            try:
+                nodes = self.mecab.word_nodes(base + following)
+                surface, reading = nodes[0] if nodes else ("", "")
+                value = bool(reading and surface.startswith(base) and len(surface) > len(base)
+                             and _is_kana_text(surface[len(base)]))
+            except Exception:
+                value = False
+            if len(cache) >= 512:
+                cache.pop(next(iter(cache)))
+            cache[key] = value
+        return cache[key]
+
     def _source_inline_reading_override_for_base(
         self,
         base_text: str,
@@ -925,6 +967,8 @@ class AddonRubyGenerator:
         split_kanji_compounds: bool | None = None,
     ) -> tuple[List[Segment], int] | None:
         if not base_text or not following_plain:
+            return None
+        if self._has_lexical_okurigana(base_text, following_plain):
             return None
 
         kana_len = 0

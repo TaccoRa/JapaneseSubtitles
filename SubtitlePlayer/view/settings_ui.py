@@ -6,7 +6,7 @@ This module is the main user-facing UI for controlling time, offsets, episodes, 
 
 import tkinter as tk
 import logging
-from tkinter import ttk
+from tkinter import ttk, font as tkfont
 from re import fullmatch
 from model.config_manager import ConfigManager
 from view.settings_advanced_ui import SettingsAdvancedUI
@@ -152,12 +152,12 @@ class SettingsUI:
 
     def _init_vars(self):
         val = float(self.default_offset)
-        self.offset_var = tk.StringVar(value=self._format_seconds(val))
+        self.offset_var = tk.StringVar(value=self._format_offset_seconds(val))
 
         val = float(self.default_skip)
         self.skip_var = tk.StringVar(value=self._format_seconds(val))
 
-        self.episode_var = tk.StringVar(value="Movie" if self.initial_episode is None else str(self.initial_episode))
+        self.episode_var = tk.StringVar(value="" if self.initial_episode is None else str(self.initial_episode))
         self.setto_var = tk.StringVar(value="")
         self._last_episode_value = self.episode_var.get()
 
@@ -201,14 +201,14 @@ class SettingsUI:
     def _build_settings_frame(self):
         self.settings_frame = tk.LabelFrame(self.root)
         self.settings_frame.pack(fill="both", expand=True, padx=5, pady=5)
-        self.settings_frame.grid_rowconfigure(1, weight=1)
+        self.settings_frame.grid_rowconfigure(2, weight=1)
         self.settings_frame.grid_columnconfigure(0, weight=1)
 
         # Frame for all except slider
         options_frame = tk.Frame(self.settings_frame)
         options_frame.grid(row=0, column=0, sticky="news", pady=0, padx=0)
-        options_frame.grid_rowconfigure(0, weight=1)
-        options_frame.grid_rowconfigure(1, weight=1)
+        options_frame.grid_rowconfigure(0, weight=0)
+        options_frame.grid_rowconfigure(1, weight=0)
         for col in range(6):
             options_frame.grid_columnconfigure(col, weight=1, uniform="settings_row2")
 
@@ -295,50 +295,60 @@ class SettingsUI:
         self.advanced_settings_btn.pack(side="left")
         self._refresh_input_mode_button()
 
-        # Row 1: six equal parts (label/value pairs).
-        setto_pair = tk.Frame(options_frame, bg="#f0f0f0")
-        setto_pair.grid(row=1, column=0, columnspan=2, padx=(5, 2), pady=(2, 5), sticky="ew")
-        setto_pair.grid_columnconfigure(1, weight=1)
+        # Labels have natural widths; all three complete input boxes are equal.
+        timing_row = tk.Frame(options_frame, bg="#f0f0f0")
+        timing_row.grid(row=1, column=0, columnspan=6, sticky="ew")
+        timing_row.configure(padx=5, pady=3)
+        for column in (1, 3, 5):
+            timing_row.grid_columnconfigure(column, weight=1, uniform="timing_inputs")
+        # Give the offset's text room for '-13.95 s' plus the unchanged button.
+        timing_row.grid_columnconfigure(1, uniform="", weight=1)
+        timing_row.grid_columnconfigure(3, uniform="", weight=0)
+        timing_row.grid_columnconfigure(5, uniform="", weight=1)
+        setto_pair = timing_row
         tk.Label(setto_pair, text="Set to", font=("Arial", 12), bg="#f0f0f0").grid(row=0, column=0, sticky="w", padx=(0, 2))
         self.setto_entry = tk.Entry(setto_pair, textvariable=self.setto_var, font=("Arial", 12), width=4)
         self.setto_entry.grid(row=0, column=1, sticky="ew")
         self.setto_entry.bind("<Return>", self._on_set_to_commit)
         self.setto_entry.bind("<FocusOut>", self._on_set_to_commit)
 
-        offset_pair = tk.Frame(options_frame, bg="#f0f0f0")
-        offset_pair.grid(row=1, column=2, columnspan=2, padx=(2, 2), pady=(2, 5), sticky="ew")
-        offset_pair.grid_columnconfigure(1, weight=1)
-        tk.Label(offset_pair, text="Offset", font=("Arial", 12), bg="#f0f0f0").grid(row=0, column=0, sticky="w", padx=(0, 2))
-        self.offset_entry = tk.Entry(offset_pair, textvariable=self.offset_var, font=("Arial", 12), width=4)
-        self.offset_entry.grid(row=0, column=1, sticky="ew")
-        self.offset_entry.bind("<Button-1>", self._clear_entry)
-        self.offset_entry.bind("<FocusOut>", self._on_entry_focus_out)
+        offset_pair = timing_row
+        tk.Label(offset_pair, text="Offset", font=("Arial", 12), bg="#f0f0f0").grid(row=0, column=2, sticky="w", padx=(2, 2))
+        border_style = {key: self.setto_entry.cget(key) for key in
+            ("borderwidth", "relief", "highlightthickness", "highlightbackground", "highlightcolor", "background")}
+        offset_box = tk.Frame(offset_pair, **border_style)
+        offset_box.grid(row=0, column=3, sticky="ew")
+        offset_box.grid_columnconfigure(0, weight=1)
+        self.offset_entry = tk.Entry(offset_box, textvariable=self.offset_var, font=("Arial", 12), width=1, bd=0, highlightthickness=0)
+        self.offset_entry.grid(row=0, column=0, sticky="ew")
+        self.offset_entry.bind("<FocusIn>", lambda _e: offset_box.configure(highlightbackground=self.setto_entry.cget("highlightcolor")), add="+")
+        self.offset_entry.bind("<FocusOut>", lambda _e: offset_box.configure(highlightbackground=self.setto_entry.cget("highlightbackground")), add="+")
+        self._offset_editing = False
+        self.offset_entry.bind("<FocusIn>", self._begin_offset_edit, add="+")
+        self.offset_entry.bind("<KeyPress>", self._begin_offset_edit)
+        self.offset_entry.bind("<Button-1>", self._begin_offset_edit)
+        self.offset_entry.bind("<FocusOut>", self._on_entry_focus_out, add="+")
         self.offset_entry.bind("<Return>", self._on_entry_focus_out)
-
-        timing_pair = tk.Frame(options_frame, bg="#f0f0f0")
-        timing_pair.grid(row=2, column=0, columnspan=6, sticky="ew", padx=5, pady=(0, 3))
-        self.alignment_mode_var = tk.StringVar(value="Dialog/Audio")
-        alignment = ttk.Combobox(timing_pair, textvariable=self.alignment_mode_var,
-                                 values=("Dialog/Audio", "Website-Untertitel"), state="readonly", width=19)
-        alignment.pack(side="left")
-        alignment.bind("<<ComboboxSelected>>", lambda _e: getattr(self, "_on_alignment_mode", lambda *_: None)(self.alignment_mode_var.get()))
-        self.auto_offset_var = tk.StringVar(value="Auto: unbestätigt · SRT-Vorschau")
-        tk.Label(timing_pair, textvariable=self.auto_offset_var, bg="#f0f0f0").pack(side="left", padx=6)
+        self.alignment_mode_var = tk.StringVar(value="Website-Untertitel")
+        self.auto_offset_var = tk.StringVar(value="")
+        self.alignment_detail_var = tk.StringVar(value="Noch kein bestätigter Abgleich.")
         self.timing_notice_var = tk.StringVar(value="")
-        self.timing_notice_label = tk.Label(options_frame, textvariable=self.timing_notice_var, bg="#f0f0f0", wraplength=410, justify="left")
-        def show_timing_notice(*_):
-            if self.timing_notice_var.get():
-                self.timing_notice_label.grid(row=3, column=0, columnspan=6, sticky="ew", padx=5)
-            else:
-                self.timing_notice_label.grid_remove()
-        self.timing_notice_var.trace_add("write", show_timing_notice)
+        self.alignment_retry_button = tk.Button(offset_box, text="\u21bb", width=2, bd=0, font=("Arial", 10), padx=0, pady=0,
+            takefocus=False, command=lambda: getattr(self, "_on_realign", lambda: None)())
+        self.alignment_retry_button.grid(row=0, column=1, sticky="ns")
+        number_width = tkfont.Font(font=self.offset_entry.cget("font")).measure("-13.95 s")
+        border_width = 2 * (int(self.setto_entry.cget("borderwidth")) + int(self.setto_entry.cget("highlightthickness")))
+        button_width = max(self.alignment_retry_button.winfo_reqwidth(),
+                           tkfont.Font(font=self.alignment_retry_button.cget("font")).measure("00") + 4)
+        timing_row.grid_columnconfigure(3, minsize=number_width + button_width + border_width + 6)
+        from view.settings_advanced_ui import _SettingsTooltip
+        _SettingsTooltip(self.alignment_retry_button,
+            "Untertitel erneut mit dem Video abgleichen. Bei Erfolg wird deine manuelle Feinkorrektur zur\u00fcckgesetzt. Die SRT-Datei bleibt unver\u00e4ndert.", delay_ms=1000)
 
-        skip_pair = tk.Frame(options_frame, bg="#f0f0f0")
-        skip_pair.grid(row=1, column=4, columnspan=2, padx=(2, 5), pady=(2, 5), sticky="ew")
-        skip_pair.grid_columnconfigure(1, weight=1)
-        tk.Label(skip_pair, text="Skip", font=("Arial", 12), bg="#f0f0f0").grid(row=0, column=0, sticky="w", padx=(0, 2))
+        skip_pair = timing_row
+        tk.Label(skip_pair, text="Skip", font=("Arial", 12), bg="#f0f0f0").grid(row=0, column=4, sticky="w", padx=(6, 2))
         self.skip_entry = tk.Entry(skip_pair, textvariable=self.skip_var, font=("Arial", 12), width=4)
-        self.skip_entry.grid(row=0, column=1, sticky="ew")
+        self.skip_entry.grid(row=0, column=5, sticky="ew")
         self.skip_entry.bind("<Button-1>", self._clear_entry)
         self.skip_entry.bind("<FocusOut>", self._on_entry_focus_out)
         self.skip_entry.bind("<Return>", self._on_entry_focus_out)
@@ -346,7 +356,7 @@ class SettingsUI:
         self.slider_frame = tk.Frame(self.settings_frame)
         self.slider_frame.grid(row=1, column=0, sticky="ew", padx=(0,0), pady=(0,0))
         self.slider_frame.grid_columnconfigure(0, weight=1)
-        self.slider_frame.grid_rowconfigure((0,1), weight=1)
+        self.slider_frame.grid_rowconfigure((0,1), weight=0)
 
         # Time overlay for slider
         self.time_overlay_frame = tk.Frame(self.slider_frame,height = 20)
@@ -386,6 +396,13 @@ class SettingsUI:
         self._schedule_time_overlay_position_update()
         self.root.after(50, self.update_time_overlay_position)
         self.root.after(250, self.update_time_overlay_position)
+        def constrain_height():
+            self.settings_frame.update_idletasks()
+            height = self.settings_frame.winfo_reqheight() + 8
+            width = max(320, self.root.winfo_width())
+            self.root.minsize(max(320, self.root.minsize()[0]), height)
+            self.root.geometry(f"{width}x{height}")
+        self.root.after_idle(constrain_height)
 
     # --------- CONTROL WINDOW ------------------------------------------------------------------------------------------------------------------
     def _build_control_window(self):
@@ -1306,6 +1323,9 @@ class SettingsUI:
     def _format_seconds(self, value: float) -> str:
         return f"{self._format_number(value)} s"
 
+    def _format_offset_seconds(self, value: float) -> str:
+        return f"{round(value, 2):.2f}".rstrip("0").rstrip(".") + " s"
+
     def _parse_number(self, text: str):
         match = fullmatch(self.NUMBER_PATTERN, (text or "").strip())
         if not match:
@@ -1316,7 +1336,7 @@ class SettingsUI:
         formatted = self._format_seconds(value)
         # Update both the StringVar and the entry widget to keep them in sync
         if entry is self.offset_entry:
-            self.offset_var.set(formatted)
+            self.offset_var.set(self._format_offset_seconds(value))
         elif entry is self.skip_entry:
             self.skip_var.set(formatted)
         entry.delete(0, tk.END)
@@ -1328,6 +1348,11 @@ class SettingsUI:
         if entry is self.skip_entry:
             return "_last_skip_value", self._last_skip_value
         return None, None
+
+    def _begin_offset_edit(self, _event=None):
+        if not getattr(self, "_offset_editing", False):
+            self._offset_editing = True
+            getattr(self, "_on_offset_begin", lambda: None)()
 
     def _clear_entry(self, event):
         entry = event.widget
@@ -1425,6 +1450,15 @@ class SettingsUI:
         attr, last_val = self._get_last_value(entry)
         if not attr:
             return
+        if entry is self.offset_entry:
+            if not getattr(self, "_offset_editing", False):
+                return
+            parsed = self._parse_number(entry.get())
+            if parsed is not None:
+                self._apply_offset_change(parsed, persist=True)
+            self._offset_editing = False
+            getattr(self, "_on_offset_end", lambda: None)()
+            return "break"
         text = entry.get().replace(",", ".").strip()
         parsed = self._parse_number(text)
         if parsed is None:

@@ -36,6 +36,11 @@ class EpisodeController(_ControllerProxy):
             """
             browser = getattr(self.controller, "browser_sync", None)
             media = getattr(browser, "_media_context", None) if browser and browser.following else None
+            if getattr(self.sub_manager, "startup_needs_source", False):
+                self.settings.set_episode_nav_state(can_dec=False, can_inc=False, is_movie=False)
+                self.settings.set_episode_values([])
+                self.settings.episode_var.set(self._current_episode_label())
+                return
             if media and media.get("kind") == "movie" and self.sub_manager.get_current_episode() is None:
                 self.settings.episode_var.set("Movie")
                 self.settings.set_episode_nav_state(can_dec=False, can_inc=False, is_movie=True)
@@ -56,6 +61,14 @@ class EpisodeController(_ControllerProxy):
         """Browser movie titles are presentation only; library names stay authoritative for episodes."""
         browser = getattr(self.controller, "browser_sync", None)
         media = getattr(browser, "_media_context", None) if browser and browser.following else None
+        if getattr(self.sub_manager, "startup_needs_source", False):
+            self.update_episode_nav_controls()
+            from model.browser_titles import browser_search_title
+            name = browser_search_title((media or {}).get("title"), (media or {}).get("pageUrl"))
+            name = name or self.sub_manager.get_anime_name() or "SubtitlePlayer"
+            label = self._current_episode_label()
+            self.settings.root.title(f"{label} {name}".strip())
+            return
         getter = getattr(self.sub_manager, "get_display_anime_name", None)
         name = getter() if callable(getter) else self.sub_manager.get_anime_name()
         is_browser_movie = bool(media and media.get("kind") == "movie" and self.sub_manager.get_current_episode() is None)
@@ -74,6 +87,13 @@ class EpisodeController(_ControllerProxy):
             self.settings.root.title(f"{name} - Movie" if episode is None else f"{prefix} {name}")
 
     def _current_episode_label(self) -> str:
+            if getattr(self.sub_manager, "startup_needs_source", False):
+                browser = getattr(self.controller, "browser_sync", None)
+                media = getattr(browser, "_media_context", None) or {}
+                episode, season = media.get("episode"), media.get("season")
+                if episode is None:
+                    return ""
+                return f"S{int(season):02}E{int(episode):02}" if season else str(episode)
             getter = getattr(self.sub_manager, "get_current_episode_label", None)
             if callable(getter):
                 try:
@@ -114,6 +134,9 @@ class EpisodeController(_ControllerProxy):
             return cur_e is not None and int(raw_int) == int(cur_e)
 
     def refresh_remote_episodes(self, event=None, *, silent: bool = False) -> dict:
+            browser = getattr(self.controller, "browser_sync", None)
+            if not silent and browser and browser.refresh_browser_source():
+                return {"ok": True, "pending": True}
             refresher = getattr(self.sub_manager, "refresh_remote_episode_map", None)
             if not callable(refresher) or not getattr(self.sub_manager, "remote_flag", False):
                 if not silent:
@@ -257,6 +280,11 @@ class EpisodeController(_ControllerProxy):
                 return None
             positions = self._episode_resume_positions()
             raw = positions.get(key)
+            if raw is None and self.sub_manager.source_kind == "jimaku":
+                path = self._normalize_resume_path(self.sub_manager.srt_file)
+                legacy = [value for name, value in positions.items() if name.endswith("|path="+path)] if path else []
+                if len(legacy) == 1:
+                    raw = legacy[0]  # Exact cached file; names/season labels may have changed.
             if isinstance(raw, dict):
                 raw = raw.get("time")
             if raw is None:
@@ -280,21 +308,15 @@ class EpisodeController(_ControllerProxy):
             return self._default_episode_start_time()
 
     def _time_for_resume_save(self) -> float:
+            browser = getattr(self.controller, "browser_sync", None)
+            snapshot = browser.snapshot if browser and browser.following else None
             try:
-                current = max(0.0, float(self.current_time or 0.0))
+                current = max(0.0, float(snapshot.time_at() if snapshot else self.current_time or 0.0))
             except Exception:
                 current = 0.0
-            if bool(getattr(self, "playing", False)):
-                try:
-                    now = time.perf_counter()
-                    elapsed = max(0.0, now - float(getattr(self, "last_update", now)))
-                    current += elapsed
-                    self.current_time = current
-                    self.last_update = now
-                except Exception:
-                    logger.debug("Failed to advance current time before resume save", exc_info=True)
             try:
-                total = float(getattr(self, "total_duration", 0.0) or 0.0) + float(self.get_offset_value())
+                total = (snapshot.duration if snapshot else
+                         float(getattr(self, "total_duration", 0.0) or 0.0) + float(self.get_offset_value()))
                 if total > 0:
                     current = min(current, total)
             except Exception:
@@ -302,6 +324,8 @@ class EpisodeController(_ControllerProxy):
             return current
 
     def save_current_episode_position(self) -> None:
+            if getattr(self.sub_manager, "startup_needs_source", False):
+                return
             config = getattr(self, "config", None)
             if config is None:
                 return
@@ -320,6 +344,8 @@ class EpisodeController(_ControllerProxy):
 
     def remember_current_anime_episode(self) -> None:
             """Record the successfully loaded episode in local and active-profile state."""
+            if getattr(self.sub_manager, "startup_needs_source", False):
+                return
             recorder = getattr(self.sub_manager, "record_current_anime_episode_progress", None)
             if not callable(recorder):
                 return
@@ -395,15 +421,40 @@ class EpisodeController(_ControllerProxy):
             return result
 
     def on_open_srt(self, event=None):
+            browser = getattr(self.controller, "browser_sync", None)
+            if (self.sub_manager.is_search_dialog_active() or
+                    browser and (getattr(browser, "_manual_source_open", False) or
+                                 getattr(browser, "_jimaku_fallback_open", False) or
+                                 getattr(browser, "_series_confirmation_open", False))):
+                root = self.settings.root
+                window = getattr(root, "_subtitleplayer_source_window", None)
+                if window is not None:
+                    try:
+                        window.lift()
+                        window.focus_set()
+                    except Exception:
+                        pass
+                return
             self.save_current_episode_position()
-            path = self.sub_manager.set_new_file()
-            if path:
-                self._after_episode_change()
-                browser = getattr(self.controller, "browser_sync", None)
-                if browser is not None and browser.following:
-                    browser.remember_browser_source(explicit=True)
+            if browser:
+                browser.begin_manual_source_selection()
+            expected = dict(browser._last_episode_context or browser._media_context or {}) if browser and browser.following else None
+            self.sub_manager._jimaku_expected_context = expected
+            try:
+                path = self.sub_manager.set_new_file()
+                if path:
+                    self._after_episode_change()
+                    if browser and browser.following:
+                        browser.remember_browser_source(explicit=True)
+            finally:
+                self.sub_manager._jimaku_expected_context = None
+                if browser:
+                    browser.end_manual_source_selection()
 
     def change_episode(self, action: str):
+            if self.sub_manager.source_kind == "jimaku":
+                self.controller.browser_sync.jimaku_navigation.request(action)
+                return
             switch_start = time.perf_counter()
             self.save_current_episode_position()
             def _restore_entry():

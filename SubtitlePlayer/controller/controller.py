@@ -53,8 +53,6 @@ from utils import (
     format_time,
     get_monitor_rects,
     get_window_screen_rect,
-    list_visible_windows,
-    send_hotkey_to_window,
 )
 
 logger = logging.getLogger(__name__)
@@ -131,7 +129,6 @@ class SubtitleController:
         self.episode_controller.restore_startup_time_and_mode()
         self.episode_controller.remember_current_anime_episode()
 
-        self.last_update = time.perf_counter()
         self.playback.set_current_time(float(self.current_time or 0.0))
         self.update_episode_nav_controls()
         try:
@@ -165,9 +162,6 @@ class SubtitleController:
         self.fast_forward_active = bool(self.fast_forward_enabled)
         self.fast_forward_speed = self._coerce_fast_forward_speed(self.config.get("FAST_FORWARD_SPEED"))
         self._hover_video_pause_active = False
-        self._hover_timer_pause_active = False
-        self._suppress_synthetic_space_until = 0.0
-        self._suppress_synthetic_tokens_until: dict[str, dict[str, float | int] | float] = {}
 
         self.playing = False
         self.entry_editing = False
@@ -204,12 +198,10 @@ class SubtitleController:
             "episode_switch_total_ms": 0.0,
             "episode_switch_max_ms": 0.0,
         }
-        self._last_ocr_duration_ms = 0.0
 
         self._single_fire_actions: set[str] = set()
         self._input_actions: "queue.Queue[str]" = queue.Queue()
         self._shutdown_event = threading.Event()
-        self._update_loop_job = None
         self._input_pump_job = None
         self._repeat_job = None
         self._settings_pointer_job = None
@@ -222,12 +214,6 @@ class SubtitleController:
         self._repeat_interval_sec = 0.04
         self._pending_seek_delta = 0.0
 
-        self._ocr_job = None
-        self._ocr_thread = None
-        self._ocr_generation = 0
-        self._ocr_pending_time = None
-        self._ocr_sync_generation = 0
-        self._ocr_sync_thread = None
 
         self._anki_wait_window = None
         self._anki_wait_status_var = None
@@ -383,6 +369,8 @@ class SubtitleController:
         self.renderer.bind_annotation_provider      (self.annotation_provider if self._annotation_is_enabled() else None)
         self.renderer.bind_shift_state              (lambda: self._plain_shift_hover_active() and not self._popup_is_open())
         self.renderer.bind_hover_mode               (lambda: "ruby" if self._popup_is_open() else self._hover_modifier_mode())
+        self.renderer.bind_hover_presence           (self.overlay_controller.hover_popup_presence)
+        self.popup.bind_hover_presence              (self.overlay_controller.hover_popup_presence)
         self.overlay.bind_sub_window_enter          (self.sub_window_enter)
         self.overlay.bind_sub_window_leave          (self.sub_window_leave)
         self.overlay.bind_sub_handle_enter          (self.sub_handle_enter)   
@@ -397,7 +385,8 @@ class SubtitleController:
             logger.debug("Failed to initialize hotkey UI state", exc_info=True)
         self._mouse_listener = MouseListener(on_click=self.hotkey_controller._on_global_click)
         self._mouse_listener.start()
-        self._keyboard_listener = KeyboardListener(on_press=self._on_key_press, on_release=self._on_key_release)
+        self._keyboard_listener = KeyboardListener(on_press=self._on_key_press, on_release=self._on_key_release,
+            win32_event_filter=self.hotkey_controller._windows_keyboard_event_filter)
         self._keyboard_listener.start()
         self._input_pump_job = self.settings.root.after(15, self.hotkey_controller._process_input_queue)
         self._repeat_job =     self.settings.root.after(16, self.hotkey_controller._process_repeat_actions)
@@ -424,7 +413,7 @@ class SubtitleController:
     def _on_runtime_offset_changed(self, value):
         browser = getattr(self, "browser_sync", None)
         if browser:
-            browser.set_trim(float(value))
+            browser.set_effective_offset(float(value))
         self.update_time_and_subtitle_displays()
 
 
@@ -445,12 +434,6 @@ class SubtitleController:
             self.renderer._clear_hover_ruby()
         except Exception:
             pass
-        try:
-            sync = getattr(self.playback, "_sync_playing_time_to_event", None)
-            if callable(sync):
-                sync(update_display=False, update_slider=False)
-        except Exception:
-            logger.debug("Failed to sync playback before opening subtitle popup", exc_info=True)
         text = str(getattr(self, "last_subtitle_raw", "") or "")
         try:
             getter = getattr(self.subtitle_navigation, "copy_text_for_current_subtitle", None)
@@ -472,7 +455,7 @@ class SubtitleController:
         return "break"
 
     def _skip_buttons_use_subtitle_segments(self):
-        return False
+        return self.config.get("SKIP_NAVIGATION_MODE") == "segments"
 
 
     def _add_selection_to_anki(
@@ -484,6 +467,7 @@ class SubtitleController:
         cue_snapshot: CueSnapshot | None = None,
         selection_spans=None,
         initiator: str = "anki",
+        segment_range: tuple[int, int] | None = None,
     ) -> None:
         return self.anki_controller._add_selection_to_anki(
             selected_text,
@@ -493,6 +477,7 @@ class SubtitleController:
             cue_snapshot=cue_snapshot or getattr(self, "current_cue_snapshot", None),
             selection_spans=selection_spans,
             initiator=initiator,
+            segment_range=segment_range,
         )
 
     def _publish_anki_add_counts(self) -> None:
@@ -646,6 +631,9 @@ class SubtitleController:
         return "deepl"
 
     def _hover_modifier_mode(self) -> str:
+        hotkeys = getattr(self, "hotkey_controller", None)
+        if hotkeys is not None and hotkeys._global_focus_stamp() is None:
+            return "ruby"
         candidates = [
             (
                 "translation",
@@ -1491,15 +1479,6 @@ class SubtitleController:
         if "PHONEMODE_SUBTITLE_HANDLE_ENABLED" in values:
             self.phone_subtitle_handle_enabled = bool(values.get("PHONEMODE_SUBTITLE_HANDLE_ENABLED"))
             self.overlay_controller.show_subtitle_handle(bool(self.settings.default_phone_mode))
-        if "FAST_FORWARD_DISABLED" in values or "FAST_FORWARD_SPEED" in values:
-            if self.playing:
-                now = time.perf_counter()
-                self.playback._advance_playing_time_to_now(
-                    now=now,
-                    allow_end_toggle=False,
-                    update_display=False,
-                )
-                self.last_update = now
         if "FAST_FORWARD_DISABLED" in values:
             self.fast_forward_enabled = not bool(values.get("FAST_FORWARD_DISABLED"))
             self.fast_forward_active = bool(self.fast_forward_enabled)
@@ -1637,7 +1616,7 @@ class SubtitleController:
                 self._reset_hotkey_state()
 
         if (
-            "SKIP_BUTTONS_USE_SUBTITLE_SEGMENTS" in values
+            "SKIP_NAVIGATION_MODE" in values
             or any(str(k).startswith("SHORTCUT_") for k in values.keys())
             or any(str(k).startswith("DISABLE_HOTKEY_") for k in values.keys())
         ):
@@ -1667,12 +1646,6 @@ class SubtitleController:
     # ---------------------------------------------------------------------
     # Time handling
     # ---------------------------------------------------------------------
-    def update_loop(self):
-        return self.playback.update_loop()
-
-    def schedule_update(self):
-        return self.playback.schedule_update()
-
     def set_current_time(self, t: float):
         return self.playback.set_current_time(t)
 
@@ -2182,7 +2155,9 @@ class SubtitleController:
         configured post-capture resume follows the established voice-playback
         path below.
         """
-        lease = PlaybackPauseLease(was_playing=bool(self.playing))
+        browser = getattr(self, "browser_sync", None)
+        was_playing = not browser.snapshot.paused if browser and browser.fresh and browser.snapshot else bool(self.playing)
+        lease = PlaybackPauseLease(was_playing=was_playing)
         with self._anki_pause_lease_lock:
             self._anki_pause_leases[lease.id] = lease
         return lease
@@ -2315,8 +2290,8 @@ class SubtitleController:
                 setattr(self, listener_attr, None)
         root = getattr(self.settings, "root", None)
         for job in ("subtitle_timeout_job", "_con_hide_job", "_input_pump_job",
-                    "_repeat_job", "_ocr_job", "_update_loop_job", "_slider_render_job",
-                    "_anki_success_popup_job", "_ocr_box_preview_job",
+                    "_repeat_job", "_slider_render_job",
+                    "_anki_success_popup_job",
                     "_settings_pointer_job"):
             handle = getattr(self, job, None)
             if handle is not None:

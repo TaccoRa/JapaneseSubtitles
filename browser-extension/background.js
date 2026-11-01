@@ -19,8 +19,10 @@ function seekNetflixPlayer(request){
 const captionFetchStates=new Map();
 let socket=null,selected=null,recording=null,status='Disconnected',heartbeat=null;
 let fingerprints=new Map(),captionCache=new Map(),incoming=Promise.resolve();
+const preferredCaptionPending=new Map();
 let connections=Promise.resolve(),reconnectTimer=null,connectionEpoch=0;
 let backend='native',nativeEnabled=false;
+let recorderRevision=0;
 const finishing=new Map(),completedCaptures=new Set();
 let offscreenCreation=null;
 let episodeContexts=new Map(),bindingLost=false;
@@ -34,13 +36,39 @@ const serializeConnection=task=>{const result=connections.then(task);connections
 const key=i=>JSON.stringify(i);
 const send=m=>{if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify(m));};
 const hash=async value=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))].map(x=>x.toString(16).padStart(2,'0')).join('');
+const inputFrames=new Map();
+let inputRequest=0,inputSequence=0,lastInputValue='',lastInputAt=0;
+async function publishInputContext(force=false){
+  const identity=selected,request=++inputRequest;
+  if(!identity)return;
+  try{
+    const tab=await chrome.tabs.get(identity.tabId);
+    const win=await chrome.windows.get(tab.windowId);
+    if(request!==inputRequest||key(identity)!==key(selected))return;
+    const now=Date.now();
+    for(const [frame,value]of inputFrames)if(now-value.seen>2500)inputFrames.delete(frame);
+    const focusedFrames=[...inputFrames.values()].filter(value=>value.tabId===identity.tabId&&value.focused);
+    const textInput=focusedFrames.some(value=>value.textInput);
+    const context={identity,active:!!tab.active,windowFocused:!!win.focused,pageFocused:focusedFrames.length>0,textInput};
+    const value=JSON.stringify(context);
+    if(force||value!==lastInputValue||now-lastInputAt>=1000){
+      lastInputValue=value;lastInputAt=now;
+      send({type:'InputContext',...context,sequence:++inputSequence});
+      await chrome.tabs.sendMessage(identity.tabId,{type:'InputScope',enabled:context.active&&context.windowFocused&&context.pageFocused&&!textInput}).catch(()=>{});
+    }
+  }catch{
+    if(request===inputRequest&&key(identity)===key(selected))send({type:'InputContext',identity,active:false,windowFocused:false,textInput:false,sequence:++inputSequence});
+  }
+}
 function publishBinding(){
+  lastInputValue='';publishInputContext(true);
   toFrame('DiscoverVideos',{refreshCaptions:true}).catch(()=>{});
   send({type:'Bound',identity:selected});
-  send({type:'RecorderState',identity:selected,enabled:nativeEnabled});
+  refreshRecorderState().catch(()=>{});
   const context=episodeContexts.get(selected?.tabId);if(context)send({...context,identity:selected});
   const media=mediaContexts.get(selected?.tabId);if(media)send({...media,identity:selected});
   for(const caption of captionCache.get(key(selected))||[])send(caption);
+  if(preferredCaptionPending.has(key(selected)))send({type:'CaptionReferencePending',identity:selected,fingerprint:preferredCaptionPending.get(key(selected))});
 }
 async function toFrame(type,extra={},identity=selected){
   if(!identity||key(identity)!==key(selected))throw Error('No matching video connected');
@@ -48,6 +76,17 @@ async function toFrame(type,extra={},identity=selected){
   if(!result?.ok)throw Error(result?.error||'Video did not acknowledge');return result;
 }
 async function offscreen(message){return chrome.runtime.sendMessage({target:'offscreen',...message});}
+async function refreshRecorderState(){
+  const identity=selected,revision=recorderRevision;
+  if(!identity)return false;
+  let state;
+  try{if(await chrome.offscreen.hasDocument())state=await offscreen({type:'StreamState'});}catch{}
+  if(key(identity)!==key(selected)||revision!==recorderRevision)return nativeEnabled;
+  nativeEnabled=!!state?.connected&&state.tabId===identity.tabId;
+  send({type:'RecorderState',identity,enabled:nativeEnabled,
+    reason:nativeEnabled?'':'No live tab audio for this video. Open the extension on this tab once.'});
+  return nativeEnabled;
+}
 async function ensureOffscreen(){
   if(offscreenCreation)return offscreenCreation;
   if(await chrome.offscreen.hasDocument())return;
@@ -93,7 +132,7 @@ async function disconnect(manual=false){
   send({type:'Unbound'});await fail('Disconnected');selected=null;
   connectionEpoch++;clearTimeout(reconnectTimer);clearInterval(heartbeat);
   if(socket){socket.onclose=null;socket.close();socket=null;}
-  status='Disconnected';nativeEnabled=false;
+  status='Disconnected';nativeEnabled=false;recorderRevision++;
   await chrome.storage.local.set({selected:null});
   if(await chrome.offscreen.hasDocument()){
     const result=await offscreen({type:'DisconnectStream'});
@@ -138,6 +177,7 @@ async function discoverTab(tabId){
     try{
       // Reinject into existing and newly replaced nested frames. The content
       // script is idempotent and republishes clocks without changing video IDs.
+      await chrome.scripting.executeScript({target:{tabId,allFrames:true},world:'MAIN',files:['caption-observer.js']});
       await chrome.scripting.executeScript({target:{tabId,allFrames:true},files:['episode-context.js','content.js']});
       await chrome.tabs.sendMessage(tabId,{type:'DiscoverVideos'}).catch(()=>{});
       return null;
@@ -161,6 +201,7 @@ function scheduleAutoConnect(){
 }
 async function enableNative(m){
   if(key(m.identity)!==key(selected))throw Error('Connect this video first');
+  recorderRevision++;
   await ensureOffscreen();
   const current=await offscreen({type:'StreamState'});
   if(current?.connected&&current.tabId===selected.tabId){
@@ -177,11 +218,30 @@ async function captureScreenshot(m){
   const active=recording;
   if(!active||active.operationId!==m.operationId||active.screenshotStarted)return;
   active.screenshotStarted=true;
-  const stillCurrent=()=>recording===active&&key(selected)===key(active.identity);
-  const timeout=setTimeout(()=>{if(stillCurrent())fail('Screenshot timed out');},5000);
+  const stillCurrent=()=>(recording===active||finishing.get(active.operationId)===active)&&key(selected)===key(active.identity);
+  const failThis=async reason=>{
+    if(recording===active)return fail(reason);
+    if(finishing.get(active.operationId)!==active)return;
+    finishing.delete(active.operationId);
+    await offscreen({type:'CancelRecording',operationId:active.operationId}).catch(()=>{});
+    await toFrame('FinishCapture',{operationId:active.operationId},active.identity).catch(()=>{});
+    send({type:'CaptureResult',operationId:active.operationId,identity:active.identity,ok:false,error:reason});
+  };
+  const timeout=setTimeout(()=>{failThis('Screenshot timed out').catch(()=>{});},5000);
+  const cleanFrames=async restore=>chrome.scripting.executeScript({target:{tabId:active.identity.tabId,allFrames:true},
+    func:async(operationId,videoId,restore)=>{
+      const content=globalThis.subtitlePlayerContent;
+      return restore?content?.restoreScreenshot?.(operationId):await content?.prepareScreenshot?.(operationId,videoId);
+    },args:[active.operationId,active.identity.videoId,restore]});
   try{
     const tab=await chrome.tabs.get(active.identity.tabId);
     if(!tab.active)throw Error('Keep the connected video tab selected for its screenshot');
+    try{
+      const frames=await cleanFrames(false);
+      if(!frames.some(frame=>frame.result?.hidden))console.info('Screenshot: no recognized controls; unknown player UI may remain visible');
+      if(frames.some(frame=>frame.result?.hidden&&!frame.result.painted))console.info('Screenshot: a frame could not confirm control repaint');
+    }catch(error){console.info('Screenshot control cleanup unavailable:',error.message);}
+    if(!stillCurrent())throw Error('Capture cancelled before screenshot');
     const image=await chrome.tabs.captureVisibleTab(tab.windowId,{format:'png'});
     const after=await chrome.tabs.get(active.identity.tabId);
     if(!stillCurrent()||!after.active||after.windowId!==tab.windowId)throw Error('Video tab changed during screenshot');
@@ -190,8 +250,8 @@ async function captureScreenshot(m){
     const result=await offscreen({type:'StoreScreenshot',operationId:active.operationId,image});
     if(!result?.ok)throw Error(result?.error||'Screenshot failed');
     if(stillCurrent())await toFrame('ScreenshotReady',{operationId:active.operationId});
-  }catch(error){if(stillCurrent())await fail(error.message);}
-  finally{clearTimeout(timeout);}
+  }catch(error){await failThis(error.message);}
+  finally{clearTimeout(timeout);await cleanFrames(true).catch(()=>{});}
 }
 function scheduleReconnect(epoch,token){
   if(epoch!==connectionEpoch)return;
@@ -222,7 +282,16 @@ async function openSocket(token){
       if(m.type==='TimingMap')return;
       if(m.type==='RecorderConfig'){
         backend='native';
-        send({type:'RecorderState',identity:selected,enabled:nativeEnabled});
+        await refreshRecorderState();
+        return;
+      }
+      if(m.type==='RecorderProbe'){
+        if(key(m.identity)===key(selected))await refreshRecorderState();
+        return;
+      }
+      if(m.type==='RefreshCaptions'){
+        if(key(m.identity)!==key(selected))return;
+        await toFrame('DiscoverVideos',{refreshCaptions:true});
         return;
       }
       if(m.type==='ShortcutConfig'){
@@ -250,13 +319,14 @@ async function openSocket(token){
       if(m.type==='CaptureRequest'){
         if(recording?.operationId===m.operationId||finishing.has(m.operationId)||completedCaptures.has(m.operationId))return;
         if(recording)throw Error('Another recording is in progress');
-        if(!nativeEnabled)throw Error('Click Enable native recording in the SubtitlePlayer extension first');
         if(key(m.identity)!==key(selected))throw Error('Stale video identity');
+        if(!await refreshRecorderState())throw Error('No live native audio for this tab. Open the SubtitlePlayer extension once.');
+        if(key(m.identity)!==key(selected))throw Error('Video changed while checking the recorder');
         const current=observed.get(key(selected));
         if(!current||current.fingerprint!==m.fingerprint)throw Error('Media changed');
         if(!(m.end>m.start&&m.end-m.start<120))throw Error('Invalid recording interval');
-        recording={...m,previousRate:current.rate,previousPaused:current.paused};
-        await toFrame('PrepareCapture',{...m,previousRate:current.rate,previousPaused:current.paused});
+        recording={...m,previousRate:current.rate,previousPaused:m.previousPaused??current.paused};
+        await toFrame('PrepareCapture',{...m,previousRate:current.rate,previousPaused:m.previousPaused??current.paused});
         const prepared=await offscreen({type:'StartRecording',operationId:m.operationId,screenshotTime:m.screenshotTime??(m.start+m.end)/2});
         if(!prepared?.ok)throw Error(prepared?.error||'Recorder failed');
         await toFrame('RunCapture',{operationId:m.operationId});
@@ -288,7 +358,7 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
   if(m.target==='offscreen')return;
   if(m.type==='ListVideos'){
     activeTabId=m.tabId;
-    discoverTab(m.tabId).then(discoveryError=>reply({videos:[...observed.values()].filter(v=>v.identity.tabId===m.tabId&&Date.now()-v.seen<5000),selected,status,backend,nativeEnabled,discoveryError,autoEnabled}));return true;
+    (async()=>{const discoveryError=await discoverTab(m.tabId);await refreshRecorderState();reply({videos:[...observed.values()].filter(v=>v.identity.tabId===m.tabId&&Date.now()-v.seen<5000),selected,status,backend,nativeEnabled,discoveryError,autoEnabled});})();return true;
   }
   if(m.type==='Connect'){serializeConnection(()=>connect(m)).then(reply,e=>reply({ok:false,error:e.message}));return true;}
   if(m.type==='EnableNativeRecording'){serializeConnection(()=>enableNative(m)).then(reply,e=>reply({ok:false,error:e.message}));return true;}
@@ -297,13 +367,24 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
   }
   if(!sender.tab){
     if(m.type==='NativeRecordingStopped'&&m.tabId===selected?.tabId){
-      nativeEnabled=false;send({type:'RecorderState',identity:selected,enabled:false});
-      fail('Tab audio stopped. Open the SubtitlePlayer extension to enable it again.').catch(()=>{});
+      // A delayed ended event from a replaced stream must not disable its live
+      // replacement or cancel that replacement's recording.
+      refreshRecorderState().then(enabled=>{
+        if(!enabled&&m.tabId===selected?.tabId)return fail('Tab audio stopped. Open the SubtitlePlayer extension to enable it again.');
+      }).catch(()=>{});
     }
     if(m.type==='AudioChunk'&&selected)send({...m,identity:selected});
     if(m.type==='EncodedCapture'){
       const r=finishing.get(m.operationId);
       if(r)send({...m,type:'CaptureResult',ok:true,identity:r.identity});
+    }
+    return;
+  }
+  if(m.type==='InputFocus'){
+    if(sender.tab.id===selected?.tabId){
+      const frame=sender.tab.id+':'+sender.frameId,prior=inputFrames.get(frame);
+      inputFrames.set(frame,{tabId:sender.tab.id,focused:!!m.focused,textInput:!!m.textInput,seen:Date.now()});
+      publishInputContext(!prior||prior.focused!==!!m.focused||prior.textInput!==!!m.textInput);
     }
     return;
   }
@@ -323,14 +404,17 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
   if(m.type==='FullscreenChanged'){followFullscreen(m.fullscreen,sender);return;}
   if(m.type==='MediaContext'&&sender.frameId===0){
     if(!['movie','episode'].includes(m.kind)||!m.title)return;
-    const context={type:'MediaContext',title:String(m.title).slice(0,300),kind:m.kind,episode:m.episode,season:m.season,pageKey:String(m.pageKey||'').slice(0,1000)};
+    const context={type:'MediaContext',title:String(m.title).slice(0,300),kind:m.kind,episode:m.episode,season:m.season,pageKey:String(m.pageKey||'').slice(0,1000),pageUrl:String(m.pageUrl||'').slice(0,2000),scope:m.scope};
     mediaContexts.set(sender.tab.id,context);
     if(selected?.tabId===sender.tab.id)send({...context,identity:selected});
     return;
   }
   if(m.type==='EpisodeContext'&&sender.frameId===0){
     (async()=>{
-      const context={type:'EpisodeContext',seriesKey:await hash(m.seriesKey),episode:m.episode,season:m.season,scope:m.scope,title:String(m.title||'').slice(0,300)};
+      const pageUrl=String(m.pageUrl||'').slice(0,2000);
+      const context={type:'EpisodeContext',seriesKey:await hash(m.seriesKey),episode:m.episode,season:m.season,scope:m.scope,title:String(m.title||'').slice(0,300),pageUrl};
+      const media=mediaContexts.get(sender.tab.id);
+      if(media?.pageUrl&&pageUrl&&media.pageUrl!==pageUrl)return;
       episodeContexts.set(sender.tab.id,context);
       if(selected?.tabId===sender.tab.id)send({...context,identity:selected});
     })();return;
@@ -371,28 +455,57 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
     if(recording?.operationId===m.operationId&&sender.tab.id===selected.tabId)offscreen({...m,type:'SetCrop'});return;
   }
   if(key(identity)!==key(selected)&&!['CaptureClock','CaptureBoundary','CaptureAborted','CaptureScreenshot','CaptionResource'].includes(m.type))return;
+  if(m.type==='PlaybackIntervention'){
+    const current=observed.get(key(identity));
+    if(current)send({type:'PlaybackIntervention',identity,fingerprint:current.fingerprint});
+    return;
+  }
   if(m.operationId&&recording?.operationId===m.operationId){
     if(sender.tab.id!==selected.tabId||sender.documentId!==selected.documentId)return;
     if(m.type==='CaptureAborted')fail(m.error);
     if(m.type==='CaptureScreenshot')captureScreenshot(m);
     if(m.type==='CaptureClock')offscreen({...m,type:'RecordingClock'});
+    if(m.type==='CaptureStarted')send({type:'CaptureStarted',operationId:m.operationId,identity:recording.identity,time:m.time});
     if(m.type==='CaptureBoundary'){
       const r=recording;
       // Detach player ownership now. Encoding/Anki may finish after another clip.
       finishing.set(r.operationId,r);recording=null;
-      send({type:'RecordingEnded',operationId:r.operationId,identity:r.identity});
+      send({type:'RecordingEnded',operationId:r.operationId,identity:r.identity,time:m.time});
       offscreen({type:'StopRecording',operationId:m.operationId,time:m.time}).then(result=>{
         if(!result?.ok){finishing.delete(r.operationId);send({type:'CaptureResult',operationId:r.operationId,identity:r.identity,ok:false,error:result?.error||'Encoding failed'});}
       },e=>{finishing.delete(r.operationId);send({type:'CaptureResult',operationId:r.operationId,identity:r.identity,ok:false,error:e.message});});
     }
   }
-  if(m.type==='CaptionIntervals'||m.type==='CaptionObservation')send({...m,identity});
-  if(m.type==='CaptionResource'&&/english|german|englisch|deutsch|\b(en|eng|de|deu|ger)\b/i.test(m.language+' '+m.label)){
+  if(m.type==='CaptionIntervals'||m.type==='CaptionObservation'||m.type==='CaptionReset'||m.type==='CaptionReferencePending'){
+    (async()=>{
+      const fingerprint=m.mediaKey?await hash(m.mediaKey):observed.get(key(identity))?.fingerprint;
+      if(!fingerprint||key(identity)!==key(selected)||observed.get(key(identity))?.fingerprint!==fingerprint)return;
+      const {mediaKey,...rest}=m;
+      if(m.type==='CaptionReferencePending'){captionCache.delete(key(identity));preferredCaptionPending.set(key(identity),fingerprint);send({...rest,identity,fingerprint});return;}
+      if(m.type!=='CaptionIntervals'){send({...rest,identity,fingerprint});return;}
+      if(!Array.isArray(m.intervals)||m.intervals.length<8||m.intervals.length>10000)return;
+      if(!m.intervals.every(x=>Array.isArray(x)&&x.length===2&&x.every(Number.isFinite)&&x[0]>=0&&x[1]>x[0]&&x[1]<86400))return;
+      let intervals=m.intervals.map(x=>[...x]).sort((a,b)=>a[0]-b[0]);
+      const priority=Number.isFinite(m.priority)?m.priority:0,previous=captionCache.get(key(identity))?.[0];
+      if(preferredCaptionPending.get(key(identity))===fingerprint&&priority>0)return;
+      if(previous?.fingerprint===fingerprint&&previous.priority<priority)return;
+      const referenceId=String(m.referenceId||'native').slice(0,128);
+      if(previous?.type==='CaptionIntervals'&&previous.fingerprint===fingerprint&&previous.priority===priority&&previous.language===m.language&&previous.referenceId===referenceId){
+        intervals=[...new Map([...previous.intervals,...intervals].map(x=>[JSON.stringify(x),x])).values()].sort((a,b)=>a[0]-b[0]).slice(0,10000);
+        if(JSON.stringify(intervals)===JSON.stringify(previous.intervals))return;
+      }
+      const value={type:'CaptionIntervals',identity,fingerprint,language:m.language,label:m.label,priority,referenceId,intervals};
+      preferredCaptionPending.delete(key(identity));
+      captionCache.set(key(identity),[value]);send(value);
+    })();return;
+  }
+  if(m.type==='CaptionResource'&&!/english\s*\(?2\)?/i.test(m.label||'')&&/english|german|englisch|deutsch|\b(en|eng|de|deu|ger)\b/i.test(m.language+' '+m.label)){
     if(key(identity)!==key(selected))return;
     (async()=>{let fetchState,hostname='';try{
       const url=new URL(m.url);if(!['http:','https:'].includes(url.protocol))return;
       hostname=url.hostname;
       const fingerprint=await hash(m.mediaKey),priority=m.priority??0;
+      if(preferredCaptionPending.get(key(identity))===fingerprint&&priority>0)return;
       if(key(identity)!==key(selected)||observed.get(key(identity))?.fingerprint!==fingerprint)return;
       const scope=key(identity)+'|'+fingerprint;
       fetchState=captionFetchStates.get(scope);
@@ -412,6 +525,7 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
       const current=observed.get(key(identity));
       if(m.mediaKey&&current&&await hash(m.mediaKey)!==current.fingerprint)return;
       const previous=captionCache.get(key(identity))?.[0];
+      if(preferredCaptionPending.get(key(identity))===fingerprint&&priority>0)return;
       if(previous?.fingerprint===fingerprint&&previous.priority<=priority)return;
       if(text.length<4000000&&(text.match(/-->/g)||[]).length>=8){const value={type:'CaptionText',identity,text,language:m.language,priority,fingerprint:await hash(m.mediaKey)};captionCache.set(key(identity),[value]);if(key(identity)===key(selected))send(value);}
     }catch{
@@ -420,9 +534,10 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
     }})();
   }
 });
-chrome.tabs.onActivated.addListener(({tabId})=>{activeTabId=tabId;if(recording&&selected?.tabId!==tabId)fail('Selected tab changed');if(fullscreenLease&&fullscreenLease.tabId!==tabId){fullscreenFrames.clear();fullscreenUpdates=fullscreenUpdates.then(restoreWindowFullscreen);}discoverTab(tabId);scheduleAutoConnect();});
+chrome.windows.onFocusChanged?.addListener(()=>{publishInputContext(true);});
+chrome.tabs.onActivated.addListener(({tabId})=>{activeTabId=tabId;publishInputContext(true);if(recording&&selected?.tabId!==tabId)fail('Selected tab changed');if(fullscreenLease&&fullscreenLease.tabId!==tabId){fullscreenFrames.clear();fullscreenUpdates=fullscreenUpdates.then(restoreWindowFullscreen);}discoverTab(tabId);scheduleAutoConnect();});
 chrome.tabs.onRemoved.addListener(tabId=>{if(tabId===selected?.tabId){fail('Video tab closed');selected=null;fullscreenFrames.clear();fullscreenUpdates=fullscreenUpdates.then(restoreWindowFullscreen);}});
-chrome.tabs.onUpdated.addListener((tabId,change)=>{if(change.status==='loading'){mediaContexts.delete(tabId);episodeContexts.delete(tabId);}if(tabId===selected?.tabId&&change.status==='loading'){
+chrome.tabs.onUpdated.addListener((tabId,change)=>{if(change.status==='loading'){mediaContexts.delete(tabId);episodeContexts.delete(tabId);for(const [frame,value]of inputFrames)if(value.tabId===tabId)inputFrames.delete(frame);publishInputContext();}if(tabId===selected?.tabId&&change.status==='loading'){
   fullscreenFrames.clear();fullscreenUpdates=fullscreenUpdates.then(restoreWindowFullscreen);
   bindingLost=true;fail('Video page changed');send({type:'VideoUnavailable',identity:selected});
 }});

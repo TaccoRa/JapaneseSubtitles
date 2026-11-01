@@ -250,6 +250,8 @@ class SubtitlePlayerApp:
             return
         try:
             self._build_ui()
+            if self.sub_manager.jimaku_radius_migrated:
+                self.settings_ui.persist_active_profile_fields({"DOWNLOAD_WINDOW": 2, "JIMAKU_PRIMARY_MIGRATED": True})
             self._build_renderer()
             self._build_controller()
 
@@ -257,7 +259,10 @@ class SubtitlePlayerApp:
             self.root.deiconify()
             self._close_startup_overlay()
             self.sub_overlay_ui.show()
-            self.controller.schedule_update()
+            if self.sub_manager.startup_needs_source:
+                self._startup_browser_deadline = time.monotonic()+15
+                self._startup_browser_identity = None
+                self.root.after(100, self._choose_startup_source)
             if self._previous_run_unclean:
                 self.root.after(
                     250,
@@ -271,6 +276,33 @@ class SubtitlePlayerApp:
             self._on_close()
         except Exception as exc:
             self._abort_startup(exc, exc_info=sys.exc_info())
+
+    def _choose_startup_source(self):
+        if (self._closing or not self.sub_manager.startup_needs_source or
+                getattr(self.sub_manager, "_startup_source_choice_handled", False) or
+                self.sub_manager.is_search_dialog_active()):
+            return
+        browser = self.controller.browser_sync
+        context = browser._media_context or {}
+        event = browser._last_episode_context or {}
+        now = time.monotonic()
+        has_video = bool(browser.identity and browser.following and getattr(browser, "_connected", False))
+        if has_video and browser.identity != getattr(self, "_startup_browser_identity", None):
+            self._startup_browser_identity = browser.identity
+            # Connection and title/episode detection complete independently.
+            self._startup_browser_deadline = max(getattr(self, "_startup_browser_deadline", 0), now+10)
+        if has_video and (getattr(browser, "_source_selection_request", None) is not None
+                          or context.get("episode") or event.get("episode")):
+            # The normal source pipeline resolves maps/downloads and opens its
+            # specific fallback on failure. Do not stack a generic chooser.
+            if browser._source_selection_request is None:
+                browser.resolve_browser_source()
+            self.root.after(250, self._choose_startup_source)
+            return
+        if now < getattr(self, "_startup_browser_deadline", 0):
+            self.root.after(150, self._choose_startup_source)
+            return
+        self.controller.episode_controller.on_open_srt()
 
     def _abort_startup(self, error: BaseException, exc_info=None) -> None:
         """Report a failed startup and tear down any partially built UI."""
@@ -391,6 +423,11 @@ class SubtitlePlayerApp:
     def _on_close(self):
         if self._closing:
             return
+        settings = getattr(self, "settings_ui", None)
+        advanced = getattr(settings, "advanced_window", None)
+        if advanced is not None and advanced.winfo_exists():
+            if not settings.adv_settings._apply_advanced_settings(persist=True):
+                return
         self._closing = True
         logger.info("SubtitlePlayer shutdown requested")
         if self._startup_check_job is not None:

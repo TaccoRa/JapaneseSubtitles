@@ -560,6 +560,9 @@ class VoiceTab:
         self.highlight_status_var.set(bool(self.ui.config.get("VOICE_HIGHLIGHT_AUTO_STATUS") or False))
         self.action_indicator_var.set(self.ui.config.get("VOICE_ACTION_INDICATOR_ENABLED") is not False)
         commands = merge_voice_commands(self.ui.config.get("VOICE_COMMANDS"))
+        self._loaded_alias_state = (commands,
+            {"en": normalize_voice_phrase(self.prefix_en_var.get()), "de": normalize_voice_phrase(self.prefix_de_var.get())},
+            bool(self.require_prefix_var.get()))
         for action, values in commands.items():
             variables = self._command_vars[action]
             variables["enabled"].set(bool(values.get("enabled")))
@@ -594,7 +597,7 @@ class VoiceTab:
         require_prefix = bool(self.require_prefix_var.get())
         conflicts = voice_alias_conflicts(commands, prefixes, require_prefix=require_prefix)
         self._show_conflicts(conflicts)
-        if conflicts:
+        if conflicts and (commands, prefixes, require_prefix) != getattr(self, "_loaded_alias_state", None):
             descriptions = []
             for language, phrases in conflicts.items():
                 for phrase, actions in phrases.items():

@@ -64,7 +64,7 @@ def browser():
     sync.identity = MediaIdentity.read(identity)
     sync.following = sync._connected = True
     sync._native_enabled = True
-    sync.controller = SimpleNamespace(config=SimpleNamespace(get=lambda key: {"CAPTURE_BACKEND": "native", "POST_CAPTURE_PLAYBACK": "play", "AUDIO_PADDING": 500}.get(key)))
+    sync.controller = SimpleNamespace(playing=False, config=SimpleNamespace(get=lambda key: {"CAPTURE_BACKEND": "native", "POST_CAPTURE_PLAYBACK": "play", "AUDIO_PADDING": 500}.get(key)))
     sync.mapping = TimingMap("source", "episode", "reference", ((10, 12), (30, 32)), ((11, 13), (22.784, 24.784)), (True, True))
     sync._capture = None
     sync._trim = 0.0
@@ -108,9 +108,32 @@ def test_capture_preflight_requires_the_browser_recording_gesture_before_adding_
     sync = browser()
     sync._native_enabled = False
     session = CaptureSession(FrozenActionTarget.create(selected_text="word", subtitle_text="sentence", sentence_key="sentence", cue_snapshot=SimpleNamespace(cue_index=0)))
-    with pytest.raises(ValueError, match="Enable native recording"):
+    with pytest.raises(ValueError, match="Native recording is not ready"):
         sync.freeze_capture(session)
+    assert [m["type"] for m in sync.sent] == ["RecorderProbe"]
+
+
+def test_live_recorder_state_clears_false_disabled_preflight_without_an_anki_write():
+    sync = browser()
+    sync._native_enabled = False
+    sync._event(dict(type="RecorderState", identity=sync.identity.wire(), enabled=True))
+    session = CaptureSession(FrozenActionTarget.create(selected_text="word", subtitle_text="sentence",
+        sentence_key="sentence", cue_snapshot=SimpleNamespace(cue_index=0)))
+    sync.freeze_capture(session)
+    assert session.backend == "native" and session.mapped_interval == (11, 13.5)
     assert not sync.sent
+
+
+def test_clock_loss_is_diagnosed_separately_from_missing_timing():
+    from dataclasses import replace
+    import time
+    sync = browser()
+    sync.snapshot = replace(sync.snapshot, received=time.monotonic()-1)
+    session = CaptureSession(FrozenActionTarget.create(selected_text="word", subtitle_text="sentence", sentence_key="s"))
+    with pytest.raises(ValueError, match="clock is being refreshed"):
+        sync.freeze_capture(session)
+    assert [m["type"] for m in sync.sent] == ["PlaybackProbe"]
+    assert sync.mapping is not None
 
 
 @pytest.mark.parametrize("note_first", [True, False])

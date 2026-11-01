@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "updated_at": "2026-10-30T19:45:08+00:00",
+  "words": [
+    {
+      "surface": "分かり",
+      "normalized": "分かり",
+      "base": "",
+      "reading": "",
+      "meaning": "",
+      "anime": "",
+      "source": "anki",
+      "status": "anki_mature",
+      "created_at": "2026-10-30T19:45:08+00:00",
+      "updated_at": "2026-10-30T19:45:08+00:00",
+      "notes": "",
+      "extra": {}
+    },
+    {
+      "surface": "分かり 合える",
+      "normalized": "分かり合える",
+      "base": "",
+      "reading": "",
+      "meaning": "",
+      "anime": "",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-10-30T19:45:08+00:00",
+      "updated_at": "2026-10-30T19:45:08+00:00",
+      "notes": "",
+      "extra": {}
+    }
+  ]
+}

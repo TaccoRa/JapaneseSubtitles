@@ -11,6 +11,7 @@ import re
 import sys
 import threading
 import time
+import unicodedata
 from html import escape
 from typing import Dict, List, Optional
 
@@ -61,12 +62,25 @@ class AnkiClient:
     RUBY_READING_OVERRIDES = {
         "十分": "じゅうぶん",
     }
+    # Lexical adjective expressions split into short units by UniDic.
+    # Verified against the complete JMdict entry, not a partial search result.
+    LEXICAL_ADJECTIVE_EXPRESSIONS = {("性格", "悪い"): "性格悪い"}
     INLINE_FURIGANA_RE = re.compile(
         r"(?<=[0-9\uff10-\uff19\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff"
         r"\U00020000-\U0002ceaf])"
         r"\[([\u3040-\u30ff\u31f0-\u31ff\u30fc\u30fb\uff65]+)\]"
     )
     TEXT_CACHE_LIMIT = 512
+
+    @property
+    def _last_jisho_full_definition(self):
+        return getattr(getattr(self, "_word_translation_state", None), "definition", "")
+
+    @_last_jisho_full_definition.setter
+    def _last_jisho_full_definition(self, value):
+        if not hasattr(self, "_word_translation_state"):
+            self._word_translation_state = threading.local()
+        self._word_translation_state.definition = str(value or "")
 
     def __init__(self, config) -> None:
         self.config = config
@@ -244,6 +258,7 @@ class AnkiClient:
         timeout: float | None = None,
         retries: int = 0,
         backoff_sec: float = 0.15,
+        quiet: bool = False,
         **kwargs,
     ) -> requests.Response:
         if self._closed:
@@ -264,7 +279,7 @@ class AnkiClient:
                 last_exc = exc
                 if attempt >= attempts - 1:
                     break
-                logger.warning(
+                (logger.debug if quiet else logger.warning)(
                     "HTTP request to %s failed (%s); retrying in %.2fs",
                     url,
                     exc,
@@ -322,6 +337,7 @@ class AnkiClient:
         copy_existing_media: bool = True,
         cue_snapshot: CueSnapshot | None = None,
         selection_spans=None,
+        sentence_context=None,
     ) -> Dict:
         prepared = self.prepare_note_from_selection(
             selection_text,
@@ -330,6 +346,7 @@ class AnkiClient:
             copy_existing_media=copy_existing_media,
             cue_snapshot=cue_snapshot,
             selection_spans=selection_spans,
+            sentence_context=sentence_context,
         )
         return self.commit_prepared_note(prepared)
 
@@ -341,6 +358,7 @@ class AnkiClient:
         copy_existing_media: bool = True,
         cue_snapshot: CueSnapshot | None = None,
         selection_spans=None,
+        sentence_context=None,
     ) -> Dict:
         selected = (selection_text or "").strip()
         if not selected:
@@ -356,6 +374,9 @@ class AnkiClient:
             subtitle_with_rubies = cue_snapshot.inline_ruby_text
         else:
             subtitle, subtitle_with_rubies = self._split_preformatted_sentence(subtitle_text)
+        if sentence_context is not None:
+            subtitle = sentence_context.plain_text
+            subtitle_with_rubies = sentence_context.inline_ruby_text
         anime = str(
             anime_name
             or self.config.get("LAST_DISPLAY_ANIME_NAME")
@@ -634,6 +655,55 @@ class AnkiClient:
             raise RuntimeError("Anki media fields are incomplete")
         return True
 
+    def attach_shared_capture(self, note_id, fields):
+        """Attach the verified group's exact media, retaining all other fields."""
+        media = {self.sound_field: fields[self.sound_field], self.image_field: fields[self.image_field]}
+        if "[sound:" not in media[self.sound_field] or "<img" not in media[self.image_field]:
+            raise ValueError("Shared recording has incomplete media")
+        self.capture_note_snapshot(note_id)
+        self._invoke("updateNoteFields", {"note": {"id": int(note_id), "fields": media}})
+        after = self.capture_note_snapshot(note_id)["fields"]
+        if any(after.get(name) != value for name, value in media.items()):
+            raise RuntimeError("Shared recording attachment could not be verified")
+
+    def replace_exact_sentence_capture(self, note_id, *, is_cancelled=lambda: False):
+        """Propagate verified fresh media to exact-sentence notes, including listening.
+
+        Read the sentence from the original note, not the adjusted audio range.
+        Empty fields and existing media are both replaced; other fields stay intact.
+        """
+        source = self.capture_note_snapshot(note_id)["fields"]
+        raw = source.get(self.add_rubies_to_sentence_ja_field, "")
+        rendered = source.get(self.sentence_ja_field, "")
+        from html import unescape
+        def sentence_key(value):
+            value = re.sub(r"<[^>]+>", " ", unescape(value))
+            value = re.sub(r"\[[^\[\]]*\]", "", value)
+            return re.sub(r"\s+", "", value)
+        key = sentence_key(raw or rendered)
+        if not key:
+            raise ValueError("Capture target has no sentence to match")
+        # Different ruby segmentation/HTML breaks defeat phrase searches.
+        # Enumerate sentence notes, then compare their plain sentence exactly.
+        ids = set(self._invoke("findNotes", {"query": f"{self.sentence_ja_field}:*"}) or [])
+        ids.discard(int(note_id))
+        updated = []
+        ordered = sorted(ids)
+        for start in range(0, len(ordered), 200):
+            for note in self._invoke("notesInfo", {"notes": ordered[start:start+200]}) or []:
+                if is_cancelled():
+                    raise RuntimeError("Capture cancelled")
+                fields = note.get("fields", {})
+                sentence = (fields.get(self.add_rubies_to_sentence_ja_field, {}).get("value", "")
+                            or fields.get(self.sentence_ja_field, {}).get("value", ""))
+                if sentence_key(sentence) != key:
+                    continue
+                if any(name not in fields for name in (self.sound_field, self.image_field)):
+                    continue
+                self.attach_shared_capture(int(note["noteId"]), source)
+                updated.append(int(note["noteId"]))
+        return updated
+
     def capture_note_snapshot(self, note_id, *, include_media=False):
         notes = self._invoke("notesInfo", {"notes": [int(note_id)]}) or []
         if len(notes) != 1 or not notes[0] or int(notes[0].get("noteId", 0)) != int(note_id):
@@ -683,14 +753,11 @@ class AnkiClient:
                 return False
         return True
 
-    def attach_native_capture(self, note_id, operation_id, audio, image, *, is_cancelled=lambda: False):
-        """Retryable media-only update of one explicit note; never creates notes."""
+    @staticmethod
+    def validate_native_capture(audio, image):
+        """Validate local recorder output without contacting Anki."""
         import base64
-        import hashlib
         import io
-        import re
-        if not re.fullmatch(r"[a-f0-9]{32}", str(operation_id)) or int(note_id) <= 0:
-            raise ValueError("Invalid media operation identity")
         raw_audio = base64.b64decode(audio, validate=True)
         raw_image = base64.b64decode(image, validate=True)
         if not raw_image.startswith(b"\x89PNG\r\n\x1a\n") or len(raw_audio) < 100:
@@ -703,6 +770,17 @@ class AnkiClient:
                 raise ValueError("Invalid PCM recording")
             if recording.getnframes() / recording.getframerate() > 125:
                 raise ValueError("Recording interval too long")
+        return raw_audio, raw_image
+
+    def attach_native_capture(self, note_id, operation_id, audio, image, *, is_cancelled=lambda: False):
+        """Retryable media-only update of one explicit note; never creates notes."""
+        import base64
+        import hashlib
+        import io
+        import re
+        if not re.fullmatch(r"[a-f0-9]{32}", str(operation_id)) or int(note_id) <= 0:
+            raise ValueError("Invalid media operation identity")
+        raw_audio, raw_image = self.validate_native_capture(audio, image)
         media = ((self.sound_field, "wav", raw_audio), (self.image_field, "png", raw_image))
         notes = self._invoke("notesInfo", {"notes": [int(note_id)]}) or []
         if len(notes) != 1 or not notes[0]:
@@ -1143,24 +1221,10 @@ class AnkiClient:
                 continue
             if base in self.RUBY_READING_OVERRIDES:
                 ruby = self.RUBY_READING_OVERRIDES[base]
-            starts_boundary_ruby = self._starts_with_kanji(base) or self._starts_with_number(base)
-            if (
-                sentence_spacing
-                and ruby
-                and self._starts_with_katakana(base)
-                and not self._previous_ruby_segment_starts_with_katakana(segments, i)
-            ):
-                starts_boundary_ruby = True
-            if (
-                ruby
-                and starts_boundary_ruby
-                and out
-                and not out[-1].endswith((" ", "\n", "\t"))
-                and not out[-1].endswith((
-                    "[", "(", "\uff08", "{", "\uff5b", "<", "\uff1c",
-                    "\u300c", "\u300e", "\u3010", "\u30fb", "\uff65",
-                ))
-            ):
+            from model.ruby_boundary import needs_ruby_boundary
+            boundary_segments = list(segments)
+            boundary_segments[i] = (base, ruby)
+            if needs_ruby_boundary(boundary_segments, i, "".join(out), sentence_spacing):
                 out.append(" ")
             if ruby:
                 out.append(f"{escape(base)}[{escape(ruby)}]")
@@ -1508,6 +1572,11 @@ class AnkiClient:
         if suru_headword:
             return suru_headword
 
+        # Only inflection endings may be dropped from a selected verb. A phrase
+        # such as 食べた後 or 走って帰る must keep its other content words.
+        if any(not self._is_suru_inflection_tail_token(token) for token in meaningful_tokens[1:]):
+            return selected
+
         for token in meaningful_tokens:
             surface = str(getattr(token, "surface", "") or "").strip()
             if not surface:
@@ -1584,33 +1653,7 @@ class AnkiClient:
             lookup = "する"
         if lookup.endswith("為る"):
             lookup = lookup[:-2] + "する"
-        if lookup and lookup != selection.text.strip():
-            return lookup
-
-        base_tokens = [token for token in selection.tokens if not token.compound]
-        if len(base_tokens) != 1:
-            return lookup
-        selected_token = base_tokens[0]
-        line = snapshot.line(selected_token.line_index)
-        if line is None:
-            return lookup
-        following = sorted(
-            (
-                token
-                for token in line.tokens
-                if not token.compound and token.start >= selected_token.end
-            ),
-            key=lambda token: (token.start, token.end),
-        )
-        if not following:
-            return lookup
-        next_token = following[0]
-        if line.text[selected_token.end:next_token.start].strip():
-            return lookup
-        if not self._cue_token_is_suru(next_token):
-            return lookup
-        stem = re.sub(r"\s+", "", selection.text).strip()
-        return f"{stem}する" if stem else lookup
+        return lookup
 
     def _anki_marker_tags_from_cue_selection(
         self,
@@ -2409,28 +2452,40 @@ class AnkiClient:
         self._cache_put(self._jisho_entries_cache, text, entries)
         return entries
 
-    def _extract_jisho_translation(self, query: str, entries: List[Dict]) -> List[str]:
-        if not entries:
-            return []
+    @staticmethod
+    def _matching_jisho_entry(query: str, entries: List[Dict]) -> Dict | None:
+        """Reject search suggestions that define only part of the requested text."""
+        def normalized(value):
+            return re.sub(r"\s+", "", unicodedata.normalize("NFKC", str(value or "")))
 
-        best = entries[0]
-        best_score = -1
-        for entry in entries:
+        query = normalized(query)
+        if not query:
+            return None
+        best, best_score = None, 0
+        for entry in entries or []:
+            if not isinstance(entry, dict):
+                continue
+            suru_stem = query[:-2] if query.endswith("する") and any(
+                "suru verb" in str(pos or "").casefold()
+                for sense in entry.get("senses") or []
+                for pos in sense.get("parts_of_speech") or []
+            ) else ""
             score = 0
             for jp in entry.get("japanese") or []:
-                word = str(jp.get("word") or "")
-                reading = str(jp.get("reading") or "")
-                if word == query:
-                    score += 100
-                if reading == query:
-                    score += 80
-                if query and query in word:
-                    score += 30
-                if query and query in reading:
-                    score += 20
+                if not isinstance(jp, dict):
+                    continue
+                word, reading = normalized(jp.get("word")), normalized(jp.get("reading"))
+                score = max(score, 100 if word == query else 0, 80 if reading == query else 0,
+                            60 if suru_stem and word == suru_stem else 0,
+                            40 if suru_stem and reading == suru_stem else 0)
             if score > best_score:
-                best = entry
-                best_score = score
+                best, best_score = entry, score
+        return best
+
+    def _extract_jisho_translation(self, query: str, entries: List[Dict]) -> List[str]:
+        best = self._matching_jisho_entry(query, entries)
+        if best is None:
+            return []
 
         definitions: List[str] = []
         seen_definition_keys: set[str] = set()
@@ -2519,11 +2574,7 @@ class AnkiClient:
     def _format_jisho_hover_entry(self, query: str, entries: List[Dict], definitions: List[str]) -> str:
         head = query
         try:
-            best = entries[0]
-            for entry in entries:
-                if self._extract_jisho_translation(query, [entry]) == definitions:
-                    best = entry
-                    break
+            best = self._matching_jisho_entry(query, entries) or {}
             jap = (best.get("japanese") or [{}])[0] if isinstance(best.get("japanese"), list) else {}
             word = str(jap.get("word") or "").strip()
             reading = str(jap.get("reading") or "").strip()
@@ -2591,11 +2642,20 @@ class AnkiClient:
                         "end": end,
                         "pos1": pos1,
                         "pos2": str(getattr(feature, "pos2", "") or ""),
+                        "pos3": str(getattr(feature, "pos3", "") or ""),
                         "c_type": str(getattr(feature, "cType", "") or ""),
                         "c_form": str(getattr(feature, "cForm", "") or ""),
                     }
                 )
             if spans:
+                # Derive contextual suru headwords once, before the snapshot is
+                # shared by hover, popup selection, annotations, and Anki.
+                for current, following in zip(spans, spans[1:]):
+                    if (current.get("pos1") == "名詞" and "サ変" in current.get("pos3", "")
+                            and following.get("pos1") == "動詞"
+                            and following.get("lookup") in {"する", "為る"}
+                            and not source[current["end"]:following["start"]].strip()):
+                        current["lookup"] = str(current["surface"]) + "する"
                 result = self._expand_compound_word_spans(source, spans)
                 self._cache_put(self._word_spans_cache, source, [dict(span) for span in result])
                 return result
@@ -2619,7 +2679,7 @@ class AnkiClient:
         source: str,
         spans: List[Dict[str, object]],
     ) -> List[Dict[str, object]]:
-        compounds: List[Dict[str, object]] = []
+        compounds = self._lexical_adjective_expression_spans(source, spans)
         existing = {
             (int(span.get("start") or 0), int(span.get("end") or 0), str(span.get("lookup") or ""))
             for span in spans
@@ -2627,11 +2687,12 @@ class AnkiClient:
 
         max_parts = 4
         for i in range(len(spans)):
-            if not self._compound_part_allowed(spans[i]):
+            if spans[i].get("pos1") == "接尾辞" or not self._compound_part_allowed(spans[i]):
                 continue
             start = int(spans[i].get("start") or 0)
             end = int(spans[i].get("end") or 0)
             readings = [str(spans[i].get("reading") or "")]
+            parts = [spans[i]]
             for j in range(i + 1, min(len(spans), i + max_parts)):
                 next_span = spans[j]
                 next_start = int(next_span.get("start") or 0)
@@ -2640,11 +2701,22 @@ class AnkiClient:
                     break
                 if not self._compound_part_allowed(next_span):
                     break
+                numeric = any(part.get("pos2") == "数詞" for part in parts)
+                ordinal = str(parts[0].get("surface") or "") == "第"
+                if next_span.get("pos2") == "数詞" and not numeric and not ordinal:
+                    break  # 部屋 + いくつ starts a new quantity, not a noun compound.
+                if (numeric and not ordinal and next_span.get("pos1") == "名詞"
+                        and next_span.get("pos2") != "数詞" and "助数詞" not in next_span.get("pos3", "")
+                        and any(part.get("pos1") == "接尾辞" or "助数詞" in part.get("pos3", "")
+                                for part in parts[1:])):
+                    break  # 一度 + 失敗 / 三人 + 全員 are separate expressions.
+                parts.append(next_span)
                 end = next_end
                 readings.append(str(next_span.get("reading") or ""))
                 surface = source[start:end]
                 lookup = re.sub(r"\s+", "", surface).strip()
-                if len(lookup) < 2 or not self._contains_kanji(lookup):
+                if len(lookup) < 2 or not (self._contains_kanji(lookup)
+                        or numeric and next_span.get("pos1") == "接尾辞"):
                     continue
                 key = (start, end, lookup)
                 if key in existing:
@@ -2676,9 +2748,32 @@ class AnkiClient:
         )
         return compounds + base_spans
 
+    def _lexical_adjective_expression_spans(self, source, spans):
+        result = []
+        for index, (noun, adjective) in enumerate(zip(spans, spans[1:])):
+            lookup = self.LEXICAL_ADJECTIVE_EXPRESSIONS.get((noun.get("surface"), adjective.get("lookup")))
+            if (not lookup or noun.get("pos1") != "名詞" or adjective.get("pos1") != "形容詞"
+                    or source[noun["end"]:adjective["start"]].strip()):
+                continue
+            end = adjective["end"]
+            reading = str(noun.get("reading") or "") + str(adjective.get("reading") or "")
+            # Past and negative endings belong to the same surface expression.
+            for tail in spans[index+2:]:
+                negative = (tail.get("pos1") == "形容詞" and tail.get("pos2") == "非自立可能"
+                            and tail.get("lookup") in {"ない", "無い"})
+                if (tail.get("pos1") != "助動詞" and not negative) or source[end:tail["start"]].strip():
+                    break
+                end = tail["end"]
+                reading += str(tail.get("reading") or "")
+            result.append(dict(surface=source[noun["start"]:end], lookup=lookup, reading=reading,
+                               start=noun["start"], end=end, compound=True, pos1="形容詞"))
+        return result
+
     def _compound_part_allowed(self, span: Dict[str, object]) -> bool:
         surface = str(span.get("surface") or "").strip()
         if not surface or not self._is_lookup_candidate(surface):
+            return False
+        if surface in {"プラス", "マイナス"}:
             return False
         if surface in {
             "は", "が", "を", "に", "へ", "で", "と", "も", "の", "や", "か",
@@ -3104,17 +3199,25 @@ class AnkiClient:
             "params": params or {},
         }
         if retries is None:
-            retries = 0 if action == "addNote" else 2
+            retries = 0 if action in ("addNote", "version") else 2
+        request_timeout = self.http_timeout
+        if action == "version":
+            request_timeout = min(self.http_timeout, 1.0)
+        if action in ("storeMediaFile", "retrieveMediaFile"):
+            request_timeout = (min(self.http_timeout, 3.0), max(self.http_timeout, 30.0))
         try:
             data = self._request_json(
                 "POST",
                 self.url,
                 json=payload,
-                timeout=self.http_timeout,
+                timeout=request_timeout,
                 retries=max(0, int(retries)),
+                quiet=action == "version",
             )
         except AnkiConnectRequestError:
-            logger.warning("AnkiConnect request failed for action %s", action, exc_info=True)
+            if action != "version":
+                logger.warning("AnkiConnect: action %s failed; check that Anki is running", action)
+            logger.debug("AnkiConnect request details (%s)", action, exc_info=True)
             raise
         if data.get("error"):
             raise RuntimeError(str(data["error"]))

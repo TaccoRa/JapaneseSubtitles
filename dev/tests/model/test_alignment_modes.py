@@ -12,7 +12,7 @@ from test_native_capture import browser
 def test_modes_and_trims_survive_restart_without_legacy_double_offset(tmp_path):
     path = tmp_path / "alignment.json"
     preferences = AlignmentPreferences(path, {"shrek": 25})
-    assert preferences.mode("shrek") == "audio"
+    assert preferences.mode("shrek") == "captions"
     assert preferences.trim("shrek", "ja-srt", "audio") == 0
     preferences.set_trim("shrek", "ja-srt", "audio", -.3)
     preferences.set_mode("shrek", "captions")
@@ -78,6 +78,25 @@ def test_audio_long_rate_drift_remains_one_confirmed_model(tmp_path):
     assert mapping.video[-1][0] == pytest.approx(source[-1][0]*1.01+2)
 
 
+def test_sparse_distant_audio_islands_cannot_manufacture_a_confirmed_drift(tmp_path):
+    source = tuple((a,a+2) for a in (0,8,16,1000,1008,1016))
+    aligner = AudioAnchorAligner(tmp_path, source, ["text"]*6, "s", "m")
+    aligner.anchors = {i:(a,a+(1 if i<3 else -7)) for i,(a,b) in enumerate(source)}
+    with pytest.raises(ValueError, match="six independent"):
+        aligner.fit()
+
+
+def test_separate_corroborated_audio_islands_keep_their_own_offsets(tmp_path):
+    starts = tuple(range(0,56,8))+tuple(range(1000,1056,8))
+    source = tuple((a,a+2) for a in starts)
+    aligner = AudioAnchorAligner(tmp_path, source, ["text"]*len(source), "s", "m")
+    aligner.anchors = {i:(a,a+(1 if a<500 else -7)) for i,(a,b) in enumerate(source)}
+    mapping = aligner.fit()
+    assert mapping.video[2][0]-source[2][0] == pytest.approx(1)
+    assert mapping.video[-2][0]-source[-2][0] == pytest.approx(-7)
+    assert all(mapping.confidence)
+
+
 def test_mode_switch_invalidates_analysis_without_touching_active_recording(tmp_path):
     sync = browser()
     sync.preferences = AlignmentPreferences(tmp_path/"prefs.json", {"legacy":25})
@@ -99,7 +118,7 @@ def test_inline_offset_notifies_both_directions_at_known_break():
     from dataclasses import replace
     sync = browser()
     values, notices = [], []
-    sync.controller.settings = NS(auto_offset_var=NS(set=values.append), timing_notice_var=NS(set=notices.append))
+    sync.controller.settings = NS(offset_var=NS(set=lambda _: None), auto_offset_var=NS(set=values.append), timing_notice_var=NS(set=notices.append))
     sync._offset_region = sync._auto_offset = None
     sync.snapshot = replace(sync.snapshot, current_time=11.5)
     sync._update_timing_ui(); sync._update_timing_ui()

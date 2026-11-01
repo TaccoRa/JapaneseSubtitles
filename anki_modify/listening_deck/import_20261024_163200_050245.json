@@ -1,0 +1,13 @@
+{
+  "stats": {
+    "scanned": 5627,
+    "with_audio": 1879,
+    "missing_sentence_or_translation": 3,
+    "duplicate_sentences": 524,
+    "unique_sentences": 1352,
+    "already_present": 1352,
+    "to_create": 0
+  },
+  "created_note_ids": [],
+  "notes": []
+}

@@ -17,10 +17,17 @@ def _hover_region_span(region: dict | None) -> tuple[int, int] | None:
 
 
 def choose_hover_region(candidates: list[dict], anchor: dict | None = None) -> dict | None:
-    """Choose the most specific word span corresponding to a parsed ruby span."""
+    """Keep compound words whole, independently of their displayed ruby pieces."""
     if not candidates:
         return None
     anchor_span = _hover_region_span(anchor)
+    compounds = [
+        region for region in candidates
+        if region.get("compound") and (span := _hover_region_span(region)) is not None
+        and (anchor_span is None or span[0] <= anchor_span[0] and span[1] >= anchor_span[1])
+    ]
+    if compounds:
+        return max(compounds, key=lambda region: int(region["char_end"]) - int(region["char_start"]))
 
     def rank(item: tuple[int, dict]) -> tuple[int, int, int, int]:
         order, region = item

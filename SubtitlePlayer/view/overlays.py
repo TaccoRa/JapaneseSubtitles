@@ -86,7 +86,8 @@ class LoadingOverlay:
         if not getattr(self, "_win", None):
             return
         try:
-            self._win.grab_release()
+            if self._win.grab_current() is self._win:
+                self._win.grab_release()
         except Exception:
             pass
         try:

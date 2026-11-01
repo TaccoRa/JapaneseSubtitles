@@ -250,8 +250,15 @@ class CueSelection:
             base_tokens
             and _normalized_selection("".join(token.surface for token in base_tokens), compact=True)
             == normalized
-            and base_tokens[0].pos1 in {"動詞", "形容詞"}
-            and all(token.pos1 in {"助動詞", "助詞", "接尾辞"} for token in base_tokens[1:])
+            and (
+                base_tokens[0].pos1 in {"動詞", "形容詞"}
+                or base_tokens[0].pos1 == "名詞" and base_tokens[0].dictionary_lookup_key.endswith("する")
+                and len(base_tokens) > 1 and base_tokens[1].dictionary_lookup_key in {"する", "為る"}
+            )
+            and all(token.pos1 in {"助動詞", "助詞", "接尾辞"}
+                    or token.pos1 == "動詞" and (token.pos2 == "非自立可能"
+                        or token.dictionary_lookup_key in {"する", "為る"})
+                    for token in base_tokens[1:])
         ):
             first = base_tokens[0]
             return first.dictionary_lookup_key or first.lemma or self.text.strip()
@@ -316,18 +323,12 @@ class CueSnapshot:
         lines: list[str] = []
         for line in self.lines:
             output: list[str] = []
-            for segment in line.segments:
-                if segment.ruby:
-                    if (
-                        self._starts_with_kanji(segment.base)
-                        and output
-                        and not output[-1].endswith((" ", "\n", "\t"))
-                        and not output[-1].endswith(("[", "(", "（", "{", "｛", "<", "＜", "「", "『", "【"))
-                    ):
-                        output.append(" ")
-                    output.append(f"{segment.base}[{segment.ruby}]")
-                else:
-                    output.append(segment.base)
+            from model.ruby_boundary import needs_ruby_boundary
+            segments = [(segment.base, segment.ruby) for segment in line.segments]
+            for index, (base, ruby) in enumerate(segments):
+                if needs_ruby_boundary(segments, index, "".join(output)):
+                    output.append(" ")
+                output.append(f"{base}[{ruby}]" if ruby else base)
             rendered = "".join(output).strip()
             if rendered:
                 lines.append(rendered)

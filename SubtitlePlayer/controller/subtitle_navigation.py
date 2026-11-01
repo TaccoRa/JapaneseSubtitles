@@ -1,6 +1,7 @@
 """Subtitle time display, slider sync, and subtitle redraw helper."""
 
 import bisect
+from collections import OrderedDict
 import logging
 import threading
 import tkinter as tk
@@ -167,6 +168,7 @@ class SubtitleNavigationController(_ControllerProxy):
 
     def update_time_and_subtitle_displays(self):#updates settings time overlay and control window entry
         self.update_time_display()
+        self._prefetch_ruby_around_time()
         browser = getattr(self.controller, "browser_sync", None)
         if browser is not None and browser.following:
             self._update_subtitle_display(allow_auto_ruby=False, schedule_auto_ruby=True)
@@ -348,21 +350,39 @@ class SubtitleNavigationController(_ControllerProxy):
             allow_auto_ruby = False
             schedule_auto_ruby = True
 
-        if sub_t < 0 or sub_t > self.total_duration:
-            self.last_rendered_index = None
-            self.last_subtitle_text = ""
-            self._reset_canvas()
+        browser = getattr(self.controller, "browser_sync", None)
+        frozen = browser.capture_display_snapshot() if browser is not None else None
+        if frozen is not None:
+            idx = int(frozen.cue_index)
+            clean, start_time = frozen.plain_text, frozen.start_time
+            top = frozen.renderer_segments("first", annotated=False)
+            bottom = frozen.renderer_segments("second", annotated=False)
+            copy_text = frozen.inline_ruby_text or clean
+            allow_auto_ruby = schedule_auto_ruby = False
+        else:
+            if sub_t < 0 or sub_t > self.total_duration:
+                self.last_rendered_index = None
+                self.last_subtitle_text = ""
+                self._reset_canvas()
+                return
+            idx = self._display_index_at_time(sub_t)
+            if idx is None:
+                self.last_rendered_index = None
+                self.last_subtitle_text = ""
+                self._reset_canvas()
+                return
+            clean, start_time, top, bottom = self.sub_manager.display_data[idx]
+            copy_text = self.segments_to_copy_text(top, bottom) or clean
+        if frozen is None and schedule_auto_ruby and self._subtitle_needs_auto_ruby(idx):
+            self._awaited_ruby_key = (id(self.sub_manager.display_data), idx)
+            self._schedule_auto_ruby_refresh(idx)
+            # Do not publish a provisional layout and replace it a moment later.
+            if self.last_rendered_index != idx:
+                self.last_rendered_index = None
+                self.last_subtitle_text = ""
+                self._reset_canvas()
             return
-
-        idx = self._display_index_at_time(sub_t)
-        if idx is None:
-            self.last_rendered_index = None
-            self.last_subtitle_text = ""
-            self._reset_canvas()
-            return
-
-        clean, start_time, top, bottom = self.sub_manager.display_data[idx]
-        copy_text = self.segments_to_copy_text(top, bottom) or clean
+        self._awaited_ruby_key = None
         self.last_subtitle_raw = copy_text
 
         if getattr(self, "subtitles_user_hidden", False):
@@ -432,7 +452,7 @@ class SubtitleNavigationController(_ControllerProxy):
         self.last_rendered_index = idx
         self.subtitle_deleted = False
 
-        snapshot = self._build_cue_snapshot(idx, clean, start_time, top, bottom)
+        snapshot = frozen or self._build_cue_snapshot(idx, clean, start_time, top, bottom)
         self.current_cue_snapshot = snapshot
         self.renderer.render_subtitle(
             top,
@@ -479,7 +499,7 @@ class SubtitleNavigationController(_ControllerProxy):
             return
 
         try:
-            updater(target_w, max(current_h, target_h))
+            updater(target_w, max(current_h, target_h), defer_layout=True)
         except Exception:
             logger.debug("Failed to grow subtitle overlay for current subtitle", exc_info=True)
 
@@ -567,47 +587,80 @@ class SubtitleNavigationController(_ControllerProxy):
                 return False
         except Exception:
             return False
+        key = (id(self.sub_manager.display_data), int(idx))
+        if key in getattr(self, "_ruby_prepare_failed", set()):
+            return False
         ready = getattr(self.sub_manager, "_auto_ruby_ready_indices", None)
         if ready is not None and int(idx) in ready:
             return False
         return True
 
-    def _schedule_auto_ruby_refresh(self, idx: int) -> None:
+    def _prefetch_ruby_around_time(self):
+        data = getattr(self.sub_manager, "display_data", ())
+        if not data or self._shutting_down:
+            return
+        first = max(0, bisect.bisect_right(self._display_start_times(), self._source_time(self.current_time)) - 1)
+        window = (id(data), first)
+        if window == getattr(self, "_ruby_prefetch_window", None):
+            return
+        self._ruby_prefetch_window = window
+        condition = getattr(self, "_ruby_prepare_condition", None)
+        if condition is not None:
+            wanted = {(id(data), index) for index in range(first, min(len(data), first+4))}
+            with condition:
+                for key in list(self._ruby_prepare_tasks):
+                    if key not in wanted:
+                        self._ruby_prepare_tasks.pop(key, None)
+                        self._ruby_preparing.discard(key)
+                self._ruby_prepare_failed.intersection_update(wanted)
+        for index in range(first, min(len(data), first+4)):
+            self._schedule_auto_ruby_refresh(index, priority=False)
+
+    def _schedule_auto_ruby_refresh(self, idx: int, priority=True) -> None:
         if self._shutting_down or not self._subtitle_needs_auto_ruby(idx):
             return
-
-        generation_id = int(getattr(self, "_auto_ruby_generation_id", 0) or 0) + 1
-        self._auto_ruby_generation_id = generation_id
-        target_idx = int(idx)
-
-        def _worker() -> None:
-            try:
-                self.sub_manager.ensure_auto_ruby_for_index(target_idx)
-            except Exception:
-                return
-
-            def _refresh_if_current() -> None:
-                if self._shutting_down:
-                    return
-                if generation_id != getattr(self, "_auto_ruby_generation_id", None):
-                    return
-                if self.slider_dragging:
-                    return
-                if target_idx != getattr(self, "last_rendered_index", None):
-                    return
-                if self.subtitle_deleted:
-                    return
-                self.last_subtitle_text = ""
-                self._update_subtitle_display(force=True, allow_auto_ruby=False)
-
-            try:
-                dispatch_to_tk(self.settings.root, _refresh_if_current)
-            except Exception:
-                pass
-
-        thread = threading.Thread(target=_worker, daemon=True, name="auto-ruby-refresh")
-        self._auto_ruby_thread = thread
-        thread.start()
+        data = self.sub_manager.display_data
+        key = (id(data), int(idx))
+        if not hasattr(self, "_ruby_prepare_condition"):
+            self._ruby_prepare_condition = threading.Condition()
+            self._ruby_prepare_tasks = OrderedDict()
+            self._ruby_preparing = set()
+            self._ruby_prepare_failed = set()
+            def worker():
+                while not self._shutting_down:
+                    with self._ruby_prepare_condition:
+                        if not self._ruby_prepare_tasks:
+                            self._ruby_prepare_condition.wait(.5)
+                            continue
+                        target_key, target_data = self._ruby_prepare_tasks.popitem(last=False)
+                    try:
+                        if target_data is self.sub_manager.display_data:
+                            self.sub_manager.ensure_auto_ruby_for_index(target_key[1])
+                    except Exception:
+                        self._ruby_prepare_failed.add(target_key)
+                        logger.warning("Could not prepare subtitle ruby at cue %s", target_key[1], exc_info=True)
+                    finally:
+                        with self._ruby_prepare_condition:
+                            self._ruby_preparing.discard(target_key)
+                    def refresh(target_key=target_key, target_data=target_data):
+                        if (not self._shutting_down and target_data is self.sub_manager.display_data
+                                and target_key == getattr(self, "_awaited_ruby_key", None) and not self.slider_dragging):
+                            self._update_subtitle_display(force=True, allow_auto_ruby=False)
+                    try:
+                        dispatch_to_tk(self.settings.root, refresh)
+                    except (RuntimeError, tk.TclError):
+                        if self._shutting_down:
+                            return
+                        logger.debug("Could not publish prepared ruby", exc_info=True)
+            self._auto_ruby_thread = threading.Thread(target=worker, daemon=True, name="subtitle-ruby-prefetch")
+            self._auto_ruby_thread.start()
+        with self._ruby_prepare_condition:
+            if key not in self._ruby_preparing:
+                self._ruby_preparing.add(key)
+                self._ruby_prepare_tasks[key] = data
+            if priority and key in self._ruby_prepare_tasks:
+                self._ruby_prepare_tasks.move_to_end(key, last=False)
+            self._ruby_prepare_condition.notify()
 
     def toggle_subtitle_visibility(self, event=None):
         if self.subtitle_timeout_job:

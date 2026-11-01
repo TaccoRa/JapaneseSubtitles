@@ -190,16 +190,20 @@ def get_window_root_hwnd(win: tk.Misc):
 def get_foreground_root_hwnd() -> int | None:
     try:
         import ctypes
+        from ctypes import wintypes
         import sys
 
         if not sys.platform.startswith("win"):
             return None
         user32 = ctypes.windll.user32
-        foreground = int(user32.GetForegroundWindow())
+        user32.GetForegroundWindow.restype = wintypes.HWND
+        user32.GetAncestor.argtypes = (wintypes.HWND, wintypes.UINT)
+        user32.GetAncestor.restype = wintypes.HWND
+        foreground = int(user32.GetForegroundWindow() or 0)
         if not foreground:
             return 0
         try:
-            return int(user32.GetAncestor(foreground, 2)) or foreground  # GA_ROOT
+            return int(user32.GetAncestor(foreground, 2) or 0) or foreground  # GA_ROOT
         except Exception:
             return foreground
     except Exception:

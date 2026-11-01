@@ -9,6 +9,11 @@ Minimal entry point for launching the SubtitlePlayer app.
 import ctypes
 import sys
 
+if "--subtitleplayer-alignment-worker" in sys.argv:
+    from model.alignment_worker import run
+    run()
+    sys.exit(0)
+
 
 def _enable_windows_dpi_awareness() -> None:
     """Keep Tk window and pointer coordinates in the same per-monitor pixel space."""

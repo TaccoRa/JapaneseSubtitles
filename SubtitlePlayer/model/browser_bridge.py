@@ -12,11 +12,33 @@ import uuid
 from model.browser_protocol import PROTOCOL_VERSION
 
 
+class _BrowserEvents(queue.Queue):
+    """Coalesce periodic clocks; retain ordered transitions and capture results."""
+    def _put(self, item):
+        if item.get("type") == "PlaybackSnapshot" and item.get("event", "tick") == "tick":
+            identity = item.get("identity")
+            for previous in tuple(self.queue):
+                if (previous.get("type") == "PlaybackSnapshot"
+                        and previous.get("event", "tick") == "tick"
+                        and previous.get("identity") == identity):
+                    self.queue.remove(previous)
+                    self.unfinished_tasks -= 1
+            # Bound telemetry even if abandoned video identities keep arriving.
+            clocks = [event for event in self.queue if event.get("type") == "PlaybackSnapshot"
+                      and event.get("event", "tick") == "tick"]
+            if len(clocks) >= 200:
+                self.queue.remove(clocks[0])
+                self.unfinished_tasks -= 1
+        super()._put(item)
+
+
 class BrowserBridge:
     def __init__(self, token=None, port=8767, trusted_origins=()):
         self.token = token or secrets.token_urlsafe(32)
         self.port = port
-        self.events = queue.Queue(maxsize=200)
+        # Control/completion events must never fail because Tk is temporarily busy.
+        # Only replaceable periodic observations are bounded/coalesced.
+        self.events = _BrowserEvents()
         self._peer = None
         self._server = None
         self._lock = threading.RLock()
@@ -77,13 +99,7 @@ class BrowserBridge:
 
     def _emit(self, event):
         event = {**event, "_received_monotonic": time.monotonic()}
-        try:
-            self.events.put_nowait(event)
-        except queue.Full:
-            # Clock samples may be dropped. Completion/ack/error messages may not.
-            if event.get("type") == "PlaybackSnapshot":
-                return
-            self.events.put(event, timeout=2)
+        self.events.put_nowait(event)
 
     def _accept(self, peer):
         authenticated = False

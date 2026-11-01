@@ -10,6 +10,15 @@ venv/
 
 
 cache_github/
+cache_jimaku/
+jimaku_recent_searches.json
+jimaku_library.json
+jimaku_series.json
+jimaku_series.tmp
+anilist_metadata.json
+anilist_metadata.tmp
+anilist_progress.json
+anilist_progress.tmp
 voice_models/
 timing_maps/
 pending_capture_media/

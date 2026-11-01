@@ -1,6 +1,7 @@
 """Advanced settings window helpers for SettingsUI."""
 
 import json
+from copy import deepcopy
 import logging
 import math
 import os
@@ -8,7 +9,7 @@ import re
 import threading
 import tkinter as tk
 from datetime import date
-from tkinter import filedialog, messagebox, simpledialog, ttk
+from tkinter import filedialog, messagebox, simpledialog, ttk, font as tkfont
 from typing import Any
 
 from model.anki_activity import RANGE_OPTIONS, build_activity_series, migrate_daily_history
@@ -20,15 +21,22 @@ logger = logging.getLogger(__name__)
 
 
 class _SettingsTooltip:
-    def __init__(self, widget, text: str) -> None:
+    def __init__(self, widget, text: str, delay_ms: int = 0) -> None:
         self.widget = widget
         self.text = str(text or "")
         self.window = None
-        widget.bind("<Enter>", self._show, add="+")
+        self.delay_ms = delay_ms
+        self.job = None
+        widget.bind("<Enter>", self._schedule, add="+")
         widget.bind("<Leave>", self._hide, add="+")
         widget.bind("<ButtonPress>", self._hide, add="+")
 
+    def _schedule(self, _event=None):
+        self._hide()
+        self.job = self.widget.after(self.delay_ms, self._show)
+
     def _show(self, _event=None) -> None:
+        self.job = None
         if self.window is not None or not self.text:
             return
         try:
@@ -54,6 +62,9 @@ class _SettingsTooltip:
             self.window = None
 
     def _hide(self, _event=None) -> None:
+        if self.job is not None:
+            self.widget.after_cancel(self.job)
+            self.job = None
         win, self.window = self.window, None
         if win is not None:
             try:
@@ -279,11 +290,15 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             except Exception:
                 state = ""
             if bool(getattr(self, "_advanced_hidden_by_minimize", False)) or state in {"iconic", "withdrawn"}:
+                if getattr(self, "_advanced_closed", False):
+                    baseline = getattr(self, "_advanced_closed_config", {})
+                    if any(self.config.get(key) != value for key, value in baseline.items()):
+                        self._load_advanced_values_into_vars()
+                    self._advanced_closed = False
                 self._show_advanced_window(self.advanced_window)
                 return
             try:
-                self._save_advanced_window_position(self.advanced_window)
-                self.advanced_window.destroy()
+                self._close_advanced_settings()
             except Exception:
                 logger.debug("Failed to close advanced settings window", exc_info=True)
             return
@@ -315,12 +330,19 @@ class SettingsAdvancedUI(_SettingsUIProxy):
 
         self._advanced_vars = {}
         self._advanced_meta = {}
+        self._advanced_entry_widgets = {}
         self._advanced_status_var = tk.StringVar(value="")
         self._advanced_filter_var = tk.StringVar(value="")
         self._advanced_filter_sections = []
         self._advanced_scroll_canvases = {}
         self._advanced_scroll_contents = {}
         self._advanced_tab_min_widths = {}
+        self._advanced_layout_cache = {}
+        self._advanced_scroll_refresh = {}
+        self._advanced_anki_entry_groups = []
+        self._advanced_layout_signature = None
+        self._advanced_layout_job = None
+        self._advanced_filter_applied = None
         self._advanced_tab_original_text = {}
         self._advanced_tab_key_map = {}
         self._advanced_label_align_groups = {}
@@ -408,11 +430,12 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             width=14,
             command=self._reset_selected_advanced_tab_to_defaults,
         ).pack(side="left", padx=(6, 0))
-        tk.Button(btn_row, text="Close", width=10, command=win.destroy).pack(side="right")
+        tk.Button(btn_row, text="Close", width=10, command=self._close_advanced_settings).pack(side="right")
 
         self._set_advanced_footer_minsize(win, title_label, filter_row, footer)
         self._restore_advanced_window_position(win)
         self._show_advanced_window(win)
+        win.protocol("WM_DELETE_WINDOW", self._close_advanced_settings)
         win.bind("<Configure>", self._on_advanced_window_configure, add="+")
         win.bind("<Unmap>", self._on_advanced_window_unmap, add="+")
         win.bind("<Return>", self._apply_advanced_settings_from_enter, add="+")
@@ -432,6 +455,13 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             if self._ocr_region_count_refresh_job is not None:
                 win.after_cancel(self._ocr_region_count_refresh_job)
                 self._ocr_region_count_refresh_job = None
+            layout_job = getattr(self, "_advanced_layout_job", None)
+            if layout_job is not None:
+                try:
+                    win.after_cancel(layout_job)
+                except tk.TclError:
+                    pass
+            self._advanced_layout_job = None
             self.advanced_window = None
             self._advanced_notebook = None
             self._advanced_tab_key_map = {}
@@ -1207,11 +1237,16 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 return
             content_min_w = self._selected_advanced_tab_min_width()
             min_w = max(int(getattr(self, "_advanced_footer_min_width", 420) or 420), content_min_w + 60)
-            max_h = self._advanced_max_window_height()
+            monitor_key = (int(win.winfo_x()), int(win.winfo_y()), float(win.tk.call("tk", "scaling")))
+            cached_monitor = getattr(self, "_advanced_monitor_height", None)
+            if cached_monitor is None or cached_monitor[0] != monitor_key:
+                cached_monitor = (monitor_key, self._advanced_max_window_height())
+                self._advanced_monitor_height = cached_monitor
+            max_h = cached_monitor[1]
             min_h = min(int(getattr(self, "_advanced_footer_min_height", 240) or 240), max_h)
-            win.minsize(min_w, min_h)
+            if tuple(win.minsize()) != (min_w, min_h):
+                win.minsize(min_w, min_h)
             if resize:
-                win.update_idletasks()
                 cur_w = max(1, int(win.winfo_width()))
                 target_h = self._selected_advanced_tab_window_height(min_h, max_h=max_h)
                 if abs(cur_w - min_w) > 2 or abs(int(win.winfo_height() or 0) - target_h) > 2:
@@ -1238,8 +1273,11 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         content = (getattr(self, "_advanced_scroll_contents", {}) or {}).get(selected)
         try:
             if content is not None and content.winfo_exists():
-                content.update_idletasks()
-                return max(100, int(content.winfo_reqheight()))
+                cache = self._advanced_layout_cache
+                key = (selected, tuple(self._advanced_filter_terms()))
+                if key not in cache:
+                    cache[key] = max(100, int(content.winfo_reqheight()))
+                return cache[key]
         except Exception:
             logger.debug("Failed to measure advanced tab content height", exc_info=True)
         try:
@@ -1323,6 +1361,9 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             if str(win.state()) in {"withdrawn", "iconic"}:
                 return
             self._last_advanced_window_position = (int(win.winfo_x()), int(win.winfo_y()))
+            signature = getattr(self, "_advanced_layout_signature", None)
+            if signature and float(win.tk.call("tk", "scaling")) != signature[0][0]:
+                self._schedule_advanced_layout()
             job = getattr(self, "_advanced_position_save_job", None)
             if job is not None:
                 win.after_cancel(job)
@@ -1380,8 +1421,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         if win is None:
             return
         self._apply_advanced_filter()
-        self._apply_advanced_selected_tab_width(resize=True)
-        self._refresh_advanced_scroll_regions()
+        self._schedule_advanced_layout()
 
     def _create_scrollable_advanced_tab(self, tab_parent):
         tab_id = str(tab_parent)
@@ -1395,16 +1435,20 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
+        region_cache = [None]
         def _refresh_region(_event=None):
             try:
                 min_width = int(getattr(content, "_advanced_min_width", 0) or content.winfo_reqwidth())
                 window_width = max(min_width, canvas.winfo_width())
-                canvas.itemconfigure(content_id, width=window_width)
-                canvas.configure(scrollregion=(0, 0, window_width, max(int(content.winfo_reqheight()), int(canvas.winfo_height()))))
-                if int(content.winfo_reqheight()) <= int(canvas.winfo_height()):
-                    canvas.yview_moveto(0)
-            except Exception:
-                logger.debug("Failed to refresh advanced scroll region", exc_info=True)
+                height = max(int(content.winfo_reqheight()), int(canvas.winfo_height()))
+                dimensions = (window_width, height)
+                if region_cache[0] != dimensions:
+                    canvas.itemconfigure(content_id, width=window_width)
+                    canvas.configure(scrollregion=(0, 0, window_width, height))
+                    region_cache[0] = dimensions
+            except tk.TclError:
+                pass
+        self._advanced_scroll_refresh[tab_id] = _refresh_region
 
         def _on_mousewheel(event):
             try:
@@ -1442,13 +1486,50 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         return content
 
     def _refresh_advanced_scroll_regions(self) -> None:
-        for canvas in list(getattr(self, "_advanced_scroll_canvases", {}).values()):
-            try:
-                if canvas.winfo_exists():
-                    canvas.configure(scrollregion=canvas.bbox("all"))
-                    canvas.yview_moveto(0)
-            except Exception:
-                logger.debug("Failed to update advanced scroll region", exc_info=True)
+        notebook = getattr(self, "_advanced_notebook", None)
+        if notebook is not None:
+            refresh = getattr(self, "_advanced_scroll_refresh", {}).get(str(notebook.select()))
+            if refresh is not None:
+                refresh()
+
+    def _schedule_advanced_layout(self):
+        win = getattr(self, "advanced_window", None)
+        if win is None or not win.winfo_exists() or getattr(self, "_advanced_layout_job", None) is not None:
+            return
+        self._advanced_layout_job = win.after_idle(self._update_advanced_layout)
+
+    def _update_advanced_layout(self):
+        self._advanced_layout_job = None
+        win = getattr(self, "advanced_window", None)
+        if win is None or not win.winfo_exists():
+            return
+        signature = (float(win.tk.call("tk", "scaling")),
+                     tuple(tkfont.nametofont("TkDefaultFont").actual().items()),
+                     tuple(tkfont.nametofont("TkTextFont").actual().items()))
+        input_signature = tuple(tuple((str(var.get()), tuple(spec.get("choices", {}).values()))
+                                      for entry, frame, var, spec in group if entry.winfo_exists())
+                                for group in self._advanced_anki_entry_groups)
+        size_signature = (signature, input_signature)
+        if size_signature != getattr(self, "_advanced_layout_signature", None):
+            self._advanced_layout_signature = size_signature
+            self._advanced_layout_cache.clear()
+            for group in self._advanced_anki_entry_groups:
+                live = [(entry, frame, var, spec) for entry, frame, var, spec in group if entry.winfo_exists()]
+                width = 80
+                for entry, frame, var, spec in live:
+                    font = tkfont.Font(font=entry.cget("font"))
+                    values = [str(var.get()), *spec.get("choices", {}).values()]
+                    width = max(width, max(font.measure(value) for value in values) + 24)
+                for entry, frame, var, spec in live:
+                    frame.grid_columnconfigure(0, minsize=width)
+            win.update_idletasks()
+            for tab_id, content in self._advanced_scroll_contents.items():
+                if content.winfo_exists():
+                    columns = getattr(content, "_advanced_columns", content)
+                    content._advanced_min_width = int(columns.winfo_reqwidth())
+                    self._advanced_tab_min_widths[tab_id] = content._advanced_min_width
+        self._apply_advanced_selected_tab_width(resize=True)
+        self._refresh_advanced_scroll_regions()
 
     def _build_advanced_tab(self, tab_parent, column_sections):
         from model.native_settings import retired
@@ -1463,6 +1544,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
 
         content = self._create_scrollable_advanced_tab(tab_parent)
         columns_frame = tk.Frame(content)
+        content._advanced_columns = columns_frame
         columns_frame.pack(fill="x", expand=True, anchor="n")
         single_column = len(column_sections) == 1
         for col_idx in range(len(column_sections)):
@@ -1472,6 +1554,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             col = tk.Frame(columns_frame)
             padx = (0, 6) if col_idx == 0 else (6, 0)
             col.grid(row=0, column=col_idx, sticky="nsew", padx=padx)
+            is_anki = any(name == "Browser Recording" for column in column_sections for name, _ in column)
+            self._building_anki_entries = [] if is_anki else None
             built_sections = []
             for section_idx, (section_name, specs) in enumerate(sections):
                 built = self._build_advanced_section(
@@ -1484,6 +1568,9 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 if built is not None:
                     built_sections.append((section_name, built))
             self._align_shortcut_column_entries(built_sections)
+            if is_anki:
+                self._advanced_anki_entry_groups.append(self._building_anki_entries)
+            self._building_anki_entries = None
         try:
             self._align_advanced_label_groups()
             columns_frame.update_idletasks()
@@ -1603,7 +1690,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                     btn = tk.Button(
                         chk_frame,
                         text=btn_text,
-                        width=13,
+                        padx=10,
                         command=btn_callback if btn_callback else self._handle_anki_check
                     )
                     btn.grid(row=0, column=next_inline_column, sticky=("e" if fill_entry else "w"), padx=(8, 0))
@@ -1626,6 +1713,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 # Create a frame for entry and optional button
                 entry_frame = tk.Frame(section)
                 fill_entry = self._advanced_section_fills_entry(section_name)
+                if getattr(self, "_building_anki_entries", None) is not None:
+                    fill_entry = False
                 entry_padx = self._advanced_entry_frame_padx(section_name)
                 entry_frame.grid(row=row, column=1, sticky=("ew" if fill_entry else "w"), padx=entry_padx, pady=2)
                 entry_frame.grid_columnconfigure(0, weight=1 if fill_entry else 0)
@@ -1636,7 +1725,21 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                                          values=list(spec["choices"].values()), state="readonly")
                 else:
                     entry = tk.Entry(entry_frame, textvariable=var, width=entry_width)
+                self._advanced_entry_widgets[key] = entry
                 entry.grid(row=0, column=0, sticky=("ew" if fill_entry else "w"))
+                group = getattr(self, "_building_anki_entries", None)
+                if group is not None:
+                    group.append((entry, entry_frame, var, spec))
+                    entry.configure(width=1)
+                    entry.grid_configure(sticky="ew")
+                    var.trace_add("write", lambda *_: self._schedule_advanced_layout())
+                if key == "CAPTURE_BACKEND":
+                    self._asb_settings_gear = ttk.Button(entry_frame, text="⚙", width=3, command=self._open_asb_settings)
+                    self._asb_settings_gear.grid(row=0, column=1, padx=(4, 0))
+                    var.trace_add("write", lambda *_: self._refresh_recorder_widgets())
+                if key in ("CAPTURE_PADDING_BEFORE_MS", "AUDIO_PADDING", "CAPTURE_SCREENSHOT_POSITION"):
+                    self._native_padding_widgets = getattr(self, "_native_padding_widgets", []) + [entry]
+                    _SettingsTooltip(entry, "Native recording only. asbplayer uses its own padding and screenshot timing settings.")
                 if spec.get("tooltip"):
                     _SettingsTooltip(entry, spec["tooltip"])
                 
@@ -1659,10 +1762,20 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                     "text": f"{section_name} {spec.get('label', '')} {key}".casefold(),
                 })
             row += 1
-        if section_name == "Browser Recording":
-            button = ttk.Button(section, text="Connection and capture diagnostics", command=lambda: self.settings_ui._on_browser_diagnostics())
-            button.grid(row=row, column=0, columnspan=2, sticky="w", pady=(6, 0))
-            filter_info["rows"].append({"widgets": [button], "text": "browser connection alignment pending media recovery diagnostics"})
+        if section_name == "Untertitel-Synchronisierung":
+            details = tk.Label(section, textvariable=self.alignment_detail_var,
+                               justify="left", anchor="nw", width=36, height=6, wraplength=265)
+            details.grid(row=row, column=0, columnspan=2, sticky="w", pady=(5, 0))
+        if section_name == "AniList":
+            tk.Label(section, textvariable=getattr(self, "anilist_status_var", None),
+                     justify="left", anchor="nw", width=36, height=3, wraplength=265).grid(row=row, column=0, columnspan=2, sticky="w")
+            buttons = ttk.Frame(section)
+            buttons.grid(row=row+1, column=0, columnspan=2, sticky="w", pady=4)
+            ttk.Button(buttons, text="Mit AniList verbinden", command=lambda: getattr(self, "_on_anilist_connect", lambda: None)()).pack(side="left")
+            ttk.Button(buttons, text="Trennen", command=lambda: getattr(self, "_on_anilist_disconnect", lambda: None)()).pack(side="left", padx=4)
+            gear = ttk.Button(buttons, text="⚙", width=3, command=lambda: getattr(self, "_on_anilist_setup", lambda: None)())
+            gear.pack(side="left")
+            _SettingsTooltip(gear, "Einmalige AniList-App-Einrichtung oder öffentliche Client-ID korrigieren.")
         return section
 
     def _align_shortcut_column_entries(self, sections) -> None:
@@ -1695,7 +1808,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         if layout_width is not None:
             return layout_width
         if section_name in self._ANKI_DOUBLE_WIDTH_SECTIONS:
-            return base * 2
+            return base
         if (
             section_name in self._GENERAL_DOUBLE_WIDTH_SECTIONS
             and section_name not in self._GENERAL_DOUBLE_WIDTH_EXCLUDED_SECTIONS
@@ -1810,6 +1923,11 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             active_tab = str(notebook.select() or "") if notebook is not None else ""
         except Exception:
             active_tab = ""
+        signature = (tuple(terms), active_tab if terms else None)
+        if signature == getattr(self, "_advanced_filter_applied", None):
+            return
+        self._advanced_filter_applied = signature
+        getattr(self, "_advanced_layout_cache", {}).clear()
         for info in sections:
             by_parent.setdefault(info.get("parent"), []).append(info)
 
@@ -1845,7 +1963,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                         logger.debug("Failed to update advanced section visibility", exc_info=True)
 
         self._update_advanced_filter_tab_labels({}, [])
-        self._refresh_advanced_scroll_regions()
+        self._schedule_advanced_layout()
 
     def _update_advanced_filter_tab_labels(self, tab_counts: dict[str, int], terms: list[str]) -> None:
         notebook = getattr(self, "_advanced_notebook", None)
@@ -1902,6 +2020,9 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             (
                 "Playback / Overlay",
                 [
+                    {"key": "SKIP_NAVIGATION_MODE", "label": "Back/forward buttons", "type": "str", "default": "time",
+                     "choices": {"time": "Skip seconds", "segments": "Next / previous subtitle start"},
+                     "tooltip": "Normal Back/Forward buttons and their shortcuts: use Skip seconds, or the beginning of the next/previous subtitle segment. Explicit voice time skips still use the Skip field."},
                     {"key": "UPDATE_INTERVAL_MS", "label": "Update interval (ms)", "type": "int", "default": 100, "min": 15, "max": 5000},
                     {"key": "SUBTITLE_TIMEOUT_MS", "label": "Subtitle hide delay (ms)", "type": "int", "default": 7000, "min": 0, "max": 120000},
                     {"key": "POPUP_CLOSE_TIMER", "label": "Popup hide delay (ms)", "type": "int", "default": 1000, "min": 0, "max": 60000},
@@ -1916,8 +2037,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             (
                 "Download / Search",
                 [
-                    {"key": "REMOTE_CACHE_CLEANUP_ON_EXIT", "label": "Delete remote cache on exit", "type": "bool", "default": False},
-                    {"key": "DOWNLOAD_WINDOW", "label": "Prefetch radius (episodes)", "type": "int", "default": 5, "min": 1, "max": 50},
+                    {"key": "REMOTE_CACHE_CLEANUP_ON_EXIT", "label": "Delete downloaded subtitles on exit (Jimaku + GitHub)", "type": "bool", "default": False},
+                    {"key": "DOWNLOAD_WINDOW", "label": "Prefetch radius (episodes)", "type": "int", "default": 2, "min": 1, "max": 50},
                     {"key": "DOWNLOAD_MAX_WORKERS", "label": "Max parallel downloads", "type": "int", "default": 2, "min": 1, "max": 10},
                     {"key": "DOWNLOAD_PREFETCH_DELAY_MS", "label": "Prefetch start delay (ms)", "type": "int", "default": 1000, "min": 0, "max": 600000},
                     {"key": "DOWNLOAD_THROTTLE_MS", "label": "Delay after each download (ms)", "type": "int", "default": 0, "min": 0, "max": 60000},
@@ -2009,6 +2130,15 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 ],
             ),
         ]
+        right.extend([
+            ("AniList", [
+                {"key": "ANILIST_SYNC_PROGRESS", "label": "Fortschritt synchronisieren", "type": "bool", "default": True},
+            ]),
+            ("Untertitel-Synchronisierung", [
+                {"key": "ALIGNMENT_MODE_RUNTIME", "label": "Ausrichtung", "type": "str", "default": "captions", "runtime": True,
+                 "choices": {"captions": "Website-Untertitel", "audio": "Dialog/Audio"}},
+            ]),
+        ])
         return [left, right]
 
     def _advanced_anki_columns(self):
@@ -2018,17 +2148,10 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 [
                     {"key": "ANKI_ENABLED", "label": "Enable Anki integration", "type": "bool", "default": True, "button_text": "Check Connection"},
                     {"key": "ANKI_AUTO_START", "label": "Start Anki automatically when needed", "type": "bool", "default": False},
-                    {"key": "ANKI_START_WITH_APP", "label": "Start Anki with SubtitlePlayer", "type": "bool", "default": False},
-                    {
-                        "key": "ANKI_EXECUTABLE_PATH",
-                        "label": "Anki executable",
-                        "type": "str",
-                        "default": "",
-                        "allow_empty": True,
-                        "button_text": "Browse",
-                        "button_callback": self._browse_anki_executable,
-                        "tooltip": "Leave empty to search common Anki installation locations automatically.",
-                    },
+                    {"key": "ANKI_START_WITH_APP", "label": "Start Anki with SubtitlePlayer", "type": "bool", "default": False,
+                     "inline_entry": {"key": "ANKI_EXECUTABLE_PATH", "label": "", "type": "str", "default": "", "allow_empty": True, "entry_width": 16,
+                                      "tooltip": "Anki executable path. Leave empty for automatic detection."},
+                     "button_text": "Browse", "button_callback": self._browse_anki_executable},
                     {"key": "ANKI_PREVIEW_BEFORE_ADD", "label": "Preview note before adding", "type": "bool", "default": False},
                     {"key": "ANKI_CONNECT_URL", "label": "AnkiConnect URL", "type": "str", "default": "http://127.0.0.1:8765"},
                     {"key": "ANKI_HTTP_TIMEOUT_SEC", "label": "HTTP timeout (sec)", "type": "float", "default": 4.0, "min": 0.5, "max": 120.0},
@@ -2055,27 +2178,25 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         ]
         right = [
             (
-                "Audio Clip Timing",
-                [
-                    {"key": "AUDIO_PADDING", "label": "Subtitle-end audio padding (ms)", "type": "float", "default": 100},
-                    {"key": "ANKI_AUTO_JUMP_AFTER_ADD", "label": "Automatically jump after Anki card was added", "type": "bool", "default": False},
-                ],
-            ),
-            (
                 "Browser Recording",
                 [
                     {"key": "CAPTURE_BACKEND", "label": "Recorder", "type": "str", "default": "native", "width": 36,
-                     "choices": {"native": "Native", "asbplayer": "asbplayer (original capture shortcut)"}},
-                    {"key": "ASBPLAYER_CAPTURE_HOTKEY", "label": "asbplayer capture shortcut", "type": "str", "default": "ctrl+shift+y", "width": 36},
-                    {"key": "ASBPLAYER_TARGET_TITLE", "label": "asbplayer window title", "type": "str", "default": "ABSPlayer, Google Chrome, Chrome", "width": 36},
-                    {"key": "ASBPLAYER_CAPTURE_DELAY_MS", "label": "asbplayer wait after card creation (ms)", "type": "int", "default": 0, "min": 0, "max": 60000},
-                    {"key": "ASBPLAYER_MEDIA_POLL_MS", "label": "asbplayer media check interval (ms)", "type": "int", "default": 1500, "min": 250, "max": 10000},
-                    {"key": "ASBPLAYER_RESUME_PLAYBACK", "label": "asbplayer resume after capture", "type": "bool", "default": False},
-                    {"key": "ASBPLAYER_CAPTURE_ONLY_RESUME", "label": "asbplayer resume after Capture-only", "type": "bool", "default": False},
-                    {"key": "POST_CAPTURE_PLAYBACK", "label": "After capture (Native)", "type": "str", "default": "play", "width": 36,
-                     "choices": {"play": "Play", "paused": "Stay paused", "restore": "Restore previous play/pause state"},
+                     "choices": {"native": "Native", "asbplayer": "asbplayer"}},
+                    {"hidden": True, "key": "ASBPLAYER_CAPTURE_HOTKEY", "label": "asbplayer capture shortcut", "type": "str", "default": "ctrl+shift+y", "width": 36},
+                    {"hidden": True, "key": "ASBPLAYER_TARGET_TITLE", "label": "asbplayer window title", "type": "str", "default": "ABSPlayer, Google Chrome, Chrome", "width": 36},
+                    {"hidden": True, "key": "ASBPLAYER_CAPTURE_DELAY_MS", "label": "asbplayer wait after card creation (ms)", "type": "int", "default": 0, "min": 0, "max": 60000},
+                    {"hidden": True, "key": "ASBPLAYER_MEDIA_POLL_MS", "label": "asbplayer media check interval (ms)", "type": "int", "default": 1500, "min": 250, "max": 10000},
+                    {"key": "POST_CAPTURE_PLAYBACK", "label": "Post mining playback state — Capture", "type": "str", "default": "play", "width": 25,
+                     "choices": {"restore": "Keep previous state", "play": "Always play", "paused": "Always pause"},
                      "tooltip": "Applied at the recording boundary. Play continues while Anki finishes in the background. Add only stays paused."},
-                    {"key": "CAPTURE_PADDING_BEFORE_MS", "label": "Audio before subtitle (ms)", "type": "float", "default": 200, "min": 0, "max": 10000},
+                    {"key": "POST_CAPTURE_ONLY_PLAYBACK", "label": "Post mining playback state — Capture-only", "type": "str", "default": "play", "width": 25,
+                     "choices": {"restore": "Keep previous state", "play": "Always play", "paused": "Always pause"}},
+                    {"key": "CAPTURE_SCREENSHOT_POSITION", "label": "Screenshot position (ms or fraction)", "type": "str", "default": "500 ms",
+                     "tooltip": "500 ms after subtitle start, or 1/2 at its midpoint, or 1/3 after its first third. Audio padding is excluded. Clamped to the recorded clip."},
+                    {"key": "AUDIO_PADDING", "label": "Audio padding after subtitle (ms)", "type": "float", "default": 100, "min": 0, "max": 10000},
+                    {"key": "CAPTURE_PADDING_BEFORE_MS", "label": "Audio padding before subtitle (ms)", "type": "float", "default": 200, "min": 0, "max": 10000},
+                    {"key": "CAPTURE_SENTENCE_MAX_GAP_SEC", "label": "Auto sentence: maximum subtitle gap (s)", "type": "float", "default": 1.5, "min": 0, "max": 10,
+                     "tooltip": "Automatic sentence grouping stops when the gap from one subtitle's end to the next start exceeds this value. Explicit segment recording keys keep their requested range. Subtitle timing is used, not audio silence detection."},
                 ],
             ),
             (
@@ -2100,7 +2221,63 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 ],
             ),
         ]
-        return [left, right]
+        sections = dict(left + right)
+        recording = sections["Browser Recording"]
+        # Keep padding in reading order after the two playback policies.
+        before = next(spec for spec in recording if spec["key"] == "CAPTURE_PADDING_BEFORE_MS")
+        recording.remove(before)
+        screenshot = next(spec for spec in recording if spec["key"] == "CAPTURE_SCREENSHOT_POSITION")
+        recording.remove(screenshot)
+        recording.append(screenshot)
+        recording.insert(next(i for i, spec in enumerate(recording) if spec["key"] == "AUDIO_PADDING"), before)
+        return [[(name, sections[name]) for name in ("Anki Connection", "Deck / Model", "Tags")],
+                [(name, sections[name]) for name in ("Language", "Browser Recording", "Anki Fields")]]
+
+    def _refresh_recorder_widgets(self):
+        var = getattr(self, "_advanced_vars", {}).get("CAPTURE_BACKEND")
+        native = var is None or var.get() in ("native", "Native", "")
+        gear = getattr(self, "_asb_settings_gear", None)
+        if gear is not None and gear.winfo_exists():
+            gear.grid_remove() if native else gear.grid()
+        for widget in getattr(self, "_native_padding_widgets", []):
+            if widget.winfo_exists():
+                widget.configure(state="normal" if native else "disabled")
+
+    def _open_asb_settings(self):
+        dialog = tk.Toplevel(self.advanced_window)
+        dialog.title("asbplayer recording settings")
+        dialog.transient(self.advanced_window)
+        draft = {}
+        for row, key in enumerate(("ASBPLAYER_CAPTURE_HOTKEY", "ASBPLAYER_TARGET_TITLE", "ASBPLAYER_CAPTURE_DELAY_MS", "ASBPLAYER_MEDIA_POLL_MS")):
+            spec = self._advanced_meta[key]
+            tk.Label(dialog, text=spec["label"], anchor="w").grid(row=row, column=0, sticky="w", padx=10, pady=6)
+            draft[key] = tk.StringVar(dialog, value=self._advanced_vars[key].get())
+            tk.Entry(dialog, textvariable=draft[key], width=40).grid(row=row, column=1, sticky="ew", padx=10, pady=6)
+        status = tk.StringVar(dialog)
+        tk.Label(dialog, textvariable=status, fg="red").grid(row=4, column=0, columnspan=2)
+        def accept():
+            for key in ("ASBPLAYER_CAPTURE_DELAY_MS", "ASBPLAYER_MEDIA_POLL_MS"):
+                spec = self._advanced_meta[key]
+                try:
+                    value = int(draft[key].get())
+                    if not spec["min"] <= value <= spec["max"]:
+                        raise ValueError()
+                except ValueError:
+                    status.set(f"{spec['label']}: {spec['min']} - {spec['max']}")
+                    return
+            for key, var in draft.items():
+                self._advanced_vars[key].set(var.get())
+            dialog.destroy()
+        buttons = tk.Frame(dialog)
+        buttons.grid(row=5, column=0, columnspan=2, sticky="e", padx=10, pady=10)
+        ttk.Button(buttons, text="Cancel", command=dialog.destroy).pack(side="right", padx=4)
+        ttk.Button(buttons, text="OK", command=accept).pack(side="right")
+        pass  # Keep the subtitle overlay draggable while this dialog is open.
+        self._set_modal_input_active(True)
+        try:
+            dialog.wait_window()
+        finally:
+            self._set_modal_input_active(False)
 
     def _browse_anki_executable(self) -> None:
         var = self._advanced_vars.get("ANKI_EXECUTABLE_PATH")
@@ -2237,17 +2414,11 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 [
                     {"key": "SHORTCUT_POPUP_ADD_ANKI", "label": "Add hovered word to Anki", "type": "str", "default": "a", "allow_empty": True},
                     {"key": "SHORTCUT_POPUP_ADD_ANKI_CAPTURE", "label": "Add hovered word + capture", "type": "str", "default": "v", "allow_empty": True},
-                    {"key": "SHORTCUT_CAPTURE_ONLY", "label": "Capture media for last SubtitlePlayer card", "type": "str", "default": "shift+v", "allow_empty": True},
+                    {"key": "SHORTCUT_CAPTURE_ONLY", "label": "Capture media for last SubtitlePlayer card", "type": "str", "default": "z, shift+v", "allow_empty": True},
                 ],
             ),
         ]
         right = [
-            (
-                "Skip Behavior",
-                [
-                    {"key": "SKIP_BUTTONS_USE_SUBTITLE_SEGMENTS", "label": "Back/forward use subtitle segments", "type": "bool", "default": False},
-                ],
-            ),
             (
                 "Hover Hotkeys",
                 [
@@ -2537,6 +2708,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             if key not in self._advanced_vars:
                 continue
             cfg_val = self.config.get(key)
+            if key == "ALIGNMENT_MODE_RUNTIME":
+                cfg_val = self.alignment_mode_var.get()
             if cfg_val is None:
                 cfg_val = spec.get("default")
             var = self._advanced_vars[key]
@@ -2576,6 +2749,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         if hasattr(self, "_advanced_status_var"):
             self._advanced_status_var.set("Loaded values from config.")
         self._refresh_phone_toggle_button()
+        self._refresh_recorder_widgets()
+        self._schedule_advanced_layout()
         annotation_tab = getattr(self, "_annotation_tab_ui", None)
         if annotation_tab is not None:
             try:
@@ -2589,6 +2764,14 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 voice_tab.load_values()
             except Exception:
                 logger.debug("Failed to refresh Voice tab after config load", exc_info=True)
+        self._remember_advanced_settings_baseline()
+
+    def _remember_advanced_settings_baseline(self):
+        collected = self._collect_advanced_values()
+        if collected and "values" in collected:
+            self._advanced_settings_baseline = dict(collected["values"])
+        mode = self._advanced_vars.get("ALIGNMENT_MODE_RUNTIME")
+        self._advanced_mode_baseline = mode.get() if mode is not None else None
 
     def _collect_advanced_values(self):
         if not hasattr(self, "_advanced_vars") or not hasattr(self, "_advanced_meta"):
@@ -2596,6 +2779,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         values = {}
         errors = []
         for key, spec in self._advanced_meta.items():
+            if spec.get("runtime"):
+                continue
             var = self._advanced_vars.get(key)
             if var is None:
                 continue
@@ -2604,6 +2789,13 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 continue
             if spec["type"] == "str":
                 text = str(var.get()) if bool(spec.get("preserve_whitespace", False)) else str(var.get()).strip()
+                if key == "CAPTURE_SCREENSHOT_POSITION":
+                    from model.screenshot_position import ScreenshotPosition
+                    try:
+                        text = ScreenshotPosition.parse(text).canonical()
+                    except ValueError as exc:
+                        errors.append(f"{spec['label']}: {exc}")
+                        continue
                 choices = spec.get("choices", {})
                 if choices:
                     value = next((key for key, label in choices.items() if text == label or text == key), None)
@@ -2638,6 +2830,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 raw = str(var.get()).strip().replace(",", ".")
                 try:
                     num = float(raw)
+                    if not math.isfinite(num):
+                        raise ValueError("Use a finite number")
                 except Exception:#
                     errors.append(spec["label"])
                     continue
@@ -2890,22 +3084,70 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         suffix = f" (+{extra} more)" if extra > 0 else ""
         return "Hotkey conflict warning: " + "; ".join(parts) + suffix
 
+    def _close_advanced_settings(self):
+        win = getattr(self, "advanced_window", None)
+        if win is None or not win.winfo_exists():
+            return
+        try:
+            if not self._apply_advanced_settings(persist=True):
+                return
+            self._save_advanced_window_position(win)
+            self._advanced_closed_config = {key: deepcopy(self.config.get(key))
+                for key in getattr(self, "_advanced_settings_baseline", {})}
+            self._advanced_closed = True
+            win.withdraw()
+        except Exception as exc:
+            logger.exception("Could not save/close Advanced Settings")
+            self._advanced_status_var.set("Could not save settings: " + str(exc))
+
     def _apply_advanced_settings(self, persist: bool):
         self._clear_current_entry_focus()
         result = self._collect_advanced_values()
         if not result:
-            return
+            return False
         if "errors" in result:
             if hasattr(self, "_advanced_status_var"):
                 self._advanced_status_var.set("Invalid values: " + ", ".join(result["errors"]))
+            if any(str(error).startswith("Voice") for error in result["errors"]):
+                voice_tab = getattr(self, "_voice_tab_id", None)
+                if voice_tab:
+                    self._advanced_notebook.select(voice_tab)
+            for key, spec in self._advanced_meta.items():
+                if any(str(error).startswith(spec.get("label", key)) for error in result["errors"]):
+                    widget = getattr(self, "_advanced_entry_widgets", {}).get(key)
+                    if widget is not None:
+                        tab = next((tab for tab, keys in self._advanced_tab_key_map.items() if key in keys), None)
+                        if tab:
+                            self._advanced_notebook.select(tab)
+                        self._advanced_filter_var.set("")
+                        widget.focus_set()
+                        widget.selection_range(0, tk.END)
+                        def reveal(widget=widget, tab=tab):
+                            canvas = self._advanced_scroll_canvases.get(tab)
+                            content = self._advanced_scroll_contents.get(tab)
+                            if canvas is not None and content is not None and widget.winfo_exists():
+                                y = widget.winfo_rooty() - content.winfo_rooty()
+                                canvas.yview_moveto(max(0, y-25)/max(1, content.winfo_reqheight()))
+                        self.advanced_window.after_idle(reveal)
+                        break
             self.root.bell()
-            return
+            return False
 
         values = result["values"]
+        mode_var = self._advanced_vars.get("ALIGNMENT_MODE_RUNTIME")
+        mode = {"Website-Untertitel": "captions", "Dialog/Audio": "audio"}.get(mode_var.get()) if mode_var is not None else None
+        if mode is not None and mode_var.get() != getattr(self, "_advanced_mode_baseline", None):
+            label = {"captions": "Website-Untertitel", "audio": "Dialog/Audio"}[mode]
+            if label != self.alignment_mode_var.get():
+                self._on_alignment_mode(label)
         hotkey_warning = self._advanced_hotkey_conflict_warning(values)
-        self._on_advanced_apply(dict(values), bool(persist))
+        all_values = dict(values)
+        baseline = getattr(self, "_advanced_settings_baseline", {})
+        values = {key: value for key, value in values.items() if baseline.get(key, self.config.get(key)) != value}
+        if values:
+            self._on_advanced_apply(dict(values), bool(persist))
 
-        if persist:
+        if persist and values:
             try:
                 if hasattr(self.config, "set_many"):
                     self.config.set_many(values)
@@ -2923,7 +3165,10 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 self._advanced_status_var.set(message)
         else:
             if hasattr(self, "_advanced_status_var"):
-                message = "Applied for current session (not saved)."
+                message = "No changes." if persist else "Applied for current session (not saved)."
                 if hotkey_warning:
                     message = f"{message} {hotkey_warning}"
                 self._advanced_status_var.set(message)
+        self._advanced_settings_baseline = all_values
+        self._advanced_mode_baseline = mode_var.get() if mode_var is not None else None
+        return True

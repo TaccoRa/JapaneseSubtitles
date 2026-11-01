@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "updated_at": "2026-10-30T20:38:26+00:00",
+  "words": [
+    {
+      "surface": "旨い",
+      "normalized": "旨い",
+      "base": "",
+      "reading": "うまい",
+      "meaning": "",
+      "anime": "",
+      "source": "local",
+      "status": "local_known",
+      "created_at": "2026-10-30T20:38:26+00:00",
+      "updated_at": "2026-10-30T20:38:26+00:00",
+      "notes": "",
+      "extra": {}
+    },
+    {
+      "surface": "漸く",
+      "normalized": "漸く",
+      "base": "",
+      "reading": "ようやく",
+      "meaning": "",
+      "anime": "",
+      "source": "local",
+      "status": "local_known",
+      "created_at": "2026-10-30T20:38:26+00:00",
+      "updated_at": "2026-10-30T20:38:26+00:00",
+      "notes": "",
+      "extra": {}
+    },
+    {
+      "surface": "間抜け",
+      "normalized": "間抜け",
+      "base": "",
+      "reading": "まぬけ",
+      "meaning": "",
+      "anime": "",
+      "source": "local",
+      "status": "local_known",
+      "created_at": "2026-10-30T20:38:26+00:00",
+      "updated_at": "2026-10-30T20:38:26+00:00",
+      "notes": "",
+      "extra": {}
+    }
+  ]
+}

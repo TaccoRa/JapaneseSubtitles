@@ -66,12 +66,61 @@ test('native PCM encoder sends a playable mono WAV and the operation screenshot'
   assert.ok(Math.abs(wav.readInt16LE(44)-3276)<2);
 });
 
+test('audio stops at its boundary while images finish after the next clip starts',async()=>{
+  const env=environment();await env.message({type:'ConnectStream',streamId:'tab'});
+  const crop=id=>({type:'SetCrop',operationId:id,rect:{x:0,y:0,width:800,height:450},viewport:{width:800,height:450}});
+  await env.message(crop('first'));await env.message({type:'StartRecording',operationId:'first'});
+  await env.message({type:'AnalysisClock',currentTime:10,rate:1,fingerprint:'media',paused:false});
+  env.pcm(Array(1600).fill(.1));
+  assert.equal((await env.message({type:'StopRecording',operationId:'first',time:10.1})).ok,true);
+  assert.equal(env.sent.filter(m=>m.type==='EncodedCapture').length,0);
+  await env.message(crop('second'));await env.message({type:'StartRecording',operationId:'second'});
+  env.pcm(Array(3200).fill(.2));
+  await env.message({type:'StoreScreenshot',operationId:'first',image:'data:image/png;base64,AA=='});
+  assert.equal((await env.message({type:'StopRecording',operationId:'second',time:11.2})).ok,true);
+  await env.message({type:'StoreScreenshot',operationId:'second',image:'data:image/png;base64,AA=='});
+  const results=env.sent.filter(m=>m.type==='EncodedCapture');
+  assert.deepEqual(results.map(m=>m.operationId),['first','second']);
+  assert.deepEqual(results.map(m=>Buffer.from(m.audio,'base64').readUInt32LE(40)),[3200,6400]);
+  assert.deepEqual(results.map(m=>m.endTime),[10.1,11.2]);
+});
+
+test('cancelling old pending media cannot stop the next audio recording',async()=>{
+  const env=environment();await env.message({type:'ConnectStream',streamId:'tab'});
+  await env.message({type:'StartRecording',operationId:'first'});
+  await env.message({type:'AnalysisClock',currentTime:10,rate:1,fingerprint:'media',paused:false});
+  env.pcm(Array(1600).fill(.1));await env.message({type:'StopRecording',operationId:'first',time:10.1});
+  await env.message({type:'StartRecording',operationId:'second'});
+  await env.message({type:'CancelRecording',operationId:'first'});
+  env.pcm(Array(3200).fill(.2));
+  await env.message({type:'SetCrop',operationId:'second',rect:{x:0,y:0,width:800,height:450},viewport:{width:800,height:450}});
+  await env.message({type:'StoreScreenshot',operationId:'second',image:'data:image/png;base64,AA=='});
+  assert.equal((await env.message({type:'StopRecording',operationId:'second',time:11.2})).ok,true);
+  assert.equal(env.sent.at(-1).operationId,'second');
+});
+
 test('stream ownership survives recording completion and reports an ended audio track',async()=>{
   const env=environment();await env.message({type:'ConnectStream',streamId:'tab',tabId:123});
   assert.equal((await env.message('StreamState')).tabId,123);
   const track=env.streams[0].getAudioTracks()[0];track.readyState='ended';track.ended();
   assert.equal((await env.message('StreamState')).connected,false);
   assert.equal(env.sent.at(-1).type,'NativeRecordingStopped');assert.equal(env.sent.at(-1).tabId,123);
+});
+
+test('ended callback from an old tab stream cannot stop the new recording',async()=>{
+  const env=environment();await env.message({type:'ConnectStream',streamId:'old',tabId:123});
+  const old=env.streams[0].getAudioTracks()[0];
+  await env.message({type:'ConnectStream',streamId:'new',tabId:123});
+  await env.message({type:'StartRecording',operationId:'new-card'});
+  old.ended();
+  assert.equal(env.sent.filter(m=>m.type==='NativeRecordingStopped').length,0);
+  assert.equal((await env.message('StreamState')).connected,true);
+  await env.message({type:'AnalysisClock',currentTime:10,rate:1,fingerprint:'media',paused:false});
+  env.pcm(Array(1600).fill(.1));
+  await env.message({type:'SetCrop',operationId:'new-card',rect:{x:0,y:0,width:800,height:450},viewport:{width:800,height:450}});
+  await env.message({type:'StoreScreenshot',operationId:'new-card',image:'data:image/png;base64,AA=='});
+  assert.equal((await env.message({type:'StopRecording',operationId:'new-card',time:10.1})).ok,true);
+  assert.equal(env.sent.at(-1).type,'EncodedCapture');
 });
 
 test('a disconnect arriving during acquisition waits and releases the newly acquired stream',async()=>{
