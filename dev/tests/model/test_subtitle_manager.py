@@ -357,6 +357,15 @@ def test_strip_parenthetical_descriptive_sound_note():
     assert manager._clean_text("\u884c\u304f\uff08 \u5012\u308c\u305f \u97f3\uff09") == "\u884c\u304f"
 
 
+def test_nested_source_reading_in_sound_note_does_not_leave_a_fragment():
+    manager = _cleaner({'SUBTITLE_STRIP_PAREN_NOTES': True, 'SUBTITLE_SPEAKER_MODE': 'hide'})
+    note = '（錦(きん)えもんの力み声）'
+    assert manager._clean_text(note) == ''
+    assert manager._clean_text('行くぞ！' + note) == '行くぞ！'
+    assert manager._clean_text(note + '\n行くぞ！') == '行くぞ！'
+    assert manager._clean_text('錦(きん)えもんが来た') == '錦(きん)えもんが来た'
+
+
 def test_strip_parenthetical_descriptive_sound_note_only_line():
     manager = _cleaner(
         {

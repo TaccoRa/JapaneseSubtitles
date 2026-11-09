@@ -463,10 +463,13 @@
         "2026-10-25": 9,
         "2026-10-26": 1,
         "2026-10-30": 67,
-        "2026-11-01": 5
+        "2026-11-01": 23,
+        "2026-11-02": 12,
+        "2026-11-08": 5,
+        "2026-11-09": 39
     },
-    "ANKI_ADD_COUNT_DATE": "2026-11-01",
-    "ANKI_ADD_COUNT_TODAY": 5,
+    "ANKI_ADD_COUNT_DATE": "2026-11-09",
+    "ANKI_ADD_COUNT_TODAY": 39,
     "ANIME_EPISODE_PROGRESS": {
         "shokugeki no souma": {
             "anime": "Shokugeki no Souma",
@@ -519,8 +522,8 @@
         "one piece": {
             "anime": "ONE PIECE",
             "season": 1,
-            "episode": 1002,
-            "global": 1002
+            "episode": 1013,
+            "global": 1013
         },
         "tsuihou sareta cheat fuyo majutsushi wa kimama na second life wo ouka suru.: ore wa buki dake ja naku, arayuru mono ni \"kyouka point\" wo fuyo dekiru shi, ore no ishi de itsudemo kouka wo kaijo dekiru kedo, nokotta hitotachi daijoubu?": {
             "anime": "Tsuihou Sareta Cheat Fuyo Majutsushi wa Kimama na Second Life wo Ouka Suru.: Ore wa Buki dake ja Naku, Arayuru Mono ni \"Kyouka Point\" wo Fuyo Dekiru shi, Ore no Ishi de Itsudemo Kouka wo Kaijo Dekiru kedo, Nokotta Hitotachi Daijoubu?",
@@ -579,8 +582,8 @@
         "ansatsu kyoushitsu": {
             "anime": "Ansatsu Kyoushitsu",
             "season": 1,
-            "episode": 2,
-            "global": 2
+            "episode": 4,
+            "global": 4
         }
     },
     "POST_CAPTURE_PLAYBACK": "paused",
@@ -654,5 +657,5 @@
     "SHORTCUT_CAPTURE_ONLY": "shift+v, z",
     "CAPTURE_ONLY_Z_SHORTCUT_VERSION": 1,
     "JIMAKU_PRIMARY_MIGRATED": true,
-    "ANILIST_CLIENT_ID": "55046"
+    "ANILIST_CLIENT_ID": "55668"
 }

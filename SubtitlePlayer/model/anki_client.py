@@ -2447,7 +2447,9 @@ class AnkiClient:
             if isinstance(data, list):
                 entries = data
         except Exception:
-            entries = []
+            if getattr(getattr(self, '_word_translation_state', None), 'dictionary_strict', False):
+                raise
+            return []  # A transport failure is not a cached dictionary miss.
 
         self._cache_put(self._jisho_entries_cache, text, entries)
         return entries
@@ -2501,6 +2503,16 @@ class AnkiClient:
         return definitions
 
     def lookup_dictionary_entry(self, text: str, allow_translation_fallback: bool = False) -> str:
+        if not hasattr(self, '_word_translation_state'):
+            self._word_translation_state = threading.local()
+        previous = getattr(self._word_translation_state, 'dictionary_strict', False)
+        self._word_translation_state.dictionary_strict = True
+        try:
+            return self._lookup_dictionary_entry(text, allow_translation_fallback)
+        finally:
+            self._word_translation_state.dictionary_strict = previous
+
+    def _lookup_dictionary_entry(self, text: str, allow_translation_fallback: bool = False) -> str:
         """
         Return a compact, readable Jisho-style dictionary entry for hover tooltips.
         Reuses the same Jisho lookup and definition extraction path used by card creation.
@@ -2624,6 +2636,8 @@ class AnkiClient:
                 if not self._is_lookup_candidate(surface):
                     continue
                 reading = self._katakana_to_hiragana(self._token_reading(token))
+                if surface == "城" and source[end:].startswith(("ん中", "の中")):
+                    reading = "しろ"
                 feature = getattr(token, "feature", None)
                 pos1 = str(getattr(feature, "pos1", "") or "")
                 lookup = (
@@ -2656,6 +2670,7 @@ class AnkiClient:
                             and following.get("lookup") in {"する", "為る"}
                             and not source[current["end"]:following["start"]].strip()):
                         current["lookup"] = str(current["surface"]) + "する"
+                spans = self._merge_lexical_word_parts(source, spans)
                 result = self._expand_compound_word_spans(source, spans)
                 self._cache_put(self._word_spans_cache, source, [dict(span) for span in result])
                 return result
@@ -2672,6 +2687,28 @@ class AnkiClient:
             if self._is_lookup_candidate(match.group(0))
         ]
         self._cache_put(self._word_spans_cache, source, [dict(span) for span in result])
+        return result
+
+    @staticmethod
+    def _merge_lexical_word_parts(source, spans):
+        """Merge productive reciprocal nouns, retaining their original morphology."""
+        result = []
+        index = 0
+        while index < len(spans):
+            current = dict(spans[index])
+            following = spans[index + 1] if index + 1 < len(spans) else None
+            if (following and current.get('pos1') == '動詞'
+                    and '連用形' in current.get('c_form', '')
+                    and following.get('surface') == '合い' and following.get('pos1') == '接尾辞'
+                    and current['end'] == following['start']):
+                parts = (dict(current), dict(following))
+                current.update(end=following['end'], surface=source[current['start']:following['end']],
+                    lookup=source[current['start']:following['end']],
+                    reading=current.get('reading', '') + following.get('reading', ''),
+                    components=parts, lexical_compound=True, pos1='名詞')
+                index += 1
+            result.append(current)
+            index += 1
         return result
 
     def _expand_compound_word_spans(
@@ -2766,7 +2803,8 @@ class AnkiClient:
                 end = tail["end"]
                 reading += str(tail.get("reading") or "")
             result.append(dict(surface=source[noun["start"]:end], lookup=lookup, reading=reading,
-                               start=noun["start"], end=end, compound=True, pos1="形容詞"))
+                               start=noun["start"], end=end, compound=True, pos1="形容詞", lexical_compound=True,
+                               components=tuple(dict(part) for part in spans if part['start'] >= noun['start'] and part['end'] <= end)))
         return result
 
     def _compound_part_allowed(self, span: Dict[str, object]) -> bool:
@@ -2794,6 +2832,10 @@ class AnkiClient:
             # Keep the written headword for dictionary lookup and card identity.
             orth_base = str(getattr(feature, "orthBase", "") or "").strip()
             lemma = str(getattr(feature, "lemma", "") or "").strip()
+            # UniDic appends source-language labels to loanword lemmas
+            # (ウイルス-virus). These labels are not Japanese headwords.
+            if re.fullmatch(r"[ァ-ヺー・]+-[A-Za-z][A-Za-z0-9 .'-]*", lemma):
+                return orth_base if orth_base and orth_base != "*" else surface
             if (str(getattr(feature, "pos2", "") or "") == "固有名詞"
                     and self._contains_kanji(orth_base) and not self._contains_kanji(lemma)):
                 return orth_base

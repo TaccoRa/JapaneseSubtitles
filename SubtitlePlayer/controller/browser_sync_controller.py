@@ -7,7 +7,6 @@ import queue
 import re
 import threading
 import time
-import traceback
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 import tkinter as tk
@@ -37,6 +36,8 @@ _pending_media_write_lock = threading.RLock()
 class BrowserSyncController:
     def __init__(self, controller):
         self.controller = controller
+        from controller.episode_automation import EpisodeAutomation
+        self.episode_automation = EpisodeAutomation(self)
         self.snapshot = None
         self.identity = None
         self.following = False
@@ -601,6 +602,8 @@ class BrowserSyncController:
         self._media_key = key
 
     def _restore_browser_source(self, key):
+        if getattr(self, '_episode_navigation', None):
+            return False
         if (getattr(self, "_manual_source_open", False) or
                 (self.identity, (self._media_context or {}).get("pageUrl")) == getattr(self, "_manual_source_context", None)):
             return
@@ -784,10 +787,6 @@ class BrowserSyncController:
     def _dispatch_player_command(self, identity, action, arguments, *, callback=None, track=True):
         """Single transport boundary, including cancellation of an owned clip."""
         operation = self.bridge.command(identity, action, **arguments)
-        callers = traceback.extract_stack(limit=4)[:-1]
-        origin = " > ".join(f"{Path(c.filename).name}:{c.name}:{c.lineno}" for c in callers)
-        logger.info("Browser command %s action=%s time=%s source=%s", operation, action,
-                    arguments.get("time"), origin)
         if callback and track:
             self._command_callbacks[operation] = callback
         if track:
@@ -1249,9 +1248,10 @@ class BrowserSyncController:
                 else:
                     self.controller.anki.attach_native_capture(session.target_note_id, result.get("operationId", session.id),
                         result["audio"], result["image"], is_cancelled=lambda: session.cancelled)
-                if session.replace_sentence_media:
-                    self.controller.anki.replace_exact_sentence_capture(
-                        session.target_note_id, is_cancelled=lambda: session.cancelled)
+                # A new recording must also reach cards mined before this capture,
+                # including add-only cards that have no media yet.
+                self.controller.anki.replace_exact_sentence_capture(
+                    session.target_note_id, is_cancelled=lambda: session.cancelled)
                 logger.info("Native capture %s media verified on note %s", session.id, session.target_note_id)
                 self._results.put(("media", session.id, None))
             except Exception as exc:
@@ -1329,6 +1329,9 @@ class BrowserSyncController:
                 self._clear_capture_display()
                 self._control_generation = getattr(self, "_control_generation", 0) + 1
         elif kind == "Disconnected":
+            if getattr(self, '_episode_navigation', None):
+                self._episode_navigation = None
+                self.report_error('Browser disconnected before episode change was confirmed; subtitles unchanged')
             self._clear_capture_display()
             self._connected = False
             self.controller._browser_input_context = None
@@ -1416,6 +1419,12 @@ class BrowserSyncController:
                 self.invalidate(); self._reference = (); self._reference_kind = "none"
                 self._caption_last = None; self._observed_intervals = []
             self.snapshot = snapshot
+            automation = getattr(self, 'episode_automation', None)
+            if automation:
+                automation.tick(event.get('event'))
+            navigation = getattr(self, '_episode_navigation', None)
+            if navigation and navigation.get('context'):
+                self._follow_episode(navigation['context'])
             if snapshot.seeking:
                 self._caption_last = None
             if self._reference_fingerprint and self._reference_fingerprint != snapshot.fingerprint:
@@ -1529,6 +1538,15 @@ class BrowserSyncController:
                 finally:
                     self._audio_busy = False
             threading.Thread(target=analyze, name="local-audio-alignment", daemon=True).start()
+        elif kind == 'SkipIntroAck':
+            automation = getattr(self, 'episode_automation', None)
+            if automation:
+                automation.ack(event)
+        elif kind == 'EpisodeNavigationAck':
+            navigation = getattr(self, '_episode_navigation', None)
+            if navigation and event.get('operationId') == navigation['operation'] and not event.get('ok'):
+                self._episode_navigation = None
+                self.report_error('Episode navigation failed: ' + str(event.get('error') or event.get('status') or 'Unknown error'))
         elif kind == "CommandAck":
             self._commands.pop(event.get("operationId"), None)
             callback = self._command_callbacks.pop(event.get("operationId"), None)
@@ -2175,8 +2193,83 @@ class BrowserSyncController:
         except queue.Empty:
             pass
 
+    def navigate_episode(self, direction, *, autoplay=False):
+        """The website owns navigation while following; subtitles await confirmation."""
+        if self._capture:
+            self.report_error('Wait for recording to finish before changing episodes')
+            return False
+        if getattr(self, '_episode_navigation', None):
+            self.report_error('An episode change is already pending')
+            return False
+        if not self.identity or not self.snapshot:
+            self.report_error('Connect a browser video before changing episodes')
+            return False
+        if direction not in ('next', 'previous'):
+            raise ValueError('Invalid episode direction')
+        import uuid
+        operation = uuid.uuid4().hex
+        before = dict(self._last_episode_context or self._media_context or {})
+        if not isinstance(before.get('episode'), int):
+            self.report_error('Wait for the website episode information before changing episodes')
+            return False
+        self._episode_navigation = dict(operation=operation, direction=direction, before=before,
+            identity=self.identity, fingerprint=self.snapshot.fingerprint,
+            resource=getattr(self.snapshot, 'resource_fingerprint', ''),
+            player=getattr(self.snapshot, 'player_fingerprint', ''), context=None, autoplay=bool(autoplay))
+        try:
+            self.bridge.send(dict(type='EpisodeNavigate', operationId=operation,
+                                  identity=self.identity.wire(), direction=direction))
+        except Exception as exc:
+            self._episode_navigation = None
+            self.report_error('Episode navigation failed: ' + str(exc))
+            return False
+        self.controller.settings.root.after(15000, lambda: self._episode_navigation_timeout(operation))
+        self._set_status('Changing website episode…')
+        return True
+
+    def _episode_navigation_timeout(self, operation):
+        pending = getattr(self, '_episode_navigation', None)
+        if pending and pending['operation'] == operation:
+            self._episode_navigation = None
+            self.report_error('Episode change was not confirmed within 15 seconds; subtitles unchanged')
+
+    def _episode_navigation_confirmed(self, event):
+        pending = getattr(self, '_episode_navigation', None)
+        if not pending:
+            return True
+        pending['context'] = event
+        before = pending['before']
+        old, new = before.get('episode'), event.get('episode')
+        old_season, new_season = before.get('season'), event.get('season')
+        correct_direction = (isinstance(old, int) and isinstance(new, int)
+            and ((new > old) if pending['direction'] == 'next' else (new < old)))
+        if isinstance(old_season, int) and isinstance(new_season, int) and isinstance(old, int) and isinstance(new, int):
+            correct_direction = ((new_season, new) > (old_season, old) if pending['direction'] == 'next'
+                                 else (new_season, new) < (old_season, old))
+        identity_changed = self.identity != pending['identity']
+        resource = getattr(self.snapshot, 'resource_fingerprint', '') if self.snapshot else ''
+        media_changed = resource and pending['resource'] and resource != pending['resource']
+        player = getattr(self.snapshot, 'player_fingerprint', '') if self.snapshot else ''
+        media_changed = media_changed or player and pending['player'] and player != pending['player']
+        if before.get('title') and event.get('title') and before['title'].strip().casefold() != event['title'].strip().casefold():
+            return False
+        if not correct_direction or not (identity_changed or media_changed):
+            return False
+        if not self.snapshot or self.snapshot.identity != self.identity:
+            return False
+        self._episode_navigation = None
+        self._set_status('Website episode changed; loading matching subtitles')
+        if pending.get('autoplay') and not self._capture:
+            try:
+                self.command('play')
+            except ConnectionError:
+                self.report_error('Episode changed, but playback could not be started')
+        return True
+
     def _follow_episode(self, event, *, auto_select=True):
         """Use explicit site episode metadata within the already selected series."""
+        if not self._episode_navigation_confirmed(event):
+            return
         try:
             episode = int(event["episode"])
             season = int(event["season"]) if event.get("season") else None

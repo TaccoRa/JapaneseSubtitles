@@ -35,6 +35,8 @@ class PlaybackSnapshot:
     rate: float
     fingerprint: str
     received: float
+    resource_fingerprint: str = ''
+    player_fingerprint: str = ''
 
     @classmethod
     def read(cls, value, now=None):
@@ -44,7 +46,8 @@ class PlaybackSnapshot:
         return cls(MediaIdentity.read(value["identity"]), int(value["sequence"]),
                    *numbers[:2], bool(value["paused"]), bool(value["buffering"]),
                    bool(value.get("seeking")), numbers[2], str(value["fingerprint"]),
-                   time.monotonic() if now is None else now)
+                   time.monotonic() if now is None else now, str(value.get('resourceFingerprint') or ''),
+                   str(value.get('playerFingerprint') or ''))
 
     def time_at(self, now=None, stale_after=0.4):
         age = max(0.0, (time.monotonic() if now is None else now) - self.received)

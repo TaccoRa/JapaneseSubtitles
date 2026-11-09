@@ -1176,8 +1176,7 @@ class SettingsUI:
             self._start_voice_indicator_animation()
         else:
             self._stop_voice_indicator_animation()
-        voice_tab = getattr(self, "_voice_tab_ui", None)
-        if voice_tab is not None:
+        for voice_tab in self._voice_settings_views():
             try:
                 voice_tab.set_status(normalized)
             except Exception:
@@ -1226,41 +1225,43 @@ class SettingsUI:
             except Exception:
                 pass
 
+    def _voice_settings_views(self):
+        views = getattr(self, '_voice_views', None)
+        if views:
+            return tuple(views.values())
+        view = getattr(self, '_voice_tab_ui', None)
+        return (view,) if view is not None else ()
+
     def set_voice_enabled_value(self, enabled: bool) -> None:
-        voice_tab = getattr(self, "_voice_tab_ui", None)
-        if voice_tab is not None:
+        for voice_tab in self._voice_settings_views():
             try:
                 voice_tab.set_enabled(bool(enabled))
             except Exception:
                 pass
 
     def set_voice_playback_target(self, target: dict) -> None:
-        voice_tab = getattr(self, "_voice_tab_ui", None)
-        if voice_tab is not None:
+        for voice_tab in self._voice_settings_views():
             try:
                 voice_tab.set_playback_target(target)
             except Exception:
                 pass
 
     def set_voice_microphone_level(self, level: float, peak: float = 0.0) -> None:
-        voice_tab = getattr(self, "_voice_tab_ui", None)
-        if voice_tab is not None:
+        for voice_tab in self._voice_settings_views():
             try:
                 voice_tab.set_microphone_level(level, peak)
             except Exception:
                 pass
 
     def set_voice_microphone_test_state(self, active: bool, *, monitor_available: bool = True) -> None:
-        voice_tab = getattr(self, "_voice_tab_ui", None)
-        if voice_tab is not None:
+        for voice_tab in self._voice_settings_views():
             try:
                 voice_tab.set_microphone_test_state(active, monitor_available=monitor_available)
             except Exception:
                 pass
 
     def set_voice_microphone_test_stopping(self) -> None:
-        voice_tab = getattr(self, "_voice_tab_ui", None)
-        if voice_tab is not None:
+        for voice_tab in self._voice_settings_views():
             try:
                 voice_tab.set_microphone_test_stopping()
             except Exception:

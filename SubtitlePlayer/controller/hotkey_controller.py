@@ -292,7 +292,7 @@ class HotkeyController(_ControllerProxy):
 
     @staticmethod
     def _is_modal_blocked_source(source: str) -> bool:
-            return str(source or "").strip().lower() in {"physical", "mouse", "voice", "synthetic"}
+            return str(source or "").strip().lower() in {"physical", "mouse", "voice", "synthetic", "hover_keyboard"}
 
     def _read_modal_input_active(self) -> bool:
             """Read modal input state only from the Tk-thread input pump."""
@@ -369,6 +369,14 @@ class HotkeyController(_ControllerProxy):
                 return
             timestamp = time.perf_counter() if event_time is None else float(event_time)
             queued_action = _QueuedInputAction(action, source)
+            if pointer is None and source == 'physical' and self._voice_action_uses_lookup_target(action):
+                try:
+                    from ctypes import wintypes
+                    point = wintypes.POINT()
+                    if ctypes.windll.user32.GetCursorPos(ctypes.byref(point)):
+                        pointer = (int(point.x), int(point.y))
+                except Exception:
+                    pass
             queued_action.pointer = pointer
             browser = getattr(self.controller, "browser_sync", None)
             queued_action.media_identity = browser.identity.wire() if browser and browser.identity else None
@@ -454,7 +462,8 @@ class HotkeyController(_ControllerProxy):
             if not callable(hovered_getter):
                 hovered_getter = getattr(self.renderer, "hovered_subtitle_target_for_anki", None)
             try:
-                hovered = dict(hovered_getter() or {}) if callable(hovered_getter) else {}
+                position = getattr(self, '_pointer_action_position', None)
+                hovered = dict((hovered_getter(position) if position is not None else hovered_getter()) or {}) if callable(hovered_getter) else {}
             except Exception:
                 hovered = {}
             text = str(hovered.get("text") or "").strip()
@@ -748,13 +757,59 @@ class HotkeyController(_ControllerProxy):
         *,
         source: str = "ui",
     ) -> None:
+            if source == "hover_keyboard":
+                if (not str(action).startswith("capture_segments:") or self._hotkeys_disabled()
+                        or self._hotkey_action_disabled("capture_only") or self._modal_input_blocked()):
+                    return
+                # Resolve on Tk's thread using the pointer frozen at key-down.
+                # Empty overlay/popup space must never record the previous card.
+                if not str(self._recording_word_at_pointer().get("text") or "").strip():
+                    return
             if action != "toggle_subtitles" and self._focus_scoped_source(source) and self._global_focus_stamp() is None and not (
                     source == "mouse" and getattr(self, "_accepted_mouse_handoff", False)):
                 return
             if self._modal_input_blocked() and self._is_modal_blocked_source(source):
                 self._discard_frozen_voice_target(action)
                 return
+            if str(action).startswith('hover_toggle:'):
+                layer = str(action).split(':', 1)[1]
+                if layer in {'dictionary', 'translation', 'status'}:
+                    self.controller._voice_hover_mode = None if getattr(self.controller, '_voice_hover_mode', None) == layer else layer
+                    self.controller._hover_refresh_requested = True
+                    self.controller._report_voice_status('listening', f'{layer.title()} hover {"on" if self.controller._voice_hover_mode else "off"}.')
+                return
+            if action == 'skip_intro':
+                self.controller.browser_sync.episode_automation.skip_intro(manual=True)
+                return
+            if action == 'remember_intro_target':
+                message = self.controller.browser_sync.episode_automation.marker('remember')
+                self.controller._report_voice_status('listening', message)
+                return
+            if action == 'voice_highlight_all':
+                result = self.renderer.highlight_subtitle_words_for_voice(list(range(1, len(self.renderer.subtitle_words_for_anki()) + 1)))
+                self.controller._report_voice_status('listening', 'Marked every word.' if result.get('ok') else 'No subtitle words available.')
+                return
+            if action == 'voice_copy_all':
+                text = str(self._highlighted_anki_payload().get('text') or '')
+                if not text:
+                    text = str(getattr(getattr(self.renderer, '_cue_snapshot', None), 'plain_text', '') or '')
+                ok = self._copy_text_for_voice(text)
+                self.controller._report_voice_status('listening', 'Copied Japanese text.' if ok else 'No current subtitle to copy.')
+                return
+            if str(action).startswith('voice_submark:'):
+                positions = [int(value) for value in str(action).split(':')[1:]]
+                result = self.renderer.submark_for_voice(positions)
+                self.controller._report_voice_status('listening', result['message'])
+                return
             action, frozen_target = self._take_frozen_voice_target(str(action))
+            if (frozen_target is None and source == 'physical' and self._voice_action_uses_lookup_target(action)
+                    and getattr(self, '_active_voice_target', None) is None):
+                previous = getattr(self, '_active_voice_target', None)
+                self._active_voice_target = self._freeze_voice_target()
+                try:
+                    return self._dispatch_input_action(action, event_time=event_time, repeat_count=repeat_count, source=source)
+                finally:
+                    self._active_voice_target = previous
             if frozen_target is not None:
                 previous_target = self._active_voice_target
                 self._active_voice_target = frozen_target
@@ -779,7 +834,8 @@ class HotkeyController(_ControllerProxy):
                 repeat_count = max(1, min(20, int(repeat_count)))
             except Exception:
                 repeat_count = 1
-            if action in {"toggle_subtitles", "clear_subtitle"} and self._hotkey_action_disabled(action):
+            if (action in {"toggle_subtitles", "clear_subtitle"} and source in {'physical', 'mouse', 'synthetic', 'hover_keyboard'}
+                    and self._hotkey_action_disabled(action)):
                 return
             if action == "toggle_play":
                 self.playback.toggle_play(event_time=event_time)
@@ -1777,7 +1833,7 @@ class HotkeyController(_ControllerProxy):
                         selected_text=word,
                         subtitle_text=str(getattr(hovered.get("snapshot"), "plain_text", "") or ""),
                         cue_snapshot=hovered.get("snapshot"), selection_spans=hovered.get("spans"),
-                        post_add_capture=True, segment_range=segment_range or (0, 0), initiator="physical")
+                        post_add_capture=True, segment_range=segment_range or (0, 0), initiator="popup_capture_key")
                     return True
             except (ValueError, TypeError, RuntimeError) as exc:
                 report = getattr(self.controller, "_report_voice_status", None)
@@ -2169,6 +2225,7 @@ class HotkeyController(_ControllerProxy):
     def _normalize_shortcut_token(token: str) -> str:
             t = str(token or "").strip().lower().replace(" ", "")
             alias = {
+                'control': 'ctrl', 'escape': 'esc', 'return': 'enter',
                 "arrowleft": "left",
                 "arrowright": "right",
                 "spacebar": "space",
@@ -2711,6 +2768,8 @@ class HotkeyController(_ControllerProxy):
                 bindings.extend((f"capture_segments:{digit}", str(digit)) for digit in range(3, 8))
             if not self._mode2_numpad_enabled() and not self._hotkey_action_disabled("toggle_play"):
                 bindings.extend(("toggle_play", binding) for binding in ("numpad0", "numpadenter"))
+            from model.control_actions import keyboard_bindings
+            bindings.extend(keyboard_bindings(self.config))
             return bindings
 
     def _always_available_single_fire_bindings(self):
@@ -2942,6 +3001,29 @@ class HotkeyController(_ControllerProxy):
             # Clear hotkey state without disabling Shift-hover dictionary lookup.
             self._reset_hotkey_state(reset_shift=False)
 
+    def _queue_unfocused_hover_capture(self, key):
+            """Allow range keys over our overlay without requiring video focus."""
+            if self._modal_input_blocked() or self._hotkeys_disabled() or self._hotkey_action_disabled("capture_only"):
+                return False
+            action = next((f"capture_segments:{digit}" for digit in range(3, 8)
+                           if self._shortcut_matches(str(digit), key)), None)
+            if action is None:
+                return False
+            try:
+                from ctypes import wintypes
+                point = wintypes.POINT()
+                if not ctypes.windll.user32.GetCursorPos(ctypes.byref(point)):
+                    return False
+                pointer = (int(point.x), int(point.y))
+            except Exception:
+                return False
+            if not (self._point_inside_subtitle_window(*pointer) or self._point_inside_popup_window(*pointer)):
+                return False
+            if action not in self._single_fire_actions:
+                self._single_fire_actions.add(action)
+                self._enqueue_input_action(action, source="hover_keyboard", pointer=pointer)
+            return True
+
     def _on_key_press(self, key):
             if key == Key.esc and self._global_focus_stamp() is not None:
                 browser = getattr(self.controller, "browser_sync", None)
@@ -2949,6 +3031,8 @@ class HotkeyController(_ControllerProxy):
                     self._enqueue_input_action("voice_abort", source="physical")
                     return
             if self._global_focus_stamp() is None:
+                if self._queue_unfocused_hover_capture(key):
+                    return
                 modifiers = self._modifier_tokens_for_key(key)
                 if modifiers:
                     self._set_pressed_key_tokens(key, True)

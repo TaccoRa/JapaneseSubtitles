@@ -7,6 +7,7 @@ import math
 import os
 import re
 import threading
+import time
 import tkinter as tk
 from datetime import date
 from tkinter import filedialog, messagebox, simpledialog, ttk, font as tkfont
@@ -280,6 +281,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         self._sync_advanced_startup_vars_from_runtime()
 
     def _open_advanced_settings_window(self):
+        opened_at = time.perf_counter()
         # Flush any pending changes in the main UI before opening the advanced window
         self._flush_pending_entry_changes()
         self._install_app_entry_focus_clear_binding()
@@ -367,25 +369,44 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         annotation_tab = tk.Frame(notebook)
         shortcuts_tab = tk.Frame(notebook)
         voice_tab = tk.Frame(notebook)
+        controls_tab = tk.Frame(notebook)
         notebook.add(general_tab, text="General")
         notebook.add(anki_tab, text="Anki")
         notebook.add(annotation_tab, text="Annotation")
         notebook.add(shortcuts_tab, text="Shortcuts")
         notebook.add(voice_tab, text="Voice")
+        notebook.add(controls_tab, text="Controls")
         self._performance_tab = None
         if bool(self.config.get("DEBUGGING") or False):
             self._add_performance_tab()
         self._remember_advanced_tab_labels()
         notebook.bind("<<NotebookTabChanged>>", self._on_advanced_tab_changed, add="+")
 
+        logger.debug('Advanced Settings window shell: %.1f ms', (time.perf_counter() - opened_at) * 1000)
+        general_started = time.perf_counter()
         general_content = self._build_advanced_tab(general_tab, self._advanced_general_columns())
+        logger.info('Advanced Settings built General in %.1f ms', (time.perf_counter() - general_started) * 1000)
         self._advanced_general_min_width = int(getattr(general_content, "_advanced_min_width", 0) or 0)
-        anki_content = self._build_advanced_tab(anki_tab, self._advanced_anki_columns())
-
-        self._annotation_tab_ui = AnnotationTab(self.settings_ui, annotation_tab, str(annotation_tab))
-        self._build_advanced_tab(shortcuts_tab, self._advanced_shortcut_columns())
+        # Register all primitive settings before widgets exist. Unopened tabs
+        # participate in saving/profiles/reset without triggering construction.
+        for tab, columns in ((anki_tab, self._advanced_anki_columns()), (shortcuts_tab, self._advanced_shortcut_columns())):
+            for column in columns:
+                for title, specs in column:
+                    self._build_advanced_section(tab, title, [dict(spec, hidden=True) for spec in specs], str(tab))
+        self._annotation_tab_ui = None
         self._voice_tab_id = str(voice_tab)
-        self._voice_tab_ui = VoiceTab(self.settings_ui, voice_tab, self._voice_tab_id)
+        self._controls_tab_id = str(controls_tab)
+        self._voice_tab_ui = VoiceTab(self.settings_ui, voice_tab, self._voice_tab_id, build=False)
+        voice_view = self._voice_tab_ui
+        controls_view = voice_view.mirror(controls_tab, str(controls_tab), combined=True)
+        self._voice_views = {str(voice_tab): voice_view, str(controls_tab): controls_view}
+        self._advanced_lazy_builders = {
+            str(anki_tab): lambda: self._build_advanced_tab(anki_tab, self._advanced_anki_columns()),
+            str(shortcuts_tab): lambda: self._build_advanced_tab(shortcuts_tab, self._advanced_shortcut_columns()),
+            str(annotation_tab): lambda: setattr(self, '_annotation_tab_ui', AnnotationTab(self.settings_ui, annotation_tab, str(annotation_tab))),
+            str(voice_tab): voice_view.build_view,
+            str(controls_tab): controls_view.build_view,
+        }
 
         self._build_general_actions(general_content)
         self._sync_performance_tab_visibility()
@@ -435,6 +456,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         self._set_advanced_footer_minsize(win, title_label, filter_row, footer)
         self._restore_advanced_window_position(win)
         self._show_advanced_window(win)
+        logger.info('Advanced Settings usable in %.1f ms', (time.perf_counter() - opened_at) * 1000)
         win.protocol("WM_DELETE_WINDOW", self._close_advanced_settings)
         win.bind("<Configure>", self._on_advanced_window_configure, add="+")
         win.bind("<Unmap>", self._on_advanced_window_unmap, add="+")
@@ -1381,7 +1403,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             if win is None:
                 win = getattr(self, "advanced_window", None)
             if win is not None and win.winfo_exists():
-                win.update_idletasks()
+                # The mapped window already has its current position. Flushing
+                # idle tasks here also runs unrelated settings layout callbacks.
                 x, y = int(win.winfo_x()), int(win.winfo_y())
             else:
                 x, y = getattr(self, "_last_advanced_window_position", (None, None))
@@ -1420,8 +1443,25 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         win = self.advanced_window
         if win is None:
             return
+        selected = str(self._advanced_notebook.select())
+        self._ensure_advanced_tab_built(selected)
+        view = getattr(self, '_voice_views', {}).get(selected)
+        if view is not None:
+            self._voice_tab_ui = view
+            view.set_status(getattr(self.settings_ui, '_voice_status', {}))
+            if view._combined:
+                view._intro_target_action('status')
         self._apply_advanced_filter()
         self._schedule_advanced_layout()
+
+    def _ensure_advanced_tab_built(self, tab_id):
+        builder = getattr(self, '_advanced_lazy_builders', {}).pop(str(tab_id), None)
+        if builder is not None:
+            start = time.perf_counter()
+            builder()
+            self._advanced_filter_applied = None
+            logger.info('Advanced Settings built %s in %.1f ms',
+                        self._advanced_notebook.tab(tab_id, 'text'), (time.perf_counter() - start) * 1000)
 
     def _create_scrollable_advanced_tab(self, tab_parent):
         tab_id = str(tab_parent)
@@ -1499,6 +1539,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         self._advanced_layout_job = win.after_idle(self._update_advanced_layout)
 
     def _update_advanced_layout(self):
+        layout_started = time.perf_counter()
         self._advanced_layout_job = None
         win = getattr(self, "advanced_window", None)
         if win is None or not win.winfo_exists():
@@ -1530,6 +1571,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                     self._advanced_tab_min_widths[tab_id] = content._advanced_min_width
         self._apply_advanced_selected_tab_width(resize=True)
         self._refresh_advanced_scroll_regions()
+        logger.debug('Advanced Settings layout: %.1f ms', (time.perf_counter() - layout_started) * 1000)
 
     def _build_advanced_tab(self, tab_parent, column_sections):
         from model.native_settings import retired
@@ -1594,6 +1636,10 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             logger.debug("Failed to refresh advanced content minimum width", exc_info=True)
 
     def _build_advanced_section(self, parent, section_name, specs, tab_id: str, is_last: bool = False):
+        from model.native_settings import retired
+        specs = [spec for spec in specs if not retired(spec.get('key', ''))]
+        if not specs:
+            return
         visible_specs = [spec for spec in specs if not spec.get("hidden")]
 
         def _register_var(spec):
@@ -1616,6 +1662,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         if not visible_specs:
             for spec in specs:
                 _register_var(spec)
+                if isinstance(spec.get('inline_entry'), dict):
+                    _register_var(spec['inline_entry'])
             return
 
         section = tk.LabelFrame(parent, text=section_name, padx=10, pady=8)
@@ -1866,7 +1914,6 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             for label in labels:
                 try:
                     if label.winfo_exists():
-                        label.update_idletasks()
                         max_width = max(max_width, int(label.winfo_reqwidth()))
                 except Exception:
                     continue
@@ -1913,6 +1960,9 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 logger.debug("Failed to update advanced filter row visibility", exc_info=True)
 
     def _apply_advanced_filter(self) -> None:
+        if self._advanced_filter_terms():
+            for tab_id in list(getattr(self, '_advanced_lazy_builders', {})):
+                self._ensure_advanced_tab_built(tab_id)
         sections = list(getattr(self, "_advanced_filter_sections", []) or [])
         if not sections:
             return
@@ -2139,6 +2189,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                  "choices": {"captions": "Website-Untertitel", "audio": "Dialog/Audio"}},
             ]),
         ])
+        right.append(('Playback Automation', self._automation_specs()))
         return [left, right]
 
     def _advanced_anki_columns(self):
@@ -2529,6 +2580,14 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         return [left, right]
 
     @staticmethod
+    def _automation_specs():
+        return [
+            dict(key='AUTO_NEXT_EPISODE', label='Automatically play the next website episode', type='bool', default=False),
+            dict(key='AUTO_SKIP_INTRO', label='Automatically skip intro / jump to saved title', type='bool', default=False,
+                 tooltip='Uses the website Skip Intro control, or your saved position for this series. Manual Skip Intro works independently.'),
+        ]
+
+    @staticmethod
     def _coerce_bool(value) -> bool:
         if isinstance(value, bool):
             return value
@@ -2702,6 +2761,7 @@ class SettingsAdvancedUI(_SettingsUIProxy):
 
 
     def _load_advanced_values_into_vars(self):
+        values_started = time.perf_counter()
         if not hasattr(self, "_advanced_vars") or not hasattr(self, "_advanced_meta"):
             return
         for key, spec in self._advanced_meta.items():
@@ -2765,6 +2825,10 @@ class SettingsAdvancedUI(_SettingsUIProxy):
             except Exception:
                 logger.debug("Failed to refresh Voice tab after config load", exc_info=True)
         self._remember_advanced_settings_baseline()
+        from model.control_actions import binding_conflicts
+        baseline = self._collect_advanced_values() or {}
+        self._control_binding_conflicts_baseline = binding_conflicts(baseline.get('values', {}))
+        logger.debug('Advanced Settings model values: %.1f ms', (time.perf_counter() - values_started) * 1000)
 
     def _remember_advanced_settings_baseline(self):
         collected = self._collect_advanced_values()
@@ -2807,7 +2871,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 allow_empty = bool(spec.get("allow_empty", False))
                 if not text and not allow_empty:
                     text = str(spec.get("default", ""))
-                var.set(text)
+                if var.get() != text:
+                    var.set(text)
                 values[key] = text
                 continue
             if spec["type"] == "int":
@@ -2824,7 +2889,8 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 if max_v is not None and num > int(max_v):
                     num = int(max_v)
                 values[key] = num
-                var.set(str(num))
+                if var.get() != str(num):
+                    var.set(str(num))
                 continue
             if spec["type"] == "float":
                 raw = str(var.get()).strip().replace(",", ".")
@@ -2847,7 +2913,9 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                     except Exception:
                         pass
                 values[key] = float(num)
-                var.set(self._format_number(num))
+                formatted = self._format_number(num)
+                if var.get() != formatted:
+                    var.set(formatted)
                 continue
         voice_tab = getattr(self, "_voice_tab_ui", None)
         if voice_tab is not None:
@@ -2855,6 +2923,10 @@ class SettingsAdvancedUI(_SettingsUIProxy):
                 voice_result = voice_tab.collect_values()
                 values.update(dict(voice_result.get("values") or {}))
                 errors.extend(str(error) for error in (voice_result.get("errors") or []) if str(error))
+                from model.control_actions import binding_conflicts
+                baseline = getattr(self, '_control_binding_conflicts_baseline', None)
+                if baseline is not None:
+                    errors.extend('Keyboard conflict: ' + error for error in binding_conflicts(values) if error not in baseline)
             except Exception as exc:
                 logger.exception("Failed to collect Voice tab settings")
                 errors.append(f"Voice settings ({exc})")
@@ -2883,11 +2955,14 @@ class SettingsAdvancedUI(_SettingsUIProxy):
         except Exception:
             selected_tab = ""
         voice_tab = getattr(self, "_voice_tab_ui", None)
-        if voice_tab is not None and selected_tab == str(getattr(self, "_voice_tab_id", "") or ""):
+        if voice_tab is not None and selected_tab in {str(getattr(self, "_voice_tab_id", "") or ""), str(getattr(self, '_controls_tab_id', ''))}:
             voice_tab.reset_defaults()
+            if selected_tab == str(getattr(self, '_controls_tab_id', '')):
+                self._reset_advanced_values_to_defaults(self._advanced_tab_key_map.get(selected_tab, []))
             self._apply_advanced_settings(persist=True)
             if hasattr(self, "_advanced_status_var"):
-                self._advanced_status_var.set("Reset Voice tab to defaults and saved.")
+                label = 'Controls' if selected_tab == str(getattr(self, '_controls_tab_id', '')) else 'Voice'
+                self._advanced_status_var.set(f'Reset {label} tab to defaults and saved.')
             return
         keys = self._get_selected_advanced_tab_keys()
         if not keys:

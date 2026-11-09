@@ -112,7 +112,8 @@ function netflixContext(session){
   const episode=episodic?Number(current.getEpisodeNumber?.()):null;
   const season=episodic?Number(current.getSeason?.()?._season?.seq):null;
   if(episodic&&(!Number.isInteger(episode)||episode<=0||!Number.isInteger(season)||season<=0))return;
-  publish({page:location.href,mediaContext:{title:title.trim().slice(0,300),kind:episodic?'episode':'movie',episode,season}});
+  publish({page:location.href,mediaContext:{title:title.trim().slice(0,300),kind:episodic?'episode':'movie',episode,season,
+    playerVideoId:String(session.player.getMovieId())}});
 }
 function netflixCaptionURL(session,trackId){
   const state=globalThis.netflix?.appContext?.state?.playerApp?.getState?.();

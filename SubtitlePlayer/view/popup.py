@@ -937,9 +937,7 @@ class CopyPopup:
             self._show_hover_text(region, ruby_text, font_scale=0.60, bold=True)
 
     def _show_hover_dictionary(self, region: HitRegion) -> None:
-        entry_text = self._hover_dictionary_text(region)
-        if entry_text:
-            self._show_hover_text(region, entry_text, font_scale=0.55, bold=True)
+        self._show_hover_layers(region, ('dictionary',))
 
     def _hover_dictionary_text(self, region: HitRegion) -> str:
         lookup = getattr(self, "_dictionary_lookup", None)
@@ -1092,17 +1090,9 @@ class CopyPopup:
 
     def _show_hover_layers(self, region: HitRegion, layers: tuple[str, ...]) -> None:
         parts: list[tuple[str, str]] = []
-        if "dictionary_together" in layers:
-            parts.append(("dictionary", self._hover_dictionary_text(region) or "No dictionary entry"))
-        elif "dictionary" in layers:
-            parts.append(
-                (
-                    "dictionary",
-                    str(region.get("multi_dictionary_text") or "").strip()
-                    or self._hover_dictionary_text(region)
-                    or "No dictionary entry",
-                )
-            )
+        if 'dictionary' in layers or 'dictionary_together' in layers:
+            from model.dictionary_feedback import dictionary_layer_text
+            parts.append(('dictionary', dictionary_layer_text(self, region, layers)))
         if "translation_each" in layers:
             provider = self._translation_provider()
             entries = tuple(region.get("translation_each_entries") or ())
@@ -1144,6 +1134,8 @@ class CopyPopup:
             not in {"Translating...", "No translation", "No dictionary entry", "Not in database"}
         }
 
+        from model.dictionary_feedback import retain_voice_results
+        parts = retain_voice_results(self, region, parts)
         text = combine_hover_text(parts)
         if text:
             self._show_hover_text(
@@ -2056,23 +2048,7 @@ class CopyPopup:
 
         lexical_tokens = [token for token in tokens if not bool(getattr(token, "compound", False))]
         if "dictionary" in requested and len(lexical_tokens) > 1:
-            entries = []
-            for token in lexical_tokens:
-                token_region = {
-                    "base": str(getattr(token, "surface", "") or "").strip(),
-                    "lookup": str(
-                        getattr(token, "dictionary_lookup_key", "")
-                        or getattr(token, "lemma", "")
-                        or getattr(token, "surface", "")
-                    ).strip(),
-                    "lookup_reading": str(getattr(token, "reading", "") or "").strip(),
-                    "is_selection": True,
-                }
-                value = self._hover_dictionary_text(token_region)
-                if value:
-                    entries.append(value)
-            if entries:
-                region["multi_dictionary_text"] = "\n".join(dict.fromkeys(entries))
+            region['dictionary_entries'] = tuple((self._voice_token_label(token), token.dictionary_lookup_key or token.surface) for token in lexical_tokens)
         if "translation_each" in requested:
             entries = []
             for token in lexical_tokens or tokens:
@@ -2098,6 +2074,7 @@ class CopyPopup:
 
     def voice_copy_text(self, kind: str = "active") -> dict:
         """Resolve popup-selected text or lookup values for an explicit voice copy command."""
+        from model.dictionary_feedback import copy_dictionary_text
         target = self.current_selection_target_for_voice()
         if not bool(target.get("ok")):
             return {"ok": False, "reason": "no_selection"}
@@ -2109,7 +2086,7 @@ class CopyPopup:
         if normalized_kind in {"kanji", "kanji_each"}:
             return {"ok": bool(selected), "text": selected, "kind": "kanji"}
         if normalized_kind in {"dictionary", "dictionary_together"}:
-            value = self._hover_dictionary_text(region)
+            value = copy_dictionary_text(self, region)
             return {"ok": bool(value), "text": value, "kind": "dictionary", "reason": "no_dictionary"}
         if normalized_kind in {"translation", "translation_each"}:
             provider = self._translation_provider()

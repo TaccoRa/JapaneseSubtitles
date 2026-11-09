@@ -6,6 +6,44 @@ from model.sentence_context import segment_range_for_cue, sentence_for_cue
 from model.anki_client import AnkiClient
 
 
+@pytest.mark.parametrize('digit', range(3, 8))
+@pytest.mark.parametrize('numpad', [False, True])
+def test_unfocused_hover_range_keys_freeze_pointer_and_fire_once(monkeypatch, digit, numpad):
+    import ctypes
+    from pynput.keyboard import KeyCode
+    from controller.hotkey_controller import HotkeyController, _NumpadDigitKey
+    owner = NS(config=NS(get=lambda key: False), shift_pressed=False, alt_pressed=False, ctrl_pressed=False)
+    hotkeys = HotkeyController(owner)
+    queued = []
+    def cursor(point):
+        point._obj.x, point._obj.y = 123, 456
+        return 1
+    monkeypatch.setattr(ctypes.windll.user32, 'GetCursorPos', cursor)
+    for name, callback in {
+        '_global_focus_stamp': lambda: None,
+        '_modal_input_blocked': lambda: False,
+        '_point_inside_subtitle_window': lambda x, y: (x, y) == (123, 456),
+        '_point_inside_popup_window': lambda x, y: False,
+        '_enqueue_input_action': lambda action, **kwargs: queued.append((action, kwargs)),
+    }.items():
+        object.__setattr__(hotkeys, name, callback)
+    key = _NumpadDigitKey(digit) if numpad else KeyCode.from_char(str(digit))
+    hotkeys._on_key_press(key)
+    hotkeys._on_key_press(key)
+    assert queued == [(f'capture_segments:{digit}', dict(source='hover_keyboard', pointer=(123, 456)))]
+    object.__setattr__(hotkeys, '_point_inside_subtitle_window', lambda *args: False)
+    assert not hotkeys._queue_unfocused_hover_capture(key)
+
+
+def test_unfocused_hover_capture_does_not_fall_back_to_previous_card():
+    from controller.hotkey_controller import HotkeyController
+    hotkeys = HotkeyController(NS(config=NS(get=lambda key: False)))
+    object.__setattr__(hotkeys, '_modal_input_blocked', lambda: False)
+    object.__setattr__(hotkeys, '_recording_word_at_pointer', lambda: {})
+    object.__setattr__(hotkeys, '_trigger_capture_only_hotkey', lambda **kwargs: pytest.fail('No hovered word'))
+    hotkeys._dispatch_input_action('capture_segments:5', source='hover_keyboard')
+
+
 def source(texts, index):
     manager = NS(display_data=[(i, i*2, [(text, None)], []) for i, text in enumerate(texts)],
                  display_end_times=[i*2+1.5 for i in range(len(texts))])
@@ -282,6 +320,7 @@ def test_hovered_recording_key_creates_word_card_with_exact_recorded_sentence(be
     target = request['action_target']
     expected = '\n'.join(row[2][0][0] for row in manager.display_data[2-before:3+after])
     assert request['post_add_capture'] and target.selected_text == 'hovered'
+    assert target.initiator == 'popup_capture_key'  # Uses recording's pointer-away behavior.
     assert target.subtitle_text == target.sentence_context.plain_text == expected
     assert target.sentence_context.first_cue == 2-before
     assert target.sentence_context.last_cue == 2+after

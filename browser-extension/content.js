@@ -140,7 +140,8 @@ function snapshot(video,id,event='tick'){
     fullscreen:!!document.fullscreenElement,
     textInput:typeof document.hasFocus==='function'&&document.hasFocus()&&typing(),
     // Full URL is hashed in the worker and never sent to the desktop.
-    mediaKey:mediaKey(video),event};
+    mediaKey:mediaKey(video),resourceKey:video.currentSrc+'|'+(epochs.get(video)||0),
+    playerKey:netflixMedia?.playerVideoId||'',event};
 }
 function discover(){
   const found=new Set();
@@ -205,6 +206,28 @@ function onMessage(m,sender,respond){
   if(!alive())return;
   const reply=value=>{if(alive())try{respond(value);}catch{dispose();}};
   if(m.type==='InputScope'){shortcutScope=!!m.enabled;reply({ok:true});return;}
+  if(m.type==='SkipIntro'){
+    const node=globalThis.subtitlePlayerIntroTarget?.();
+    if(!node){reply({ok:false,error:'No website Skip Intro control is available'});return;}
+    reply({ok:true});setTimeout(()=>node.click(),50);return;
+  }
+  if(m.type==='EpisodeNavigateEmbedded'){
+    try {
+      if(window===top||!/(^|\.)miruro\.[a-z]+$/i.test(new URL(document.referrer).hostname))throw Error('Embedded episode navigation requires a Miruro parent');
+      const target=globalThis.subtitlePlayerEmbeddedEpisodeTarget(m.direction);
+      reply({ok:true,status:'accepted'});setTimeout(()=>target.click(),50);
+    } catch(e){reply({ok:false,status:'failed',error:e.message});}
+    return;
+  }
+  if(m.type==='EpisodeNavigate'){
+    (async()=>{
+      if(window!==top)throw Error('Episode navigation requires the top page');
+      const node=await globalThis.subtitlePlayerFindEpisodeTarget(m.direction);
+      reply({ok:true,status:'accepted'});
+      setTimeout(()=>node.click(),50);
+    })().catch(e=>reply({ok:false,status:/unsupported/i.test(e.message)?'unsupported':'failed',error:e.message}));
+    return true;
+  }
   if(m.type==='ShortcutConfig'){shortcutBindings=(m.bindings||[]).map(b=>b.toLowerCase().split('+').map(x=>keyToken(x.trim())).sort().join('+'));reply({ok:true});return;}
   if(m.type==='DiscoverVideos'){if(m.refreshCaptions){for(const v of videos.values())captionSources.delete(v);window.postMessage({channel:'SubtitlePlayerCaptionTimingV1',request:'refresh'},'*');}publish();reply({ok:true});return;}
   if(m.type==='PlaybackProbe'){const v=videos.get(m.identity.videoId);reply(v?{ok:true,state:snapshot(v,m.identity.videoId,'probe')}:{ok:false,error:'Video replaced'});return;}
@@ -267,7 +290,9 @@ listen(window,'message',e=>{
       const episode=context.kind==='episode'?context.episode:null,season=context.kind==='episode'?context.season:null;
       if(context.kind==='episode'&&(!Number.isInteger(episode)||episode<=0||episode>=10000||!Number.isInteger(season)||season<=0||season>=1000))return;
       const url=new URL(location.href);
-      netflixMedia={title,kind:episode?'episode':'movie',episode,season,pageKey:url.origin+url.pathname,pageUrl:url.href,scope:season?'season':'global',
+      netflixMedia={title,kind:episode?'episode':'movie',episode,season,
+        playerVideoId:/^\d+$/.test(String(context.playerVideoId||''))?String(context.playerVideoId):'',
+        pageKey:url.origin+url.pathname,pageUrl:url.href,scope:season?'season':'global',
         ...(episode?{seriesKey:url.origin+'/series/'+encodeURIComponent(title.toLowerCase())}:{})};return;
     }
     if(m.preferredPending===true){const [id,v]=videos.entries().next().value;send({type:'CaptionReferencePending',videoId:id,mediaKey:mediaKey(v)});return;}

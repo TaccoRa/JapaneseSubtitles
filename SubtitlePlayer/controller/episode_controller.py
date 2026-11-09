@@ -452,6 +452,10 @@ class EpisodeController(_ControllerProxy):
                     browser.end_manual_source_selection()
 
     def change_episode(self, action: str):
+            browser = getattr(self.controller, 'browser_sync', None)
+            if browser and browser.following and action in ('inc', 'dec'):
+                browser.navigate_episode('next' if action == 'inc' else 'previous')
+                return
             if self.sub_manager.source_kind == "jimaku":
                 self.controller.browser_sync.jimaku_navigation.request(action)
                 return

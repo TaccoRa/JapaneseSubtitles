@@ -4,6 +4,51 @@ from SubtitlePlayer.model.anki_client import AnkiClient
 from SubtitlePlayer.model.config_manager import ConfigManager
 
 
+def test_new_recording_updates_earlier_add_only_note_with_exact_sentence(monkeypatch):
+    from queue import Queue
+    from types import SimpleNamespace
+    from controller.browser_sync_controller import BrowserSyncController
+
+    client = AnkiClient(ConfigManager("config.json"))
+    def note(nid, sentence, word):
+        return dict(noteId=nid, tags=[], fields={name: {"value": value} for name, value in {
+            client.add_rubies_to_sentence_ja_field: sentence,
+            client.sentence_ja_field: sentence, client.front_field: word,
+            client.sound_field: "", client.image_field: ""}.items()})
+    notes = {1: note(1, "同じ文。", "first"), 2: note(2, "同じ文。", "second"),
+             3: note(3, "別の文。", "unrelated")}
+    updates = []
+    def invoke(action, params):
+        if action == "notesInfo":
+            return [notes[nid] for nid in params["notes"]]
+        if action == "findNotes":
+            return list(notes)
+        if action == "updateNoteFields":
+            update = params["note"]
+            updates.append(update)
+            notes[update["id"]]["fields"].update(
+                {key: {"value": value} for key, value in update["fields"].items()})
+            return
+        pytest.fail(action)
+    monkeypatch.setattr(client, "_invoke", invoke)
+    sync = object.__new__(BrowserSyncController)
+    sync.controller = SimpleNamespace(anki=client,
+        anki_controller=SimpleNamespace(submit_anki_work=lambda work: work()))
+    sync._pending_media, sync._results = {}, Queue()
+    sync._set_status = lambda value: None
+    sync._save_pending_media = lambda *args: None
+    session = SimpleNamespace(id="capture", target_note_id=2, cancelled=False,
+                              backend="native", replace_sentence_media=False)
+    media = {client.sound_field: "[sound:fresh.wav]", client.image_field: '<img src="fresh.png">'}
+    sync._attach_media(session, {"sharedFields": media})
+    assert sync._results.get_nowait() == ("media", "capture", None)
+    assert [update["id"] for update in updates] == [2, 1]
+    for nid in (1, 2):
+        assert all(notes[nid]["fields"][name]["value"] == value for name, value in media.items())
+    assert notes[1]["fields"][client.front_field]["value"] == "first"
+    assert notes[3]["fields"][client.sound_field]["value"] == ""
+
+
 
 
 

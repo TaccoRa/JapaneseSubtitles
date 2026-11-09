@@ -68,6 +68,13 @@ These steps are written for Windows and PowerShell.
 
 ## Optional Setup
 
+### Combined keyboard and voice controls
+
+Advanced Settings now includes **Controls**, alongside the existing Shortcuts and
+Voice tabs. Configure both input methods together, including independent automatic
+next-episode and intro skipping options. See the [controls and automation guide](dev/docs/UNIFIED_CONTROLS.md)
+for submark selection, per-series title targets, browser extension reload, and validation details.
+
 ### Capture range shortcuts
 
 With the native browser recorder, the top-row and numpad number keys re-record media for

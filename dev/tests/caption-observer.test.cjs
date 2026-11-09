@@ -157,7 +157,7 @@ function netflixEnvironment(){
 
 test('Netflix publishes the real episode and loaded German timing without native tracks',async()=>{
   const env=netflixEnvironment();env.replay();
-  assert.deepEqual({...env.posted[0].mediaContext},{title:'Assassination Classroom',kind:'episode',episode:2,season:1});
+  assert.deepEqual({...env.posted[0].mediaContext},{title:'Assassination Classroom',kind:'episode',episode:2,season:1,playerVideoId:'80045950'});
   env.resolve({ok:true,headers:{get:()=>null},text:async()=>reference});await settle();
   const caption=env.posted.find(value=>value.intervals);
   assert.equal(caption.intervals.length,222);assert.equal(caption.language,'de-de');assert.equal(caption.label,'Deutsch');

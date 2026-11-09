@@ -26,6 +26,31 @@ def snapshot(client, text, segments=None, provider=None):
         clean_text=text, top_segments=[], bottom_segments=segments or [(text, None)], annotation_provider=provider)
 
 
+@pytest.mark.parametrize('word', ['ウイルス', 'ゲーム', 'イメージ'])
+def test_loanword_lookup_and_card_identity_exclude_unidic_language_label(client, monkeypatch, word):
+    text = word + 'の話です。'
+    cue = snapshot(client, text)
+    token = next(token for token in cue.tokens if token.surface == word)
+    assert token.dictionary_lookup_key == word
+    selection = cue.resolve_selection(word, ((0, 0, len(word)),))
+    assert selection.preferred_lookup == word
+    assert client._card_headword_from_cue_snapshot(cue, selection) == word
+    monkeypatch.setattr(client, '_fetch_jisho_entries', lambda query: [dict(
+        japanese=[dict(word=word, reading=word)],
+        senses=[dict(english_definitions=['loanword definition'])])])
+    assert 'loanword definition' in client.lookup_dictionary_entry(token.dictionary_lookup_key)
+
+
+@pytest.mark.parametrize('text', ['サンジ 城ん中へ行くぞ！', '城の中へ行くぞ！'])
+@pytest.mark.parametrize('split', [True, False])
+def test_castle_inside_uses_shiro_reading(client, text, split):
+    with AddonRubyGenerator() as generator:
+        segments = generator.segments(text, split_kanji_compounds=split)
+    assert ''.join(base for base, ruby in segments) == text
+    assert ('城', 'しろ') in segments
+    assert next(s for s in client.word_spans(text) if s['surface'] == '城')['reading'] == 'しろ'
+
+
 def test_castle_interior_uses_written_dictionary_headword(client, monkeypatch):
     text = '早く城内へ急げ！ ルフィ！'
     cue = snapshot(client, text)
@@ -127,6 +152,18 @@ def test_kana_quantity_compound_does_not_inherit_a_component_status(client, tmp_
     provider = AnnotationProvider(NS(get=lambda key: config.get(key)), db)
     cue = snapshot(client, 'いくつ', provider=provider)
     assert all(not segment.meta_dict().get('annotation') for segment in cue.lines[0].annotated_segments)
+
+
+@pytest.mark.parametrize('known,expected', [('捕まる', True), ('捕まえる', False)])
+def test_tsukamatte_marks_the_te_form_only_from_its_own_verb(client, tmp_path, known, expected):
+    db = WordDatabase(str(tmp_path / 'te-words.json'))
+    db.upsert(WordEntry(surface=known), save=False)
+    config = {'ANNOTATION_ENABLED': True, 'ANNOTATION_MARK_LOCAL': True, 'ANNOTATION_MIN_TOKEN_LENGTH': 1}
+    provider = AnnotationProvider(NS(get=lambda key: config.get(key)), db)
+    segments = provider.annotate_segments([('捕まってたまるか', None)], client.word_spans)
+    marked = ''.join(segment[0] for segment in segments
+                     if len(segment) > 2 and segment[2].get('status') == 'local_known')
+    assert marked == ('捕まって' if expected else '')
 
 
 def test_contextual_suru_headword_is_used_by_direct_database_status(client, tmp_path):

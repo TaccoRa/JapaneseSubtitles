@@ -1,0 +1,21 @@
+{
+    "ACTIVE_SETTINGS_PROFILE": "B",
+    "B_ONLY": 2,
+    "ANIME_EPISODE_PROGRESS": {
+        "show": {
+            "anime": "Show",
+            "season": 1,
+            "episode": 9,
+            "global": 9
+        }
+    },
+    "SHORTCUT_CAPTURE_ONLY": "shift+v, z",
+    "CAPTURE_ONLY_Z_SHORTCUT_VERSION": 1,
+    "POST_CAPTURE_PLAYBACK": "play",
+    "POST_CAPTURE_ONLY_PLAYBACK": "play",
+    "MINING_PLAYBACK_POLICY_VERSION": 1,
+    "ARCHIVED_PLAYBACK_SETTINGS": {
+        "SHORTCUT_CAPTURE_ONLY_BEFORE_Z": "shift+v"
+    },
+    "NATIVE_PLAYBACK_VERSION": 2
+}

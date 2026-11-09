@@ -320,6 +320,7 @@ class SubtitleController:
         self.settings.bind_performance_snapshot     (self.get_performance_snapshot)
         self.settings.bind_performance_reset        (self.reset_performance_stats)
         self.settings.bind_settings_open            (self._hide_subtitle_handle_for_settings)
+        self.settings._on_intro_target = lambda action='status': self.browser_sync.episode_automation.marker(action)
         self.settings.bind_voice_callbacks          (
             toggle_enabled=self.toggle_voice_enabled,
             list_devices=self.voice_list_input_devices,
@@ -546,13 +547,7 @@ class SubtitleController:
         self._publish_anki_add_counts()
 
     def _lookup_dictionary_entry(self, text: str, allow_translation_fallback: bool = False) -> str:
-        try:
-            return self.anki.lookup_dictionary_entry(
-                text,
-                allow_translation_fallback=allow_translation_fallback,
-            )
-        except Exception:
-            return ""
+        return self.anki.lookup_dictionary_entry(text, allow_translation_fallback=allow_translation_fallback)
 
     def _translate_hover_selection(self, text: str, provider: str = "deepl") -> str:
         database_translation = self._word_database_translation_for_lookup(text)
@@ -633,7 +628,7 @@ class SubtitleController:
     def _hover_modifier_mode(self) -> str:
         hotkeys = getattr(self, "hotkey_controller", None)
         if hotkeys is not None and hotkeys._global_focus_stamp() is None:
-            return "ruby"
+            return getattr(self, '_voice_hover_mode', None) or "ruby"
         candidates = [
             (
                 "translation",
@@ -661,7 +656,7 @@ class SubtitleController:
             return max(active, key=lambda item: (item[1], item[2]))[0]
         if bool(getattr(self, "translation_pressed", False)):
             return "translation"
-        return "ruby"
+        return getattr(self, '_voice_hover_mode', None) or "ruby"
 
     def _hover_hold_active(
         self,

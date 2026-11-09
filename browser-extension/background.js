@@ -178,7 +178,7 @@ async function discoverTab(tabId){
       // Reinject into existing and newly replaced nested frames. The content
       // script is idempotent and republishes clocks without changing video IDs.
       await chrome.scripting.executeScript({target:{tabId,allFrames:true},world:'MAIN',files:['caption-observer.js']});
-      await chrome.scripting.executeScript({target:{tabId,allFrames:true},files:['episode-context.js','content.js']});
+      await chrome.scripting.executeScript({target:{tabId,allFrames:true},files:['episode-context.js','episode-navigation.js','content.js']});
       await chrome.tabs.sendMessage(tabId,{type:'DiscoverVideos'}).catch(()=>{});
       return null;
     }catch(error){return error.message;}
@@ -303,8 +303,10 @@ async function openSocket(token){
         const identity=selected,fingerprint=observed.get(key(identity))?.fingerprint;
         const result=await toFrame('PlaybackProbe',{},identity);
         if(key(identity)!==key(selected)||observed.get(key(identity))?.fingerprint!==fingerprint)return;
-        const {mediaKey,...state}=result.state;
-        send({...state,type:'PlaybackSnapshot',identity,fingerprint});
+        const {mediaKey,resourceKey,playerKey,...state}=result.state;
+        const resourceFingerprint=resourceKey?await hash(resourceKey):'';
+        const playerFingerprint=playerKey?await hash(playerKey):'';
+        send({...state,type:'PlaybackSnapshot',identity,fingerprint,resourceFingerprint,playerFingerprint});
         return;
       }
       if(m.type==='PlayerCommand'){
@@ -313,8 +315,29 @@ async function openSocket(token){
         const identity=selected,fingerprint=observed.get(key(identity))?.fingerprint;
         const result=await toFrame('PlayerCommand',m,identity);
         if(key(identity)!==key(selected)||observed.get(key(identity))?.fingerprint!==fingerprint)throw Error('Video changed before command completed');
-        const {mediaKey,...state}=result.state;
-        send({type:'CommandAck',operationId:m.operationId,ok:true,state:{...state,identity,fingerprint}});
+        const {mediaKey,resourceKey,playerKey,...state}=result.state;
+        const resourceFingerprint=resourceKey?await hash(resourceKey):'';
+        const playerFingerprint=playerKey?await hash(playerKey):'';
+        send({type:'CommandAck',operationId:m.operationId,ok:true,state:{...state,identity,fingerprint,resourceFingerprint,playerFingerprint}});
+      }
+      if(m.type==='EpisodeNavigate'){
+        if(key(m.identity)!==key(selected))throw Error('Stale video identity');
+        if(recording||finishing.size)throw Error('Wait for recording to finish before changing episodes');
+        let result=await chrome.tabs.sendMessage(selected.tabId,{type:'EpisodeNavigate',direction:m.direction},{frameId:0});
+        if(!result?.ok&&result?.status==='failed'&&selected.frameId!==0){
+          result=await toFrame('EpisodeNavigateEmbedded',{direction:m.direction});
+        }
+        send({type:'EpisodeNavigationAck',operationId:m.operationId,...result});
+        return;
+      }
+      if(m.type==='SkipIntro'){
+        if(key(m.identity)!==key(selected)||observed.get(key(selected))?.fingerprint!==m.fingerprint)throw Error('Stale video identity');
+        if(recording||finishing.size)throw Error('Wait for recording to finish before skipping the intro');
+        const identity=selected;
+        let result=await chrome.tabs.sendMessage(identity.tabId,{type:'SkipIntro'},{frameId:0});
+        if(!result?.ok&&identity.frameId!==0)result=await toFrame('SkipIntro',{},identity);
+        if(key(identity)!==key(selected))throw Error('Video changed during intro skip');
+        send({type:'SkipIntroAck',operationId:m.operationId,...result});return;
       }
       if(m.type==='CaptureRequest'){
         if(recording?.operationId===m.operationId||finishing.has(m.operationId)||completedCaptures.has(m.operationId))return;
@@ -340,7 +363,7 @@ async function openSocket(token){
       }
     }catch(e){
       if(recording&&recording.operationId===m.operationId)await fail(e.message);
-      else send({type:m.type==='CaptureRequest'?'CaptureResult':'CommandAck',operationId:m.operationId,ok:false,error:e.message});
+      else send({type:m.type==='SkipIntro'?'SkipIntroAck':m.type==='EpisodeNavigate'?'EpisodeNavigationAck':m.type==='CaptureRequest'?'CaptureResult':'CommandAck',operationId:m.operationId,ok:false,status:'failed',error:e.message});
     }
   };
   ws.onmessage=event=>{incoming=incoming.then(()=>handleMessage(event)).catch(error=>{status='Browser connection: '+error.message;});};
@@ -425,7 +448,10 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
   if(m.type==='PlaybackSnapshot'){
     (async()=>{
       let fingerprint=fingerprints.get(m.mediaKey);if(!fingerprint){fingerprint=await hash(m.mediaKey);fingerprints.set(m.mediaKey,fingerprint);}
-      const {mediaKey,...rest}=m;const value={...rest,identity,fingerprint,seen:Date.now()};
+      const {mediaKey,resourceKey,playerKey,...rest}=m;
+      const resourceFingerprint=resourceKey?await hash(resourceKey):'';
+        const playerFingerprint=playerKey?await hash(playerKey):'';
+      const value={...rest,identity,fingerprint,resourceFingerprint,playerFingerprint,seen:Date.now()};
       const prior=observed.get(key(identity));if(prior&&prior.sequence>=m.sequence)return;
       observed.set(key(identity),value);
       scheduleAutoConnect();

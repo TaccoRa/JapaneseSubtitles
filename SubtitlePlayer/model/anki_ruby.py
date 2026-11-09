@@ -881,10 +881,15 @@ class AddonRubyGenerator:
         if not segments:
             return segments
         out: List[Segment] = []
+        source = ''.join(base for base, _ruby in segments)
+        offset = 0
         for base, ruby in segments:
+            if base == "城" and source[offset + len(base):].startswith(("ん中", "の中")):
+                ruby = "しろ"
             if base == "間" and out and out[-1][0] == "年" and out[-1][1]:
                 ruby = "かん"
             out.append((base, WHOLE_RUBY_OVERRIDES.get(base, ruby)))
+            offset += len(base)
         return out
 
     @staticmethod

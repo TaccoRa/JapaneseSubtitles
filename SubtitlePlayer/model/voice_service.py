@@ -816,6 +816,8 @@ class VoiceCommandService:
         phrase = normalize_voice_phrase(result.get("text"))
         mapped_action = phrase_map.get(phrase)
         if not phrase or not mapped_action:
+            if phrase:
+                self._emit_status('listening', f'Command not recognized: "{phrase}". No action taken.', phrase=phrase)
             return False
         if isinstance(mapped_action, (tuple, list)):
             action = str(mapped_action[0])

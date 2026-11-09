@@ -61,6 +61,61 @@ async function recording(env){
   const fingerprint=env.sent.find(m=>m.type==='PlaybackSnapshot').fingerprint;
   await env.receive({type:'CaptureRequest',operationId:'capture',identity,fingerprint,start:10,end:12});
 }
+
+test('episode navigation targets the bound tab top page and returns an explicit acknowledgement',async()=>{
+  const env=environment();await env.connect();env.frames.length=0;
+  env.chrome.tabs.sendMessage=async(tab,m,target)=>{env.frames.push({tab,m,target});return {ok:true,status:'accepted'};};
+  await env.receive({type:'EpisodeNavigate',operationId:'episode',identity,direction:'next'});
+  assert.equal(env.frames[0].tab,identity.tabId);
+  assert.equal(env.frames[0].target.frameId,0);
+  assert.equal(env.frames[0].m.direction,'next');
+  assert.equal(env.sent.at(-1).type,'EpisodeNavigationAck');
+  assert.equal(env.sent.at(-1).status,'accepted');
+});
+
+test('episode navigation refuses stale binding and recording conflicts',async()=>{
+  const env=environment();await env.connect();env.frames.length=0;
+  await env.receive({type:'EpisodeNavigate',operationId:'stale',identity:{...identity,documentId:'old'},direction:'next'});
+  assert.equal(env.frames.length,0);
+  assert.equal(env.sent.at(-1).type,'EpisodeNavigationAck');
+  assert.equal(env.sent.at(-1).ok,false);
+  await recording(env);env.frames.length=0;
+  await env.receive({type:'EpisodeNavigate',operationId:'busy',identity,direction:'previous'});
+  assert.equal(env.frames.length,0);
+  assert.match(env.sent.at(-1).error,/recording/);
+});
+
+test('resource identity is hashed independently of page URLs and never forwards the raw resource key',async()=>{
+  const env=environment();await env.connect();
+  async function snapshot(sequence,mediaKey,resourceKey){
+    await env.message({type:'PlaybackSnapshot',videoId:'video',sequence,currentTime:20,duration:1000,
+      rate:1,paused:true,buffering:false,mediaKey,resourceKey,width:1000,height:500},sender);
+    await until(()=>env.sent.some(m=>m.type==='PlaybackSnapshot'&&m.sequence===sequence));
+    return env.sent.find(m=>m.type==='PlaybackSnapshot'&&m.sequence===sequence);
+  }
+  const first=await snapshot(2,'page-one|blob','blob:private-source|1');
+  const urlOnly=await snapshot(3,'page-two|blob','blob:private-source|1');
+  const replaced=await snapshot(4,'page-two|new-blob','blob:new-source|2');
+  assert.match(first.resourceFingerprint,/^[a-f0-9]{64}$/);
+  assert.equal(first.resourceKey,undefined);
+  assert.equal(urlOnly.resourceFingerprint,first.resourceFingerprint);
+  assert.notEqual(replaced.resourceFingerprint,first.resourceFingerprint);
+});
+
+test('intro skip falls back from top page to the exact bound video frame',async()=>{
+  const env=environment();await env.connect();env.frames.length=0;
+  const fingerprint=env.sent.find(m=>m.type==='PlaybackSnapshot').fingerprint;
+  env.chrome.tabs.sendMessage=async(tab,m,target)=>{
+    env.frames.push({tab,m,target});
+    return target.frameId===0?{ok:false,error:'No website Skip Intro control is available'}:{ok:true};
+  };
+  await env.receive({type:'SkipIntro',operationId:'intro',identity,fingerprint});
+  assert.equal(env.frames.length,2);
+  assert.equal(env.frames[0].target.frameId,0);
+  assert.equal(env.frames[1].target.documentId,identity.documentId);
+  assert.equal(env.sent.at(-1).type,'SkipIntroAck');
+  assert.equal(env.sent.at(-1).ok,true);
+});
 test('rejects a stale document without controlling any frame',async()=>{
   const env=environment();await env.connect();env.frames.length=0;
   await env.receive({type:'PlayerCommand',operationId:'command',identity:{...identity,documentId:'old'},action:'play'});
@@ -174,7 +229,7 @@ test('opening the popup recovers scripts in existing frames and refreshes the vi
   assert.equal(reply.videos.length,1);assert.equal(env.scripts.length,2);
   assert.equal(env.scripts[0].target.tabId,1);assert.equal(env.scripts[0].target.allFrames,true);
   assert.deepEqual(Array.from(env.scripts[0].files),['caption-observer.js']);assert.equal(env.scripts[0].world,'MAIN');
-  assert.deepEqual(Array.from(env.scripts[1].files),['episode-context.js','content.js']);
+  assert.deepEqual(Array.from(env.scripts[1].files),['episode-context.js','episode-navigation.js','content.js']);
 });
 
 test('the single visible video automatically connects without acquiring audio',async()=>{

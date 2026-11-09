@@ -140,6 +140,8 @@ class CueToken:
     honorific_name: bool = False
     annotation: CueAnnotationMatch | None = None
     ruby_spans: tuple[CueRubySpan, ...] = ()
+    components: tuple[tuple[str, int, int, str], ...] = ()
+    lexical_compound: bool = False
 
     @property
     def key(self) -> tuple[int, int, int, str]:
@@ -179,6 +181,8 @@ class CueToken:
                     "annotation_matched_key": self.annotation.matched_key,
                 }
             )
+        if self.lexical_compound:
+            value['lexical_compound'] = True
         return value
 
 
@@ -600,6 +604,9 @@ class CueSnapshotBuilder:
                         honorific_name=bool(value.get("honorific_name")),
                         annotation=self._match_for_token(value, intervals),
                         ruby_spans=ruby_spans,
+                        components=tuple((part['surface'], part['start'], part['end'], part.get('lookup', part['surface']))
+                                         for part in value.get('components', ())),
+                        lexical_compound=bool(value.get('lexical_compound')),
                     )
                 )
 

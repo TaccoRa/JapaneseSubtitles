@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 VOICE_CONFIG_KEYS = [
+    'CONTROL_KEY_BINDINGS',
     "VOICE_ENABLED",
     "VOICE_LANGUAGE",
     "VOICE_INPUT_DEVICE",
@@ -85,7 +86,7 @@ class _VoiceTooltip:
 
 
 class VoiceTab:
-    def __init__(self, settings_ui: Any, parent: tk.Frame, tab_id: str) -> None:
+    def __init__(self, settings_ui: Any, parent: tk.Frame, tab_id: str, *, build=True) -> None:
         self.ui = settings_ui
         self.parent = parent
         self.tab_id = str(tab_id)
@@ -108,6 +109,7 @@ class VoiceTab:
         self.highlight_status_var = tk.BooleanVar(value=False)
         self.action_indicator_var = tk.BooleanVar(value=True)
         self.model_status_var = tk.StringVar(value="")
+        self.intro_target_var = tk.StringVar(value='')
         self.monitor_var = tk.BooleanVar(value=True)
         self._device_mapping: dict[str, dict] = {}
         self._window_mapping: dict[str, dict] = {}
@@ -134,11 +136,86 @@ class VoiceTab:
         self._section_titles: dict[str, str] = {}
         self._advanced_filter_trace_id: str | None = None
         self._destroyed = False
+        self._combined = False
+        self._built = False
+        self._binding_vars = {}
+        from model.control_actions import action_catalog
+        for action in action_catalog():
+            if not action.config_key and not action.parameters and not action.id.startswith('capture_segments_'):
+                self._binding_vars[action.id] = tk.StringVar(value='')
+        for action, spec in VOICE_ACTIONS.items():
+            self._command_vars[action] = dict(enabled=tk.BooleanVar(value=True),
+                en=tk.StringVar(value='; '.join(spec['en'])), de=tk.StringVar(value='; '.join(spec['de'])))
         self._register_tab_keys()
-        self._build()
         self.parent.bind("<Destroy>", self._on_parent_destroy, add="+")
         self.load_values()
+        if build:
+            self.build_view()
+
+    def build_view(self):
+        if self._built:
+            return
+        self._built = True
+        self._build()
+        if self._combined:
+            self._build_control_bindings()
         self.refresh_devices()
+        self.refresh_model_status()
+
+    def mirror(self, parent, tab_id, *, combined=False):
+        """Another view of the same Tk variables; no second settings state."""
+        from copy import copy
+        view = copy(self)
+        view.parent, view.tab_id = parent, str(tab_id)
+        view._combined, view._built = combined, False
+        view._section_bodies, view._section_toggles, view._section_titles = {}, {}, {}
+        view._command_widgets, view._command_entry_backgrounds = {}, {}
+        view._register_tab_keys()
+        parent.bind('<Destroy>', view._on_parent_destroy, add='+')
+        return view
+
+    def _build_control_bindings(self):
+        # Add keyboard columns to the same action rows used by the Voice view.
+        from model.control_actions import action_catalog
+        catalog = {action.id: action for action in action_catalog()}
+        for action_id, widgets in self._command_widgets.items():
+            action = catalog[action_id]
+            parent = widgets[0].master
+            row = int(widgets[0].grid_info()['row'])
+            if not getattr(parent, '_control_keyboard_header', False):
+                tk.Label(parent, text='Keyboard', font=('Arial', 9, 'bold')).grid(row=0, column=4, padx=8)
+                parent._control_keyboard_header = True
+            if action.parameters:
+                widget = tk.Label(parent, text='Requires spoken parameters', wraplength=135)
+            elif action.id.startswith('capture_segments_'):
+                widget = tk.Label(parent, text=action.id.rsplit('_', 1)[1] + ' / numpad')
+            else:
+                var = self.ui._advanced_vars.get(action.config_key) if action.config_key else self._binding_vars[action.id]
+                widget = tk.Entry(parent, textvariable=var, width=18)
+            widget.grid(row=row, column=4, sticky='ew', padx=8, pady=2)
+            widgets.append(widget)
+        # Preserve mode, enable/disable, mouse, and hold-key options as well.
+        content = self.ui._advanced_scroll_contents.get(self.tab_id)
+        if content is not None:
+            for column in self.ui.adv_settings._advanced_shortcut_columns():
+                for title, specs in column:
+                    self.ui.adv_settings._build_advanced_section(content, title, specs, self.tab_id)
+            self.ui.adv_settings._build_advanced_section(content, 'Playback Automation',
+                self.ui.adv_settings._automation_specs(), self.tab_id)
+            section, info = self._section(content, 'Intro / title target for this series', section_id='intro_target')
+            tk.Label(section, textvariable=self.intro_target_var, anchor='w').pack(fill='x')
+            tk.Label(section, text='Seek to the desired title/start position, then save it here. The website Skip Intro button takes priority.',
+                     wraplength=700, justify='left').pack(anchor='w')
+            buttons = tk.Frame(section)
+            buttons.pack(anchor='w', pady=4)
+            tk.Button(buttons, text='Save current video position', command=lambda: self._intro_target_action('remember')).pack(side='left')
+            tk.Button(buttons, text='Clear saved target', command=lambda: self._intro_target_action('clear')).pack(side='left', padx=6)
+            self._add_filter_row(info, [section], 'intro title skip opening save target current position series one piece')
+            self._intro_target_action('status')
+
+    def _intro_target_action(self, action):
+        callback = getattr(self.ui, '_on_intro_target', None)
+        self.intro_target_var.set(str(callback(action) if callable(callback) else 'Connect a browser video to save an intro/title target.'))
 
     def _on_parent_destroy(self, event) -> None:
         if event.widget is self.parent:
@@ -219,10 +296,7 @@ class VoiceTab:
         self._apply_collapsed_section_states()
 
     def _collapsed_section_values(self) -> dict[str, bool]:
-        return {
-            section_id: bool(self._collapsed_sections.get(section_id, False))
-            for section_id in self._section_bodies
-        }
+        return dict(self._collapsed_sections)
 
     def _apply_collapsed_section_states(self, *_args) -> None:
         filter_var = getattr(self.ui, "_advanced_filter_var", None)
@@ -413,7 +487,12 @@ class VoiceTab:
             "add capture activity spinner wait success check subtitle window indicator",
         )
 
-        for group_name, group_actions in VOICE_ACTION_GROUPS.items():
+        groups = VOICE_ACTION_GROUPS
+        if self._combined:
+            from model.control_actions import action_catalog
+            groups = {name: tuple(a.id for a in action_catalog() if a.group == name)
+                      for name in ('Playback', 'Subtitles', 'Selection', 'Dictionary/Translation', 'Anki/Recording', 'Episodes', 'Application')}
+        for group_name, group_actions in groups.items():
             group_id = "_".join(
                 part for part in "".join(
                     character if character.isalnum() else " "
@@ -427,16 +506,16 @@ class VoiceTab:
             )
             commands.grid_columnconfigure(2, weight=1)
             commands.grid_columnconfigure(3, weight=1)
-            tk.Label(commands, text="Enabled", font=("Arial", 9, "bold")).grid(
+            tk.Label(commands, text="Voice" if self._combined else "Enabled", font=("Arial", 9, "bold")).grid(
                 row=0, column=0, sticky="w", padx=(0, 8)
             )
             tk.Label(commands, text="Action", font=("Arial", 9, "bold")).grid(
                 row=0, column=1, sticky="w", padx=(0, 8)
             )
-            tk.Label(commands, text="English aliases (; separated)", font=("Arial", 9, "bold")).grid(
+            tk.Label(commands, text="English phrases" if self._combined else "English aliases (; separated)", font=("Arial", 9, "bold")).grid(
                 row=0, column=2, sticky="w", padx=(0, 8)
             )
-            tk.Label(commands, text="German aliases (; separated)", font=("Arial", 9, "bold")).grid(
+            tk.Label(commands, text="German phrases" if self._combined else "German aliases (; separated)", font=("Arial", 9, "bold")).grid(
                 row=0, column=3, sticky="w"
             )
             row = 1
@@ -444,17 +523,17 @@ class VoiceTab:
                 spec = VOICE_ACTIONS.get(action)
                 if not isinstance(spec, dict):
                     continue
-                enabled_var = tk.BooleanVar(value=True)
-                en_var = tk.StringVar(value="; ".join(spec["en"]))
-                de_var = tk.StringVar(value="; ".join(spec["de"]))
-                self._command_vars[action] = {"enabled": enabled_var, "en": en_var, "de": de_var}
+                enabled_var = self._command_vars[action]['enabled']
+                en_var = self._command_vars[action]['en']
+                de_var = self._command_vars[action]['de']
                 check = tk.Checkbutton(commands, variable=enabled_var)
                 check.grid(row=row, column=0, sticky="w", pady=2)
-                label = tk.Label(commands, text=str(spec["label"]), anchor="w", width=28)
+                label = tk.Label(commands, text=str(spec["label"]), anchor="w", width=25 if self._combined else 28,
+                                 wraplength=200 if self._combined else 0, justify='left')
                 label.grid(row=row, column=1, sticky="w", padx=(0, 8), pady=2)
-                en_entry = tk.Entry(commands, textvariable=en_var, width=32)
+                en_entry = tk.Entry(commands, textvariable=en_var, width=24 if self._combined else 32)
                 en_entry.grid(row=row, column=2, sticky="ew", padx=(0, 8), pady=2)
-                de_entry = tk.Entry(commands, textvariable=de_var, width=32)
+                de_entry = tk.Entry(commands, textvariable=de_var, width=24 if self._combined else 32)
                 de_entry.grid(row=row, column=3, sticky="ew", pady=2)
                 widgets = [check, label, en_entry, de_entry]
                 self._command_widgets[action] = widgets
@@ -530,6 +609,9 @@ class VoiceTab:
 
 
     def load_values(self) -> None:
+        mapping = self.ui.config.get('CONTROL_KEY_BINDINGS') or {}
+        for key, var in self._binding_vars.items():
+            var.set(str(mapping.get(key) or '') if isinstance(mapping, dict) else '')
         self.enabled_var.set(bool(self.ui.config.get("VOICE_ENABLED") or False))
         self.require_prefix_var.set(self.ui.config.get("VOICE_REQUIRE_WAKE_PREFIX") is not False)
         language = "de" if str(self.ui.config.get("VOICE_LANGUAGE") or "en").lower() == "de" else "en"
@@ -546,10 +628,8 @@ class VoiceTab:
         self.cooldown_var.set(str(max(0, min(60000, cooldown))))
         configured_sections = self.ui.config.get("VOICE_COLLAPSED_SECTIONS")
         configured_sections = configured_sections if isinstance(configured_sections, dict) else {}
-        self._collapsed_sections = {
-            section_id: bool(configured_sections.get(section_id, False))
-            for section_id in self._section_bodies
-        }
+        self._collapsed_sections.clear()
+        self._collapsed_sections.update({key: bool(value) for key, value in configured_sections.items()})
         if "video_playback" not in configured_sections:
             self._collapsed_sections["video_playback"] = bool(
                 self.ui.config.get("VOICE_VIDEO_PLAYBACK_COLLAPSED") or False
@@ -560,6 +640,9 @@ class VoiceTab:
         self.highlight_status_var.set(bool(self.ui.config.get("VOICE_HIGHLIGHT_AUTO_STATUS") or False))
         self.action_indicator_var.set(self.ui.config.get("VOICE_ACTION_INDICATOR_ENABLED") is not False)
         commands = merge_voice_commands(self.ui.config.get("VOICE_COMMANDS"))
+        for command in commands.values():
+            for language in ('en', 'de'):
+                command[language] = split_voice_aliases(command[language])
         self._loaded_alias_state = (commands,
             {"en": normalize_voice_phrase(self.prefix_en_var.get()), "de": normalize_voice_phrase(self.prefix_de_var.get())},
             bool(self.require_prefix_var.get()))
@@ -595,7 +678,8 @@ class VoiceTab:
                 "de": split_voice_aliases(variables["de"].get()),
             }
         require_prefix = bool(self.require_prefix_var.get())
-        conflicts = voice_alias_conflicts(commands, prefixes, require_prefix=require_prefix)
+        alias_state = (commands, prefixes, require_prefix)
+        conflicts = {} if alias_state == getattr(self, '_loaded_alias_state', None) else voice_alias_conflicts(commands, prefixes, require_prefix=require_prefix)
         self._show_conflicts(conflicts)
         if conflicts and (commands, prefixes, require_prefix) != getattr(self, "_loaded_alias_state", None):
             descriptions = []
@@ -612,6 +696,7 @@ class VoiceTab:
             "host_api": str(device.get("host_api") or ""),
         }
         values = {
+            'CONTROL_KEY_BINDINGS': {key: var.get().strip() for key, var in self._binding_vars.items() if var.get().strip()},
             "VOICE_ENABLED": bool(self.enabled_var.get()),
             "VOICE_LANGUAGE": self._language_code(self.language_var.get()),
             "VOICE_INPUT_DEVICE": selected_device,
@@ -628,6 +713,9 @@ class VoiceTab:
         return {"values": values, "errors": errors}
 
     def reset_defaults(self) -> None:
+        if self._combined:
+            for var in self._binding_vars.values():
+                var.set('')
         self.enabled_var.set(False)
         self.require_prefix_var.set(True)
         self.language_var.set("English")
@@ -689,7 +777,8 @@ class VoiceTab:
             def _finish() -> None:
                 if not self._alive():
                     return
-                self._device_mapping = {"System default": {"name": "", "host_api": ""}}
+                self._device_mapping.clear()
+                self._device_mapping['System default'] = {"name": "", "host_api": ""}
                 for device in devices:
                     label = self._device_label(device)
                     unique = label

@@ -550,6 +550,10 @@ VOICE_ACTION_GROUPS = OrderedDict(
 )
 
 
+from model.control_actions import EXTRA_VOICE_ACTIONS
+VOICE_ACTIONS.update(EXTRA_VOICE_ACTIONS)
+VOICE_ACTION_GROUPS['Additional Controls'] = tuple(EXTRA_VOICE_ACTIONS)
+
 VOICE_ACTION_TOOLTIPS = {
     "play": "Toggle video and SubtitlePlayer playback. This works whether playback is currently running or paused.",
     "pause": "Pause the external video and SubtitlePlayer without toggling an already paused state.",
@@ -789,6 +793,17 @@ def _number_variants(language: str, number: int) -> list[str]:
         if ascii_word != word:
             variants.append(ascii_word)
     return list(dict.fromkeys(normalize_voice_phrase(value) for value in variants if value))
+
+
+def iter_submark_suffixes(language):
+    for parent in range(1, 41):
+        variants = _number_variants(language, parent)
+        for value in variants:
+            yield value, str(parent)
+        for part in range(1, 21):
+            for value in variants:
+                for component in _number_variants(language, part):
+                    yield f'{value} {component}', f'{parent}:{part}'
 
 
 def iter_voice_time_suffixes(language: str):
@@ -1070,6 +1085,10 @@ def voice_alias_conflicts(
                 continue
             for alias in split_voice_aliases(command.get(language)):
                 phrase = normalize_voice_phrase(f"{prefix} {alias}" if prefix else alias)
+                if VOICE_ACTIONS[action].get('subindexed'):
+                    for suffix, _positions in iter_submark_suffixes(language):
+                        phrase_actions.setdefault(f'{phrase} {suffix}', []).append(action)
+                    continue
                 if VOICE_ACTIONS[action].get("timed"):
                     for suffix, _seconds in iter_voice_time_suffixes(language):
                         timed_phrase = normalize_voice_phrase(f"{phrase} {suffix}")
@@ -1131,6 +1150,10 @@ def build_voice_phrase_map(
         for alias in split_voice_aliases(command.get(language)):
             bare_phrase = normalize_voice_phrase(alias)
             phrase = normalize_voice_phrase(f"{prefix} {alias}" if prefix else alias)
+            if VOICE_ACTIONS[action].get('subindexed'):
+                for suffix, positions in iter_submark_suffixes(language):
+                    phrase_map[f'{phrase} {suffix}'] = f'voice_submark:{positions}'
+                continue
             if VOICE_ACTIONS[action].get("timed"):
                 for suffix, seconds in iter_voice_time_suffixes(language):
                     timed_phrase = normalize_voice_phrase(f"{phrase} {suffix}")

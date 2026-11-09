@@ -72,6 +72,12 @@
         },
         "fingerprint": {
           "type": "string"
+        },
+        "resourceFingerprint": {
+          "type": "string"
+        },
+        "playerFingerprint": {
+          "type": "string"
         }
       }
     },
@@ -316,6 +322,107 @@
           "type": "boolean"
         }
       }
+    },
+    "EpisodeNavigate": {
+      "type": "object",
+      "required": [
+        "type",
+        "operationId",
+        "identity",
+        "direction"
+      ],
+      "properties": {
+        "type": {
+          "const": "EpisodeNavigate"
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "identity": {
+          "$ref": "#/$defs/MediaIdentity"
+        },
+        "direction": {
+          "enum": [
+            "next",
+            "previous"
+          ]
+        }
+      }
+    },
+    "EpisodeNavigationAck": {
+      "type": "object",
+      "required": [
+        "type",
+        "operationId",
+        "ok",
+        "status"
+      ],
+      "properties": {
+        "type": {
+          "const": "EpisodeNavigationAck"
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "status": {
+          "enum": [
+            "accepted",
+            "unsupported",
+            "failed"
+          ]
+        },
+        "error": {
+          "type": "string"
+        }
+      }
+    },
+    "SkipIntro": {
+      "type": "object",
+      "required": [
+        "type",
+        "operationId",
+        "identity",
+        "fingerprint"
+      ],
+      "properties": {
+        "type": {
+          "const": "SkipIntro"
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "identity": {
+          "$ref": "#/$defs/MediaIdentity"
+        },
+        "fingerprint": {
+          "type": "string"
+        }
+      }
+    },
+    "SkipIntroAck": {
+      "type": "object",
+      "required": [
+        "type",
+        "operationId",
+        "ok"
+      ],
+      "properties": {
+        "type": {
+          "const": "SkipIntroAck"
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "error": {
+          "type": "string"
+        }
+      }
     }
   },
   "oneOf": [
@@ -348,6 +455,18 @@
     },
     {
       "$ref": "#/$defs/CaptureFinished"
+    },
+    {
+      "$ref": "#/$defs/EpisodeNavigate"
+    },
+    {
+      "$ref": "#/$defs/EpisodeNavigationAck"
+    },
+    {
+      "$ref": "#/$defs/SkipIntro"
+    },
+    {
+      "$ref": "#/$defs/SkipIntroAck"
     }
   ]
 }

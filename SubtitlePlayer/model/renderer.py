@@ -2057,9 +2057,7 @@ class SubtitleRenderer:
         return "dictionary" if self._shift_hover_dictionary_enabled() and self._is_shift_held() else "ruby"
 
     def _show_hover_dictionary(self, region: dict) -> None:
-        text = self._hover_dictionary_text(region)
-        if text:
-            self._show_hover_text(region, text)
+        self._show_hover_layers(region, ('dictionary',))
 
     def _hover_dictionary_text(self, region: dict) -> str:
         lookup = getattr(self, "_dictionary_lookup", None)
@@ -2179,11 +2177,9 @@ class SubtitleRenderer:
 
     def _show_hover_layers(self, region: dict, layers: tuple[str, ...]) -> None:
         parts: list[tuple[str, str]] = []
-        if "dictionary_together" in layers:
-            parts.append(("dictionary", self._hover_dictionary_text(region) or "No dictionary entry"))
-        elif "dictionary" in layers:
-            dictionary_text = str(region.get("multi_dictionary_text") or "").strip()
-            parts.append(("dictionary", dictionary_text or self._hover_dictionary_text(region) or "No dictionary entry"))
+        if 'dictionary' in layers or 'dictionary_together' in layers:
+            from model.dictionary_feedback import dictionary_layer_text
+            parts.append(('dictionary', dictionary_layer_text(self, region, layers)))
         if "translation_each" in layers:
             translation_text = str(region.get("multi_translation_text") or "").strip()
             parts.append(("translation", translation_text or "No translation"))
@@ -2217,6 +2213,8 @@ class SubtitleRenderer:
             if str(value or "").strip()
             not in {"Translating...", "No translation", "No dictionary entry", "Not in database"}
         }
+        from model.dictionary_feedback import retain_voice_results
+        parts = retain_voice_results(self, region, parts)
         text = combine_hover_text(parts)
         if text:
             self._show_hover_text(region, text)
@@ -2648,8 +2646,16 @@ class SubtitleRenderer:
     def _subtitle_word_regions_for_anki(self) -> List[dict]:
         regions: List[dict] = []
         seen = set()
+        lexical = [region for region in self._word_regions if isinstance(region, dict) and region.get('lexical_compound')]
         for region in self._word_regions:
-            if not isinstance(region, dict) or bool(region.get("compound")):
+            if not isinstance(region, dict) or bool(region.get("compound")) and not region.get('lexical_compound'):
+                continue
+            if not region.get('lexical_compound') and any(
+                    other.get('line_index') == region.get('line_index')
+                    and other.get('sentence_lookup') == region.get('sentence_lookup')
+                    and int(other.get('char_start') or 0) <= int(region.get('char_start') or 0)
+                    and int(other.get('char_end') or 0) >= int(region.get('char_end') or 0)
+                    for other in lexical):
                 continue
             surface = str(region.get("base") or "").strip()
             if not surface:
@@ -2735,7 +2741,6 @@ class SubtitleRenderer:
         active_key = (
             "voice_indexed_word",
             self._voice_word_region_key(region),
-            requested,
         )
         self._cancel_hover_clear()
         self._cancel_hover_layer_job()
@@ -2776,7 +2781,7 @@ class SubtitleRenderer:
             if region.get("cue_token") is not None:
                 region["cue_tokens"] = (region.get("cue_token"),)
         region = self._region_with_combined_hover_anchor(region, [region])
-        active_key = ("voice_hovered_word", self._voice_word_region_key(region), requested)
+        active_key = ("voice_hovered_word", self._voice_word_region_key(region))
         self._cancel_hover_clear()
         self._cancel_hover_layer_job()
         self._hover_active_region = active_key
@@ -2800,6 +2805,10 @@ class SubtitleRenderer:
         )
 
     def _selected_voice_word_regions(self) -> list[tuple[int, dict]]:
+        sub = getattr(self, '_voice_submark_selection', None)
+        if sub and sub[0] is getattr(self, '_cue_snapshot', None):
+            return [(sub[1], sub[2])]
+        self._voice_submark_selection = None
         if not self._voice_selected_word_keys:
             return []
         selected_keys = set(self._voice_selected_word_keys)
@@ -3019,6 +3028,8 @@ class SubtitleRenderer:
 
     def highlight_subtitle_words_for_voice(self, positions: list[int]) -> dict:
         """Replace the voice selection with 1-based or end-relative token positions."""
+        self._voice_submark_selection = None
+        self._voice_submark_parent = None
         regions = self._subtitle_word_regions_for_anki()
         word_count = len(regions)
         if word_count <= 0:
@@ -3041,6 +3052,8 @@ class SubtitleRenderer:
             return {"ok": False, "reason": "empty", "word_count": word_count}
 
         selected_indexes.sort()
+        if len(selected_indexes) == 1:
+            self._voice_submark_parent = (getattr(self, '_cue_snapshot', None), selected_indexes[0] + 1)
         selected_regions = [regions[index] for index in selected_indexes]
         self._voice_selected_word_keys = [self._voice_word_region_key(region) for region in selected_regions]
         try:
@@ -3055,6 +3068,51 @@ class SubtitleRenderer:
             "indexes": [index + 1 for index in selected_indexes],
             "word_count": word_count,
         }
+
+    def submark_for_voice(self, positions):
+        snapshot = getattr(self, '_cue_snapshot', None)
+        regions = self._subtitle_word_regions_for_anki()
+        parent = getattr(self, '_voice_submark_parent', None)
+        if len(positions) == 2:
+            parent_index, component_index = positions
+        else:
+            if not parent or parent[0] is not snapshot:
+                selected = self._selected_voice_word_regions()
+                if len(selected) != 1:
+                    return dict(ok=False, message='Say submark followed by the word number and component number.')
+                parent = (snapshot, selected[0][0] + 1)
+            parent_index, component_index = parent[1], positions[0]
+        if not 1 <= parent_index <= len(regions):
+            return dict(ok=False, message='Compound word number is unavailable.')
+        region = regions[parent_index - 1]
+        token = region.get('cue_token')
+        parts = getattr(token, 'components', ()) or ((region['base'], region.get('char_start', 0), region.get('char_end', 0), region.get('lookup', region['base'])),)
+        components = []
+        for word, start, end, lookup in parts:
+            if word and all('\u3400' <= char <= '\u9fff' for char in word):
+                components.extend((char, start + offset, start + offset + 1, char) for offset, char in enumerate(word))
+            else:
+                components.append((word, start, end, lookup))
+        if not 1 <= component_index <= len(components):
+            return dict(ok=False, message=f'Word {parent_index} has {len(components)} components.')
+        self._voice_submark_parent = (snapshot, parent_index)
+        word, start, end, lookup = components[component_index - 1]
+        sub = dict(region, base=word, lookup=lookup, char_start=start, char_end=end, cue_token=None)
+        x1, y1, x2, y2 = region['bbox']
+        total = max(1, region.get('char_end', end) - region.get('char_start', start))
+        sub['bbox'] = (x1 + (x2-x1)*(start-region.get('char_start', start))/total, y1,
+                       x1 + (x2-x1)*(end-region.get('char_start', start))/total, y2)
+        if getattr(self, 'font', None) is not None:
+            origin = region.get('char_start', 0)
+            text = str(region['base'])
+            sub['bbox'] = (x1 + self._measure_text(self.font, text[:start-origin]), y1,
+                           x1 + self._measure_text(self.font, text[:end-origin]), y2)
+        self._voice_submark_selection = (snapshot, parent_index - 1, sub)
+        self._voice_selected_word_keys = [self._voice_word_region_key(sub)]
+        self._draw_voice_word_highlights([sub])
+        label = ' | '.join(f'{i}: {part[0]}' for i, part in enumerate(components, 1))
+        self._show_hover_text(region, f'{region["base"]} — {label}\nSelected {component_index}: {word}')
+        return dict(ok=True, message=f'Selected {word} in {region["base"]}. {label}')
 
     def highlight_subtitle_word_for_voice(self, position: int) -> dict:
         """Highlight one selectable subtitle token by a 1-based or end-relative position."""
@@ -3123,11 +3181,7 @@ class SubtitleRenderer:
         if len(regions) <= 1:
             return
         if "dictionary" in layers:
-            dictionary_parts = []
-            for word, region in zip(words, regions):
-                result = self._hover_dictionary_text(region).lstrip("| ").strip()
-                dictionary_parts.append(result or f"{word} — No dictionary entry")
-            anchor["multi_dictionary_text"] = "\n".join(dictionary_parts)
+            anchor['dictionary_entries'] = tuple((word, str(region.get('lookup') or word)) for word, region in zip(words, regions))
         if "status" in layers:
             status_parts = []
             for word, region in zip(words, regions):
@@ -3168,7 +3222,6 @@ class SubtitleRenderer:
         active_key = (
             "voice_highlight",
             tuple(self._voice_word_region_key(region) for region in regions),
-            requested,
         )
         self._cancel_hover_clear()
         self._cancel_hover_layer_job()
@@ -3217,9 +3270,8 @@ class SubtitleRenderer:
         ) + 1
         generation = self._voice_translation_each_generation
         active_key = (
-            "voice_highlight_translation_each",
+            "voice_highlight",
             tuple(self._voice_word_region_key(region) for region in regions),
-            requested,
         )
         anchor = self._region_with_combined_hover_anchor(regions[-1], regions)
         selection = self.highlighted_subtitle_selection_for_anki()
@@ -3296,6 +3348,8 @@ class SubtitleRenderer:
         return {"ok": True, "layers": list(requested), "words": words}
 
     def clear_voice_word_highlights(self) -> int:
+        self._voice_submark_selection = None
+        self._voice_submark_parent = None
         count = len(self._voice_selected_word_keys)
         self._voice_selected_word_keys.clear()
         try:
@@ -3367,6 +3421,7 @@ class SubtitleRenderer:
 
     def voice_copy_text(self, kind: str = "active") -> dict:
         """Resolve explicit voice-copy targets without depending on pointer location."""
+        from model.dictionary_feedback import copy_dictionary_text
         normalized = str(kind or "active").strip().lower()
         if normalized == "active":
             for name in ("translation", "dictionary", "status"):
@@ -3389,14 +3444,14 @@ class SubtitleRenderer:
             text = "\n".join(word for word in words if word)
             return {"ok": bool(text), "text": text, "kind": normalized}
         if normalized == "dictionary":
-            values = [self._hover_dictionary_text(region) for region in regions]
+            values = [copy_dictionary_text(self, region) for region in regions]
             text = "\n".join(value for value in values if value)
             return {"ok": bool(text), "text": text, "kind": normalized, "reason": "no_dictionary" if not text else ""}
         if normalized == "dictionary_together":
             anchor = dict(regions[-1])
             anchor["base"] = phrase
             anchor["lookup"] = phrase
-            text = self._hover_dictionary_text(anchor)
+            text = copy_dictionary_text(self, anchor)
             return {"ok": bool(text), "text": text, "kind": normalized, "reason": "no_dictionary" if not text else ""}
 
         provider = self._translation_provider()

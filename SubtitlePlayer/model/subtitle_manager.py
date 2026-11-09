@@ -106,7 +106,9 @@ class SubtitleManager:
         r'((?:[0-9\uFF10-\uFF19]+|[一二三四五六七八九十]+)[ \t\u3000]*(?:匹|本|杯|人|枚|個|回|階|円|歳|才|時|分)|\p{Han}+)'
         r'[(\uFF08]([^\)\uFF09]+)[)\uFF09]'
     )
-    PAREN_NOTE_PATTERN = regex.compile(r'[(\uFF08][^)\uFF09]*[)\uFF09]')
+    # Source readings can be nested inside SDH notes: （錦(きん)えもんの力み声）.
+    # Consume the outer note rather than stopping at the reading's closing bracket.
+    PAREN_NOTE_PATTERN = regex.compile(r'(?P<note>[(\uFF08](?:[^()\uFF08\uFF09]|(?&note))*[)\uFF09])')
     PAREN_NOTE_EXACT = (
         "\u97f3",
         "\u58f0",
