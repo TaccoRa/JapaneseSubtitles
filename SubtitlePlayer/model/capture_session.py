@@ -82,6 +82,7 @@ class CaptureSession:
     mapped_interval: tuple[float, float] | None = None
     mapped_cue_start: float | None = None
     screenshot_position: ScreenshotPosition | None = None
+    screenshot_times: tuple[float, ...] = ()
     screenshot_time: float | None = None
     recording_feedback_done: bool = False
     feedback_generation: int = -1

@@ -98,3 +98,7 @@ browser_subtitle_sources.tmp
 # Personal alignment modes and archived trims
 alignment_preferences.json
 alignment_preferences.tmp
+
+# Disposable development/test runs (keep authored tests and review artifacts)
+dev/.tmp*/
+dev/controls-*/

@@ -21,7 +21,7 @@ function environment(){
   vm.runInNewContext(source,{
     document:{querySelector:()=>canvas},AudioContext:Context,AudioWorkletNode:Worklet,console,Blob,
     btoa:value=>Buffer.from(value,'binary').toString('base64'),
-    fetch:async()=>({blob:async()=>new Blob()}),createImageBitmap:async()=>({width:1600,height:900,close(){}}),
+    fetch:async()=>({blob:async()=>new Blob()}),createImageBitmap:async input=>({width:input===canvas?canvas.width:1600,height:input===canvas?canvas.height:900,close(){}}),
     navigator:{mediaDevices:{async getUserMedia(value){
       constraints.push(value);if(acquireGate)await acquireGate;
       const track={readyState:'live',addEventListener(name,fn){this[name]=fn;},stop(){this.readyState='ended';}};
@@ -147,4 +147,20 @@ test('a card screenshot crops browser pixels at device scale and rejects stale o
   assert.deepEqual(env.draws[0].slice(1),[200,100,1200,600,0,0,1200,600]);
   await env.message({type:'CancelRecording',operationId:'card'});
   assert.equal((await env.message({type:'StoreScreenshot',operationId:'card',image:'data:image/png;base64,AA=='})).ok,false);
+});
+
+
+test('multiple screenshots wait for every segment and stack vertically',async()=>{
+  const env=environment();await env.message({type:'ConnectStream',streamId:'tab'});
+  await env.message({type:'SetCrop',operationId:'multi',rect:{x:0,y:0,width:600,height:300},viewport:{width:800,height:450}});
+  await env.message({type:'StartRecording',operationId:'multi',screenshotCount:2});
+  await env.message({type:'AnalysisClock',currentTime:10,rate:1,fingerprint:'media'});
+  env.pcm([0.2,0.3]);
+  await env.message({type:'StoreScreenshot',operationId:'multi',image:'data:image/png;base64,AA=='});
+  await env.message({type:'StopRecording',operationId:'multi',time:12});
+  assert.equal(env.sent.filter(m=>m.type==='EncodedCapture').length,0);
+  await env.message({type:'StoreScreenshot',operationId:'multi',image:'data:image/png;base64,AA=='});
+  assert.equal(env.canvas.width,1200);assert.equal(env.canvas.height,1200);
+  assert.equal(env.draws.at(-1)[2],600);
+  assert.equal(env.sent.filter(m=>m.type==='EncodedCapture').length,1);
 });

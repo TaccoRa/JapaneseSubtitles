@@ -251,7 +251,7 @@ async function captureScreenshot(m){
     if(!result?.ok)throw Error(result?.error||'Screenshot failed');
     if(stillCurrent())await toFrame('ScreenshotReady',{operationId:active.operationId});
   }catch(error){await failThis(error.message);}
-  finally{clearTimeout(timeout);await cleanFrames(true).catch(()=>{});}
+  finally{clearTimeout(timeout);await cleanFrames(true).catch(()=>{});active.screenshotStarted=false;}
 }
 function scheduleReconnect(epoch,token){
   if(epoch!==connectionEpoch)return;
@@ -350,7 +350,7 @@ async function openSocket(token){
         if(!(m.end>m.start&&m.end-m.start<120))throw Error('Invalid recording interval');
         recording={...m,previousRate:current.rate,previousPaused:m.previousPaused??current.paused};
         await toFrame('PrepareCapture',{...m,previousRate:current.rate,previousPaused:m.previousPaused??current.paused});
-        const prepared=await offscreen({type:'StartRecording',operationId:m.operationId,screenshotTime:m.screenshotTime??(m.start+m.end)/2});
+        const prepared=await offscreen({type:'StartRecording',operationId:m.operationId,screenshotCount:m.screenshotTimes?.length||1,screenshotTime:m.screenshotTime??(m.start+m.end)/2});
         if(!prepared?.ok)throw Error(prepared?.error||'Recorder failed');
         await toFrame('RunCapture',{operationId:m.operationId});
       }

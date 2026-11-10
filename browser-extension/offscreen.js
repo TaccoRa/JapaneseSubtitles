@@ -6,14 +6,15 @@ const canvas=document.querySelector('#image');
 const notify=message=>{try{return chrome.runtime.sendMessage(message).catch(()=>{});}catch{return Promise.resolve();}};
 const base64=async blob=>{const bytes=new Uint8Array(await blob.arrayBuffer());let out='';for(let i=0;i<bytes.length;i+=32768)out+=String.fromCharCode(...bytes.subarray(i,i+32768));return btoa(out);};
 async function completeClip(clip){
-  if(!clip.audio||!clip.image||clip.sending||clips.get(clip.id)!==clip)return;
+  if(!clip.audio||!clip.image||(clip.images?.length||0)<(clip.screenshotCount||1)||clip.sending||clips.get(clip.id)!==clip)return;
   clip.sending=true;
+  clip.images?.forEach(frame=>frame.close());
   await notify({type:'EncodedCapture',operationId:clip.id,audio:clip.audio,image:clip.image,audioMime:'audio/wav',endTime:clip.endTime});
   if(clips.get(clip.id)===clip)clips.delete(clip.id);
 }
 async function disconnect(){
   recordingActive=false;recordedPCM=[];pcm=[];pcmCount=0;clock=null;
-  operation=null;clips.clear();
+  operation=null;for(const clip of clips.values())clip.images?.forEach(frame=>frame.close());clips.clear();
   // Detach before awaiting: cleanup is safe after failures and repeated disconnects.
   const oldStream=stream,oldContext=context,oldSource=source,oldProcessor=processor;
   stream=context=source=processor=null;
@@ -77,6 +78,7 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
       if(recordingActive)throw Error('Recorder busy');
       operation=m.operationId;
       const clip=clips.get(operation)||{id:operation};
+      clip.screenshotCount=m.screenshotCount||1;clip.images=[];
       clip.sampleRate=context.sampleRate;clips.set(operation,clip);
       recordedPCM=[];recordingActive=true;return {ok:true};
     }
@@ -96,6 +98,11 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
         if(![x,y,w,h].every(Number.isFinite)||w<8||h<8)throw Error('Video image is outside the captured tab');
         canvas.width=Math.round(w);canvas.height=Math.round(h);
         canvas.getContext('2d').drawImage(image,x,y,w,h,0,0,canvas.width,canvas.height);
+        clip.images=clip.images||[];
+        clip.images.push(await createImageBitmap(canvas));
+        canvas.width=Math.max(...clip.images.map(frame=>frame.width));
+        canvas.height=clip.images.reduce((height,frame)=>height+frame.height,0);
+        let top=0;for(const frame of clip.images){canvas.getContext('2d').drawImage(frame,0,top);top+=frame.height;}
         clip.image=canvas.toDataURL('image/png').split(',')[1];
       }finally{image.close();}
       await completeClip(clip);
@@ -105,6 +112,7 @@ chrome.runtime.onMessage.addListener((m,sender,reply)=>{
       return {ok:true};
     }
     if(m.type==='CancelRecording'){
+      clip.images?.forEach(frame=>frame.close());
       clips.delete(m.operationId);
       if(operation===m.operationId){operation=null;recordingActive=false;recordedPCM=[];}
       return {ok:true};

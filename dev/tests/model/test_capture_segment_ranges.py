@@ -143,7 +143,8 @@ def test_pause_limit_is_available_in_browser_recording_settings():
     assert specs[0]['default'] == 1.5 and specs[0]['type'] == 'float'
 
 
-def test_fresh_capture_replaces_only_exact_sentence_including_listening():
+@pytest.mark.parametrize("expand", [False, True])
+def test_fresh_capture_replaces_only_exact_sentence_including_listening(expand):
     client = object.__new__(AnkiClient)
     client.sound_field, client.image_field = 'Sound', 'Image'
     client.add_rubies_to_sentence_ja_field, client.sentence_ja_field = 'Raw', 'SentenceJA'
@@ -166,7 +167,17 @@ def test_fresh_capture_replaces_only_exact_sentence_including_listening():
         updates.append(update)
         notes[update['id']]['fields'].update({key: {'value': value} for key, value in update['fields'].items()})
     client._invoke = invoke
-    assert client.replace_exact_sentence_capture(1) == [2]
+    context = None
+    if expand:
+        client.sentence_de_field = 'Translation'
+        client._translate_sentence = lambda text: 'new translation'
+        context = NS(plain_text='結果は\n一緒\n追加。', inline_ruby_text='結果[けっか]は\n一緒[いっしょ]\n追加[ついか]。')
+    assert client.replace_exact_sentence_capture(1, sentence_context=context) == [2]
+    if expand:
+        assert notes[1]['fields']['Raw']['value'] == '結果は<br> 一緒<br> 追加。'
+        assert notes[2]['fields']['SentenceJA']['value'].endswith('追加[ついか]。')
+        assert notes[3]['fields']['SentenceJA']['value'] == 'different sentence'
+        updates = [update for update in updates if 'Sound' in update['fields']]
     assert [update['id'] for update in updates] == [2]
     assert set(updates[0]['fields']) == {'Sound', 'Image'}
     assert notes[2]['fields']['Sound']['value'] == '[sound:fresh.wav]'

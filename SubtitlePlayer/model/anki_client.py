@@ -666,7 +666,7 @@ class AnkiClient:
         if any(after.get(name) != value for name, value in media.items()):
             raise RuntimeError("Shared recording attachment could not be verified")
 
-    def replace_exact_sentence_capture(self, note_id, *, is_cancelled=lambda: False):
+    def replace_exact_sentence_capture(self, note_id, *, sentence_context=None, is_cancelled=lambda: False):
         """Propagate verified fresh media to exact-sentence notes, including listening.
 
         Read the sentence from the original note, not the adjusted audio range.
@@ -681,6 +681,20 @@ class AnkiClient:
             value = re.sub(r"\[[^\[\]]*\]", "", value)
             return re.sub(r"\s+", "", value)
         key = sentence_key(raw or rendered)
+        replacement = {}
+        segment_keys = []
+        if sentence_context is not None:
+            segment_keys = [sentence_key(part) for part in sentence_context.plain_text.splitlines() if sentence_key(part)]
+            if key and any(part in key or key in part for part in segment_keys):
+                replacement = {
+                    self.add_rubies_to_sentence_ja_field: sentence_context.plain_text,
+                    self.sentence_ja_field: escape(sentence_context.inline_ruby_text),
+                    self.sentence_de_field: self._translate_sentence(sentence_context.plain_text),
+                }
+                self._encode_sentence_line_breaks_for_anki(replacement)
+                if is_cancelled():
+                    raise RuntimeError("Capture cancelled")
+                self._invoke("updateNoteFields", {"note": {"id": int(note_id), "fields": replacement}})
         if not key:
             raise ValueError("Capture target has no sentence to match")
         # Different ruby segmentation/HTML breaks defeat phrase searches.
@@ -696,10 +710,14 @@ class AnkiClient:
                 fields = note.get("fields", {})
                 sentence = (fields.get(self.add_rubies_to_sentence_ja_field, {}).get("value", "")
                             or fields.get(self.sentence_ja_field, {}).get("value", ""))
-                if sentence_key(sentence) != key:
+                candidate = sentence_key(sentence)
+                if candidate != key and not (replacement and candidate and any(part in candidate or candidate in part for part in segment_keys)):
                     continue
                 if any(name not in fields for name in (self.sound_field, self.image_field)):
                     continue
+                if replacement:
+                    self._invoke("updateNoteFields", {"note": {"id": int(note["noteId"]),
+                        "fields": {name: value for name, value in replacement.items() if name in fields}}})
                 self.attach_shared_capture(int(note["noteId"]), source)
                 updated.append(int(note["noteId"]))
         return updated

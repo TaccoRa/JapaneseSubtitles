@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-11-09T19:14:28+00:00",
+  "updated_at": "2026-11-10T20:23:27+00:00",
   "words": [
     {
       "surface": "(not tsu...)",
@@ -982,6 +982,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "~ 番"
+      }
+    },
+    {
+      "surface": "~ 者",
+      "normalized": "~者",
+      "base": "",
+      "reading": "",
+      "meaning": "~Person",
+      "anime": "",
+      "source": "anki",
+      "status": "anki_mature",
+      "created_at": "2026-11-10T19:28:24+00:00",
+      "updated_at": "2026-11-10T19:28:24+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1722333135125,
+        "card_ids": "1722333135125,1722333135126",
+        "due_date": "26.12.2026",
+        "reviews": 31,
+        "suspended": false,
+        "note_modified": "20:23 24-10-2026",
+        "sentence": "トムの裏切り者!",
+        "sentence_translated": "Tom, du Verräter!",
+        "reading_field": "",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "~ 者"
       }
     },
     {
@@ -32463,6 +32492,35 @@
       }
     },
     {
+      "surface": "別格",
+      "normalized": "別格",
+      "base": "",
+      "reading": "",
+      "meaning": "besonders, außergewöhnlich",
+      "anime": "ONE PIECE",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-11-10T19:31:24+00:00",
+      "updated_at": "2026-11-10T19:31:24+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1794339083119,
+        "card_ids": "1794339083119,1794339083120",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "20:31 10-11-2026",
+        "sentence": "まあ 俺は別格として―\n 今 各海でヤベえやつらが\n 暴れてるらしいんだ",
+        "sentence_translated": "Na ja, ich bin zwar ein Sonderfall – aber anscheinend treiben sich gerade in allen Meeren ein paar echt gefährliche Typen aus.",
+        "reading_field": "",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "別格"
+      }
+    },
+    {
       "surface": "利く",
       "normalized": "利く",
       "base": "",
@@ -36886,6 +36944,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "司令塔"
+      }
+    },
+    {
+      "surface": "各海",
+      "normalized": "各海",
+      "base": "",
+      "reading": "",
+      "meaning": "jedes Meer",
+      "anime": "ONE PIECE",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-11-10T19:29:24+00:00",
+      "updated_at": "2026-11-10T19:29:25+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1794338963015,
+        "card_ids": "1794338963015,1794338963016",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "20:29 10-11-2026",
+        "sentence": "今 各海でヤベえやつらが\n 暴れてるらしいんだ",
+        "sentence_translated": "Anscheinend treiben gerade in allen Meeren ein paar echt gefährliche Typen ihr Unwesen.",
+        "reading_field": "",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "各海"
       }
     },
     {
@@ -66383,6 +66470,35 @@
       }
     },
     {
+      "surface": "残酷",
+      "normalized": "残酷",
+      "base": "",
+      "reading": "",
+      "meaning": "grausam, brutal, rücksichtslos",
+      "anime": "Kimetsu no Yaiba",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-11-10T19:28:24+00:00",
+      "updated_at": "2026-11-10T19:28:24+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1793035114043,
+        "card_ids": "1793035114141,1793035114180",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "18:18 26-10-2026",
+        "sentence": "残酷に...だろ!",
+        "sentence_translated": "Das ist doch grausam... oder?!",
+        "reading_field": "",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "残酷"
+      }
+    },
+    {
       "surface": "殲滅",
       "normalized": "殲滅",
       "base": "",
@@ -73393,6 +73509,35 @@
         "sentence_translated_field": "SentenceDE",
         "field": "Front",
         "field_value": "狭い"
+      }
+    },
+    {
+      "surface": "狸",
+      "normalized": "狸",
+      "base": "",
+      "reading": "",
+      "meaning": "Tanuki (Nyctereutes procyonoides), Marderhund, schlauer Hund",
+      "anime": "ONE PIECE",
+      "source": "anki",
+      "status": "anki_unknown",
+      "created_at": "2026-11-10T20:23:27+00:00",
+      "updated_at": "2026-11-10T20:23:27+00:00",
+      "notes": "",
+      "extra": {
+        "note_id": 1794342206516,
+        "card_ids": "1794342206516,1794342206517",
+        "due_date": "",
+        "reviews": 0,
+        "suspended": false,
+        "note_modified": "21:23 10-11-2026",
+        "sentence": "タヌキさんのいる部屋は\n 命を懸けても死守するぞ",
+        "sentence_translated": "Den Raum, in dem sich Tanuki befindet, werde ich um jeden Preis verteidigen.",
+        "reading_field": "",
+        "meaning_field": "Back",
+        "sentence_field": "AddRubiesToSentenceJA",
+        "sentence_translated_field": "SentenceDE",
+        "field": "Front",
+        "field_value": "狸"
       }
     },
     {

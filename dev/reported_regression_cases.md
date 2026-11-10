@@ -985,3 +985,12 @@ anime-specific offsets.
 combined reading was missing or attached only to part of the word.
 
 **Should be:** Treat `１発` as one ruby span and render `１発[いっぱつ]`.
+
+
+### CAPTURE - Multiple segments and sentence replacement
+
+**Input:** Add a word and sentence, then press 6 to record the current and next segment.
+
+**Was wrong:** Only one screenshot was taken and the sentence stayed at the old range.
+
+**Should be:** Capture each selected segment, stack the images vertically in the existing image field, and replace overlapping sentence text and translation together with the recording, preserving word fields and card templates.

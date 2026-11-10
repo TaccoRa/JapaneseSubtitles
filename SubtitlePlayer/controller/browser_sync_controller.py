@@ -1024,6 +1024,8 @@ class BrowserSyncController:
         cue_end = max(end for _, end in mapping.video[first:last+1])
         session.screenshot_position = position
         session.screenshot_time = position.video_time(cue_start, cue_end, start, end)
+        session.screenshot_times = tuple(position.video_time(a, b, start, end)
+            for a, b in mapping.video[first:last+1])
         session.mapped_cue_start = cue_start
 
     def capture(self, session, note_id=None):
@@ -1052,7 +1054,7 @@ class BrowserSyncController:
         try:
             self.bridge.send(dict(type="CaptureRequest", operationId=session.id, identity=session.media_identity,
                                   fingerprint=session.media_fingerprint, timingVersion=session.timing_version,
-                                  start=start, end=end, noteId=note_id, screenshotTime=session.screenshot_time if session.screenshot_time is not None else (start + end) / 2,
+                                  start=start, end=end, noteId=note_id, screenshotTimes=list(session.screenshot_times), screenshotTime=session.screenshot_time if session.screenshot_time is not None else (start + end) / 2,
                                   policy=session.post_capture_policy, previousPaused=session.previous_paused))
         except ConnectionError:
             session.phase = "failed"
@@ -1251,7 +1253,9 @@ class BrowserSyncController:
                 # A new recording must also reach cards mined before this capture,
                 # including add-only cards that have no media yet.
                 self.controller.anki.replace_exact_sentence_capture(
-                    session.target_note_id, is_cancelled=lambda: session.cancelled)
+                    session.target_note_id, **({"sentence_context": session.target.sentence_context}
+                        if getattr(getattr(session, "target", None), "sentence_context", None) is not None else {}),
+                    is_cancelled=lambda: session.cancelled)
                 logger.info("Native capture %s media verified on note %s", session.id, session.target_note_id)
                 self._results.put(("media", session.id, None))
             except Exception as exc:

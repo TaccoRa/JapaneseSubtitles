@@ -346,7 +346,10 @@ every(()=>{
     const track=tracks.find(t=>t.cues?.length>=8);
     if(track&&sequence%50===0)send({type:'CaptionIntervals',videoId:id,mediaKey:mediaKey(v),referenceId:'native:'+track.language+':'+track.label,language:track.language,priority:priority(track),intervals:[...track.cues].map(c=>[c.startTime,c.endTime])});
     if(capture?.id===id&&capture.started){
-      if(!capture.screenshotRequested&&v.currentTime>=capture.screenshotTime){
+      const times=capture.screenshotTimes?.length?capture.screenshotTimes:[capture.screenshotTime];
+      const index=capture.screenshotIndex||0;
+      if(!capture.screenshotPending&&index<times.length&&v.currentTime>=times[index]){
+        capture.screenshotIndex=index+1;
         capture.screenshotRequested=true;capture.screenshotPending=true;
         pendingScreenshots.set(capture.operationId,{id,video:v,mediaKey:mediaKey(v)});
         send({type:'CaptureScreenshot',operationId:capture.operationId,time:v.currentTime});
